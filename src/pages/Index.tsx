@@ -31,20 +31,28 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-accent to-background">
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <PawPrint className="h-12 w-12 text-primary" />
-            <h1 className="text-4xl font-bold text-primary">PawPort</h1>
+      {/* Hero Section */}
+      <div className="bg-primary text-primary-foreground py-16">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col items-center justify-center gap-6 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <PawPrint className="h-16 w-16" />
+              <h1 className="text-5xl font-bold">PawPort</h1>
+            </div>
+            <p className="text-2xl max-w-2xl mx-auto">
+              Find pet-friendly flights for your furry travel companion
+            </p>
+            <div className="w-full max-w-3xl mt-4">
+              <SearchForm onSearch={handleSearch} />
+            </div>
           </div>
-          <p className="text-xl text-gray-600 mb-8">
-            Find pet-friendly flights for your furry travel companion
-          </p>
-          <SearchForm onSearch={handleSearch} />
         </div>
+      </div>
 
+      {/* Results Section */}
+      <div className="container mx-auto px-4 py-12">
         {searchPerformed && (
-          <div className="space-y-8 mt-12">
+          <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {mockFlights.map((flight, index) => (
                 <FlightCard key={index} {...flight} />
