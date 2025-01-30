@@ -72,7 +72,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-accent to-background">
-      {/* Hero Section */}
       <div className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-4">
           <div className="flex flex-col items-center justify-center gap-6 text-center">
@@ -91,24 +90,24 @@ const Index = () => {
                 <DialogTrigger asChild>
                   <Button variant="secondary">Email Sign In</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <div className="flex flex-col items-center space-y-6 py-6">
+                <DialogContent className="sm:max-w-[400px] p-0">
+                  <div className="flex flex-col items-center space-y-4 p-8">
                     <PawPrint className="h-12 w-12 text-primary" />
-                    <DialogTitle className="text-2xl font-normal">
-                      {isSignUpMode ? "You're one click away" : "Welcome back"}
+                    <DialogTitle className="text-2xl font-normal text-center">
+                      {isSignUpMode ? "Create your account" : "Welcome back"}
                     </DialogTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground text-center max-w-[280px]">
                       {isSignUpMode
-                        ? "from finding pet-friendly flights"
+                        ? "Join PawPort to find pet-friendly flights"
                         : "Sign in to continue your journey"}
                     </p>
-                    <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
+                    <form onSubmit={handleAuthSubmit} className="w-full space-y-4 mt-4">
                       <Input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@company.com"
-                        className="w-full"
+                        className="w-full h-12 text-base"
                         required
                       />
                       <Input
@@ -116,25 +115,32 @@ const Index = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Password"
-                        className="w-full"
+                        className="w-full h-12 text-base"
                         required
                       />
-                      <Button type="submit" className="w-full bg-[#1A1F2C] hover:bg-[#2A2F3C]">
-                        {isSignUpMode ? "Sign Up" : "Sign In"}
+                      <Button 
+                        type="submit" 
+                        className="w-full h-12 text-base bg-[#1A1F2C] hover:bg-[#2A2F3C] mt-2"
+                      >
+                        {isSignUpMode ? "Sign up with email" : "Sign in with email"}
                       </Button>
-                      <p className="text-center text-sm text-muted-foreground">
-                        {isSignUpMode ? "Already have an account?" : "Need an account?"}{" "}
-                        <button
-                          type="button"
-                          onClick={() => setIsSignUpMode(!isSignUpMode)}
-                          className="text-primary hover:underline"
-                        >
-                          {isSignUpMode ? "Sign In" : "Sign Up"}
-                        </button>
-                      </p>
-                      <p className="text-center text-xs text-muted-foreground">
-                        By signing up, I agree to the Terms of Service and Privacy Policy
-                      </p>
+                      <div className="text-center space-y-4 mt-6">
+                        <p className="text-sm text-muted-foreground">
+                          {isSignUpMode ? "Already have an account?" : "Don't have an account?"}{" "}
+                          <button
+                            type="button"
+                            onClick={() => setIsSignUpMode(!isSignUpMode)}
+                            className="text-primary hover:underline font-medium"
+                          >
+                            {isSignUpMode ? "Sign in" : "Sign up"}
+                          </button>
+                        </p>
+                        {isSignUpMode && (
+                          <p className="text-xs text-muted-foreground max-w-[280px] mx-auto">
+                            By signing up, you agree to our Terms of Service and Privacy Policy
+                          </p>
+                        )}
+                      </div>
                     </form>
                   </div>
                 </DialogContent>
