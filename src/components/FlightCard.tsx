@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Paw } from "lucide-react";
+import { PawPrint } from "lucide-react";
 
 interface FlightCardProps {
   airline: string;
@@ -37,7 +37,7 @@ export const FlightCard = ({
           </div>
         </div>
         <div className="flex items-start gap-2">
-          <Paw className="h-5 w-5 text-primary mt-0.5" />
+          <PawPrint className="h-5 w-5 text-primary mt-0.5" />
           <p className="text-sm">{petPolicy}</p>
         </div>
       </CardContent>

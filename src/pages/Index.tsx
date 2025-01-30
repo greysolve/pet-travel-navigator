@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SearchForm } from "@/components/SearchForm";
 import { FlightCard } from "@/components/FlightCard";
-import { Plane, Paw } from "lucide-react";
+import { Plane, PawPrint } from "lucide-react";
 
 // Mock data for demonstration
 const mockFlights = [
@@ -34,7 +34,7 @@ const Index = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Paw className="h-12 w-12 text-primary" />
+            <PawPrint className="h-12 w-12 text-primary" />
             <h1 className="text-4xl font-bold text-primary">PawPort</h1>
           </div>
           <p className="text-xl text-gray-600 mb-8">
