@@ -37,7 +37,7 @@ const Index = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signIn, signInWithEmail, signUp } = useAuth();
+  const { signInWithEmail, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = (origin: string, destination: string) => {
@@ -74,26 +74,6 @@ const Index = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      await signIn();
-      toast({
-        title: "Welcome!",
-        description: "Successfully signed in with Google",
-      });
-    } catch (error: any) {
-      console.error("Google auth error:", error);
-      toast({
-        variant: "destructive",
-        title: "Authentication Error",
-        description: error.message || "Failed to sign in with Google",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-primary">
       <div className="flex flex-col items-center justify-center min-h-screen px-4 py-16">
@@ -107,16 +87,7 @@ const Index = () => {
             Find pet-friendly flights for your furry travel companion
           </p>
 
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <Button 
-              onClick={handleGoogleSignIn} 
-              variant="secondary"
-              className="h-12 px-6 text-base font-medium bg-secondary/90 hover:bg-secondary"
-              disabled={isLoading}
-            >
-              {isLoading ? "Signing in..." : "Continue with Google"}
-            </Button>
-            
+          <div className="flex items-center justify-center mt-8">
             <Dialog>
               <DialogTrigger asChild>
                 <Button 
@@ -236,6 +207,8 @@ const Index = () => {
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 };
