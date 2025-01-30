@@ -71,91 +71,117 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-accent to-background">
-      <div className="bg-primary text-primary-foreground py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <PawPrint className="h-16 w-16" />
-              <h1 className="text-5xl font-bold">PawPort</h1>
-            </div>
-            <p className="text-2xl max-w-2xl mx-auto">
-              Find pet-friendly flights for your furry travel companion
-            </p>
-            <div className="flex gap-4">
-              <Button onClick={signIn} variant="secondary">
-                Continue with Google
-              </Button>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="secondary">Email Sign In</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[400px] p-0">
-                  <div className="flex flex-col items-center space-y-4 p-8">
-                    <PawPrint className="h-12 w-12 text-primary" />
-                    <DialogTitle className="text-2xl font-normal text-center">
-                      {isSignUpMode ? "Create your account" : "Welcome back"}
-                    </DialogTitle>
-                    <p className="text-sm text-muted-foreground text-center max-w-[280px]">
-                      {isSignUpMode
-                        ? "Join PawPort to find pet-friendly flights"
-                        : "Sign in to continue your journey"}
-                    </p>
-                    <form onSubmit={handleAuthSubmit} className="w-full space-y-4 mt-4">
-                      <Input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@company.com"
-                        className="w-full h-12 text-base"
-                        required
-                      />
-                      <Input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Password"
-                        className="w-full h-12 text-base"
-                        required
-                      />
-                      <Button 
-                        type="submit" 
-                        className="w-full h-12 text-base bg-[#1A1F2C] hover:bg-[#2A2F3C] mt-2"
-                      >
-                        {isSignUpMode ? "Sign up with email" : "Sign in with email"}
-                      </Button>
-                      <div className="text-center space-y-4 mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          {isSignUpMode ? "Already have an account?" : "Don't have an account?"}{" "}
-                          <button
-                            type="button"
-                            onClick={() => setIsSignUpMode(!isSignUpMode)}
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {isSignUpMode ? "Sign in" : "Sign up"}
-                          </button>
+    <div className="min-h-screen bg-primary">
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-16">
+        <div className="w-full max-w-[600px] text-center space-y-8">
+          <div className="flex items-center justify-center gap-4 text-primary-foreground">
+            <PawPrint className="h-16 w-16" />
+            <h1 className="text-6xl font-bold">PawPort</h1>
+          </div>
+          
+          <p className="text-2xl text-primary-foreground/90">
+            Find pet-friendly flights for your furry travel companion
+          </p>
+
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <Button 
+              onClick={signIn} 
+              variant="secondary"
+              className="h-12 px-6 text-base font-medium bg-secondary/90 hover:bg-secondary"
+            >
+              Continue with Google
+            </Button>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="secondary"
+                  className="h-12 px-6 text-base font-medium bg-secondary/90 hover:bg-secondary"
+                >
+                  Email Sign In
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[400px] p-0">
+                <div className="flex flex-col items-center space-y-6 p-8">
+                  <PawPrint className="h-12 w-12 text-primary" />
+                  <DialogTitle className="text-2xl font-normal text-center">
+                    {isSignUpMode ? "Create your account" : "Welcome back"}
+                  </DialogTitle>
+                  <p className="text-sm text-muted-foreground text-center max-w-[280px]">
+                    {isSignUpMode
+                      ? "Join PawPort to find pet-friendly flights"
+                      : "Sign in to continue your journey"}
+                  </p>
+                  <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="w-full h-12 text-base bg-white border-gray-300"
+                      required
+                    />
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className="w-full h-12 text-base bg-white border-gray-300"
+                      required
+                    />
+                    <Button 
+                      type="submit" 
+                      className="w-full h-12 text-base bg-[#1A1F2C] hover:bg-[#2A2F3C] mt-4"
+                    >
+                      {isSignUpMode ? "Sign up with email" : "Sign in with email"}
+                    </Button>
+                    <div className="text-center space-y-4 mt-6">
+                      <p className="text-sm text-muted-foreground">
+                        {isSignUpMode ? "Already have an account?" : "Don't have an account?"}{" "}
+                        <button
+                          type="button"
+                          onClick={() => setIsSignUpMode(!isSignUpMode)}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          {isSignUpMode ? "Sign in" : "Sign up"}
+                        </button>
+                      </p>
+                      {isSignUpMode && (
+                        <p className="text-xs text-muted-foreground max-w-[280px] mx-auto">
+                          By signing up, you agree to our Terms of Service and Privacy Policy
                         </p>
-                        {isSignUpMode && (
-                          <p className="text-xs text-muted-foreground max-w-[280px] mx-auto">
-                            By signing up, you agree to our Terms of Service and Privacy Policy
-                          </p>
-                        )}
-                      </div>
-                    </form>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                      )}
+                    </div>
+                  </form>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="w-full mt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                type="text"
+                placeholder="Origin (city or airport code)"
+                className="h-12 text-base bg-white/90 border-0"
+              />
+              <Input
+                type="text"
+                placeholder="Destination (city or airport code)"
+                className="h-12 text-base bg-white/90 border-0"
+              />
             </div>
-            <div className="w-full max-w-3xl mt-4">
-              <SearchForm onSearch={handleSearch} />
-            </div>
+            <Button 
+              className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
+            >
+              Search
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Results Section */}
-      <div className="container mx-auto px-4 py-12">
-        {searchPerformed && (
+      {searchPerformed && (
+        <div className="container mx-auto px-4 py-12">
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {mockFlights.map((flight, index) => (
@@ -176,8 +202,8 @@ const Index = () => {
               </p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
