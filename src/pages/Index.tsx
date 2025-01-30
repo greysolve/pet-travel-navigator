@@ -38,6 +38,7 @@ const Index = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { signIn, signInWithEmail, signUp } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = (origin: string, destination: string) => {
     console.log("Searching flights from", origin, "to", destination);
@@ -46,12 +47,13 @@ const Index = () => {
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       if (isSignUpMode) {
         await signUp(email, password);
         toast({
           title: "Account created successfully!",
-          description: "Welcome to PawPort",
+          description: "Please check your email to verify your account.",
         });
       } else {
         await signInWithEmail(email, password);
@@ -60,13 +62,35 @@ const Index = () => {
           description: "Successfully signed in",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
         variant: "destructive",
         title: "Authentication Error",
-        description: "Please check your credentials and try again.",
+        description: error.message || "Please check your credentials and try again.",
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      await signIn();
+      toast({
+        title: "Welcome!",
+        description: "Successfully signed in with Google",
+      });
+    } catch (error: any) {
+      console.error("Google auth error:", error);
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: error.message || "Failed to sign in with Google",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,11 +109,12 @@ const Index = () => {
 
           <div className="flex items-center justify-center gap-4 mt-8">
             <Button 
-              onClick={signIn} 
+              onClick={handleGoogleSignIn} 
               variant="secondary"
               className="h-12 px-6 text-base font-medium bg-secondary/90 hover:bg-secondary"
+              disabled={isLoading}
             >
-              Continue with Google
+              {isLoading ? "Signing in..." : "Continue with Google"}
             </Button>
             
             <Dialog>
@@ -97,6 +122,7 @@ const Index = () => {
                 <Button 
                   variant="secondary"
                   className="h-12 px-6 text-base font-medium bg-secondary/90 hover:bg-secondary"
+                  disabled={isLoading}
                 >
                   Email Sign In
                 </Button>
@@ -120,6 +146,7 @@ const Index = () => {
                       placeholder="name@company.com"
                       className="w-full h-12 text-base bg-white border-gray-300"
                       required
+                      disabled={isLoading}
                     />
                     <Input
                       type="password"
@@ -128,12 +155,16 @@ const Index = () => {
                       placeholder="Password"
                       className="w-full h-12 text-base bg-white border-gray-300"
                       required
+                      disabled={isLoading}
                     />
                     <Button 
                       type="submit" 
                       className="w-full h-12 text-base bg-[#1A1F2C] hover:bg-[#2A2F3C] mt-4"
+                      disabled={isLoading}
                     >
-                      {isSignUpMode ? "Sign up with email" : "Sign in with email"}
+                      {isLoading 
+                        ? "Processing..." 
+                        : (isSignUpMode ? "Sign up with email" : "Sign in with email")}
                     </Button>
                     <div className="text-center space-y-4 mt-6">
                       <p className="text-sm text-muted-foreground">
@@ -142,6 +173,7 @@ const Index = () => {
                           type="button"
                           onClick={() => setIsSignUpMode(!isSignUpMode)}
                           className="text-primary hover:underline font-medium"
+                          disabled={isLoading}
                         >
                           {isSignUpMode ? "Sign in" : "Sign up"}
                         </button>
