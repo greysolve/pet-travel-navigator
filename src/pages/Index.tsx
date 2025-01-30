@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { SearchForm } from "@/components/SearchForm";
 import { FlightCard } from "@/components/FlightCard";
-import { Plane, PawPrint } from "lucide-react";
+import { PawPrint } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "@/components/ui/use-toast";
 
 // Mock data for demonstration
 const mockFlights = [
@@ -23,10 +34,27 @@ const mockFlights = [
 
 const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { signIn, signInWithEmail, signUp } = useAuth();
 
   const handleSearch = (origin: string, destination: string) => {
     console.log("Searching flights from", origin, "to", destination);
     setSearchPerformed(true);
+  };
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (isSignUpMode) {
+        await signUp(email, password);
+      } else {
+        await signInWithEmail(email, password);
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
+    }
   };
 
   return (
@@ -42,6 +70,61 @@ const Index = () => {
             <p className="text-2xl max-w-2xl mx-auto">
               Find pet-friendly flights for your furry travel companion
             </p>
+            <div className="flex gap-4">
+              <Button onClick={signIn} variant="secondary">
+                Continue with Google
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="secondary">Email Sign In</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      {isSignUpMode ? "Create an Account" : "Sign In"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleAuthSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Email
+                      </label>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Password
+                      </label>
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button type="submit">
+                        {isSignUpMode ? "Sign Up" : "Sign In"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setIsSignUpMode(!isSignUpMode)}
+                      >
+                        {isSignUpMode
+                          ? "Already have an account? Sign In"
+                          : "Need an account? Sign Up"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
             <div className="w-full max-w-3xl mt-4">
               <SearchForm onSearch={handleSearch} />
             </div>
