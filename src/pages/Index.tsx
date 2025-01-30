@@ -49,11 +49,24 @@ const Index = () => {
     try {
       if (isSignUpMode) {
         await signUp(email, password);
+        toast({
+          title: "Account created successfully!",
+          description: "Welcome to PawPort",
+        });
       } else {
         await signInWithEmail(email, password);
+        toast({
+          title: "Welcome back!",
+          description: "Successfully signed in",
+        });
       }
     } catch (error) {
       console.error("Authentication error:", error);
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: "Please check your credentials and try again.",
+      });
     }
   };
 
@@ -78,50 +91,52 @@ const Index = () => {
                 <DialogTrigger asChild>
                   <Button variant="secondary">Email Sign In</Button>
                 </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {isSignUpMode ? "Create an Account" : "Sign In"}
+                <DialogContent className="sm:max-w-md">
+                  <div className="flex flex-col items-center space-y-6 py-6">
+                    <PawPrint className="h-12 w-12 text-primary" />
+                    <DialogTitle className="text-2xl font-normal">
+                      {isSignUpMode ? "You're one click away" : "Welcome back"}
                     </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAuthSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        Email
-                      </label>
+                    <p className="text-sm text-muted-foreground">
+                      {isSignUpMode
+                        ? "from finding pet-friendly flights"
+                        : "Sign in to continue your journey"}
+                    </p>
+                    <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
                       <Input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@company.com"
+                        className="w-full"
                         required
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        Password
-                      </label>
                       <Input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Password"
+                        className="w-full"
                         required
                       />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button type="submit">
+                      <Button type="submit" className="w-full bg-[#1A1F2C] hover:bg-[#2A2F3C]">
                         {isSignUpMode ? "Sign Up" : "Sign In"}
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setIsSignUpMode(!isSignUpMode)}
-                      >
-                        {isSignUpMode
-                          ? "Already have an account? Sign In"
-                          : "Need an account? Sign Up"}
-                      </Button>
-                    </div>
-                  </form>
+                      <p className="text-center text-sm text-muted-foreground">
+                        {isSignUpMode ? "Already have an account?" : "Need an account?"}{" "}
+                        <button
+                          type="button"
+                          onClick={() => setIsSignUpMode(!isSignUpMode)}
+                          className="text-primary hover:underline"
+                        >
+                          {isSignUpMode ? "Sign In" : "Sign Up"}
+                        </button>
+                      </p>
+                      <p className="text-center text-xs text-muted-foreground">
+                        By signing up, I agree to the Terms of Service and Privacy Policy
+                      </p>
+                    </form>
+                  </div>
                 </DialogContent>
               </Dialog>
             </div>
