@@ -20,11 +20,11 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   const prompt = `What are the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}? 
     Please structure your response to include:
-    - Title
-    - Description (brief overview)
+    - Title (one line summary)
+    - Description (2-3 sentences overview)
     - Key Requirements (list)
     - Required Documentation (list)
-    - Any Fees (if applicable)
+    - Fees (if applicable)
     - Restrictions (if any)
     - Quarantine Requirements (if any)
     - Vaccination Requirements (list)
@@ -81,6 +81,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       quarantine_requirements: '',
       vaccination_requirements: [],
       additional_notes: '',
+      last_updated: new Date().toISOString(),
     }
 
     let currentSection = ''
@@ -88,43 +89,76 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const trimmedLine = line.trim()
       if (!trimmedLine) continue
 
+      // Log each line for debugging
+      console.log(`Processing line: ${trimmedLine}`)
+
       if (trimmedLine.toLowerCase().includes('title:')) {
         policy.title = trimmedLine.split(':')[1]?.trim() || `${country} ${policyType} Import Requirements`
+        console.log(`Set title: ${policy.title}`)
       } else if (trimmedLine.toLowerCase().includes('description:')) {
         policy.description = trimmedLine.split(':')[1]?.trim()
-      } else if (trimmedLine.toLowerCase().includes('requirements:')) {
+        console.log(`Set description: ${policy.description}`)
+      } else if (trimmedLine.toLowerCase().includes('requirements:') || trimmedLine.toLowerCase().includes('key requirements:')) {
         currentSection = 'requirements'
-      } else if (trimmedLine.toLowerCase().includes('documentation:')) {
+        console.log('Switching to requirements section')
+      } else if (trimmedLine.toLowerCase().includes('documentation:') || trimmedLine.toLowerCase().includes('required documentation:')) {
         currentSection = 'documentation'
+        console.log('Switching to documentation section')
       } else if (trimmedLine.toLowerCase().includes('fees:')) {
         currentSection = 'fees'
-        policy.fees = { general: trimmedLine.split(':')[1]?.trim() || 'Varies by case' }
+        const feesText = trimmedLine.split(':')[1]?.trim()
+        if (feesText) {
+          policy.fees = { general: feesText }
+        }
+        console.log(`Set fees: ${JSON.stringify(policy.fees)}`)
       } else if (trimmedLine.toLowerCase().includes('restrictions:')) {
         currentSection = 'restrictions'
-        policy.restrictions = { general: trimmedLine.split(':')[1]?.trim() || 'Contact authorities for details' }
+        const restrictionsText = trimmedLine.split(':')[1]?.trim()
+        if (restrictionsText) {
+          policy.restrictions = { general: restrictionsText }
+        }
+        console.log(`Set restrictions: ${JSON.stringify(policy.restrictions)}`)
       } else if (trimmedLine.toLowerCase().includes('quarantine:')) {
         policy.quarantine_requirements = trimmedLine.split(':')[1]?.trim()
+        console.log(`Set quarantine requirements: ${policy.quarantine_requirements}`)
       } else if (trimmedLine.toLowerCase().includes('vaccination:')) {
         currentSection = 'vaccination'
+        console.log('Switching to vaccination section')
       } else if (trimmedLine.toLowerCase().includes('additional notes:')) {
         currentSection = 'notes'
-      } else if (trimmedLine.startsWith('-')) {
-        const item = trimmedLine.substring(1).trim()
+        console.log('Switching to notes section')
+      } else if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•') || /^\d+\./.test(trimmedLine)) {
+        const item = trimmedLine.replace(/^[-•\d.]+/, '').trim()
         if (currentSection === 'requirements') {
           policy.requirements.push(item)
+          console.log(`Added requirement: ${item}`)
         } else if (currentSection === 'documentation') {
           policy.documentation_needed.push(item)
+          console.log(`Added documentation: ${item}`)
         } else if (currentSection === 'vaccination') {
           policy.vaccination_requirements.push(item)
+          console.log(`Added vaccination requirement: ${item}`)
         } else if (currentSection === 'notes') {
           policy.additional_notes += item + ' '
+          console.log(`Added to notes: ${item}`)
         }
       }
     }
 
+    // If we haven't found a title, use a default one
+    if (!policy.title) {
+      policy.title = `${country} Pet Import Requirements and Regulations`
+    }
+
+    // If we haven't found a description, generate one
+    if (!policy.description) {
+      policy.description = `Official pet import requirements and regulations for ${country}. These requirements must be followed when bringing pets into the country.`
+    }
+
+    console.log(`Final parsed policy for ${country}:`, policy)
     return policy
   } catch (error) {
-    console.error(`Error fetching policy for ${country}:`, error)
+    console.error(`Error processing policy for ${country}:`, error)
     throw error
   }
 }
@@ -132,10 +166,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: corsHeaders,
-      status: 204
-    });
+    return new Response(null, {
+      headers: corsHeaders
+    })
   }
 
   try {
@@ -165,26 +198,9 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-    console.log('Raw airports data count:', airports?.length)
-    console.log('Sample of first few airports:', airports?.slice(0, 5))
-
     // Get unique countries
     const countries = [...new Set(airports.map(a => a.country).filter(Boolean))]
     console.log(`Found ${countries.length} unique countries to process:`, countries.slice(0, 5))
-
-    if (countries.length === 0) {
-      console.log('No countries found in airports table after filtering')
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No valid countries found in airports table'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      )
-    }
 
     let processedCount = 0
     let errorCount = 0
