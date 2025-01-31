@@ -67,9 +67,6 @@ Deno.serve(async (req) => {
     // Debug Point 2: After normalization and uniquing
     console.log('DEBUG POINT 2 - Countries after normalization:', JSON.stringify(uniqueCountries, null, 2))
     
-    // Intentional stop to check logs
-    throw new Error('DEBUG STOP: Check logs for country processing steps')
-
     let processedCount = 0
     let errorCount = 0
     const processedCountries = new Set()
