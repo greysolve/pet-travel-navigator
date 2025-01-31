@@ -3,6 +3,7 @@ import { PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +17,9 @@ export const AuthDialog = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithEmail, signUp } = useAuth();
+  const { signInWithEmail, signUp, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +37,12 @@ export const AuthDialog = () => {
           title: "Welcome back!",
           description: "Successfully signed in",
         });
+        
+        // Check if user is a site manager and redirect to admin
+        if (user?.user_metadata?.role === 'site_manager') {
+          console.log("Site manager logged in, redirecting to admin");
+          navigate('/admin');
+        }
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
