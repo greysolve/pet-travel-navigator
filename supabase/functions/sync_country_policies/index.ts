@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,30 +136,30 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    console.log('Fetching airlines from database...')
-    const { data: airlines, error: airlinesError } = await supabaseClient
-      .from('airlines')
+    console.log('Fetching airports from database...')
+    const { data: airports, error: airportsError } = await supabaseClient
+      .from('airports')
       .select('country')
       .not('country', 'is', null)
 
-    if (airlinesError) {
-      console.error('Error fetching airlines:', airlinesError)
-      throw airlinesError
+    if (airportsError) {
+      console.error('Error fetching airports:', airportsError)
+      throw airportsError
     }
 
-    console.log('Raw airlines data count:', airlines?.length)
-    console.log('Sample of first few airlines:', airlines?.slice(0, 5))
+    console.log('Raw airports data count:', airports?.length)
+    console.log('Sample of first few airports:', airports?.slice(0, 5))
 
     // Get unique countries
-    const countries = [...new Set(airlines.map(a => a.country).filter(Boolean))]
+    const countries = [...new Set(airports.map(a => a.country).filter(Boolean))]
     console.log(`Found ${countries.length} unique countries to process:`, countries.slice(0, 5))
 
     if (countries.length === 0) {
-      console.log('No countries found in airlines table after filtering')
+      console.log('No countries found in airports table after filtering')
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'No valid countries found in airlines table'
+          error: 'No valid countries found in airports table'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
