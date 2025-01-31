@@ -37,8 +37,16 @@ const Admin = () => {
             : 'analyze_pet_policies';
 
       console.log(`Calling ${functionName} edge function...`);
-      const { error } = await supabase.functions.invoke(functionName);
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
       if (error) throw error;
+
+      console.log(`${type} sync response:`, data);
 
       toast({
         title: "Sync Successful",
@@ -105,9 +113,6 @@ const Admin = () => {
           >
             {isLoading.airports ? "Syncing Airports..." : "Sync Airports"}
           </Button>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Syncs airport data from the Cirium FlightStats API
-          </p>
         </div>
 
         {/* Pet Policies Sync */}
