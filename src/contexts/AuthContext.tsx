@@ -53,17 +53,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)  // Changed from user_id to id
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
         throw error;
       }
-      console.log('Fetched profile:', data);
-      setProfile(data);
+
+      if (!data) {
+        console.log('No profile found, creating one...');
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ 
+            id: userId,
+            notification_preferences: {
+              travel_alerts: true,
+              policy_changes: true,
+              documentation_reminders: true
+            }
+          }]);
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError);
+          throw insertError;
+        }
+
+        // Fetch the newly created profile
+        const { data: newProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (fetchError) throw fetchError;
+        console.log('Fetched new profile:', newProfile);
+        setProfile(newProfile);
+      } else {
+        console.log('Fetched existing profile:', data);
+        setProfile(data);
+      }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error in profile management:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load or create user profile",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
