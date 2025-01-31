@@ -39,12 +39,12 @@ Deno.serve(async (req) => {
       First, find the specific URL for the pet travel policy page. Then analyze the policy content.
       Return a JSON object with the following structure. If a field's data is not available, use null:
       {
-        "pet_types_allowed": string[] | null,
-        "carrier_requirements": string | null,
-        "documentation_needed": string[] | null,
-        "temperature_restrictions": string | null,
-        "breed_restrictions": string[] | null,
-        "policy_url": string | null
+        "pet_types_allowed": ["string"],
+        "carrier_requirements": "string",
+        "documentation_needed": ["string"],
+        "temperature_restrictions": "string",
+        "breed_restrictions": ["string"],
+        "policy_url": "string"
       }
 
       Important: 
@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
       2. For policy_url, provide the complete URL to the specific pet travel policy page, not just the main website.
       3. If you can't find the information, return the JSON with all null values.
       4. Do not include any explanatory text or markdown formatting in your response.
+      5. Make sure all arrays are properly formatted with square brackets and comma-separated values.
     `
 
     console.log('Sending request to Perplexity API...');
@@ -109,8 +110,16 @@ Deno.serve(async (req) => {
           console.error('No JSON object found in content');
           throw new Error('No JSON object found in content');
         }
-        const jsonString = jsonMatch[0];
-        console.log('Extracted JSON string:', jsonString);
+        const jsonString = jsonMatch[0]
+          .replace(/\n/g, ' ')  // Remove newlines
+          .replace(/,\s*([}\]])/g, '$1')  // Remove trailing commas
+          .replace(/([{,])\s*([^"{\s][^:]*?):/g, '$1"$2":')  // Quote unquoted keys
+          .replace(/:\s*'([^']*)'/g, ':"$1"')  // Replace single quotes with double quotes
+          .replace(/,\s*,/g, ',')  // Remove duplicate commas
+          .replace(/\[\s*,/g, '[')  // Remove leading comma in arrays
+          .replace(/,\s*\]/g, ']'); // Remove trailing comma in arrays
+
+        console.log('Cleaned JSON string:', jsonString);
         policyData = JSON.parse(jsonString);
       }
 
