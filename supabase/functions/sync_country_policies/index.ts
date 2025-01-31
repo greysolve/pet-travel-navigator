@@ -49,10 +49,6 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-    // Log raw airport data
-    console.log('Raw airports data:', airports)
-
-    // Get unique countries and normalize them
     const uniqueCountries = [...new Set(
       airports
         .map(a => a.country?.trim())
@@ -116,7 +112,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Add a delay between batches to prevent rate limiting
       if (i + BATCH_SIZE < uniqueCountries.length) {
         console.log('Waiting before processing next batch...')
         await new Promise(resolve => setTimeout(resolve, 2000))
@@ -173,17 +168,17 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
   const prompt = `Return ONLY a raw JSON object with no additional text, markdown, or formatting containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}. The response must be a valid JSON object with this exact structure:
-    {
-      "title": "string or null if unknown",
-      "description": "string or null if unknown",
-      "requirements": ["string"] or [] if none,
-      "documentation_needed": ["string"] or [] if none,
-      "fees": {"description": "string"} or {} if none,
-      "restrictions": {"description": "string"} or {} if none,
-      "quarantine_requirements": "string or null if none",
-      "vaccination_requirements": ["string"] or [] if none,
-      "additional_notes": "string or null if none"
-    }`
+{
+  "title": "string or null if unknown",
+  "description": "string or null if unknown",
+  "requirements": ["string"] or [] if none,
+  "documentation_needed": ["string"] or [] if none,
+  "fees": {"description": "string"} or {} if none,
+  "restrictions": {"description": "string"} or {} if none,
+  "quarantine_requirements": "string or null if none",
+  "vaccination_requirements": ["string"] or [] if none,
+  "additional_notes": "string or null if none"
+}`
 
   try {
     console.log(`Making API request to Perplexity for ${country}...`)
