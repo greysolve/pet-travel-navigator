@@ -166,6 +166,7 @@ export type Database = {
           fees: Json | null
           id: string
           pet_types_allowed: string[] | null
+          policy_url: string | null
           size_restrictions: Json | null
           temperature_restrictions: string | null
           updated_at: string | null
@@ -179,6 +180,7 @@ export type Database = {
           fees?: Json | null
           id?: string
           pet_types_allowed?: string[] | null
+          policy_url?: string | null
           size_restrictions?: Json | null
           temperature_restrictions?: string | null
           updated_at?: string | null
@@ -192,6 +194,7 @@ export type Database = {
           fees?: Json | null
           id?: string
           pet_types_allowed?: string[] | null
+          policy_url?: string | null
           size_restrictions?: Json | null
           temperature_restrictions?: string | null
           updated_at?: string | null

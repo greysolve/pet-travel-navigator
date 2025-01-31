@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PawPrint } from "lucide-react";
+import { PawPrint, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,6 +17,7 @@ type PetPolicy = {
   documentation_needed: string[];
   temperature_restrictions: string;
   breed_restrictions: string[];
+  policy_url?: string;
 };
 
 export const ResultsSection = ({ 
@@ -53,6 +54,7 @@ export const ResultsSection = ({
           documentation_needed: policy.documentation_needed,
           temperature_restrictions: policy.temperature_restrictions,
           breed_restrictions: policy.breed_restrictions,
+          policy_url: policy.policy_url,
         };
         return acc;
       }, {}) || {};
@@ -114,6 +116,16 @@ export const ResultsSection = ({
                       {policy.breed_restrictions?.length > 0 && (
                         <p><span className="font-medium">Breed restrictions:</span> {policy.breed_restrictions.join(', ')}</p>
                       )}
+                      {policy.policy_url && (
+                        <a 
+                          href={policy.policy_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-primary hover:text-primary/80 mt-2"
+                        >
+                          View full policy <ExternalLink className="h-4 w-4 ml-1" />
+                        </a>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500 border-t pt-4">
@@ -127,7 +139,17 @@ export const ResultsSection = ({
         </div>
         
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Destination Pet Policy</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Destination Pet Policy</h2>
+            <a 
+              href="https://www.aphis.usda.gov/aphis/pet-travel" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-primary hover:text-primary/80"
+            >
+              Official requirements <ExternalLink className="h-4 w-4 ml-1" />
+            </a>
+          </div>
           <p className="text-gray-700">
             Pets entering this destination must have:
             <ul className="list-disc list-inside mt-2 space-y-2">
