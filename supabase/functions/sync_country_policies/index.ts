@@ -51,12 +51,17 @@ Deno.serve(async (req) => {
       throw countriesError
     }
 
+    if (!countries || !Array.isArray(countries)) {
+      throw new Error('Invalid response from get_distinct_countries')
+    }
+
     // Debug Point 1: Countries from DB function
     console.log('DEBUG POINT 1 - Countries from DB function:', JSON.stringify(countries, null, 2))
 
     // Normalize country names
     const uniqueCountries = countries
-      .map(row => row.country.trim())
+      .map(row => row.country?.trim() || '')
+      .filter(country => country !== '')
       .map(country => country.normalize('NFKC').trim())
       .sort()
 
