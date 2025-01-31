@@ -15,7 +15,14 @@ type Airport = {
   city: string;
 };
 
-export const SearchSection = () => {
+type FlightData = {
+  carrierFsCode: string;
+  flightNumber: string;
+  departureTime: string;
+  arrivalTime: string;
+};
+
+export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: FlightData[]) => void }) => {
   const [policySearch, setPolicySearch] = useState("");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -93,6 +100,18 @@ export const SearchSection = () => {
         if (error) throw error;
 
         console.log('Flight schedules:', data);
+        
+        // Extract the relevant flight data and pass it to the parent
+        if (data && data.scheduledFlights) {
+          const flights = data.scheduledFlights.map((flight: any) => ({
+            carrierFsCode: flight.carrierFsCode,
+            flightNumber: flight.flightNumber,
+            departureTime: flight.departureTime,
+            arrivalTime: flight.arrivalTime,
+          }));
+          onSearchResults(flights);
+        }
+
       } catch (error) {
         console.error('Error searching flights:', error);
         toast({
