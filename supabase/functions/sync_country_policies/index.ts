@@ -1,5 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { corsHeaders } from '../_shared/cors.ts'
+
+// Define CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Cache-Control': 'no-store'
+}
 
 console.log('Edge Function: sync_country_policies initialized')
 
@@ -10,12 +17,11 @@ Deno.serve(async (req) => {
     headers: Object.fromEntries(req.headers.entries())
   })
 
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        ...corsHeaders,
-        'Cache-Control': 'no-store'
-      }
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
     })
   }
 
@@ -132,9 +138,8 @@ Deno.serve(async (req) => {
       JSON.stringify(summary),
       {
         headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
+          ...corsHeaders,
+          'Content-Type': 'application/json'
         },
         status: 200,
       }
@@ -148,9 +153,8 @@ Deno.serve(async (req) => {
       }),
       {
         headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
+          ...corsHeaders,
+          'Content-Type': 'application/json'
         },
         status: 500,
       }
@@ -166,9 +170,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
-  const systemPrompt = 'You are a JSON generator that returns only raw JSON data with no additional text or formatting. Never include markdown, code blocks, or any other formatting. Only return valid JSON objects.'
+  const systemPrompt = 'Return only a raw JSON object. Do not include any markdown formatting, code blocks, or additional text.'
   
-  const userPrompt = `Return a JSON object containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}. The response must be a valid JSON object with this exact structure, with no additional text or formatting:
+  const userPrompt = `Generate a JSON object for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements. Use this exact structure:
 {
   "title": "string or null if unknown",
   "description": "string or null if unknown",
@@ -192,14 +196,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       body: JSON.stringify({
         model: 'llama-3.1-sonar-small-128k-online',
         messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: userPrompt
-          }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
         temperature: 0.1,
         max_tokens: 1000,
@@ -219,14 +217,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const content = data.choices[0].message.content.trim()
       console.log('Raw AI response:', content)
       
-      // Clean the response to ensure it's valid JSON
-      const cleanedContent = content
-        .replace(/^```json\s*/, '') // Remove leading ```json
-        .replace(/\s*```$/, '')     // Remove trailing ```
-        .trim()
-      
       // Parse the JSON response
-      const policyData = JSON.parse(cleanedContent)
+      const policyData = JSON.parse(content)
       
       // Construct the final policy object with proper typing
       const policy = {
