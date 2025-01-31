@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { Progress } from "@/components/ui/progress";
 
 const Admin = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
@@ -14,6 +15,15 @@ const Admin = () => {
     routes: false,
     countryPolicies: false
   });
+  const [syncProgress, setSyncProgress] = useState<{
+    total: number;
+    processed: number;
+    lastCountry: string | null;
+  }>({
+    total: 0,
+    processed: 0,
+    lastCountry: null
+  });
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies') => {
     setIsLoading(prev => ({ ...prev, [type]: true }));
@@ -23,7 +33,7 @@ const Admin = () => {
         const { error: clearError } = await supabase
           .from(type === 'countryPolicies' ? 'country_policies' : type)
           .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000'); // Prevent deleting all records
+          .neq('id', '00000000-0000-0000-0000-000000000000');
         
         if (clearError) throw clearError;
       }
@@ -61,15 +71,46 @@ const Admin = () => {
 
           console.log(`Successfully processed airline ${airline.id}`);
         }
+      } else if (type === 'countryPolicies') {
+        let continuationToken = syncProgress.lastCountry;
+        let completed = false;
+
+        while (!completed) {
+          console.log(`Calling sync_country_policies with continuation token:`, continuationToken);
+          const { data, error } = await supabase.functions.invoke('sync_country_policies', {
+            body: { lastProcessedCountry: continuationToken }
+          });
+
+          if (error) throw error;
+          console.log(`Country policies sync response:`, data);
+
+          if (data.total_countries > 0) {
+            setSyncProgress({
+              total: data.total_countries,
+              processed: data.processed_policies,
+              lastCountry: data.continuation_token
+            });
+          }
+
+          if (data.continuation_token) {
+            continuationToken = data.continuation_token;
+            // Add a small delay before the next batch
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            completed = true;
+          }
+
+          if (!data.success) {
+            throw new Error('Sync failed');
+          }
+        }
       } else {
         // Call other sync functions as before
         const functionName = type === 'airlines' 
           ? 'sync_airline_data' 
           : type === 'airports' 
             ? 'sync_airport_data' 
-            : type === 'routes'
-              ? 'sync_route_data'
-              : 'sync_country_policies';
+            : 'sync_route_data';
 
         console.log(`Calling ${functionName} edge function...`);
         const { data, error } = await supabase.functions.invoke(functionName);
@@ -204,6 +245,20 @@ const Admin = () => {
             />
             <Label htmlFor="clearCountryPolicies" className="text-lg">Clear existing country policy data first</Label>
           </div>
+          {syncProgress.total > 0 && (
+            <div className="mb-4">
+              <Progress 
+                value={(syncProgress.processed / syncProgress.total) * 100} 
+                className="mb-2"
+              />
+              <p className="text-sm text-muted-foreground">
+                Processed {syncProgress.processed} of {syncProgress.total} countries
+                {syncProgress.lastCountry && (
+                  <span className="block">Last processed: {syncProgress.lastCountry}</span>
+                )}
+              </p>
+            </div>
+          )}
           <Button 
             onClick={() => handleSync('countryPolicies')}
             disabled={isLoading.countryPolicies}
