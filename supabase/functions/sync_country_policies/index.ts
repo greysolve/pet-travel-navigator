@@ -170,9 +170,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
-  const systemPrompt = 'You are a JSON generator. Your responses must be valid JSON objects only. Do not include any markdown formatting, backticks, or code block syntax. Never prefix with ```json or any other tags. Never add explanatory text.'
+  const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. The response must start with { and end with }.'
   
-  const userPrompt = `Create a raw JSON object (no markdown, no backticks) for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements with exactly these fields:
+  const userPrompt = `Generate a JSON object for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements. The response must start with { and end with }. Use this exact structure:
 {
   "title": "string or null if unknown",
   "description": "string or null if unknown",
@@ -217,8 +217,16 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const content = data.choices[0].message.content.trim()
       console.log('Raw AI response:', content)
       
+      // Clean the response - remove any markdown formatting
+      const cleanedContent = content
+        .replace(/```json\s*/, '') // Remove opening ```json
+        .replace(/```\s*$/, '')    // Remove closing ```
+        .trim()
+      
+      console.log('Cleaned content:', cleanedContent)
+      
       // Parse the JSON response
-      const policyData = JSON.parse(content)
+      const policyData = JSON.parse(cleanedContent)
       
       // Construct the final policy object with proper typing
       const policy = {
