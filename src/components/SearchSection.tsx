@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Airport = {
@@ -22,27 +22,48 @@ export const SearchSection = () => {
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState<Date>();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [airports, setAirports] = useState<Airport[]>([]);
   const [openOrigin, setOpenOrigin] = useState(false);
   const [openDestination, setOpenDestination] = useState(false);
   const { toast } = useToast();
 
   const fetchAirports = useCallback(async (searchTerm: string) => {
-    if (searchTerm.length < 2) return;
-    
-    const { data, error } = await supabase
-      .from('airports')
-      .select('iata_code, name, city')
-      .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
-      .limit(10);
-
-    if (error) {
-      console.error('Error fetching airports:', error);
+    if (searchTerm.length < 2) {
+      setAirports([]);
       return;
     }
+    
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('airports')
+        .select('iata_code, name, city')
+        .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
+        .limit(10);
 
-    setAirports(data || []);
-  }, []);
+      if (error) {
+        console.error('Error fetching airports:', error);
+        toast({
+          title: "Error fetching airports",
+          description: "Please try again",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setAirports(data || []);
+    } catch (error) {
+      console.error('Error fetching airports:', error);
+      toast({
+        title: "Error fetching airports",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  }, [toast]);
 
   const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
@@ -132,27 +153,35 @@ export const SearchSection = () => {
                   placeholder="Search airports..." 
                   onValueChange={fetchAirports}
                 />
-                <CommandEmpty>No airports found.</CommandEmpty>
-                <CommandGroup>
-                  {airports.map((airport) => (
-                    <CommandItem
-                      key={airport.iata_code}
-                      value={airport.iata_code}
-                      onSelect={(value) => {
-                        setOrigin(value);
-                        setOpenOrigin(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          origin === airport.iata_code ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {airport.city} ({airport.iata_code})
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <CommandEmpty>No airports found.</CommandEmpty>
+                    <CommandGroup>
+                      {airports.map((airport) => (
+                        <CommandItem
+                          key={airport.iata_code}
+                          value={airport.iata_code}
+                          onSelect={(value) => {
+                            setOrigin(value);
+                            setOpenOrigin(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              origin === airport.iata_code ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {airport.city} ({airport.iata_code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
               </Command>
             </PopoverContent>
           </Popover>
@@ -177,27 +206,35 @@ export const SearchSection = () => {
                   placeholder="Search airports..." 
                   onValueChange={fetchAirports}
                 />
-                <CommandEmpty>No airports found.</CommandEmpty>
-                <CommandGroup>
-                  {airports.map((airport) => (
-                    <CommandItem
-                      key={airport.iata_code}
-                      value={airport.iata_code}
-                      onSelect={(value) => {
-                        setDestination(value);
-                        setOpenDestination(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          destination === airport.iata_code ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {airport.city} ({airport.iata_code})
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <CommandEmpty>No airports found.</CommandEmpty>
+                    <CommandGroup>
+                      {airports.map((airport) => (
+                        <CommandItem
+                          key={airport.iata_code}
+                          value={airport.iata_code}
+                          onSelect={(value) => {
+                            setDestination(value);
+                            setOpenDestination(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              destination === airport.iata_code ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {airport.city} ({airport.iata_code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
               </Command>
             </PopoverContent>
           </Popover>
