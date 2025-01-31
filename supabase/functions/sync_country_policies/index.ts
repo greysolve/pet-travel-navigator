@@ -170,9 +170,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
-  const systemPrompt = 'Return only a raw JSON object. Do not include any markdown formatting, code blocks, or additional text.'
+  const systemPrompt = 'You are a JSON generator. Your responses must be valid JSON objects only. Do not include any markdown formatting, backticks, or code block syntax. Never prefix with ```json or any other tags. Never add explanatory text.'
   
-  const userPrompt = `Generate a JSON object for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements. Use this exact structure:
+  const userPrompt = `Create a raw JSON object (no markdown, no backticks) for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements with exactly these fields:
 {
   "title": "string or null if unknown",
   "description": "string or null if unknown",
