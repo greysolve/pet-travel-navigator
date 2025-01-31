@@ -51,6 +51,9 @@ Deno.serve(async (req) => {
           "cargo_fee": string | null
         }
       }
+
+      Important: Make sure to return ONLY the JSON object, no additional text or formatting.
+      If you can't find the information, return the JSON with all null values.
     `
 
     console.log('Sending request to Perplexity API...');
@@ -65,14 +68,14 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Extract and structure airline pet policy information into valid JSON format.'
+            content: 'You are a JSON generator that extracts pet policy information from airline websites. Return only valid JSON objects.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.2,
+        temperature: 0.1, // Lower temperature for more consistent output
         max_tokens: 1000,
       }),
     })
@@ -83,14 +86,62 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Perplexity API response:', data);
+    console.log('Raw Perplexity API response:', data);
+
+    if (!data.choices?.[0]?.message?.content) {
+      console.error('Invalid API response structure:', data);
+      throw new Error('Invalid API response structure');
+    }
+
+    const content = data.choices[0].message.content.trim();
+    console.log('Content to parse:', content);
 
     let policyData;
     try {
-      policyData = JSON.parse(data.choices[0].message.content);
+      // Try to extract JSON if it's wrapped in backticks or has additional text
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : content;
+      policyData = JSON.parse(jsonString);
+
+      // Validate the structure
+      if (!policyData || typeof policyData !== 'object') {
+        throw new Error('Invalid policy data structure');
+      }
+
+      // Ensure all required fields exist with correct types
+      const defaultPolicy = {
+        pet_types_allowed: null,
+        size_restrictions: {
+          cabin_max_weight_kg: null,
+          cargo_max_weight_kg: null
+        },
+        carrier_requirements: null,
+        documentation_needed: null,
+        breed_restrictions: null,
+        temperature_restrictions: null,
+        fees: {
+          cabin_fee: null,
+          cargo_fee: null
+        }
+      };
+
+      // Merge with default policy to ensure all fields exist
+      policyData = {
+        ...defaultPolicy,
+        ...policyData,
+        size_restrictions: {
+          ...defaultPolicy.size_restrictions,
+          ...policyData.size_restrictions
+        },
+        fees: {
+          ...defaultPolicy.fees,
+          ...policyData.fees
+        }
+      };
+
     } catch (e) {
       console.error('Failed to parse policy data:', e);
-      console.error('Raw content:', data.choices[0].message.content);
+      console.error('Raw content:', content);
       throw new Error('Failed to parse policy data from AI response');
     }
 
@@ -99,7 +150,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('Storing policy data in Supabase...');
+    console.log('Storing policy data in Supabase:', policyData);
     const { error } = await supabase
       .from('pet_policies')
       .upsert({
