@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.sync_airline_data]
 verify_jwt = false
+
+[functions.sync_airport_data]
+verify_jwt = false

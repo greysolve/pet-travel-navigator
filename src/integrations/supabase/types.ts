@@ -63,6 +63,45 @@ export type Database = {
         }
         Relationships: []
       }
+      airports: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string | null
+          iata_code: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          iata_code: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          iata_code?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pet_policies: {
         Row: {
           airline_id: string | null
