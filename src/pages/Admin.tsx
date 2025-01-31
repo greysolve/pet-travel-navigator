@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 const Admin = () => {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key: string]: boolean}>({
     airlines: false,
