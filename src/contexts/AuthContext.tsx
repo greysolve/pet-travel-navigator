@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/auth';
-import { toast } from '@/components/ui/use-toast';
+import { useAuthOperations } from '@/hooks/useAuthOperations';
+import { fetchOrCreateProfile } from '@/utils/profileManagement';
 
 interface AuthContextType {
   session: Session | null;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const authOperations = useAuthOperations();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -29,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchOrCreateProfile(session.user.id).then(setProfile);
       }
     });
 
@@ -38,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchOrCreateProfile(session.user.id).then(setProfile);
       } else {
         setProfile(null);
       }
@@ -47,146 +49,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function fetchProfile(userId: string) {
-    try {
-      console.log('Fetching profile for user:', userId);
-      
-      // First, try to get the existing profile
-      const { data: existingProfile, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('Error fetching profile:', fetchError);
-        throw fetchError;
-      }
-
-      if (existingProfile) {
-        console.log('Fetched existing profile:', existingProfile);
-        setProfile(existingProfile);
-        setLoading(false);
-        return;
-      }
-
-      // If no profile exists, create one
-      console.log('No profile found, creating one...');
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert([{ 
-          id: userId,
-          notification_preferences: {
-            travel_alerts: true,
-            policy_changes: true,
-            documentation_reminders: true
-          }
-        }])
-        .select()
-        .maybeSingle();
-
-      if (insertError) {
-        // If we get a duplicate key error, try fetching the profile again
-        if (insertError.code === '23505') {
-          console.log('Profile already exists (race condition), fetching it...');
-          const { data: retryProfile, error: retryError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle();
-
-          if (retryError) throw retryError;
-          if (retryProfile) {
-            console.log('Successfully fetched profile after retry:', retryProfile);
-            setProfile(retryProfile);
-            setLoading(false);
-            return;
-          }
-        }
-        console.error('Error creating profile:', insertError);
-        throw insertError;
-      }
-
-      if (newProfile) {
-        console.log('Created new profile:', newProfile);
-        setProfile(newProfile);
-      }
-    } catch (error) {
-      console.error('Error in profile management:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load or create user profile",
-        variant: "destructive",
-      });
-    } finally {
+  useEffect(() => {
+    if (loading && session !== null) {
       setLoading(false);
     }
-  }
-
-  const signIn = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-  };
-
-  const signInWithEmail = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      toast({
-        title: "Error signing in",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-      toast({
-        title: "Success",
-        description: "Please check your email to verify your account.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error signing up",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  }, [session, loading]);
 
   return (
     <AuthContext.Provider value={{ 
       session, 
       user, 
       profile, 
-      signIn, 
-      signInWithEmail, 
-      signUp, 
-      signOut, 
-      loading 
+      loading,
+      ...authOperations
     }}>
       {children}
     </AuthContext.Provider>
