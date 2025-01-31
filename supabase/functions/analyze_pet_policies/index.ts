@@ -12,6 +12,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Starting pet policy analysis...');
+    
     // Parse request body
     let body;
     try {
@@ -30,15 +32,14 @@ Deno.serve(async (req) => {
 
     console.log(`Analyzing pet policy for airline ${airline_id} from ${website}`);
 
-    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
+    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
-      throw new Error('Missing Perplexity API key')
+      throw new Error('Missing Perplexity API key');
     }
 
     const prompt = `
       Analyze the pet travel policy from this airline's website: ${website}
-      First, find the specific URL for the pet travel policy page. Then analyze the policy content.
-      Return a JSON object with the following structure. If a field's data is not available, use null:
+      Return a JSON object with ONLY these fields (use null if data is not found):
       {
         "pet_types_allowed": ["string"],
         "carrier_requirements": "string",
@@ -47,16 +48,16 @@ Deno.serve(async (req) => {
         "breed_restrictions": ["string"],
         "policy_url": "string"
       }
-
-      Important: 
-      1. Return ONLY valid JSON, no additional text.
-      2. For policy_url, provide the complete URL to the specific pet travel policy page.
-      3. If you can't find the information, return all fields as null.
-      4. Arrays must be properly formatted with square brackets and comma-separated strings.
-      5. Do not use trailing commas in arrays or objects.
-      6. All strings in arrays must be properly quoted.
-      7. Ensure all JSON property names are double-quoted.
-    `
+      
+      Rules:
+      1. Return ONLY valid JSON, no other text
+      2. All arrays must be properly formatted with square brackets
+      3. All strings must be properly quoted
+      4. No trailing commas
+      5. Empty arrays should be null, not []
+      6. All property names must be exactly as shown above
+      7. Do not add any additional fields
+    `;
 
     console.log('Sending request to Perplexity API...');
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Raw Perplexity API response:', data);
+    console.log('Perplexity API response:', data);
 
     if (!data.choices?.[0]?.message?.content) {
       console.error('Invalid API response structure:', data);
@@ -100,65 +101,49 @@ Deno.serve(async (req) => {
     let content = data.choices[0].message.content.trim();
     console.log('Raw content to parse:', content);
 
+    // Extract JSON object from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON object found in content');
+    }
+    content = jsonMatch[0];
+
+    // Parse and validate the JSON structure
     let policyData;
     try {
-      // First try to extract just the JSON object if there's any surrounding text
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON object found in content');
-      }
-      content = jsonMatch[0];
-
-      // Clean up the JSON string
-      content = content
-        .replace(/\n/g, ' ') // Remove newlines
-        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
-        .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3') // Ensure property names are quoted
-        .replace(/:\s*'([^']*)'/g, ':"$1"') // Replace single quotes with double quotes
-        .replace(/,\s*,/g, ',') // Remove duplicate commas
-        .replace(/\[\s*,/g, '[') // Remove leading comma in arrays
-        .replace(/,\s*\]/g, ']') // Remove trailing comma in arrays
-        .replace(/"\s+"/g, '","') // Fix spacing between array elements
-        .replace(/\[\s*"/g, '["') // Fix spacing at start of arrays
-        .replace(/"\s*\]/g, '"]'); // Fix spacing at end of arrays
-
-      console.log('Cleaned JSON string:', content);
       policyData = JSON.parse(content);
+      
+      // Ensure all required fields exist
+      const requiredFields = [
+        'pet_types_allowed',
+        'carrier_requirements',
+        'documentation_needed',
+        'temperature_restrictions',
+        'breed_restrictions',
+        'policy_url'
+      ];
 
-      // Normalize the data structure
-      const template = {
-        pet_types_allowed: null,
-        carrier_requirements: null,
-        documentation_needed: null,
-        temperature_restrictions: null,
-        breed_restrictions: null,
-        policy_url: null
-      };
+      for (const field of requiredFields) {
+        if (!(field in policyData)) {
+          policyData[field] = null;
+        }
+      }
 
-      // Ensure all fields exist with correct types
-      policyData = {
-        ...template,
-        ...policyData
-      };
-
-      // Convert array fields
+      // Normalize array fields
       ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
-        if (policyData[field]) {
-          if (typeof policyData[field] === 'string') {
-            policyData[field] = [policyData[field]];
-          }
-          if (Array.isArray(policyData[field])) {
-            policyData[field] = policyData[field].map(item => 
-              typeof item === 'string' ? item.trim() : String(item).trim()
-            ).filter(Boolean);
-          }
-          if (!Array.isArray(policyData[field]) || policyData[field].length === 0) {
+        if (!Array.isArray(policyData[field])) {
+          policyData[field] = policyData[field] ? [String(policyData[field])] : null;
+        } else if (policyData[field].length === 0) {
+          policyData[field] = null;
+        } else {
+          policyData[field] = policyData[field].map(item => String(item).trim()).filter(Boolean);
+          if (policyData[field].length === 0) {
             policyData[field] = null;
           }
         }
       });
 
-      // Convert string fields
+      // Normalize string fields
       ['carrier_requirements', 'temperature_restrictions', 'policy_url'].forEach(field => {
         if (policyData[field] && typeof policyData[field] !== 'string') {
           policyData[field] = String(policyData[field]).trim();
