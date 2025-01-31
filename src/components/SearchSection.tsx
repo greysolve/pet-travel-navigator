@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+type Airport = {
+  iata_code: string;
+  name: string;
+  city: string;
+};
 
 export const SearchSection = () => {
   const [policySearch, setPolicySearch] = useState("");
@@ -15,7 +22,27 @@ export const SearchSection = () => {
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState<Date>();
   const [isLoading, setIsLoading] = useState(false);
+  const [airports, setAirports] = useState<Airport[]>([]);
+  const [openOrigin, setOpenOrigin] = useState(false);
+  const [openDestination, setOpenDestination] = useState(false);
   const { toast } = useToast();
+
+  const fetchAirports = useCallback(async (searchTerm: string) => {
+    if (searchTerm.length < 2) return;
+    
+    const { data, error } = await supabase
+      .from('airports')
+      .select('iata_code, name, city')
+      .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
+      .limit(10);
+
+    if (error) {
+      console.error('Error fetching airports:', error);
+      return;
+    }
+
+    setAirports(data || []);
+  }, []);
 
   const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
@@ -85,20 +112,95 @@ export const SearchSection = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            type="text"
-            placeholder="Origin (city or airport code)"
-            className="h-12 text-base bg-white/90 border-0 shadow-sm"
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
-          />
-          <Input
-            type="text"
-            placeholder="Destination (city or airport code)"
-            className="h-12 text-base bg-white/90 border-0 shadow-sm"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-          />
+          <Popover open={openOrigin} onOpenChange={setOpenOrigin}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openOrigin}
+                className="h-12 text-base bg-white/90 border-0 shadow-sm justify-between"
+              >
+                {origin
+                  ? airports.find((airport) => airport.iata_code === origin)?.city || origin
+                  : "Origin (city or airport code)"}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput 
+                  placeholder="Search airports..." 
+                  onValueChange={fetchAirports}
+                />
+                <CommandEmpty>No airports found.</CommandEmpty>
+                <CommandGroup>
+                  {airports.map((airport) => (
+                    <CommandItem
+                      key={airport.iata_code}
+                      value={airport.iata_code}
+                      onSelect={(value) => {
+                        setOrigin(value);
+                        setOpenOrigin(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          origin === airport.iata_code ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {airport.city} ({airport.iata_code})
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          <Popover open={openDestination} onOpenChange={setOpenDestination}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openDestination}
+                className="h-12 text-base bg-white/90 border-0 shadow-sm justify-between"
+              >
+                {destination
+                  ? airports.find((airport) => airport.iata_code === destination)?.city || destination
+                  : "Destination (city or airport code)"}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput 
+                  placeholder="Search airports..." 
+                  onValueChange={fetchAirports}
+                />
+                <CommandEmpty>No airports found.</CommandEmpty>
+                <CommandGroup>
+                  {airports.map((airport) => (
+                    <CommandItem
+                      key={airport.iata_code}
+                      value={airport.iata_code}
+                      onSelect={(value) => {
+                        setDestination(value);
+                        setOpenDestination(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          destination === airport.iata_code ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {airport.city} ({airport.iata_code})
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <Popover>
