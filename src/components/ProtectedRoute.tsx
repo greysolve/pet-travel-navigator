@@ -16,18 +16,24 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { data: userRole, isLoading: roleLoading } = useQuery({
     queryKey: ["userRole", user?.id],
     queryFn: async () => {
-      if (!user) return null;
-      console.log("Fetching role for user:", user.id);
+      if (!user) {
+        console.log("No user found for role check");
+        return null;
+      }
+      console.log("Starting role check for user:", user.id);
+      console.log("Required role:", requiredRole);
       
       // First check user metadata
       const metadataRole = user.user_metadata?.role;
-      console.log("Role from metadata:", metadataRole);
+      console.log("Role from user metadata:", metadataRole);
       
       if (metadataRole === requiredRole) {
+        console.log("Role found in metadata, matches required role");
         return metadataRole;
       }
 
       // If not in metadata, check the user_roles table
+      console.log("Checking user_roles table...");
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -35,13 +41,15 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         .single();
       
       if (error) {
-        console.error("Error fetching user role:", error);
+        console.error("Error fetching user role from DB:", error);
         return null;
       }
+      
       console.log("User role data from DB:", data);
+      console.log("DB role matches required role:", data?.role === requiredRole);
       return data?.role;
     },
-    enabled: !!user,
+    enabled: !!user && !!requiredRole,
   });
 
   useEffect(() => {
@@ -51,7 +59,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       user: !!user,
       userRole,
       requiredRole,
-      userMetadata: user?.user_metadata
+      userMetadata: user?.user_metadata,
+      userId: user?.id
     });
 
     if (!loading && !user) {
@@ -84,7 +93,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       user: !!user, 
       userRole, 
       requiredRole,
-      userMetadata: user?.user_metadata 
+      userMetadata: user?.user_metadata,
+      userId: user?.id
     });
     return null;
   }
