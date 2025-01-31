@@ -187,12 +187,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate authentication
-    const authHeader = await validateToken(req)
-    console.log('Authentication successful')
-    
-    console.log('Starting country policies sync process...')
-    
     // Initialize Supabase client with error handling
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
