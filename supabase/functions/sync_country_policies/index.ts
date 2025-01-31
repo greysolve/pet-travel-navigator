@@ -54,14 +54,27 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-    const uniqueCountries = [...new Set(
-      airports
-        .map(a => a.country?.trim())
-        .filter(Boolean)
-        .map(country => country.normalize('NFKC').trim())
-    )].sort()
+    // Debug Point 1: Raw airports data
+    console.log('DEBUG POINT 1 - Raw airports data:', JSON.stringify(airports, null, 2))
 
-    console.log(`Found ${uniqueCountries.length} unique countries:`, uniqueCountries)
+    const rawCountries = airports.map(a => a.country?.trim())
+    // Debug Point 2: After initial trim
+    console.log('DEBUG POINT 2 - Countries after initial trim:', JSON.stringify(rawCountries, null, 2))
+
+    const filteredCountries = rawCountries.filter(Boolean)
+    // Debug Point 3: After filtering nulls/empty
+    console.log('DEBUG POINT 3 - Countries after filtering nulls:', JSON.stringify(filteredCountries, null, 2))
+
+    const normalizedCountries = filteredCountries.map(country => country.normalize('NFKC').trim())
+    // Debug Point 4: After normalization
+    console.log('DEBUG POINT 4 - Countries after normalization:', JSON.stringify(normalizedCountries, null, 2))
+
+    const uniqueCountries = [...new Set(normalizedCountries)].sort()
+    // Debug Point 5: Final unique countries list
+    console.log('DEBUG POINT 5 - Final unique countries list:', JSON.stringify(uniqueCountries, null, 2))
+    
+    // Intentional stop to check logs
+    throw new Error('DEBUG STOP: Check logs for country processing steps')
 
     let processedCount = 0
     let errorCount = 0
