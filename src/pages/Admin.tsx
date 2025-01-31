@@ -11,16 +11,17 @@ const Admin = () => {
     airlines: false,
     airports: false,
     petPolicies: false,
-    routes: false
+    routes: false,
+    countryPolicies: false
   });
 
-  const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes') => {
+  const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies') => {
     setIsLoading(prev => ({ ...prev, [type]: true }));
     try {
       if (clearData[type]) {
         // Clear existing data first
         const { error: clearError } = await supabase
-          .from(type)
+          .from(type === 'countryPolicies' ? 'country_policies' : type)
           .delete()
           .neq('id', '00000000-0000-0000-0000-000000000000'); // Prevent deleting all records
         
@@ -34,7 +35,9 @@ const Admin = () => {
           ? 'sync_airport_data' 
           : type === 'routes'
             ? 'sync_route_data'
-            : 'analyze_pet_policies';
+            : type === 'countryPolicies'
+              ? 'sync_country_policies'
+              : 'analyze_pet_policies';
 
       console.log(`Calling ${functionName} edge function...`);
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -158,6 +161,29 @@ const Admin = () => {
             className="w-full text-lg"
           >
             {isLoading.routes ? "Syncing Routes..." : "Sync Routes"}
+          </Button>
+        </div>
+
+        {/* Country Policies Sync */}
+        <div className="p-8 border rounded-lg bg-card shadow-sm">
+          <h2 className="text-2xl font-semibold mb-6">Country Policies Synchronization</h2>
+          <div className="flex items-center space-x-3 mb-6">
+            <Checkbox 
+              id="clearCountryPolicies"
+              checked={clearData.countryPolicies}
+              onCheckedChange={(checked) => 
+                setClearData(prev => ({ ...prev, countryPolicies: checked === true }))
+              }
+            />
+            <Label htmlFor="clearCountryPolicies" className="text-lg">Clear existing country policy data first</Label>
+          </div>
+          <Button 
+            onClick={() => handleSync('countryPolicies')}
+            disabled={isLoading.countryPolicies}
+            size="lg"
+            className="w-full text-lg"
+          >
+            {isLoading.countryPolicies ? "Syncing Country Policies..." : "Sync Country Policies"}
           </Button>
         </div>
       </div>

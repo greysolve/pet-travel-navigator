@@ -102,6 +102,60 @@ export type Database = {
         }
         Relationships: []
       }
+      country_policies: {
+        Row: {
+          additional_notes: string | null
+          country_code: string
+          created_at: string | null
+          description: string | null
+          documentation_needed: string[] | null
+          fees: Json | null
+          id: string
+          last_updated: string | null
+          policy_type: Database["public"]["Enums"]["policy_type"]
+          quarantine_requirements: string | null
+          requirements: string[] | null
+          restrictions: Json | null
+          title: string
+          updated_at: string | null
+          vaccination_requirements: string[] | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          country_code: string
+          created_at?: string | null
+          description?: string | null
+          documentation_needed?: string[] | null
+          fees?: Json | null
+          id?: string
+          last_updated?: string | null
+          policy_type: Database["public"]["Enums"]["policy_type"]
+          quarantine_requirements?: string | null
+          requirements?: string[] | null
+          restrictions?: Json | null
+          title: string
+          updated_at?: string | null
+          vaccination_requirements?: string[] | null
+        }
+        Update: {
+          additional_notes?: string | null
+          country_code?: string
+          created_at?: string | null
+          description?: string | null
+          documentation_needed?: string[] | null
+          fees?: Json | null
+          id?: string
+          last_updated?: string | null
+          policy_type?: Database["public"]["Enums"]["policy_type"]
+          quarantine_requirements?: string | null
+          requirements?: string[] | null
+          restrictions?: Json | null
+          title?: string
+          updated_at?: string | null
+          vaccination_requirements?: string[] | null
+        }
+        Relationships: []
+      }
       pet_policies: {
         Row: {
           airline_id: string | null
@@ -323,6 +377,7 @@ export type Database = {
     }
     Enums: {
       app_role: "site_manager" | "pet_lover"
+      policy_type: "pet" | "live_animal"
     }
     CompositeTypes: {
       [_ in never]: never
