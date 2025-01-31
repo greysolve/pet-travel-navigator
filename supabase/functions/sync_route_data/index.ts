@@ -5,17 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Handle CORS preflight requests
-const handleCORS = (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
-}
-
 Deno.serve(async (req) => {
-  // Handle CORS
-  const corsResponse = handleCORS(req);
-  if (corsResponse) return corsResponse;
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
     console.log('Starting route sync process...');
@@ -28,7 +22,7 @@ Deno.serve(async (req) => {
     // Get all airlines
     const { data: airlines, error: airlinesError } = await supabase
       .from('airlines')
-      .select('id, name, iata_code');
+      .select('id, name');
 
     if (airlinesError) {
       throw new Error(`Error fetching airlines: ${airlinesError.message}`);
@@ -37,7 +31,7 @@ Deno.serve(async (req) => {
     console.log(`Found ${airlines.length} airlines to process`);
 
     // Process airlines in batches
-    const batchSize = 10;
+    const batchSize = 5;
     const results = {
       success: 0,
       failed: 0,
@@ -46,11 +40,11 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < airlines.length; i += batchSize) {
       const batch = airlines.slice(i, i + batchSize);
-      console.log(`Processing batch ${i / batchSize + 1}...`);
+      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}...`);
 
       for (const airline of batch) {
         try {
-          // Example route data - in a real scenario, you might fetch this from an API
+          // Sample route data - in a real scenario, you might fetch this from an API
           const routeData = {
             airline_id: airline.id,
             departure_country: 'United States',
@@ -87,7 +81,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        message: 'Route sync completed',
+        message: 'Route sync completed successfully',
         results
       }),
       {
