@@ -3,11 +3,16 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 // Validate authentication token
 const validateToken = async (req: Request) => {
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
-    throw new Error('Missing authorization header')
+  try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Missing authorization header')
+    }
+    return authHeader
+  } catch (error) {
+    console.error('Authentication error:', error)
+    throw error
   }
-  return authHeader
 }
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
@@ -175,8 +180,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Request received:', {
+      method: req.method,
+      headers: Object.fromEntries(req.headers.entries()),
+      url: req.url
+    })
+
     // Validate authentication
-    await validateToken(req)
+    const authHeader = await validateToken(req)
+    console.log('Authentication successful')
     
     console.log('Starting country policies sync process...')
     
