@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to clear existing routes: ${clearError.message}`);
     }
 
-    // Get all airlines
+    // Get all active airlines
     console.log('Fetching airlines...');
     const { data: airlines, error: airlinesError } = await supabase
       .from('airlines')
