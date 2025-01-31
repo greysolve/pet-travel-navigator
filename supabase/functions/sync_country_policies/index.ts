@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     console.log('Fetching unique countries from airports table...')
     const { data: countries, error: airportsError } = await supabaseClient
       .from('airports')
-      .select('country')
+      .select('DISTINCT country')
       .not('country', 'is', null)
       .order('country')
 
@@ -57,14 +57,13 @@ Deno.serve(async (req) => {
     // Debug Point 1: Raw countries from DB
     console.log('DEBUG POINT 1 - Raw countries from DB:', JSON.stringify(countries, null, 2))
 
-    // Get unique countries and normalize them
-    const uniqueCountries = [...new Set(
-      countries
-        .map(row => row.country.trim())
-        .map(country => country.normalize('NFKC').trim())
-    )].sort()
+    // Normalize country names
+    const uniqueCountries = countries
+      .map(row => row.country.trim())
+      .map(country => country.normalize('NFKC').trim())
+      .sort()
 
-    // Debug Point 2: After normalization and uniquing
+    // Debug Point 2: After normalization
     console.log('DEBUG POINT 2 - Countries after normalization:', JSON.stringify(uniqueCountries, null, 2))
     
     let processedCount = 0
