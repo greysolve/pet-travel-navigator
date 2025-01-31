@@ -1,6 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// List of common countries that might not be in airports table
+const additionalCountries = [
+  'United States', 'United Kingdom', 'Canada', 'Australia', 'France', 'Germany',
+  'Italy', 'Spain', 'Japan', 'China', 'India', 'Brazil', 'Mexico', 'Russia',
+  'South Africa', 'Egypt', 'Saudi Arabia', 'UAE', 'Singapore', 'New Zealand',
+  'Ireland', 'Netherlands', 'Belgium', 'Switzerland', 'Sweden', 'Norway',
+  'Denmark', 'Finland', 'Portugal', 'Greece', 'Turkey', 'South Korea'
+];
+
 Deno.serve(async (req) => {
   console.log('Request received:', {
     method: req.method,
@@ -46,19 +55,114 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-const validateToken = async (req: Request) => {
-  try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error('Missing authorization header')
-      throw new Error('Missing authorization header')
+    // Get unique countries from airports and combine with additional countries
+    const airportCountries = [...new Set(airports.map(a => a.country).filter(Boolean))]
+    const allCountries = [...new Set([...airportCountries, ...additionalCountries])]
+    console.log(`Found ${allCountries.length} total countries to process:`, allCountries.slice(0, 5))
+
+    let processedCount = 0
+    let errorCount = 0
+
+    // Process countries in batches to avoid rate limits
+    const BATCH_SIZE = 5
+    for (let i = 0; i < allCountries.length; i += BATCH_SIZE) {
+      const batch = allCountries.slice(i, i + BATCH_SIZE)
+      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(allCountries.length/BATCH_SIZE)}...`)
+      
+      for (const country of batch) {
+        try {
+          console.log(`Starting processing for country: ${country}`)
+          const policyTypes: Array<'pet' | 'live_animal'> = ['pet', 'live_animal']
+          
+          for (const policyType of policyTypes) {
+            try {
+              // Check if policy already exists and is recent
+              const { data: existingPolicies } = await supabaseClient
+                .from('country_policies')
+                .select('last_updated')
+                .eq('country_code', country)
+                .eq('policy_type', policyType)
+                .single()
+
+              // Skip if policy is less than 7 days old
+              if (existingPolicies?.last_updated) {
+                const lastUpdated = new Date(existingPolicies.last_updated)
+                const daysSinceUpdate = (new Date().getTime() - lastUpdated.getTime()) / (1000 * 3600 * 24)
+                if (daysSinceUpdate < 7) {
+                  console.log(`Skipping ${country} ${policyType} policy - updated ${daysSinceUpdate.toFixed(1)} days ago`)
+                  continue
+                }
+              }
+
+              console.log(`Fetching ${policyType} policy for ${country}...`)
+              const policy = await fetchPolicyWithAI(country, policyType)
+
+              console.log(`Upserting policy for ${country} (${policyType})...`)
+              const { error: upsertError } = await supabaseClient
+                .from('country_policies')
+                .upsert(policy, {
+                  onConflict: 'country_code,policy_type'
+                })
+
+              if (upsertError) {
+                console.error(`Error upserting policy for ${country}:`, upsertError)
+                errorCount++
+              } else {
+                processedCount++
+                console.log(`Successfully processed ${policyType} policy for ${country}`)
+              }
+            } catch (error) {
+              console.error(`Error processing ${policyType} policy for ${country}:`, error)
+              errorCount++
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing country ${country}:`, error)
+          errorCount++
+        }
+      }
+
+      // Add a delay between batches to respect rate limits
+      if (i + BATCH_SIZE < allCountries.length) {
+        console.log('Waiting before processing next batch...')
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
     }
-    return authHeader
+
+    const summary = {
+      success: true,
+      total_countries: allCountries.length,
+      policies_processed: processedCount,
+      errors: errorCount,
+    }
+
+    console.log('Country policies sync completed:', summary)
+
+    return new Response(
+      JSON.stringify(summary),
+      {
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        },
+        status: 200,
+      }
+    )
   } catch (error) {
-    console.error('Authentication error:', error)
-    throw error
+    console.error('Error in sync_country_policies:', error)
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: error.message 
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    )
   }
-}
+})
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -212,93 +316,3 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     throw error
   }
 }
-
-    // Get unique countries
-    const countries = [...new Set(airports.map(a => a.country).filter(Boolean))]
-    console.log(`Found ${countries.length} unique countries to process:`, countries.slice(0, 5))
-
-    let processedCount = 0
-    let errorCount = 0
-
-    // Process countries in batches to avoid rate limits
-    const BATCH_SIZE = 5
-    for (let i = 0; i < countries.length; i += BATCH_SIZE) {
-      const batch = countries.slice(i, i + BATCH_SIZE)
-      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(countries.length/BATCH_SIZE)}...`)
-      
-      for (const country of batch) {
-        try {
-          console.log(`Starting processing for country: ${country}`)
-          const policyTypes: Array<'pet' | 'live_animal'> = ['pet', 'live_animal']
-          
-          for (const policyType of policyTypes) {
-            try {
-              console.log(`Fetching ${policyType} policy for ${country}...`)
-              const policy = await fetchPolicyWithAI(country, policyType)
-
-              console.log(`Upserting policy for ${country} (${policyType})...`)
-              const { error: upsertError } = await supabaseClient
-                .from('country_policies')
-                .upsert(policy, {
-                  onConflict: 'country_code,policy_type'
-                })
-
-              if (upsertError) {
-                console.error(`Error upserting policy for ${country}:`, upsertError)
-                errorCount++
-              } else {
-                processedCount++
-                console.log(`Successfully processed ${policyType} policy for ${country}`)
-              }
-            } catch (error) {
-              console.error(`Error processing ${policyType} policy for ${country}:`, error)
-              errorCount++
-            }
-          }
-        } catch (error) {
-          console.error(`Error processing country ${country}:`, error)
-          errorCount++
-        }
-      }
-
-      // Add a delay between batches to respect rate limits
-      if (i + BATCH_SIZE < countries.length) {
-        console.log('Waiting before processing next batch...')
-        await new Promise(resolve => setTimeout(resolve, 2000))
-      }
-    }
-
-    const summary = {
-      success: true,
-      total_countries: countries.length,
-      policies_processed: processedCount,
-      errors: errorCount,
-    }
-
-    console.log('Country policies sync completed:', summary)
-
-    return new Response(
-      JSON.stringify(summary),
-      {
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
-        },
-        status: 200,
-      }
-    )
-  } catch (error) {
-    console.error('Error in sync_country_policies:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error.message 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    )
-  }
-})
