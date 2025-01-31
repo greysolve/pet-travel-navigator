@@ -2,15 +2,22 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const SearchSection = () => {
   const [policySearch, setPolicySearch] = useState("");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  const [date, setDate] = useState<Date>();
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
       toast({
         title: "Please choose one search method",
@@ -19,9 +26,40 @@ export const SearchSection = () => {
       });
       return;
     }
+
+    if (origin && destination && !date) {
+      toast({
+        title: "Please select a date",
+        description: "A departure date is required to search for flights.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    // Proceed with search logic here
-    console.log("Searching with:", { policySearch, origin, destination });
+    if (origin && destination && date) {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
+          body: { origin, destination, date: date.toISOString() }
+        });
+
+        if (error) throw error;
+
+        console.log('Flight schedules:', data);
+        // Here you would handle the response data, perhaps passing it to a parent component
+        // or updating some state to display the results
+
+      } catch (error) {
+        console.error('Error searching flights:', error);
+        toast({
+          title: "Error searching flights",
+          description: "There was an error searching for flights. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   return (
@@ -62,11 +100,37 @@ export const SearchSection = () => {
             onChange={(e) => setDestination(e.target.value)}
           />
         </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full h-12 text-base bg-white/90 border-0 shadow-sm justify-start text-left font-normal",
+                !date && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, "PPP") : <span>Pick a departure date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              initialFocus
+              disabled={(date) => date < new Date()}
+            />
+          </PopoverContent>
+        </Popover>
+
         <Button 
           className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
           onClick={handleSearch}
+          disabled={isLoading}
         >
-          Search
+          {isLoading ? "Searching..." : "Search"}
         </Button>
       </div>
     </div>
