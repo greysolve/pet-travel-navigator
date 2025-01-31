@@ -1,12 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-
-// Define CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store'
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 console.log('Edge Function: sync_country_policies initialized')
 
@@ -55,8 +48,7 @@ Deno.serve(async (req) => {
       throw new Error('Invalid response from get_distinct_countries')
     }
 
-    // Debug Point 1: Countries from DB function
-    console.log('DEBUG POINT 1 - Countries from DB function:', JSON.stringify(countries, null, 2))
+    console.log('Total countries fetched:', countries.length)
 
     // Normalize country names
     const uniqueCountries = countries
@@ -65,8 +57,7 @@ Deno.serve(async (req) => {
       .map(country => country.normalize('NFKC').trim())
       .sort()
 
-    // Debug Point 2: After normalization
-    console.log('DEBUG POINT 2 - Total unique countries after normalization:', uniqueCountries.length)
+    console.log('Total unique countries after normalization:', uniqueCountries.length)
     console.log('First 10 countries:', uniqueCountries.slice(0, 10))
     
     let processedCount = 0
