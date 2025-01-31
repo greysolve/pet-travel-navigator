@@ -50,48 +50,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function fetchProfile(userId: string) {
     try {
       console.log('Fetching profile for user:', userId);
-      const { data, error } = await supabase
+      
+      // First, try to get the existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        throw error;
+      if (fetchError) {
+        console.error('Error fetching profile:', fetchError);
+        throw fetchError;
       }
 
-      if (!data) {
-        console.log('No profile found, creating one...');
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: userId,
-            notification_preferences: {
-              travel_alerts: true,
-              policy_changes: true,
-              documentation_reminders: true
-            }
-          }]);
+      if (existingProfile) {
+        console.log('Fetched existing profile:', existingProfile);
+        setProfile(existingProfile);
+        setLoading(false);
+        return;
+      }
 
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-          throw insertError;
+      // If no profile exists, create one
+      console.log('No profile found, creating one...');
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert([{ 
+          id: userId,
+          notification_preferences: {
+            travel_alerts: true,
+            policy_changes: true,
+            documentation_reminders: true
+          }
+        }])
+        .select()
+        .maybeSingle();
+
+      if (insertError) {
+        // If we get a duplicate key error, try fetching the profile again
+        if (insertError.code === '23505') {
+          console.log('Profile already exists (race condition), fetching it...');
+          const { data: retryProfile, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (retryError) throw retryError;
+          if (retryProfile) {
+            console.log('Successfully fetched profile after retry:', retryProfile);
+            setProfile(retryProfile);
+            setLoading(false);
+            return;
+          }
         }
+        console.error('Error creating profile:', insertError);
+        throw insertError;
+      }
 
-        // Fetch the newly created profile
-        const { data: newProfile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle();
-
-        if (fetchError) throw fetchError;
-        console.log('Fetched new profile:', newProfile);
+      if (newProfile) {
+        console.log('Created new profile:', newProfile);
         setProfile(newProfile);
-      } else {
-        console.log('Fetched existing profile:', data);
-        setProfile(data);
       }
     } catch (error) {
       console.error('Error in profile management:', error);
