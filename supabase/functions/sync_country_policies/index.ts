@@ -11,7 +11,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     throw new Error('Missing Perplexity API key')
   }
 
-  console.log(`Fetching ${policyType} policy for ${country}...`)
+  console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
   const prompt = `What are the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}? 
     Please structure your response to include:
@@ -28,6 +28,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     Focus on official government regulations and be precise.`
 
   try {
+    console.log(`Making API request to Perplexity for ${country}...`)
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -52,11 +53,13 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     })
 
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Perplexity API error for ${country}:`, errorText)
       throw new Error(`Perplexity API error: ${response.statusText}`)
     }
 
     const data = await response.json()
-    console.log(`Received AI response for ${country} ${policyType} policy:`, data)
+    console.log(`Received AI response for ${country} ${policyType} policy. Status: ${response.status}`)
     const content = data.choices[0].message.content
 
     // Parse the AI response into structured data
@@ -127,44 +130,40 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Starting country policies sync process...')
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    console.log('Starting country policies sync...')
-
-    // Get unique countries from airlines table
+    console.log('Fetching airlines from database...')
     const { data: airlines, error: airlinesError } = await supabaseClient
       .from('airlines')
       .select('country')
       .not('country', 'is', null)
-      .order('country')
 
     if (airlinesError) {
       console.error('Error fetching airlines:', airlinesError)
       throw airlinesError
     }
 
-    console.log('Retrieved airlines data:', airlines)
+    console.log('Raw airlines data count:', airlines?.length)
+    console.log('Sample of first few airlines:', airlines?.slice(0, 5))
 
     // Get unique countries
-    const countries = [...new Set(airlines.map(a => a.country))]
-    console.log(`Found ${countries.length} unique countries to process:`, countries)
+    const countries = [...new Set(airlines.map(a => a.country).filter(Boolean))]
+    console.log(`Found ${countries.length} unique countries to process:`, countries.slice(0, 5))
 
     if (countries.length === 0) {
-      console.log('No countries found in airlines table. Make sure to sync airlines data first.')
+      console.log('No countries found in airlines table after filtering')
       return new Response(
         JSON.stringify({
-          success: true,
-          total_countries: 0,
-          policies_processed: 0,
-          errors: 0,
-          message: 'No countries found in airlines table. Please sync airlines data first.'
+          success: false,
+          error: 'No valid countries found in airlines table'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
+          status: 400,
         }
       )
     }
@@ -180,14 +179,15 @@ Deno.serve(async (req) => {
       
       for (const country of batch) {
         try {
-          // Fetch both pet and live animal policies for each country
+          console.log(`Starting processing for country: ${country}`)
           const policyTypes: Array<'pet' | 'live_animal'> = ['pet', 'live_animal']
           
           for (const policyType of policyTypes) {
             try {
-              console.log(`Processing ${policyType} policy for ${country}...`)
+              console.log(`Fetching ${policyType} policy for ${country}...`)
               const policy = await fetchPolicyWithAI(country, policyType)
 
+              console.log(`Upserting policy for ${country} (${policyType})...`)
               const { error: upsertError } = await supabaseClient
                 .from('country_policies')
                 .upsert(policy, {
@@ -224,7 +224,6 @@ Deno.serve(async (req) => {
       total_countries: countries.length,
       policies_processed: processedCount,
       errors: errorCount,
-      message: countries.length === 0 ? 'No countries found in airlines table. Please sync airlines data first.' : undefined
     }
 
     console.log('Country policies sync completed:', summary)
