@@ -200,7 +200,11 @@ Deno.serve(async (req) => {
       throw new Error('Missing Supabase credentials')
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseKey)
+    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false
+      }
+    })
     
     console.log('Fetching airports from database...')
     const { data: airports, error: airportsError } = await supabaseClient
