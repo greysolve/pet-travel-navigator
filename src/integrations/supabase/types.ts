@@ -367,6 +367,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_distinct_countries: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          country: string
+        }[]
+      }
       has_role: {
         Args: {
           user_id: string

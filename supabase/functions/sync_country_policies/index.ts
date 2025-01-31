@@ -42,22 +42,17 @@ Deno.serve(async (req) => {
       }
     })
     
-    console.log('Fetching unique countries from airports table...')
-    // Using the correct DISTINCT syntax in PostgreSQL
-    const { data: countries, error: airportsError } = await supabaseClient
-      .from('airports')
-      .select('country')
-      .distinct('country')
-      .not('country', 'is', null)
-      .order('country')
+    console.log('Fetching unique countries using RPC...')
+    const { data: countries, error: countriesError } = await supabaseClient
+      .rpc('get_distinct_countries')
 
-    if (airportsError) {
-      console.error('Error fetching airports:', airportsError)
-      throw airportsError
+    if (countriesError) {
+      console.error('Error fetching countries:', countriesError)
+      throw countriesError
     }
 
-    // Debug Point 1: Raw countries from DB
-    console.log('DEBUG POINT 1 - Raw countries from DB:', JSON.stringify(countries, null, 2))
+    // Debug Point 1: Countries from DB function
+    console.log('DEBUG POINT 1 - Countries from DB function:', JSON.stringify(countries, null, 2))
 
     // Normalize country names
     const uniqueCountries = countries
