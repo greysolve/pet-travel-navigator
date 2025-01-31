@@ -3,12 +3,12 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 // Validate authentication token
 const validateToken = async (req: Request) => {
-  const authHeader = req.headers.get('Authorization');
+  const authHeader = req.headers.get('Authorization')
   if (!authHeader) {
-    throw new Error('Missing authorization header');
+    throw new Error('Missing authorization header')
   }
-  return authHeader;
-};
+  return authHeader
+}
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -167,13 +167,16 @@ Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
-      headers: corsHeaders
+      headers: {
+        ...corsHeaders,
+        'Cache-Control': 'no-store',
+      }
     })
   }
 
   try {
     // Validate authentication
-    await validateToken(req);
+    await validateToken(req)
     
     console.log('Starting country policies sync process...')
     
@@ -268,7 +271,7 @@ Deno.serve(async (req) => {
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-store'
         },
         status: 200,
       }
