@@ -275,8 +275,10 @@ export type Database = {
       routes: {
         Row: {
           airline_id: string | null
+          arrival_airport_id: string | null
           arrival_country: string | null
           created_at: string | null
+          departure_airport_id: string | null
           departure_country: string | null
           id: string
           policy_variations: Json | null
@@ -284,8 +286,10 @@ export type Database = {
         }
         Insert: {
           airline_id?: string | null
+          arrival_airport_id?: string | null
           arrival_country?: string | null
           created_at?: string | null
+          departure_airport_id?: string | null
           departure_country?: string | null
           id?: string
           policy_variations?: Json | null
@@ -293,8 +297,10 @@ export type Database = {
         }
         Update: {
           airline_id?: string | null
+          arrival_airport_id?: string | null
           arrival_country?: string | null
           created_at?: string | null
+          departure_airport_id?: string | null
           departure_country?: string | null
           id?: string
           policy_variations?: Json | null
@@ -306,6 +312,20 @@ export type Database = {
             columns: ["airline_id"]
             isOneToOne: false
             referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_arrival_airport_id_fkey"
+            columns: ["arrival_airport_id"]
+            isOneToOne: false
+            referencedRelation: "airports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_departure_airport_id_fkey"
+            columns: ["departure_airport_id"]
+            isOneToOne: false
+            referencedRelation: "airports"
             referencedColumns: ["id"]
           },
         ]
