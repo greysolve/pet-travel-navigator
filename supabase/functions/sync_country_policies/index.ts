@@ -10,7 +10,6 @@ Deno.serve(async (req) => {
     headers: Object.fromEntries(req.headers.entries())
   })
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -167,7 +166,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
-  const prompt = `Return ONLY a raw JSON object with no additional text, markdown, or formatting containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}. The response must be a valid JSON object with this exact structure:
+  const systemPrompt = 'You are a JSON generator that returns only raw JSON data with no additional text or formatting. Never include markdown, code blocks, or any other formatting. Only return valid JSON objects.'
+  
+  const userPrompt = `Return a JSON object containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}. The response must be a valid JSON object with this exact structure, with no additional text or formatting:
 {
   "title": "string or null if unknown",
   "description": "string or null if unknown",
@@ -193,11 +194,11 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that returns only raw JSON data with no additional text or formatting. Never include markdown, code blocks, or any other formatting. Only return valid JSON objects.'
+            content: systemPrompt
           },
           {
             role: 'user',
-            content: prompt
+            content: userPrompt
           }
         ],
         temperature: 0.1,
@@ -215,11 +216,17 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     console.log(`Received AI response for ${country} ${policyType} policy. Status: ${response.status}`)
     
     try {
-      const content = data.choices[0].message.content
+      const content = data.choices[0].message.content.trim()
       console.log('Raw AI response:', content)
       
-      // Parse the JSON response directly since we expect clean JSON
-      const policyData = JSON.parse(content)
+      // Clean the response to ensure it's valid JSON
+      const cleanedContent = content
+        .replace(/^```json\s*/, '') // Remove leading ```json
+        .replace(/\s*```$/, '')     // Remove trailing ```
+        .trim()
+      
+      // Parse the JSON response
+      const policyData = JSON.parse(cleanedContent)
       
       // Construct the final policy object with proper typing
       const policy = {
