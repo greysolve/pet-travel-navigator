@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
           "cabin_fee": string | null,
           "cargo_fee": string | null
         },
-        "policy_url": string | null // The specific URL for the pet travel policy page
+        "policy_url": string | null
       }
 
       Important: 
@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       console.error('Perplexity API error:', response.status, response.statusText);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
       throw new Error(`Perplexity API error: ${response.statusText}`);
     }
 
@@ -102,9 +104,21 @@ Deno.serve(async (req) => {
 
     let policyData;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : content;
-      policyData = JSON.parse(jsonString);
+      // First try direct JSON parse
+      try {
+        policyData = JSON.parse(content);
+      } catch (e) {
+        // If direct parse fails, try to extract JSON from the content
+        console.log('Direct JSON parse failed, attempting to extract JSON from content');
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('No JSON object found in content');
+          throw new Error('No JSON object found in content');
+        }
+        const jsonString = jsonMatch[0];
+        console.log('Extracted JSON string:', jsonString);
+        policyData = JSON.parse(jsonString);
+      }
 
       if (!policyData || typeof policyData !== 'object') {
         throw new Error('Invalid policy data structure');
