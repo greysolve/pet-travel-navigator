@@ -94,9 +94,6 @@ export const SearchSection = () => {
         if (error) throw error;
 
         console.log('Flight schedules:', data);
-        // Here you would handle the response data, perhaps passing it to a parent component
-        // or updating some state to display the results
-
       } catch (error) {
         console.error('Error searching flights:', error);
         toast({
@@ -151,37 +148,36 @@ export const SearchSection = () => {
               <Command>
                 <CommandInput 
                   placeholder="Search airports..." 
-                  onValueChange={(value) => {
-                    console.log('Search value:', value);
-                    fetchAirports(value);
-                  }}
+                  onValueChange={fetchAirports}
                 />
-                <CommandEmpty>No airports found.</CommandEmpty>
                 {isSearching ? (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                 ) : (
-                  <CommandGroup>
-                    {airports.map((airport) => (
-                      <CommandItem
-                        key={airport.iata_code}
-                        value={airport.iata_code}
-                        onSelect={(value) => {
-                          setOrigin(value);
-                          setOpenOrigin(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            origin === airport.iata_code ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {airport.city} ({airport.iata_code})
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                  <>
+                    <CommandEmpty>No airports found.</CommandEmpty>
+                    <CommandGroup>
+                      {airports.map((airport) => (
+                        <CommandItem
+                          key={airport.iata_code}
+                          value={airport.iata_code}
+                          onSelect={(value) => {
+                            setOrigin(value);
+                            setOpenOrigin(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              origin === airport.iata_code ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {airport.city} ({airport.iata_code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
                 )}
               </Command>
             </PopoverContent>
@@ -205,37 +201,36 @@ export const SearchSection = () => {
               <Command>
                 <CommandInput 
                   placeholder="Search airports..." 
-                  onValueChange={(value) => {
-                    console.log('Search value:', value);
-                    fetchAirports(value);
-                  }}
+                  onValueChange={fetchAirports}
                 />
-                <CommandEmpty>No airports found.</CommandEmpty>
                 {isSearching ? (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                 ) : (
-                  <CommandGroup>
-                    {airports.map((airport) => (
-                      <CommandItem
-                        key={airport.iata_code}
-                        value={airport.iata_code}
-                        onSelect={(value) => {
-                          setDestination(value);
-                          setOpenDestination(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            destination === airport.iata_code ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {airport.city} ({airport.iata_code})
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                  <>
+                    <CommandEmpty>No airports found.</CommandEmpty>
+                    <CommandGroup>
+                      {airports.map((airport) => (
+                        <CommandItem
+                          key={airport.iata_code}
+                          value={airport.iata_code}
+                          onSelect={(value) => {
+                            setDestination(value);
+                            setOpenDestination(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              destination === airport.iata_code ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {airport.city} ({airport.iata_code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
                 )}
               </Command>
             </PopoverContent>
