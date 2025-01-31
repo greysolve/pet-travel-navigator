@@ -79,18 +79,18 @@ const Admin = () => {
           console.log(`Successfully processed airline ${airline.id}`);
         }
       } else if (type === 'countryPolicies') {
-        let continuationToken = syncProgress.lastCountry;
+        let continuationToken = null;
         let completed = false;
         
         // Reset progress state at the start of sync
-        setSyncProgress(prev => ({
-          ...prev,
-          startTime: Date.now(),
+        setSyncProgress({
+          total: 0,
+          processed: 0,
+          lastCountry: null,
           processedCountries: [],
           errorCountries: [],
-          total: 0,
-          processed: 0
-        }));
+          startTime: Date.now()
+        });
 
         while (!completed) {
           console.log(`Calling sync_country_policies with continuation token:`, continuationToken);
@@ -105,7 +105,7 @@ const Admin = () => {
             setSyncProgress(prev => ({
               ...prev,
               total: data.total_countries,
-              processed: data.processed_policies,
+              processed: prev.processed + data.processed_policies,
               lastCountry: data.continuation_token,
               processedCountries: [...prev.processedCountries, ...data.processed_countries],
               errorCountries: [...prev.errorCountries, ...data.error_countries]
@@ -114,7 +114,8 @@ const Admin = () => {
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Add delay between batches to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 2000));
           } else {
             completed = true;
           }
@@ -123,6 +124,11 @@ const Admin = () => {
             throw new Error('Sync failed');
           }
         }
+
+        toast({
+          title: "Country Policies Sync Complete",
+          description: `Successfully processed ${syncProgress.processed} countries.`,
+        });
       } else {
         // Call other sync functions as before
         const functionName = type === 'airlines' 
