@@ -43,35 +43,28 @@ Deno.serve(async (req) => {
     })
     
     console.log('Fetching unique countries from airports table...')
-    const { data: airports, error: airportsError } = await supabaseClient
+    const { data: countries, error: airportsError } = await supabaseClient
       .from('airports')
       .select('country')
       .not('country', 'is', null)
       .order('country')
+      .distinct('country')
 
     if (airportsError) {
       console.error('Error fetching airports:', airportsError)
       throw airportsError
     }
 
-    // Debug Point 1: Raw airports data
-    console.log('DEBUG POINT 1 - Raw airports data:', JSON.stringify(airports, null, 2))
+    // Debug Point 1: Raw distinct countries from DB
+    console.log('DEBUG POINT 1 - Raw distinct countries from DB:', JSON.stringify(countries, null, 2))
 
-    const rawCountries = airports.map(a => a.country?.trim())
-    // Debug Point 2: After initial trim
-    console.log('DEBUG POINT 2 - Countries after initial trim:', JSON.stringify(rawCountries, null, 2))
+    const normalizedCountries = countries
+      .map(row => row.country.trim())
+      .map(country => country.normalize('NFKC').trim())
+      .sort()
 
-    const filteredCountries = rawCountries.filter(Boolean)
-    // Debug Point 3: After filtering nulls/empty
-    console.log('DEBUG POINT 3 - Countries after filtering nulls:', JSON.stringify(filteredCountries, null, 2))
-
-    const normalizedCountries = filteredCountries.map(country => country.normalize('NFKC').trim())
-    // Debug Point 4: After normalization
-    console.log('DEBUG POINT 4 - Countries after normalization:', JSON.stringify(normalizedCountries, null, 2))
-
-    const uniqueCountries = [...new Set(normalizedCountries)].sort()
-    // Debug Point 5: Final unique countries list
-    console.log('DEBUG POINT 5 - Final unique countries list:', JSON.stringify(uniqueCountries, null, 2))
+    // Debug Point 2: After normalization
+    console.log('DEBUG POINT 2 - Countries after normalization:', JSON.stringify(normalizedCountries, null, 2))
     
     // Intentional stop to check logs
     throw new Error('DEBUG STOP: Check logs for country processing steps')
