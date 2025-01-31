@@ -45,9 +45,9 @@ Deno.serve(async (req) => {
     console.log('Fetching unique countries from airports table...')
     const { data: countries, error: airportsError } = await supabaseClient
       .from('airports')
-      .select('DISTINCT country')
+      .select('country')
       .not('country', 'is', null)
-      .order('country', { ascending: true })
+      .order('country')
 
     if (airportsError) {
       console.error('Error fetching airports:', airportsError)
