@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const Admin = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
@@ -19,10 +20,16 @@ const Admin = () => {
     total: number;
     processed: number;
     lastCountry: string | null;
+    processedCountries: string[];
+    errorCountries: string[];
+    startTime: number | null;
   }>({
     total: 0,
     processed: 0,
-    lastCountry: null
+    lastCountry: null,
+    processedCountries: [],
+    errorCountries: [],
+    startTime: null
   });
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies') => {
@@ -74,6 +81,16 @@ const Admin = () => {
       } else if (type === 'countryPolicies') {
         let continuationToken = syncProgress.lastCountry;
         let completed = false;
+        
+        // Reset progress state at the start of sync
+        setSyncProgress(prev => ({
+          ...prev,
+          startTime: Date.now(),
+          processedCountries: [],
+          errorCountries: [],
+          total: 0,
+          processed: 0
+        }));
 
         while (!completed) {
           console.log(`Calling sync_country_policies with continuation token:`, continuationToken);
@@ -85,16 +102,18 @@ const Admin = () => {
           console.log(`Country policies sync response:`, data);
 
           if (data.total_countries > 0) {
-            setSyncProgress({
+            setSyncProgress(prev => ({
+              ...prev,
               total: data.total_countries,
               processed: data.processed_policies,
-              lastCountry: data.continuation_token
-            });
+              lastCountry: data.continuation_token,
+              processedCountries: [...prev.processedCountries, ...data.processed_countries],
+              errorCountries: [...prev.errorCountries, ...data.error_countries]
+            }));
           }
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
-            // Add a small delay before the next batch
             await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
             completed = true;
@@ -133,6 +152,26 @@ const Admin = () => {
     } finally {
       setIsLoading(prev => ({ ...prev, [type]: false }));
     }
+  };
+
+  const getElapsedTime = () => {
+    if (!syncProgress.startTime) return '';
+    const elapsed = Math.floor((Date.now() - syncProgress.startTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    return `${minutes}m ${seconds}s`;
+  };
+
+  const getEstimatedTimeRemaining = () => {
+    if (!syncProgress.startTime || syncProgress.processed === 0) return 'Calculating...';
+    
+    const elapsed = (Date.now() - syncProgress.startTime) / 1000;
+    const ratePerCountry = elapsed / syncProgress.processed;
+    const remaining = (syncProgress.total - syncProgress.processed) * ratePerCountry;
+    
+    const minutes = Math.floor(remaining / 60);
+    const seconds = Math.floor(remaining % 60);
+    return `~${minutes}m ${seconds}s`;
   };
 
   return (
@@ -245,20 +284,50 @@ const Admin = () => {
             />
             <Label htmlFor="clearCountryPolicies" className="text-lg">Clear existing country policy data first</Label>
           </div>
+          
           {syncProgress.total > 0 && (
-            <div className="mb-4">
+            <div className="mb-6 space-y-4">
               <Progress 
                 value={(syncProgress.processed / syncProgress.total) * 100} 
                 className="mb-2"
               />
-              <p className="text-sm text-muted-foreground">
-                Processed {syncProgress.processed} of {syncProgress.total} countries
+              <div className="text-sm space-y-2">
+                <p>Progress: {syncProgress.processed} of {syncProgress.total} countries ({((syncProgress.processed / syncProgress.total) * 100).toFixed(1)}%)</p>
+                <p>Elapsed time: {getElapsedTime()}</p>
+                <p>Estimated time remaining: {getEstimatedTimeRemaining()}</p>
                 {syncProgress.lastCountry && (
-                  <span className="block">Last processed: {syncProgress.lastCountry}</span>
+                  <p>Last processed: {syncProgress.lastCountry}</p>
                 )}
-              </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Processed Countries ({syncProgress.processedCountries.length})</h3>
+                  <ScrollArea className="h-32 rounded border p-2">
+                    <div className="space-y-1">
+                      {syncProgress.processedCountries.map((country, i) => (
+                        <div key={i} className="text-sm">{country}</div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+                
+                {syncProgress.errorCountries.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 text-destructive">Errors ({syncProgress.errorCountries.length})</h3>
+                    <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
+                      <div className="space-y-1">
+                        {syncProgress.errorCountries.map((country, i) => (
+                          <div key={i} className="text-sm text-destructive">{country}</div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+          
           <Button 
             onClick={() => handleSync('countryPolicies')}
             disabled={isLoading.countryPolicies}
