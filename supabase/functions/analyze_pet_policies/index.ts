@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
 
     const prompt = `
       Analyze the pet travel policy from this airline's website: ${website}
+      First, find the specific URL for the pet travel policy page. Then analyze the policy content.
       Return a JSON object with the following structure. If a field's data is not available, use null:
       {
         "pet_types_allowed": string[] | null,
@@ -49,11 +50,14 @@ Deno.serve(async (req) => {
         "fees": {
           "cabin_fee": string | null,
           "cargo_fee": string | null
-        }
+        },
+        "policy_url": string | null // The specific URL for the pet travel policy page
       }
 
-      Important: Make sure to return ONLY the JSON object, no additional text or formatting.
-      If you can't find the information, return the JSON with all null values.
+      Important: 
+      1. Make sure to return ONLY the JSON object, no additional text or formatting.
+      2. For policy_url, provide the complete URL to the specific pet travel policy page, not just the main website.
+      3. If you can't find the information, return the JSON with all null values.
     `
 
     console.log('Sending request to Perplexity API...');
@@ -68,14 +72,14 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that extracts pet policy information from airline websites. Return only valid JSON objects.'
+            content: 'You are a JSON generator that extracts pet policy information from airline websites, with special focus on finding the specific URL for pet travel policies. Return only valid JSON objects.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.1, // Lower temperature for more consistent output
+        temperature: 0.1,
         max_tokens: 1000,
       }),
     })
@@ -98,12 +102,10 @@ Deno.serve(async (req) => {
 
     let policyData;
     try {
-      // Try to extract JSON if it's wrapped in backticks or has additional text
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       const jsonString = jsonMatch ? jsonMatch[0] : content;
       policyData = JSON.parse(jsonString);
 
-      // Validate the structure
       if (!policyData || typeof policyData !== 'object') {
         throw new Error('Invalid policy data structure');
       }
@@ -122,7 +124,8 @@ Deno.serve(async (req) => {
         fees: {
           cabin_fee: null,
           cargo_fee: null
-        }
+        },
+        policy_url: null
       };
 
       // Merge with default policy to ensure all fields exist
