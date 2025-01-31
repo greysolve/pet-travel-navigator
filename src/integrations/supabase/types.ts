@@ -203,7 +203,7 @@ export type Database = {
           {
             foreignKeyName: "pet_policies_airline_id_fkey"
             columns: ["airline_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "airlines"
             referencedColumns: ["id"]
           },

@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
     let body;
     try {
       body = await req.json();
+      console.log('Request body:', body);
     } catch (e) {
       console.error('Failed to parse request body:', e);
       throw new Error('Invalid request body');
@@ -39,18 +40,10 @@ Deno.serve(async (req) => {
       Return a JSON object with the following structure. If a field's data is not available, use null:
       {
         "pet_types_allowed": string[] | null,
-        "size_restrictions": {
-          "cabin_max_weight_kg": number | null,
-          "cargo_max_weight_kg": number | null
-        },
         "carrier_requirements": string | null,
         "documentation_needed": string[] | null,
-        "breed_restrictions": string[] | null,
         "temperature_restrictions": string | null,
-        "fees": {
-          "cabin_fee": string | null,
-          "cargo_fee": string | null
-        },
+        "breed_restrictions": string[] | null,
         "policy_url": string | null
       }
 
@@ -58,6 +51,7 @@ Deno.serve(async (req) => {
       1. Make sure to return ONLY the JSON object, no additional text or formatting.
       2. For policy_url, provide the complete URL to the specific pet travel policy page, not just the main website.
       3. If you can't find the information, return the JSON with all null values.
+      4. Do not include any explanatory text or markdown formatting in your response.
     `
 
     console.log('Sending request to Perplexity API...');
@@ -72,7 +66,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that extracts pet policy information from airline websites, with special focus on finding the specific URL for pet travel policies. Return only valid JSON objects.'
+            content: 'You are a JSON generator that extracts pet policy information from airline websites. Return only valid JSON objects with no additional text or formatting.'
           },
           {
             role: 'user',
@@ -120,46 +114,46 @@ Deno.serve(async (req) => {
         policyData = JSON.parse(jsonString);
       }
 
-      if (!policyData || typeof policyData !== 'object') {
-        throw new Error('Invalid policy data structure');
+      // Validate the structure of the parsed data
+      const requiredFields = [
+        'pet_types_allowed',
+        'carrier_requirements',
+        'documentation_needed',
+        'temperature_restrictions',
+        'breed_restrictions',
+        'policy_url'
+      ];
+
+      const missingFields = requiredFields.filter(field => !(field in policyData));
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
 
-      // Ensure all required fields exist with correct types
-      const defaultPolicy = {
-        pet_types_allowed: null,
-        size_restrictions: {
-          cabin_max_weight_kg: null,
-          cargo_max_weight_kg: null
-        },
-        carrier_requirements: null,
-        documentation_needed: null,
-        breed_restrictions: null,
-        temperature_restrictions: null,
-        fees: {
-          cabin_fee: null,
-          cargo_fee: null
-        },
-        policy_url: null
-      };
-
-      // Merge with default policy to ensure all fields exist
-      policyData = {
-        ...defaultPolicy,
-        ...policyData,
-        size_restrictions: {
-          ...defaultPolicy.size_restrictions,
-          ...policyData.size_restrictions
-        },
-        fees: {
-          ...defaultPolicy.fees,
-          ...policyData.fees
+      // Ensure arrays are actually arrays
+      const arrayFields = ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'];
+      arrayFields.forEach(field => {
+        if (policyData[field] !== null && !Array.isArray(policyData[field])) {
+          if (typeof policyData[field] === 'string') {
+            // Convert comma-separated string to array
+            policyData[field] = policyData[field].split(',').map(item => item.trim());
+          } else {
+            policyData[field] = null;
+          }
         }
-      };
+      });
+
+      // Ensure string fields are actually strings or null
+      const stringFields = ['carrier_requirements', 'temperature_restrictions', 'policy_url'];
+      stringFields.forEach(field => {
+        if (policyData[field] !== null && typeof policyData[field] !== 'string') {
+          policyData[field] = String(policyData[field]);
+        }
+      });
 
     } catch (e) {
       console.error('Failed to parse policy data:', e);
       console.error('Raw content:', content);
-      throw new Error('Failed to parse policy data from AI response');
+      throw new Error(`Failed to parse policy data: ${e.message}`);
     }
 
     // Store in Supabase
@@ -174,7 +168,9 @@ Deno.serve(async (req) => {
         airline_id,
         ...policyData,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'airline_id' });
+      }, { 
+        onConflict: 'airline_id'
+      });
 
     if (error) {
       console.error('Supabase error:', error);
