@@ -23,6 +23,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       console.log("Starting role check for user:", user.id);
       console.log("Required role:", requiredRole);
       console.log("Full user object:", user);
+      console.log("User metadata:", user.user_metadata);
       
       // First check user metadata
       const metadataRole = user.user_metadata?.role;
@@ -62,7 +63,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       requiredRole,
       userMetadata: user?.user_metadata,
       userId: user?.id,
-      fullUser: user
+      fullUser: user,
+      currentPath: window.location.pathname
     });
 
     if (!loading && !user) {
@@ -75,7 +77,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       console.log("Checking role access:", {
         userRole,
         requiredRole,
-        hasAccess: userRole === requiredRole
+        hasAccess: userRole === requiredRole,
+        userMetadata: user?.user_metadata
       });
       
       if (userRole !== requiredRole) {
@@ -97,7 +100,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       requiredRole,
       userMetadata: user?.user_metadata,
       userId: user?.id,
-      fullUser: user
+      fullUser: user,
+      currentPath: window.location.pathname
     });
     return null;
   }
