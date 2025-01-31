@@ -4,12 +4,6 @@ import { corsHeaders } from '../_shared/cors.ts'
 console.log('Edge Function: sync_country_policies initialized')
 
 Deno.serve(async (req) => {
-  console.log('Request received:', {
-    method: req.method,
-    url: req.url,
-    headers: Object.fromEntries(req.headers.entries())
-  })
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -21,6 +15,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Request received:', {
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries())
+    })
+
     // Initialize Supabase client with error handling
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -219,8 +219,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     const policy: any = {
       country_code: country,
       policy_type: policyType,
-      title: '',
-      description: '',
+      title: `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
+      description: `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}. These requirements must be followed when bringing animals into the country.`,
       requirements: [],
       documentation_needed: [],
       fees: {},
@@ -237,9 +237,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       if (!trimmedLine) continue
 
       if (trimmedLine.toLowerCase().includes('title:')) {
-        policy.title = trimmedLine.split(':')[1]?.trim() || `${country} ${policyType} Import Requirements`
+        policy.title = trimmedLine.split(':')[1]?.trim() || policy.title
       } else if (trimmedLine.toLowerCase().includes('description:')) {
-        policy.description = trimmedLine.split(':')[1]?.trim()
+        policy.description = trimmedLine.split(':')[1]?.trim() || policy.description
       } else if (trimmedLine.toLowerCase().includes('requirements:') || trimmedLine.toLowerCase().includes('key requirements:')) {
         currentSection = 'requirements'
       } else if (trimmedLine.toLowerCase().includes('documentation:') || trimmedLine.toLowerCase().includes('required documentation:')) {
