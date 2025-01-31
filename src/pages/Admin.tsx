@@ -18,7 +18,11 @@ const Admin = () => {
     try {
       if (clearData[type]) {
         // Clear existing data first
-        const { error: clearError } = await supabase.rpc('cleanup_airlines_data');
+        const { error: clearError } = await supabase
+          .from(type)
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000'); // Prevent deleting all records
+        
         if (clearError) throw clearError;
       }
 
@@ -29,6 +33,7 @@ const Admin = () => {
           ? 'sync_airport_data' 
           : 'analyze_pet_policies';
 
+      console.log(`Calling ${functionName} edge function...`);
       const { error } = await supabase.functions.invoke(functionName);
       if (error) throw error;
 
@@ -93,6 +98,9 @@ const Admin = () => {
           >
             {isLoading.airports ? "Syncing Airports..." : "Sync Airports"}
           </Button>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Syncs airport data from the Cirium FlightStats API
+          </p>
         </div>
 
         {/* Pet Policies Sync */}
