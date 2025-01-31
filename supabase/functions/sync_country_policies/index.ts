@@ -47,15 +47,29 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-    // Log raw airport data to see all countries
-    console.log('Raw airport countries data:', airports.map(a => a.country))
+    // Log raw airport data with more detail
+    console.log('Raw airport countries data (with type and length):', airports.map(a => ({
+      country: a.country,
+      type: typeof a.country,
+      length: a.country?.length,
+      trimmedLength: a.country?.trim().length
+    })))
 
-    // Get unique countries and log the process
-    const countrySet = new Set(airports.map(a => a.country).filter(Boolean))
+    // Get unique countries with normalization
+    const countrySet = new Set(
+      airports
+        .map(a => a.country?.trim())
+        .filter(Boolean)
+        .map(country => ({
+          original: country,
+          normalized: country.normalize('NFKC').trim()
+        }))
+    )
+    
     console.log('Unique countries before processing:', Array.from(countrySet))
 
     // Convert to array and sort
-    const uniqueCountries = Array.from(countrySet).sort()
+    const uniqueCountries = Array.from(countrySet).map(c => c.normalized).sort()
     console.log(`Found ${uniqueCountries.length} unique countries to process:`, uniqueCountries)
 
     let processedCount = 0
@@ -78,7 +92,7 @@ Deno.serve(async (req) => {
           
           for (const policyType of policyTypes) {
             try {
-              // Check if policy already exists and is recent
+              // Check if policy already exists
               const { data: existingPolicies } = await supabaseClient
                 .from('country_policies')
                 .select('last_updated')
@@ -86,17 +100,17 @@ Deno.serve(async (req) => {
                 .eq('policy_type', policyType)
                 .single()
 
-              // Skip if policy is less than 7 days old
-              if (existingPolicies?.last_updated) {
-                const lastUpdated = new Date(existingPolicies.last_updated)
-                const daysSinceUpdate = (new Date().getTime() - lastUpdated.getTime()) / (1000 * 3600 * 24)
-                if (daysSinceUpdate < 7) {
-                  console.log(`Skipping ${country} ${policyType} policy - updated ${daysSinceUpdate.toFixed(1)} days ago`)
-                  skippedCountries.add(country)
-                  skippedCount++
-                  continue
-                }
-              }
+              // Temporarily remove the 7-day restriction for testing
+              // if (existingPolicies?.last_updated) {
+              //   const lastUpdated = new Date(existingPolicies.last_updated)
+              //   const daysSinceUpdate = (new Date().getTime() - lastUpdated.getTime()) / (1000 * 3600 * 24)
+              //   if (daysSinceUpdate < 7) {
+              //     console.log(`Skipping ${country} ${policyType} policy - updated ${daysSinceUpdate.toFixed(1)} days ago`)
+              //     skippedCountries.add(country)
+              //     skippedCount++
+              //     continue
+              //   }
+              // }
 
               console.log(`Fetching ${policyType} policy for ${country}...`)
               const policy = await fetchPolicyWithAI(country, policyType)
@@ -104,7 +118,12 @@ Deno.serve(async (req) => {
               console.log(`Upserting policy for ${country} (${policyType})...`)
               const { error: upsertError } = await supabaseClient
                 .from('country_policies')
-                .upsert(policy, {
+                .upsert({
+                  ...policy,
+                  country_code: country,
+                  policy_type: policyType,
+                  last_updated: new Date().toISOString()
+                }, {
                   onConflict: 'country_code,policy_type'
                 })
 
@@ -219,7 +238,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
             content: prompt
           }
         ],
-        temperature: 0.1, // Lower temperature for more consistent JSON formatting
+        temperature: 0.1,
         max_tokens: 1000,
       }),
     })
@@ -242,8 +261,6 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       
       // Construct the final policy object with proper typing
       const policy = {
-        country_code: country,
-        policy_type: policyType,
         title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
         description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
         requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
@@ -253,7 +270,6 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
         quarantine_requirements: policyData.quarantine_requirements || '',
         vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
         additional_notes: policyData.additional_notes || '',
-        last_updated: new Date().toISOString(),
       }
 
       return policy
