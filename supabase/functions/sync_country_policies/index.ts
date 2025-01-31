@@ -1,7 +1,51 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// Validate authentication token
+Deno.serve(async (req) => {
+  console.log('Request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        ...corsHeaders,
+        'Cache-Control': 'no-store'
+      }
+    })
+  }
+
+  try {
+    // Initialize Supabase client with error handling
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials')
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    })
+    
+    console.log('Fetching airports from database...')
+    const { data: airports, error: airportsError } = await supabaseClient
+      .from('airports')
+      .select('country')
+      .not('country', 'is', null)
+
+    if (airportsError) {
+      console.error('Error fetching airports:', airportsError)
+      throw airportsError
+    }
+
 const validateToken = async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization')
@@ -169,51 +213,6 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   }
 }
 
-Deno.serve(async (req) => {
-  console.log('Request received:', {
-    method: req.method,
-    headers: Object.fromEntries(req.headers.entries()),
-    url: req.url
-  })
-
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        ...corsHeaders,
-        'Cache-Control': 'no-store'
-      }
-    })
-  }
-
-  try {
-    // Initialize Supabase client with error handling
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials')
-    }
-
-    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      }
-    })
-    
-    console.log('Fetching airports from database...')
-    const { data: airports, error: airportsError } = await supabaseClient
-      .from('airports')
-      .select('country')
-      .not('country', 'is', null)
-
-    if (airportsError) {
-      console.error('Error fetching airports:', airportsError)
-      throw airportsError
-    }
-
     // Get unique countries
     const countries = [...new Set(airports.map(a => a.country).filter(Boolean))]
     console.log(`Found ${countries.length} unique countries to process:`, countries.slice(0, 5))
@@ -298,7 +297,7 @@ Deno.serve(async (req) => {
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.message.includes('Missing authorization') ? 401 : 500,
+        status: 500,
       }
     )
   }
