@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
+console.log('Edge Function: sync_country_policies initialized')
+
 Deno.serve(async (req) => {
   console.log('Request received:', {
     method: req.method,
@@ -272,16 +274,6 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
           policy.additional_notes += item + ' '
         }
       }
-    }
-
-    // If we haven't found a title, use a default one
-    if (!policy.title) {
-      policy.title = `${country} Pet Import Requirements and Regulations`
-    }
-
-    // If we haven't found a description, generate one
-    if (!policy.description) {
-      policy.description = `Official pet import requirements and regulations for ${country}. These requirements must be followed when bringing pets into the country.`
     }
 
     return policy
