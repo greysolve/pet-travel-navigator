@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.sync_airport_data]
 verify_jwt = false
+
+[functions.sync_route_data]
+verify_jwt = false
