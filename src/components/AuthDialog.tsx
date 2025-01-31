@@ -17,7 +17,7 @@ export const AuthDialog = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithEmail, signUp } = useAuth();
+  const { signInWithEmail, signUp, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export const AuthDialog = () => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { data: { user } } = await signInWithEmail(email, password);
+        await signInWithEmail(email, password);
         toast({
           title: "Welcome back!",
           description: "Successfully signed in",
