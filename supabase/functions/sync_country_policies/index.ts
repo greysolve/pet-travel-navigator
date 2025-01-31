@@ -165,19 +165,20 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
-  const prompt = `What are the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}? 
-    Please structure your response to include:
-    - Title (one line summary)
-    - Description (2-3 sentences overview)
-    - Key Requirements (list)
-    - Required Documentation (list)
-    - Fees (if applicable)
-    - Restrictions (if any)
-    - Quarantine Requirements (if any)
-    - Vaccination Requirements (list)
-    - Additional Notes
-    
-    Focus on official government regulations and be precise.`
+  const prompt = `Generate a JSON object containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}.
+    Return ONLY a valid JSON object with the following structure:
+    {
+      "title": "string or null if unknown",
+      "description": "string or null if unknown",
+      "requirements": ["string"] or [] if none,
+      "documentation_needed": ["string"] or [] if none,
+      "fees": {"description": "string"} or {} if none,
+      "restrictions": {"description": "string"} or {} if none,
+      "quarantine_requirements": "string or null if none",
+      "vaccination_requirements": ["string"] or [] if none,
+      "additional_notes": "string or null if none"
+    }
+    Be precise and ensure the response is a valid JSON object.`
 
   try {
     console.log(`Making API request to Perplexity for ${country}...`)
@@ -192,14 +193,14 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that provides accurate information about animal import regulations. Be precise and concise.'
+            content: 'You are a JSON generator that returns valid JSON objects containing animal import regulations. Always return valid JSON.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.2,
+        temperature: 0.1, // Lower temperature for more consistent JSON formatting
         max_tokens: 1000,
       }),
     })
@@ -212,71 +213,36 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
     const data = await response.json()
     console.log(`Received AI response for ${country} ${policyType} policy. Status: ${response.status}`)
-    const content = data.choices[0].message.content
-
-    // Parse the AI response into structured data
-    const lines = content.split('\n')
-    const policy: any = {
-      country_code: country,
-      policy_type: policyType,
-      title: `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
-      description: `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}. These requirements must be followed when bringing animals into the country.`,
-      requirements: [],
-      documentation_needed: [],
-      fees: {},
-      restrictions: {},
-      quarantine_requirements: '',
-      vaccination_requirements: [],
-      additional_notes: '',
-      last_updated: new Date().toISOString(),
-    }
-
-    let currentSection = ''
-    for (const line of lines) {
-      const trimmedLine = line.trim()
-      if (!trimmedLine) continue
-
-      if (trimmedLine.toLowerCase().includes('title:')) {
-        policy.title = trimmedLine.split(':')[1]?.trim() || policy.title
-      } else if (trimmedLine.toLowerCase().includes('description:')) {
-        policy.description = trimmedLine.split(':')[1]?.trim() || policy.description
-      } else if (trimmedLine.toLowerCase().includes('requirements:') || trimmedLine.toLowerCase().includes('key requirements:')) {
-        currentSection = 'requirements'
-      } else if (trimmedLine.toLowerCase().includes('documentation:') || trimmedLine.toLowerCase().includes('required documentation:')) {
-        currentSection = 'documentation'
-      } else if (trimmedLine.toLowerCase().includes('fees:')) {
-        currentSection = 'fees'
-        const feesText = trimmedLine.split(':')[1]?.trim()
-        if (feesText) {
-          policy.fees = { general: feesText }
-        }
-      } else if (trimmedLine.toLowerCase().includes('restrictions:')) {
-        currentSection = 'restrictions'
-        const restrictionsText = trimmedLine.split(':')[1]?.trim()
-        if (restrictionsText) {
-          policy.restrictions = { general: restrictionsText }
-        }
-      } else if (trimmedLine.toLowerCase().includes('quarantine:')) {
-        policy.quarantine_requirements = trimmedLine.split(':')[1]?.trim()
-      } else if (trimmedLine.toLowerCase().includes('vaccination:')) {
-        currentSection = 'vaccination'
-      } else if (trimmedLine.toLowerCase().includes('additional notes:')) {
-        currentSection = 'notes'
-      } else if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•') || /^\d+\./.test(trimmedLine)) {
-        const item = trimmedLine.replace(/^[-•\d.]+/, '').trim()
-        if (currentSection === 'requirements') {
-          policy.requirements.push(item)
-        } else if (currentSection === 'documentation') {
-          policy.documentation_needed.push(item)
-        } else if (currentSection === 'vaccination') {
-          policy.vaccination_requirements.push(item)
-        } else if (currentSection === 'notes') {
-          policy.additional_notes += item + ' '
-        }
+    
+    try {
+      const content = data.choices[0].message.content
+      console.log('Raw AI response:', content)
+      
+      // Parse the JSON response
+      const policyData = JSON.parse(content)
+      
+      // Construct the final policy object with proper typing
+      const policy = {
+        country_code: country,
+        policy_type: policyType,
+        title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
+        description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
+        requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
+        documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
+        fees: typeof policyData.fees === 'object' ? policyData.fees : {},
+        restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
+        quarantine_requirements: policyData.quarantine_requirements || '',
+        vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
+        additional_notes: policyData.additional_notes || '',
+        last_updated: new Date().toISOString(),
       }
-    }
 
-    return policy
+      return policy
+    } catch (parseError) {
+      console.error(`Error parsing JSON response for ${country}:`, parseError)
+      console.error('Raw content that failed to parse:', data.choices[0].message.content)
+      throw new Error(`Failed to parse policy data for ${country}`)
+    }
   } catch (error) {
     console.error(`Error processing policy for ${country}:`, error)
     throw error
