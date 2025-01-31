@@ -53,10 +53,10 @@ Deno.serve(async (req) => {
       1. Return ONLY valid JSON, no other text
       2. All arrays must be properly formatted with square brackets
       3. All strings must be properly quoted
-      4. No trailing commas
-      5. Empty arrays should be null, not []
-      6. All property names must be exactly as shown above
-      7. Do not add any additional fields
+      4. Empty arrays should be null, not []
+      5. All property names must be exactly as shown above
+      6. Do not add any additional fields
+      7. No trailing commas
     `;
 
     console.log('Sending request to Perplexity API...');

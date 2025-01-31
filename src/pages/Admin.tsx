@@ -63,20 +63,34 @@ const Admin = () => {
             continue;
           }
 
-          console.log(`Processing airline ${airline.id} with website ${airline.website}`);
-          const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
-            body: {
-              airline_id: airline.id,
-              website: airline.website
+          try {
+            console.log(`Processing airline ${airline.id} with website ${airline.website}`);
+            const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
+              body: {
+                airline_id: airline.id,
+                website: airline.website
+              }
+            });
+
+            if (error) {
+              console.error(`Error processing airline ${airline.id}:`, error);
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: `Failed to process airline: ${error.message}`,
+              });
+              continue;
             }
-          });
 
-          if (error) {
-            console.error(`Error processing airline ${airline.id}:`, error);
-            continue;
+            console.log(`Successfully processed airline ${airline.id}`);
+          } catch (err) {
+            console.error(`Error processing airline ${airline.id}:`, err);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: `Failed to process airline: ${err.message}`,
+            });
           }
-
-          console.log(`Successfully processed airline ${airline.id}`);
         }
       } else if (type === 'countryPolicies') {
         let continuationToken = null;
