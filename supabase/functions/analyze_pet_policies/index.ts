@@ -6,7 +6,6 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -14,7 +13,6 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting pet policy analysis...');
     
-    // Parse request body
     let body;
     try {
       body = await req.json();
@@ -39,6 +37,14 @@ Deno.serve(async (req) => {
 
     const prompt = `
       Analyze the pet travel policy from this airline's website: ${website}
+      
+      IMPORTANT: For the policy_url field:
+      1. Search specifically for a dedicated pet/animal travel policy page
+      2. If no dedicated page exists, find the most relevant page containing pet policy information
+      3. If the policy is part of a larger document, provide the URL to that document
+      4. Only return null if absolutely no relevant URL can be found
+      5. The URL must be complete (including https://) and directly accessible
+      
       Return a JSON object with ONLY these fields (use null if data is not found):
       {
         "pet_types_allowed": ["string"],
@@ -57,6 +63,7 @@ Deno.serve(async (req) => {
       5. All property names must be exactly as shown above
       6. Do not add any additional fields
       7. No trailing commas
+      8. For policy_url, provide the most specific and relevant URL possible
     `;
 
     console.log('Sending request to Perplexity API...');
@@ -71,7 +78,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that extracts pet policy information from airline websites. Return only valid JSON objects with no additional text.'
+            content: 'You are a specialized AI focused on finding and extracting pet travel policies from airline websites. Your primary goal is to locate specific policy URLs and detailed policy information.'
           },
           {
             role: 'user',
@@ -101,19 +108,16 @@ Deno.serve(async (req) => {
     let content = data.choices[0].message.content.trim();
     console.log('Raw content to parse:', content);
 
-    // Extract JSON object from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No JSON object found in content');
     }
     content = jsonMatch[0];
 
-    // Parse and validate the JSON structure
     let policyData;
     try {
       policyData = JSON.parse(content);
       
-      // Ensure all required fields exist
       const requiredFields = [
         'pet_types_allowed',
         'carrier_requirements',
@@ -129,7 +133,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Normalize array fields
       ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
         if (!Array.isArray(policyData[field])) {
           policyData[field] = policyData[field] ? [String(policyData[field])] : null;
@@ -143,7 +146,6 @@ Deno.serve(async (req) => {
         }
       });
 
-      // Normalize string fields
       ['carrier_requirements', 'temperature_restrictions', 'policy_url'].forEach(field => {
         if (policyData[field] && typeof policyData[field] !== 'string') {
           policyData[field] = String(policyData[field]).trim();
@@ -153,13 +155,22 @@ Deno.serve(async (req) => {
         }
       });
 
+      // Validate policy URL format if one is provided
+      if (policyData.policy_url) {
+        try {
+          new URL(policyData.policy_url);
+        } catch (e) {
+          console.warn(`Invalid policy URL format: ${policyData.policy_url}`);
+          policyData.policy_url = null;
+        }
+      }
+
     } catch (e) {
       console.error('Failed to parse policy data:', e);
       console.error('Content that failed to parse:', content);
       throw new Error(`Failed to parse policy data: ${e.message}`);
     }
 
-    // Store in Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
