@@ -44,14 +44,17 @@ Deno.serve(async (req) => {
       // Add more sample policies as needed
     ]
 
-    // Insert or update policies
+    // Insert or update policies using the new unique constraint
     const { error } = await supabaseClient
       .from('country_policies')
       .upsert(samplePolicies, {
         onConflict: 'country_code,policy_type'
       })
 
-    if (error) throw error
+    if (error) {
+      console.error('Error in sync_country_policies:', error)
+      throw error
+    }
 
     console.log('Country policies sync completed successfully')
 
