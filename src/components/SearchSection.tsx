@@ -131,28 +131,27 @@ export const SearchSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
-            <Input
-              type="text"
-              placeholder="Origin (city or airport code)"
-              className="h-12 text-base bg-white/90 border-0 shadow-sm"
-              value={origin}
-              onChange={(e) => {
-                setOrigin(e.target.value);
-                fetchAirports(e.target.value);
-                setShowOriginSuggestions(true);
-              }}
-              onFocus={() => setShowOriginSuggestions(true)}
-            />
-            {showOriginSuggestions && airports.length > 0 && (
-              <div className="absolute w-full z-50 mt-1">
-                <Command className="rounded-lg border shadow-md">
-                  {isSearching ? (
-                    <div className="flex items-center justify-center py-6">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : (
-                    <CommandGroup>
-                      {airports.map((airport) => (
+            <Command className="rounded-lg border shadow-md">
+              <CommandInput
+                placeholder="Origin (city or airport code)"
+                value={origin}
+                onValueChange={(value) => {
+                  setOrigin(value);
+                  fetchAirports(value);
+                  setShowOriginSuggestions(true);
+                }}
+                className="h-12 text-base"
+              />
+              {showOriginSuggestions && (
+                <>
+                  <CommandEmpty>No airports found.</CommandEmpty>
+                  <CommandGroup>
+                    {isSearching ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : (
+                      airports.map((airport) => (
                         <CommandItem
                           key={airport.iata_code}
                           value={airport.iata_code}
@@ -170,37 +169,36 @@ export const SearchSection = () => {
                           />
                           {airport.city} ({airport.iata_code})
                         </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  )}
-                </Command>
-              </div>
-            )}
+                      ))
+                    )}
+                  </CommandGroup>
+                </>
+              )}
+            </Command>
           </div>
 
           <div className="relative">
-            <Input
-              type="text"
-              placeholder="Destination (city or airport code)"
-              className="h-12 text-base bg-white/90 border-0 shadow-sm"
-              value={destination}
-              onChange={(e) => {
-                setDestination(e.target.value);
-                fetchAirports(e.target.value);
-                setShowDestinationSuggestions(true);
-              }}
-              onFocus={() => setShowDestinationSuggestions(true)}
-            />
-            {showDestinationSuggestions && airports.length > 0 && (
-              <div className="absolute w-full z-50 mt-1">
-                <Command className="rounded-lg border shadow-md">
-                  {isSearching ? (
-                    <div className="flex items-center justify-center py-6">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : (
-                    <CommandGroup>
-                      {airports.map((airport) => (
+            <Command className="rounded-lg border shadow-md">
+              <CommandInput
+                placeholder="Destination (city or airport code)"
+                value={destination}
+                onValueChange={(value) => {
+                  setDestination(value);
+                  fetchAirports(value);
+                  setShowDestinationSuggestions(true);
+                }}
+                className="h-12 text-base"
+              />
+              {showDestinationSuggestions && (
+                <>
+                  <CommandEmpty>No airports found.</CommandEmpty>
+                  <CommandGroup>
+                    {isSearching ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : (
+                      airports.map((airport) => (
                         <CommandItem
                           key={airport.iata_code}
                           value={airport.iata_code}
@@ -218,12 +216,12 @@ export const SearchSection = () => {
                           />
                           {airport.city} ({airport.iata_code})
                         </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  )}
-                </Command>
-              </div>
-            )}
+                      ))
+                    )}
+                  </CommandGroup>
+                </>
+              )}
+            </Command>
           </div>
         </div>
 
