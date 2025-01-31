@@ -66,27 +66,43 @@ Deno.serve(async (req) => {
       .sort()
 
     // Debug Point 2: After normalization
-    console.log('DEBUG POINT 2 - Countries after normalization:', JSON.stringify(uniqueCountries, null, 2))
+    console.log('DEBUG POINT 2 - Total unique countries after normalization:', uniqueCountries.length)
+    console.log('First 10 countries:', uniqueCountries.slice(0, 10))
     
     let processedCount = 0
     let errorCount = 0
     const processedCountries = new Set()
     const errorCountries = new Set()
+    const skippedCountries = new Set()
 
     const BATCH_SIZE = 5
+    const BATCH_DELAY = 2000 // 2 seconds between batches
+    const POLICY_TYPES: Array<'pet' | 'live_animal'> = ['pet', 'live_animal']
+
+    console.log(`Starting batch processing with size ${BATCH_SIZE} and delay ${BATCH_DELAY}ms`)
+
     for (let i = 0; i < uniqueCountries.length; i += BATCH_SIZE) {
       const batch = uniqueCountries.slice(i, i + BATCH_SIZE)
-      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(uniqueCountries.length/BATCH_SIZE)}...`)
+      const batchNumber = Math.floor(i/BATCH_SIZE) + 1
+      const totalBatches = Math.ceil(uniqueCountries.length/BATCH_SIZE)
+      
+      console.log(`Processing batch ${batchNumber} of ${totalBatches}...`)
+      console.log(`Batch countries: ${JSON.stringify(batch)}`)
       
       for (const country of batch) {
         try {
-          console.log(`Processing country: ${country}`)
-          const policyTypes: Array<'pet' | 'live_animal'> = ['pet', 'live_animal']
+          console.log(`Starting processing for country: ${country}`)
           
-          for (const policyType of policyTypes) {
+          for (const policyType of POLICY_TYPES) {
+            console.log(`Fetching ${policyType} policy for ${country}...`)
+            
             try {
-              console.log(`Fetching ${policyType} policy for ${country}...`)
+              const startTime = Date.now()
               const policy = await fetchPolicyWithAI(country, policyType)
+              const endTime = Date.now()
+              
+              console.log(`AI response time for ${country} (${policyType}): ${endTime - startTime}ms`)
+              console.log(`Policy data received:`, policy)
 
               console.log(`Upserting policy for ${country} (${policyType})...`)
               const { error: upsertError } = await supabaseClient
@@ -122,19 +138,26 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Progress report after each batch
+      console.log(`Batch ${batchNumber}/${totalBatches} completed.`)
+      console.log(`Progress: ${processedCount} policies processed, ${errorCount} errors`)
+      console.log(`Processed countries: ${Array.from(processedCountries).join(', ')}`)
+      console.log(`Countries with errors: ${Array.from(errorCountries).join(', ')}`)
+
       if (i + BATCH_SIZE < uniqueCountries.length) {
-        console.log('Waiting before processing next batch...')
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        console.log(`Waiting ${BATCH_DELAY}ms before next batch...`)
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
       }
     }
 
     const summary = {
       success: true,
       total_countries: uniqueCountries.length,
-      processed: processedCount,
+      processed_policies: processedCount,
       errors: errorCount,
       processed_countries: Array.from(processedCountries),
-      error_countries: Array.from(errorCountries)
+      error_countries: Array.from(errorCountries),
+      skipped_countries: Array.from(skippedCountries)
     }
 
     console.log('Country policies sync completed:', summary)
