@@ -11,6 +11,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     throw new Error('Missing Perplexity API key')
   }
 
+  console.log(`Fetching ${policyType} policy for ${country}...`)
+
   const prompt = `What are the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}? 
     Please structure your response to include:
     - Title
@@ -25,92 +27,97 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     
     Focus on official government regulations and be precise.`
 
-  console.log(`Fetching ${policyType} policies for ${country}...`)
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-sonar-small-128k-online',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant that provides accurate information about animal import regulations. Be precise and concise.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 1000,
+      }),
+    })
 
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.1-sonar-small-128k-online',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a helpful assistant that provides accurate information about animal import regulations. Be precise and concise.'
-        },
-        {
-          role: 'user',
-          content: prompt
+    if (!response.ok) {
+      throw new Error(`Perplexity API error: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices[0].message.content
+
+    // Parse the AI response into structured data
+    const lines = content.split('\n')
+    const policy: any = {
+      country_code: country,
+      policy_type: policyType,
+      title: '',
+      description: '',
+      requirements: [],
+      documentation_needed: [],
+      fees: {},
+      restrictions: {},
+      quarantine_requirements: '',
+      vaccination_requirements: [],
+      additional_notes: '',
+    }
+
+    let currentSection = ''
+    for (const line of lines) {
+      const trimmedLine = line.trim()
+      if (!trimmedLine) continue
+
+      if (trimmedLine.toLowerCase().includes('title:')) {
+        policy.title = trimmedLine.split(':')[1]?.trim() || `${country} ${policyType} Import Requirements`
+      } else if (trimmedLine.toLowerCase().includes('description:')) {
+        policy.description = trimmedLine.split(':')[1]?.trim()
+      } else if (trimmedLine.toLowerCase().includes('requirements:')) {
+        currentSection = 'requirements'
+      } else if (trimmedLine.toLowerCase().includes('documentation:')) {
+        currentSection = 'documentation'
+      } else if (trimmedLine.toLowerCase().includes('fees:')) {
+        currentSection = 'fees'
+        policy.fees = { general: trimmedLine.split(':')[1]?.trim() || 'Varies by case' }
+      } else if (trimmedLine.toLowerCase().includes('restrictions:')) {
+        currentSection = 'restrictions'
+        policy.restrictions = { general: trimmedLine.split(':')[1]?.trim() || 'Contact authorities for details' }
+      } else if (trimmedLine.toLowerCase().includes('quarantine:')) {
+        policy.quarantine_requirements = trimmedLine.split(':')[1]?.trim()
+      } else if (trimmedLine.toLowerCase().includes('vaccination:')) {
+        currentSection = 'vaccination'
+      } else if (trimmedLine.toLowerCase().includes('additional notes:')) {
+        currentSection = 'notes'
+      } else if (trimmedLine.startsWith('-')) {
+        const item = trimmedLine.substring(1).trim()
+        if (currentSection === 'requirements') {
+          policy.requirements.push(item)
+        } else if (currentSection === 'documentation') {
+          policy.documentation_needed.push(item)
+        } else if (currentSection === 'vaccination') {
+          policy.vaccination_requirements.push(item)
+        } else if (currentSection === 'notes') {
+          policy.additional_notes += item + ' '
         }
-      ],
-      temperature: 0.2,
-      max_tokens: 1000,
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Perplexity API error: ${response.statusText}`)
-  }
-
-  const data = await response.json()
-  const content = data.choices[0].message.content
-
-  // Parse the AI response into structured data
-  const lines = content.split('\n')
-  let policy: any = {
-    country_code: country,
-    policy_type: policyType,
-    title: '',
-    description: '',
-    requirements: [],
-    documentation_needed: [],
-    fees: {},
-    restrictions: {},
-    quarantine_requirements: '',
-    vaccination_requirements: [],
-    additional_notes: '',
-  }
-
-  let currentSection = ''
-  for (const line of lines) {
-    const trimmedLine = line.trim()
-    if (trimmedLine.toLowerCase().includes('title:')) {
-      policy.title = trimmedLine.split(':')[1].trim()
-    } else if (trimmedLine.toLowerCase().includes('description:')) {
-      policy.description = trimmedLine.split(':')[1].trim()
-    } else if (trimmedLine.toLowerCase().includes('requirements:')) {
-      currentSection = 'requirements'
-    } else if (trimmedLine.toLowerCase().includes('documentation:')) {
-      currentSection = 'documentation'
-    } else if (trimmedLine.toLowerCase().includes('fees:')) {
-      currentSection = 'fees'
-      policy.fees = { general: trimmedLine.split(':')[1]?.trim() || 'Varies by case' }
-    } else if (trimmedLine.toLowerCase().includes('restrictions:')) {
-      currentSection = 'restrictions'
-      policy.restrictions = { general: trimmedLine.split(':')[1]?.trim() || 'Contact authorities for details' }
-    } else if (trimmedLine.toLowerCase().includes('quarantine:')) {
-      policy.quarantine_requirements = trimmedLine.split(':')[1].trim()
-    } else if (trimmedLine.toLowerCase().includes('vaccination:')) {
-      currentSection = 'vaccination'
-    } else if (trimmedLine.toLowerCase().includes('additional notes:')) {
-      currentSection = 'notes'
-    } else if (trimmedLine && trimmedLine.startsWith('-')) {
-      const item = trimmedLine.substring(1).trim()
-      if (currentSection === 'requirements') {
-        policy.requirements.push(item)
-      } else if (currentSection === 'documentation') {
-        policy.documentation_needed.push(item)
-      } else if (currentSection === 'vaccination') {
-        policy.vaccination_requirements.push(item)
-      } else if (currentSection === 'notes') {
-        policy.additional_notes += item + ' '
       }
     }
-  }
 
-  return policy
+    return policy
+  } catch (error) {
+    console.error(`Error fetching policy for ${country}:`, error)
+    throw error
+  }
 }
 
 Deno.serve(async (req) => {
@@ -139,7 +146,7 @@ Deno.serve(async (req) => {
 
     // Get unique countries
     const countries = [...new Set(airlines.map(a => a.country))]
-    console.log(`Found ${countries.length} unique countries`)
+    console.log(`Found ${countries.length} unique countries to process`)
 
     let processedCount = 0
     let errorCount = 0
@@ -148,6 +155,7 @@ Deno.serve(async (req) => {
     const BATCH_SIZE = 5
     for (let i = 0; i < countries.length; i += BATCH_SIZE) {
       const batch = countries.slice(i, i + BATCH_SIZE)
+      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(countries.length/BATCH_SIZE)}...`)
       
       for (const country of batch) {
         try {
@@ -170,6 +178,7 @@ Deno.serve(async (req) => {
                 errorCount++
               } else {
                 processedCount++
+                console.log(`Successfully processed ${policyType} policy for ${country}`)
               }
             } catch (error) {
               console.error(`Error processing ${policyType} policy for ${country}:`, error)
@@ -184,6 +193,7 @@ Deno.serve(async (req) => {
 
       // Add a delay between batches to respect rate limits
       if (i + BATCH_SIZE < countries.length) {
+        console.log('Waiting before processing next batch...')
         await new Promise(resolve => setTimeout(resolve, 2000))
       }
     }
