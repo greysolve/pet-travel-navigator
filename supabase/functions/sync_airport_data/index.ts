@@ -15,6 +15,8 @@ interface Airport {
   timezone?: string;
 }
 
+const BATCH_SIZE = 50; // Process 50 airports at a time
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -45,46 +47,75 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json()
-    const airports: Airport[] = data.airports.map((airport: any) => ({
-      iata_code: airport.iata,
-      name: airport.name,
-      city: airport.city || null,
-      country: airport.countryName || null,
-      latitude: airport.latitude || null,
-      longitude: airport.longitude || null,
-      timezone: airport.timeZoneRegionName || null,
-    }))
+    const airports: Airport[] = data.airports
+      .filter((airport: any) => airport.iata) // Only process airports with IATA codes
+      .map((airport: any) => ({
+        iata_code: airport.iata,
+        name: airport.name,
+        city: airport.city || null,
+        country: airport.countryName || null,
+        latitude: airport.latitude || null,
+        longitude: airport.longitude || null,
+        timezone: airport.timeZoneRegionName || null,
+      }));
 
-    // Insert into Supabase
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log(`Processing ${airports.length} airports...`)
+    console.log(`Processing ${airports.length} airports in batches of ${BATCH_SIZE}...`)
 
-    for (const airport of airports) {
-      const { error } = await supabase
-        .from('airports')
-        .upsert(
-          {
-            iata_code: airport.iata_code,
-            name: airport.name,
-            city: airport.city,
-            country: airport.country,
-            latitude: airport.latitude,
-            longitude: airport.longitude,
-            timezone: airport.timezone,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'iata_code' }
-        )
+    // Process airports in batches
+    const batches = [];
+    for (let i = 0; i < airports.length; i += BATCH_SIZE) {
+      batches.push(airports.slice(i, i + BATCH_SIZE));
+    }
 
-      if (error) {
-        console.error(`Error inserting airport ${airport.name}:`, error)
+    let processedCount = 0;
+    let errorCount = 0;
+
+    for (const [index, batch] of batches.entries()) {
+      console.log(`Processing batch ${index + 1} of ${batches.length}...`);
+      
+      try {
+        const { error } = await supabase
+          .from('airports')
+          .upsert(
+            batch.map(airport => ({
+              ...airport,
+              updated_at: new Date().toISOString(),
+            })),
+            { onConflict: 'iata_code' }
+          );
+
+        if (error) {
+          console.error(`Error in batch ${index + 1}:`, error);
+          errorCount++;
+        } else {
+          processedCount += batch.length;
+        }
+
+        // Add a small delay between batches to prevent rate limiting
+        if (index < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error(`Failed to process batch ${index + 1}:`, error);
+        errorCount++;
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    const summary = {
+      total: airports.length,
+      processed: processedCount,
+      errors: errorCount,
+      success: processedCount > 0
+    };
+
+    console.log('Sync complete:', summary);
+
+    return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
