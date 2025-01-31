@@ -28,28 +28,55 @@ const Admin = () => {
         if (clearError) throw clearError;
       }
 
-      // Call the appropriate sync function
-      const functionName = type === 'airlines' 
-        ? 'sync_airline_data' 
-        : type === 'airports' 
-          ? 'sync_airport_data' 
-          : type === 'routes'
-            ? 'sync_route_data'
-            : type === 'countryPolicies'
-              ? 'sync_country_policies'
-              : 'analyze_pet_policies';
+      // For pet policies, we need to get airlines first
+      if (type === 'petPolicies') {
+        const { data: airlines, error: airlinesError } = await supabase
+          .from('airlines')
+          .select('id, website')
+          .eq('active', true);
 
-      console.log(`Calling ${functionName} edge function...`);
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+        if (airlinesError) throw airlinesError;
 
-      if (error) throw error;
+        console.log(`Found ${airlines?.length} active airlines to analyze`);
 
-      console.log(`${type} sync response:`, data);
+        // Process each airline sequentially
+        for (const airline of airlines || []) {
+          if (!airline.website) {
+            console.log(`Skipping airline ${airline.id} - no website available`);
+            continue;
+          }
+
+          console.log(`Processing airline ${airline.id} with website ${airline.website}`);
+          const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
+            body: {
+              airline_id: airline.id,
+              website: airline.website
+            }
+          });
+
+          if (error) {
+            console.error(`Error processing airline ${airline.id}:`, error);
+            continue;
+          }
+
+          console.log(`Successfully processed airline ${airline.id}`);
+        }
+      } else {
+        // Call other sync functions as before
+        const functionName = type === 'airlines' 
+          ? 'sync_airline_data' 
+          : type === 'airports' 
+            ? 'sync_airport_data' 
+            : type === 'routes'
+              ? 'sync_route_data'
+              : 'sync_country_policies';
+
+        console.log(`Calling ${functionName} edge function...`);
+        const { data, error } = await supabase.functions.invoke(functionName);
+
+        if (error) throw error;
+        console.log(`${type} sync response:`, data);
+      }
 
       toast({
         title: "Sync Successful",
