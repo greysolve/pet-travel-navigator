@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { CalendarIcon, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Airport = {
@@ -24,8 +24,8 @@ export const SearchSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [airports, setAirports] = useState<Airport[]>([]);
-  const [openOrigin, setOpenOrigin] = useState(false);
-  const [openDestination, setOpenDestination] = useState(false);
+  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
+  const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
   const { toast } = useToast();
 
   const fetchAirports = useCallback(async (searchTerm: string) => {
@@ -130,33 +130,27 @@ export const SearchSection = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Popover open={openOrigin} onOpenChange={setOpenOrigin}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={openOrigin}
-                className="h-12 text-base bg-white/90 border-0 shadow-sm justify-between"
-              >
-                {origin
-                  ? airports.find((airport) => airport.iata_code === origin)?.city || origin
-                  : "Origin (city or airport code)"}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <Command>
-                <CommandInput 
-                  placeholder="Search airports..." 
-                  onValueChange={fetchAirports}
-                />
-                {isSearching ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  <>
-                    <CommandEmpty>No airports found.</CommandEmpty>
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Origin (city or airport code)"
+              className="h-12 text-base bg-white/90 border-0 shadow-sm"
+              value={origin}
+              onChange={(e) => {
+                setOrigin(e.target.value);
+                fetchAirports(e.target.value);
+                setShowOriginSuggestions(true);
+              }}
+              onFocus={() => setShowOriginSuggestions(true)}
+            />
+            {showOriginSuggestions && airports.length > 0 && (
+              <div className="absolute w-full z-50 mt-1">
+                <Command className="rounded-lg border shadow-md">
+                  {isSearching ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : (
                     <CommandGroup>
                       {airports.map((airport) => (
                         <CommandItem
@@ -164,8 +158,9 @@ export const SearchSection = () => {
                           value={airport.iata_code}
                           onSelect={(value) => {
                             setOrigin(value);
-                            setOpenOrigin(false);
+                            setShowOriginSuggestions(false);
                           }}
+                          className="cursor-pointer"
                         >
                           <Check
                             className={cn(
@@ -177,39 +172,33 @@ export const SearchSection = () => {
                         </CommandItem>
                       ))}
                     </CommandGroup>
-                  </>
-                )}
-              </Command>
-            </PopoverContent>
-          </Popover>
+                  )}
+                </Command>
+              </div>
+            )}
+          </div>
 
-          <Popover open={openDestination} onOpenChange={setOpenDestination}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={openDestination}
-                className="h-12 text-base bg-white/90 border-0 shadow-sm justify-between"
-              >
-                {destination
-                  ? airports.find((airport) => airport.iata_code === destination)?.city || destination
-                  : "Destination (city or airport code)"}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <Command>
-                <CommandInput 
-                  placeholder="Search airports..." 
-                  onValueChange={fetchAirports}
-                />
-                {isSearching ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  <>
-                    <CommandEmpty>No airports found.</CommandEmpty>
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Destination (city or airport code)"
+              className="h-12 text-base bg-white/90 border-0 shadow-sm"
+              value={destination}
+              onChange={(e) => {
+                setDestination(e.target.value);
+                fetchAirports(e.target.value);
+                setShowDestinationSuggestions(true);
+              }}
+              onFocus={() => setShowDestinationSuggestions(true)}
+            />
+            {showDestinationSuggestions && airports.length > 0 && (
+              <div className="absolute w-full z-50 mt-1">
+                <Command className="rounded-lg border shadow-md">
+                  {isSearching ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : (
                     <CommandGroup>
                       {airports.map((airport) => (
                         <CommandItem
@@ -217,8 +206,9 @@ export const SearchSection = () => {
                           value={airport.iata_code}
                           onSelect={(value) => {
                             setDestination(value);
-                            setOpenDestination(false);
+                            setShowDestinationSuggestions(false);
                           }}
+                          className="cursor-pointer"
                         >
                           <Check
                             className={cn(
@@ -230,11 +220,11 @@ export const SearchSection = () => {
                         </CommandItem>
                       ))}
                     </CommandGroup>
-                  </>
-                )}
-              </Command>
-            </PopoverContent>
-          </Popover>
+                  )}
+                </Command>
+              </div>
+            )}
+          </div>
         </div>
 
         <Popover>
