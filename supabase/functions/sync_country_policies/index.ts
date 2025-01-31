@@ -125,17 +125,27 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
     console.log('Starting country policies sync process...')
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    
+    // Initialize Supabase client with error handling
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials')
+    }
 
+    const supabaseClient = createClient(supabaseUrl, supabaseKey)
+    
     console.log('Fetching airports from database...')
     const { data: airports, error: airportsError } = await supabaseClient
       .from('airports')
@@ -231,14 +241,21 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify(summary),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         status: 200,
       }
     )
   } catch (error) {
     console.error('Error in sync_country_policies:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false,
+        error: error.message 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
