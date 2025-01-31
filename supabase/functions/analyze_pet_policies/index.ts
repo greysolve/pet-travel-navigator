@@ -53,6 +53,8 @@ Deno.serve(async (req) => {
       3. If you can't find the information, return the JSON with all null values.
       4. Do not include any explanatory text or markdown formatting in your response.
       5. Make sure all arrays are properly formatted with square brackets and comma-separated values.
+      6. Each array should contain strings only, no objects or nested arrays.
+      7. Do not use trailing commas in arrays or objects.
     `
 
     console.log('Sending request to Perplexity API...');
@@ -110,20 +112,23 @@ Deno.serve(async (req) => {
           console.error('No JSON object found in content');
           throw new Error('No JSON object found in content');
         }
-        const jsonString = jsonMatch[0]
+        let jsonString = jsonMatch[0]
           .replace(/\n/g, ' ')  // Remove newlines
           .replace(/,\s*([}\]])/g, '$1')  // Remove trailing commas
           .replace(/([{,])\s*([^"{\s][^:]*?):/g, '$1"$2":')  // Quote unquoted keys
           .replace(/:\s*'([^']*)'/g, ':"$1"')  // Replace single quotes with double quotes
           .replace(/,\s*,/g, ',')  // Remove duplicate commas
           .replace(/\[\s*,/g, '[')  // Remove leading comma in arrays
-          .replace(/,\s*\]/g, ']'); // Remove trailing comma in arrays
+          .replace(/,\s*\]/g, ']')  // Remove trailing comma in arrays
+          .replace(/"\s+"/g, '","')  // Fix spacing between array elements
+          .replace(/\[\s*"/, '["')   // Fix spacing at start of arrays
+          .replace(/"\s*\]/, '"]');  // Fix spacing at end of arrays
 
         console.log('Cleaned JSON string:', jsonString);
         policyData = JSON.parse(jsonString);
       }
 
-      // Validate the structure of the parsed data
+      // Validate and normalize the structure
       const requiredFields = [
         'pet_types_allowed',
         'carrier_requirements',
@@ -133,27 +138,33 @@ Deno.serve(async (req) => {
         'policy_url'
       ];
 
-      const missingFields = requiredFields.filter(field => !(field in policyData));
-      if (missingFields.length > 0) {
-        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-      }
+      // Ensure all required fields exist
+      requiredFields.forEach(field => {
+        if (!(field in policyData)) {
+          policyData[field] = null;
+        }
+      });
 
-      // Ensure arrays are actually arrays
-      const arrayFields = ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'];
-      arrayFields.forEach(field => {
-        if (policyData[field] !== null && !Array.isArray(policyData[field])) {
-          if (typeof policyData[field] === 'string') {
-            // Convert comma-separated string to array
-            policyData[field] = policyData[field].split(',').map(item => item.trim());
-          } else {
-            policyData[field] = null;
+      // Ensure arrays are properly formatted
+      ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
+        if (policyData[field] !== null) {
+          if (!Array.isArray(policyData[field])) {
+            if (typeof policyData[field] === 'string') {
+              // Convert comma-separated string to array
+              policyData[field] = policyData[field].split(',').map(item => item.trim());
+            } else {
+              policyData[field] = null;
+            }
+          }
+          // Ensure all array elements are strings
+          if (Array.isArray(policyData[field])) {
+            policyData[field] = policyData[field].map(item => String(item).trim());
           }
         }
       });
 
-      // Ensure string fields are actually strings or null
-      const stringFields = ['carrier_requirements', 'temperature_restrictions', 'policy_url'];
-      stringFields.forEach(field => {
+      // Ensure string fields are properly formatted
+      ['carrier_requirements', 'temperature_restrictions', 'policy_url'].forEach(field => {
         if (policyData[field] !== null && typeof policyData[field] !== 'string') {
           policyData[field] = String(policyData[field]);
         }
