@@ -16,22 +16,19 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { data: userRole, isLoading: roleLoading } = useQuery({
     queryKey: ["userRole", user?.id],
     queryFn: async () => {
-      if (!user) {
-        console.log("No user found for role check");
-        return null;
-      }
-      console.log("Starting role check for user:", user.id);
-      console.log("Required role:", requiredRole);
-      console.log("Full user object:", user);
-      console.log("User metadata:", user.user_metadata);
+      if (!user) return null;
       
+      console.log("Protected Route - Role Check:", {
+        userId: user.id,
+        requiredRole,
+        userMetadata: user.user_metadata,
+        path: window.location.pathname
+      });
+
       // First check user metadata
-      const metadataRole = user.user_metadata?.role;
-      console.log("Role from user metadata:", metadataRole);
-      
-      if (metadataRole === requiredRole) {
-        console.log("Role found in metadata, matches required role");
-        return metadataRole;
+      if (user.user_metadata?.role === requiredRole) {
+        console.log("Role found in metadata, matches required role:", requiredRole);
+        return user.user_metadata.role;
       }
 
       // If not in metadata, check the user_roles table
@@ -41,72 +38,48 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         .select("role")
         .eq("user_id", user.id)
         .single();
-      
+
       if (error) {
         console.error("Error fetching user role from DB:", error);
         return null;
       }
-      
-      console.log("User role data from DB:", data);
-      console.log("DB role matches required role:", data?.role === requiredRole);
+
+      console.log("Role from database:", data?.role);
       return data?.role;
     },
     enabled: !!user && !!requiredRole,
   });
 
   useEffect(() => {
-    console.log("Protected Route state:", {
-      loading,
-      roleLoading,
-      user: !!user,
-      userRole,
-      requiredRole,
-      userMetadata: user?.user_metadata,
-      userId: user?.id,
-      fullUser: user,
-      currentPath: window.location.pathname
-    });
-
     if (!loading && !user) {
-      console.log("No user, redirecting to home");
+      console.log("No authenticated user, redirecting to home");
       navigate("/");
       return;
     }
-    
+
     if (!loading && !roleLoading && requiredRole) {
-      console.log("Checking role access:", {
+      console.log("Access check:", {
         userRole,
         requiredRole,
         hasAccess: userRole === requiredRole,
-        userMetadata: user?.user_metadata
+        path: window.location.pathname
       });
-      
+
       if (userRole !== requiredRole) {
-        console.log("Unauthorized access attempt. Required role:", requiredRole, "User role:", userRole);
+        console.log("Access denied, redirecting to home");
         navigate("/");
       }
     }
   }, [user, loading, navigate, requiredRole, userRole, roleLoading]);
 
   if (loading || roleLoading) {
-    console.log("Loading state:", { loading, roleLoading });
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   if (!user || (requiredRole && userRole !== requiredRole)) {
-    console.log("Access denied:", { 
-      user: !!user, 
-      userRole, 
-      requiredRole,
-      userMetadata: user?.user_metadata,
-      userId: user?.id,
-      fullUser: user,
-      currentPath: window.location.pathname
-    });
     return null;
   }
 
-  console.log("Access granted to protected route");
   return <>{children}</>;
 };
 
