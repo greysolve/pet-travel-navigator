@@ -4,7 +4,6 @@ import { corsHeaders } from '../_shared/cors.ts'
 console.log('Edge Function: sync_country_policies initialized')
 
 Deno.serve(async (req) => {
-  // Add detailed request logging
   console.log('Request received:', {
     method: req.method,
     url: req.url,
@@ -68,7 +67,6 @@ Deno.serve(async (req) => {
     const processedCountries = new Set()
     const errorCountries = new Set()
 
-    // Process countries in smaller batches
     const BATCH_SIZE = 5
     for (let i = 0; i < uniqueCountries.length; i += BATCH_SIZE) {
       const batch = uniqueCountries.slice(i, i + BATCH_SIZE)
@@ -174,8 +172,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
 
-  const prompt = `Generate a JSON object containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}.
-    Return ONLY a valid JSON object with the following structure:
+  const prompt = `Return ONLY a raw JSON object with no additional text, markdown, or formatting containing the current ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and policies for ${country}. The response must be a valid JSON object with this exact structure:
     {
       "title": "string or null if unknown",
       "description": "string or null if unknown",
@@ -186,8 +183,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       "quarantine_requirements": "string or null if none",
       "vaccination_requirements": ["string"] or [] if none,
       "additional_notes": "string or null if none"
-    }
-    Be precise and ensure the response is a valid JSON object. Do not include any markdown formatting or code block indicators.`
+    }`
 
   try {
     console.log(`Making API request to Perplexity for ${country}...`)
@@ -202,7 +198,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that returns valid JSON objects containing animal import regulations. Always return valid JSON without any markdown formatting.'
+            content: 'You are a JSON generator that returns only raw JSON data with no additional text or formatting. Never include markdown, code blocks, or any other formatting. Only return valid JSON objects.'
           },
           {
             role: 'user',
@@ -227,17 +223,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const content = data.choices[0].message.content
       console.log('Raw AI response:', content)
       
-      // Extract JSON if the content is wrapped in markdown code blocks
-      let jsonContent = content
-      if (content.includes('```')) {
-        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-        if (jsonMatch) {
-          jsonContent = jsonMatch[1]
-        }
-      }
-      
-      // Parse the JSON response
-      const policyData = JSON.parse(jsonContent)
+      // Parse the JSON response directly since we expect clean JSON
+      const policyData = JSON.parse(content)
       
       // Construct the final policy object with proper typing
       const policy = {
