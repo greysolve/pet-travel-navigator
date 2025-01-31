@@ -6,6 +6,7 @@ const validateToken = async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('Missing authorization header')
       throw new Error('Missing authorization header')
     }
     return authHeader
@@ -169,23 +170,23 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 }
 
 Deno.serve(async (req) => {
+  console.log('Request received:', {
+    method: req.method,
+    headers: Object.fromEntries(req.headers.entries()),
+    url: req.url
+  })
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
         ...corsHeaders,
-        'Cache-Control': 'no-store',
+        'Cache-Control': 'no-store'
       }
     })
   }
 
   try {
-    console.log('Request received:', {
-      method: req.method,
-      headers: Object.fromEntries(req.headers.entries()),
-      url: req.url
-    })
-
     // Validate authentication
     const authHeader = await validateToken(req)
     console.log('Authentication successful')
