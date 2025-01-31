@@ -17,8 +17,9 @@ export const AuthDialog = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithEmail, signUp, user } = useAuth();
+  const { signInWithEmail, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -32,16 +33,21 @@ export const AuthDialog = () => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        await signInWithEmail(email, password);
+        const { data: { user } } = await signInWithEmail(email, password);
         toast({
           title: "Welcome back!",
           description: "Successfully signed in",
         });
         
+        setIsOpen(false); // Close the dialog after successful sign in
+        
         // Check if user is a site manager and redirect to admin
         if (user?.user_metadata?.role === 'site_manager') {
           console.log("Site manager logged in, redirecting to admin");
           navigate('/admin');
+        } else {
+          console.log("Regular user logged in, redirecting to profile");
+          navigate('/profile');
         }
       }
     } catch (error: any) {
@@ -57,7 +63,7 @@ export const AuthDialog = () => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button 
           variant="secondary"
