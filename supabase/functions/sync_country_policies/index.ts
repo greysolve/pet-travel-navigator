@@ -187,7 +187,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       "vaccination_requirements": ["string"] or [] if none,
       "additional_notes": "string or null if none"
     }
-    Be precise and ensure the response is a valid JSON object.`
+    Be precise and ensure the response is a valid JSON object. Do not include any markdown formatting or code block indicators.`
 
   try {
     console.log(`Making API request to Perplexity for ${country}...`)
@@ -202,7 +202,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that returns valid JSON objects containing animal import regulations. Always return valid JSON.'
+            content: 'You are a JSON generator that returns valid JSON objects containing animal import regulations. Always return valid JSON without any markdown formatting.'
           },
           {
             role: 'user',
@@ -227,8 +227,17 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const content = data.choices[0].message.content
       console.log('Raw AI response:', content)
       
+      // Extract JSON if the content is wrapped in markdown code blocks
+      let jsonContent = content
+      if (content.includes('```')) {
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+        if (jsonMatch) {
+          jsonContent = jsonMatch[1]
+        }
+      }
+      
       // Parse the JSON response
-      const policyData = JSON.parse(content)
+      const policyData = JSON.parse(jsonContent)
       
       // Construct the final policy object with proper typing
       const policy = {
