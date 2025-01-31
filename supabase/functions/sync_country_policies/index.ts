@@ -5,6 +5,7 @@ console.log('Edge Function: sync_country_policies initialized')
 
 const BATCH_SIZE = 10 // Process countries in batches of 10
 const RATE_LIMIT_DELAY = 1000 // 1 second delay between API calls
+const MAX_RETRIES = 3 // Maximum number of retries for failed API calls
 
 // Helper function to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -24,7 +25,7 @@ async function processBatch(
     try {
       console.log(`Processing country ${startIndex + i + 1}/${countries.length}: ${country}`)
       
-      const policy = await fetchPolicyWithAI(country, 'pet')
+      const policy = await fetchPolicyWithRetry(country, 'pet')
       console.log(`Policy data received for ${country}:`, policy)
 
       const { error: upsertError } = await supabaseClient
@@ -57,7 +58,29 @@ async function processBatch(
   return { processed, errors }
 }
 
+// New helper function with retry logic
+async function fetchPolicyWithRetry(country: string, policyType: 'pet' | 'live_animal', retryCount = 0): Promise<any> {
+  try {
+    return await fetchPolicyWithAI(country, policyType)
+  } catch (error) {
+    console.error(`Attempt ${retryCount + 1} failed for ${country}:`, error)
+    
+    if (retryCount < MAX_RETRIES) {
+      await delay(2000 * (retryCount + 1)) // Exponential backoff
+      return fetchPolicyWithRetry(country, policyType, retryCount + 1)
+    }
+    
+    throw error
+  }
+}
+
 Deno.serve(async (req) => {
+  console.log('Request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -76,12 +99,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Request received:', {
-      method: req.method,
-      url: req.url,
-      headers: Object.fromEntries(req.headers.entries())
-    })
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
@@ -113,7 +130,6 @@ Deno.serve(async (req) => {
 
     console.log('Total countries fetched:', countries.length)
 
-    // Process all countries (removed the slice)
     const uniqueCountries = countries
       .map(row => row.country?.trim() || '')
       .filter(country => country !== '')
@@ -204,59 +220,47 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   "additional_notes": "string or null if none"
 }`
 
-  let retries = 3
-  while (retries > 0) {
-    try {
-      console.log(`Making API request to Perplexity for ${country} (attempt ${4 - retries}/3)...`)
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.1,
-          max_tokens: 1000,
-        }),
-      })
+  console.log(`Making API request to Perplexity for ${country}...`)
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.1-sonar-small-128k-online',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 1000,
+    }),
+  })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error(`Perplexity API error for ${country}:`, errorText)
-        throw new Error(`Perplexity API error: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      console.log(`Received AI response for ${country}. Status: ${response.status}`)
-      
-      const content = data.choices[0].message.content.trim()
-      console.log('Raw AI response:', content)
-      
-      const policyData = JSON.parse(content)
-      
-      return {
-        title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
-        description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
-        requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
-        documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
-        fees: typeof policyData.fees === 'object' ? policyData.fees : {},
-        restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
-        quarantine_requirements: policyData.quarantine_requirements || '',
-        vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
-        additional_notes: policyData.additional_notes || '',
-      }
-    } catch (error) {
-      console.error(`Attempt ${4 - retries}/3 failed for ${country}:`, error)
-      retries--
-      if (retries === 0) throw error
-      await delay(2000) // Wait 2 seconds before retrying
-    }
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error(`Perplexity API error for ${country}:`, errorText)
+    throw new Error(`Perplexity API error: ${response.statusText}`)
   }
 
-  throw new Error(`Failed to fetch policy for ${country} after 3 attempts`)
+  const data = await response.json()
+  console.log(`Received AI response for ${country}. Status: ${response.status}`)
+  
+  const content = data.choices[0].message.content.trim()
+  console.log('Raw AI response:', content)
+  
+  const policyData = JSON.parse(content)
+  
+  return {
+    title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
+    description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
+    requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
+    documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
+    fees: typeof policyData.fees === 'object' ? policyData.fees : {},
+    restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
+    quarantine_requirements: policyData.quarantine_requirements || '',
+    vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
+    additional_notes: policyData.additional_notes || '',
+  }
 }
