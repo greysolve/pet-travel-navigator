@@ -4,7 +4,6 @@ import { corsHeaders } from '../_shared/cors.ts'
 console.log('Edge Function: sync_country_policies initialized')
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -21,7 +20,6 @@ Deno.serve(async (req) => {
       headers: Object.fromEntries(req.headers.entries())
     })
 
-    // Initialize Supabase client with error handling
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
@@ -49,12 +47,23 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-    // Get unique countries from airports
-    const uniqueCountries = [...new Set(airports.map(a => a.country).filter(Boolean))]
+    // Log raw airport data to see all countries
+    console.log('Raw airport countries data:', airports.map(a => a.country))
+
+    // Get unique countries and log the process
+    const countrySet = new Set(airports.map(a => a.country).filter(Boolean))
+    console.log('Unique countries before processing:', Array.from(countrySet))
+
+    // Convert to array and sort
+    const uniqueCountries = Array.from(countrySet).sort()
     console.log(`Found ${uniqueCountries.length} unique countries to process:`, uniqueCountries)
 
     let processedCount = 0
     let errorCount = 0
+    let skippedCount = 0
+    const processedCountries = new Set()
+    const skippedCountries = new Set()
+    const errorCountries = new Set()
 
     // Process countries in batches to avoid rate limits
     const BATCH_SIZE = 5
@@ -83,6 +92,8 @@ Deno.serve(async (req) => {
                 const daysSinceUpdate = (new Date().getTime() - lastUpdated.getTime()) / (1000 * 3600 * 24)
                 if (daysSinceUpdate < 7) {
                   console.log(`Skipping ${country} ${policyType} policy - updated ${daysSinceUpdate.toFixed(1)} days ago`)
+                  skippedCountries.add(country)
+                  skippedCount++
                   continue
                 }
               }
@@ -99,18 +110,22 @@ Deno.serve(async (req) => {
 
               if (upsertError) {
                 console.error(`Error upserting policy for ${country}:`, upsertError)
+                errorCountries.add(country)
                 errorCount++
               } else {
                 processedCount++
+                processedCountries.add(country)
                 console.log(`Successfully processed ${policyType} policy for ${country}`)
               }
             } catch (error) {
               console.error(`Error processing ${policyType} policy for ${country}:`, error)
+              errorCountries.add(country)
               errorCount++
             }
           }
         } catch (error) {
           console.error(`Error processing country ${country}:`, error)
+          errorCountries.add(country)
           errorCount++
         }
       }
@@ -125,8 +140,12 @@ Deno.serve(async (req) => {
     const summary = {
       success: true,
       total_countries: uniqueCountries.length,
-      policies_processed: processedCount,
+      processed: processedCount,
+      skipped: skippedCount,
       errors: errorCount,
+      processed_countries: Array.from(processedCountries),
+      skipped_countries: Array.from(skippedCountries),
+      error_countries: Array.from(errorCountries)
     }
 
     console.log('Country policies sync completed:', summary)
