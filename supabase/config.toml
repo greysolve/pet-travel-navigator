@@ -1,16 +1,4 @@
 project_id = "jhokkuszubzngrcamfdb"
 
-[functions.fetch_airlines]
-verify_jwt = false
-
-[functions.analyze_pet_policies]
-verify_jwt = false
-
-[functions.sync_airline_data]
-verify_jwt = false
-
-[functions.sync_airport_data]
-verify_jwt = false
-
 [functions.sync_route_data]
-verify_jwt = false
+verify_jwt = true
