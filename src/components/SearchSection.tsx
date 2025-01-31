@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Airport = {
@@ -131,97 +130,83 @@ export const SearchSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
-            <Command className="rounded-lg border shadow-md">
-              <CommandInput
-                placeholder="Origin (city or airport code)"
-                value={origin}
-                onValueChange={(value) => {
-                  setOrigin(value);
-                  fetchAirports(value);
-                  setShowOriginSuggestions(true);
-                }}
-                className="h-12 text-base"
-              />
-              {showOriginSuggestions && (
-                <>
-                  <CommandEmpty>No airports found.</CommandEmpty>
-                  <CommandGroup>
-                    {isSearching ? (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      airports.map((airport) => (
-                        <CommandItem
-                          key={airport.iata_code}
-                          value={airport.iata_code}
-                          onSelect={(value) => {
-                            setOrigin(value);
-                            setShowOriginSuggestions(false);
-                          }}
-                          className="cursor-pointer"
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              origin === airport.iata_code ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {airport.city} ({airport.iata_code})
-                        </CommandItem>
-                      ))
-                    )}
-                  </CommandGroup>
-                </>
-              )}
-            </Command>
+            <Input
+              type="text"
+              placeholder="Origin (city or airport code)"
+              className="h-12 text-base bg-white/90 border-0 shadow-sm"
+              value={origin}
+              onChange={(e) => {
+                const value = e.target.value;
+                setOrigin(value);
+                fetchAirports(value);
+                setShowOriginSuggestions(true);
+              }}
+              onFocus={() => setShowOriginSuggestions(true)}
+            />
+            {showOriginSuggestions && airports.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <ul className="max-h-60 overflow-auto py-1">
+                    {airports.map((airport) => (
+                      <li
+                        key={airport.iata_code}
+                        className="px-4 py-2 hover:bg-accent cursor-pointer"
+                        onClick={() => {
+                          setOrigin(airport.iata_code);
+                          setShowOriginSuggestions(false);
+                        }}
+                      >
+                        {airport.city} ({airport.iata_code})
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="relative">
-            <Command className="rounded-lg border shadow-md">
-              <CommandInput
-                placeholder="Destination (city or airport code)"
-                value={destination}
-                onValueChange={(value) => {
-                  setDestination(value);
-                  fetchAirports(value);
-                  setShowDestinationSuggestions(true);
-                }}
-                className="h-12 text-base"
-              />
-              {showDestinationSuggestions && (
-                <>
-                  <CommandEmpty>No airports found.</CommandEmpty>
-                  <CommandGroup>
-                    {isSearching ? (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      airports.map((airport) => (
-                        <CommandItem
-                          key={airport.iata_code}
-                          value={airport.iata_code}
-                          onSelect={(value) => {
-                            setDestination(value);
-                            setShowDestinationSuggestions(false);
-                          }}
-                          className="cursor-pointer"
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              destination === airport.iata_code ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {airport.city} ({airport.iata_code})
-                        </CommandItem>
-                      ))
-                    )}
-                  </CommandGroup>
-                </>
-              )}
-            </Command>
+            <Input
+              type="text"
+              placeholder="Destination (city or airport code)"
+              className="h-12 text-base bg-white/90 border-0 shadow-sm"
+              value={destination}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDestination(value);
+                fetchAirports(value);
+                setShowDestinationSuggestions(true);
+              }}
+              onFocus={() => setShowDestinationSuggestions(true)}
+            />
+            {showDestinationSuggestions && airports.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <ul className="max-h-60 overflow-auto py-1">
+                    {airports.map((airport) => (
+                      <li
+                        key={airport.iata_code}
+                        className="px-4 py-2 hover:bg-accent cursor-pointer"
+                        onClick={() => {
+                          setDestination(airport.iata_code);
+                          setShowDestinationSuggestions(false);
+                        }}
+                      >
+                        {airport.city} ({airport.iata_code})
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
