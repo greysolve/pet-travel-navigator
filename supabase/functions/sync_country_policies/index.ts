@@ -38,11 +38,24 @@ async function processBatch(
     ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
     : 0
 
+  console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`)
+
+  // Check if we've processed all countries
+  if (startIndex >= countries.length) {
+    console.log('All countries have been processed')
+    return {
+      processed,
+      errors,
+      shouldContinue: false,
+      lastProcessedCountry: null
+    }
+  }
+
   for (let i = 0; i < BATCH_SIZE && (startIndex + i) < countries.length; i++) {
     // Check if we're approaching the time limit
     if (Date.now() - state.startTime > MAX_EXECUTION_TIME) {
       console.log('Approaching execution time limit, gracefully stopping batch processing')
-      shouldContinue = false
+      shouldContinue = true // Changed to true to indicate more processing needed
       break
     }
 
@@ -82,17 +95,23 @@ async function processBatch(
       
       if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
         console.log('Rate limit or quota reached, gracefully stopping batch processing')
-        shouldContinue = false
+        shouldContinue = true // Changed to true to indicate more processing needed
         break
       }
     }
   }
 
+  // Set continuation token to the last processed country if there are more countries to process
+  const nextIndex = startIndex + processed.length
+  const hasMoreCountries = nextIndex < countries.length
+  
+  console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`)
+  
   return { 
     processed, 
     errors, 
-    shouldContinue,
-    lastProcessedCountry: state.lastProcessedCountry 
+    shouldContinue: hasMoreCountries,
+    lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null
   }
 }
 
@@ -187,25 +206,19 @@ Deno.serve(async (req) => {
       startTime: Date.now()
     }
 
-    const processedCountries = new Set<string>()
-    const errorCountries = new Set<string>()
-
     // Process countries in batches
     const { processed, errors, shouldContinue, lastProcessedCountry: finalProcessedCountry } = 
       await processBatch(uniqueCountries, supabaseClient, state)
 
-    processed.forEach(country => processedCountries.add(country))
-    errors.forEach(country => errorCountries.add(country))
-
     const summary = {
       success: true,
       total_countries: uniqueCountries.length,
-      processed_policies: processedCountries.size,
-      errors: errorCountries.size,
-      processed_countries: Array.from(processedCountries),
-      error_countries: Array.from(errorCountries),
-      continuation_token: shouldContinue ? null : finalProcessedCountry,
-      completed: shouldContinue && state.processedCount === uniqueCountries.length
+      processed_policies: processed.length,
+      errors: errors.length,
+      processed_countries: processed,
+      error_countries: errors,
+      continuation_token: shouldContinue ? finalProcessedCountry : null,
+      completed: !shouldContinue
     }
 
     console.log('Country policies sync progress:', summary)
