@@ -6,6 +6,7 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -15,61 +16,54 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // First, fetch airlines
-    console.log('Fetching airlines...')
+    console.log('Starting airline sync process...')
+
+    // First, fetch airlines from the fetch_airlines function
     const fetchAirlinesResponse = await fetch(
       `${supabaseUrl}/functions/v1/fetch_airlines`,
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
         },
       }
     )
 
     if (!fetchAirlinesResponse.ok) {
-      throw new Error('Failed to fetch airlines')
+      const errorText = await fetchAirlinesResponse.text()
+      console.error('Failed to fetch airlines:', errorText)
+      throw new Error(`Failed to fetch airlines: ${errorText}`)
     }
 
-    // Then, analyze pet policies for airlines with websites
-    const { data: airlines, error: fetchError } = await supabase
-      .from('airlines')
-      .select('id, website')
-      .not('website', 'is', null)
+    console.log('Successfully fetched airlines data')
 
-    if (fetchError) {
-      throw fetchError
-    }
-
-    console.log(`Analyzing pet policies for ${airlines.length} airlines...`)
-
-    for (const airline of airlines) {
-      if (!airline.website) continue
-
-      await fetch(`${supabaseUrl}/functions/v1/analyze_pet_policies`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          airline_id: airline.id,
-          website: airline.website,
-        }),
-      })
-
-      // Add a small delay to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: 'Airlines sync completed successfully'
+      }), 
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        } 
+      }
+    )
   } catch (error) {
-    console.error('Error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.error('Error in sync_airline_data:', error)
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }), 
+      { 
+        status: 500,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        } 
+      }
+    )
   }
 })

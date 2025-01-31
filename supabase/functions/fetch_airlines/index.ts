@@ -12,6 +12,8 @@ interface Airline {
   country?: string;
 }
 
+const BATCH_SIZE = 50; // Process airlines in batches
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -42,48 +44,86 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json()
-    const airlines: Airline[] = data.airlines.map((airline: any) => ({
-      name: airline.name,
-      iata_code: airline.iata,
-      website: airline.website || null,
-      country: airline.country || null,
-    }))
+    const airlines: Airline[] = data.airlines
+      .filter((airline: any) => airline.iata) // Only process airlines with IATA codes
+      .map((airline: any) => ({
+        name: airline.name,
+        iata_code: airline.iata,
+        website: airline.website || null,
+        country: airline.country || null,
+      }))
 
-    // Insert into Supabase
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log(`Processing ${airlines.length} airlines...`)
+    console.log(`Processing ${airlines.length} airlines in batches of ${BATCH_SIZE}...`)
 
-    for (const airline of airlines) {
-      const { error } = await supabase
-        .from('airlines')
-        .upsert(
-          {
-            name: airline.name,
-            iata_code: airline.iata_code,
-            website: airline.website,
-            country: airline.country,
-            active: true,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'iata_code' }
-        )
+    // Process airlines in batches
+    const batches = [];
+    for (let i = 0; i < airlines.length; i += BATCH_SIZE) {
+      batches.push(airlines.slice(i, i + BATCH_SIZE));
+    }
 
-      if (error) {
-        console.error(`Error inserting airline ${airline.name}:`, error)
+    let processedCount = 0;
+    let errorCount = 0;
+
+    for (const [index, batch] of batches.entries()) {
+      console.log(`Processing batch ${index + 1} of ${batches.length}...`);
+      
+      try {
+        const { error } = await supabase
+          .from('airlines')
+          .upsert(
+            batch.map(airline => ({
+              ...airline,
+              active: true,
+              updated_at: new Date().toISOString(),
+            })),
+            { onConflict: 'iata_code' }
+          )
+
+        if (error) {
+          console.error(`Error in batch ${index + 1}:`, error)
+          errorCount++
+        } else {
+          processedCount += batch.length
+        }
+
+        // Add a small delay between batches
+        if (index < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      } catch (error) {
+        console.error(`Failed to process batch ${index + 1}:`, error)
+        errorCount++
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    const summary = {
+      success: true,
+      total: airlines.length,
+      processed: processedCount,
+      errors: errorCount,
+    }
+
+    console.log('Sync complete:', summary)
+
+    return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
     console.error('Error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    )
   }
 })
