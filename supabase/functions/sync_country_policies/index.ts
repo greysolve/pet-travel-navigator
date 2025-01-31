@@ -47,24 +47,25 @@ Deno.serve(async (req) => {
       .from('airports')
       .select('country')
       .not('country', 'is', null)
-      .order('country')
-      .distinct('country')
+      .order('country', { ascending: true })
 
     if (airportsError) {
       console.error('Error fetching airports:', airportsError)
       throw airportsError
     }
 
-    // Debug Point 1: Raw distinct countries from DB
-    console.log('DEBUG POINT 1 - Raw distinct countries from DB:', JSON.stringify(countries, null, 2))
+    // Debug Point 1: Raw countries from DB
+    console.log('DEBUG POINT 1 - Raw countries from DB:', JSON.stringify(countries, null, 2))
 
-    const normalizedCountries = countries
-      .map(row => row.country.trim())
-      .map(country => country.normalize('NFKC').trim())
-      .sort()
+    // Get unique countries using Set
+    const uniqueCountries = [...new Set(
+      countries
+        .map(row => row.country.trim())
+        .map(country => country.normalize('NFKC').trim())
+    )].sort()
 
-    // Debug Point 2: After normalization
-    console.log('DEBUG POINT 2 - Countries after normalization:', JSON.stringify(normalizedCountries, null, 2))
+    // Debug Point 2: After normalization and uniquing
+    console.log('DEBUG POINT 2 - Countries after normalization:', JSON.stringify(uniqueCountries, null, 2))
     
     // Intentional stop to check logs
     throw new Error('DEBUG STOP: Check logs for country processing steps')
