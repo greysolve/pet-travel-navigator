@@ -56,6 +56,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     }
 
     const data = await response.json()
+    console.log(`Received AI response for ${country} ${policyType} policy:`, data)
     const content = data.choices[0].message.content
 
     // Parse the AI response into structured data
@@ -141,12 +142,32 @@ Deno.serve(async (req) => {
       .order('country')
 
     if (airlinesError) {
+      console.error('Error fetching airlines:', airlinesError)
       throw airlinesError
     }
 
+    console.log('Retrieved airlines data:', airlines)
+
     // Get unique countries
     const countries = [...new Set(airlines.map(a => a.country))]
-    console.log(`Found ${countries.length} unique countries to process`)
+    console.log(`Found ${countries.length} unique countries to process:`, countries)
+
+    if (countries.length === 0) {
+      console.log('No countries found in airlines table. Make sure to sync airlines data first.')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          total_countries: 0,
+          policies_processed: 0,
+          errors: 0,
+          message: 'No countries found in airlines table. Please sync airlines data first.'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
+    }
 
     let processedCount = 0
     let errorCount = 0
@@ -203,6 +224,7 @@ Deno.serve(async (req) => {
       total_countries: countries.length,
       policies_processed: processedCount,
       errors: errorCount,
+      message: countries.length === 0 ? 'No countries found in airlines table. Please sync airlines data first.' : undefined
     }
 
     console.log('Country policies sync completed:', summary)
