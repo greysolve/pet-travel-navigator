@@ -18,6 +18,16 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     queryFn: async () => {
       if (!user) return null;
       console.log("Fetching role for user:", user.id);
+      
+      // First check user metadata
+      const metadataRole = user.user_metadata?.role;
+      console.log("Role from metadata:", metadataRole);
+      
+      if (metadataRole === requiredRole) {
+        return metadataRole;
+      }
+
+      // If not in metadata, check the user_roles table
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -28,7 +38,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         console.error("Error fetching user role:", error);
         return null;
       }
-      console.log("User role data:", data);
+      console.log("User role data from DB:", data);
       return data?.role;
     },
     enabled: !!user,
@@ -40,7 +50,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       roleLoading,
       user: !!user,
       userRole,
-      requiredRole
+      requiredRole,
+      userMetadata: user?.user_metadata
     });
 
     if (!loading && !user) {
@@ -69,7 +80,12 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   }
 
   if (!user || (requiredRole && userRole !== requiredRole)) {
-    console.log("Access denied:", { user: !!user, userRole, requiredRole });
+    console.log("Access denied:", { 
+      user: !!user, 
+      userRole, 
+      requiredRole,
+      userMetadata: user?.user_metadata 
+    });
     return null;
   }
 
