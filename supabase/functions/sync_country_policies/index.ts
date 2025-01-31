@@ -43,9 +43,11 @@ Deno.serve(async (req) => {
     })
     
     console.log('Fetching unique countries from airports table...')
+    // Using the correct DISTINCT syntax in PostgreSQL
     const { data: countries, error: airportsError } = await supabaseClient
       .from('airports')
-      .select('DISTINCT country')
+      .select('country')
+      .distinct('country')
       .not('country', 'is', null)
       .order('country')
 
