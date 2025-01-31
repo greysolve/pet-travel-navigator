@@ -3,6 +3,60 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 console.log('Edge Function: sync_country_policies initialized')
 
+const BATCH_SIZE = 10 // Process countries in batches of 10
+const RATE_LIMIT_DELAY = 1000 // 1 second delay between API calls
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// Helper function to process a batch of countries
+async function processBatch(
+  countries: string[], 
+  supabaseClient: any,
+  startIndex: number
+): Promise<{ processed: string[], errors: string[] }> {
+  console.log(`Processing batch starting at index ${startIndex}`)
+  const processed: string[] = []
+  const errors: string[] = []
+
+  for (let i = 0; i < BATCH_SIZE && (startIndex + i) < countries.length; i++) {
+    const country = countries[startIndex + i]
+    try {
+      console.log(`Processing country ${startIndex + i + 1}/${countries.length}: ${country}`)
+      
+      const policy = await fetchPolicyWithAI(country, 'pet')
+      console.log(`Policy data received for ${country}:`, policy)
+
+      const { error: upsertError } = await supabaseClient
+        .from('country_policies')
+        .upsert({
+          country_code: country,
+          policy_type: 'pet',
+          ...policy,
+          last_updated: new Date().toISOString()
+        }, {
+          onConflict: 'country_code,policy_type'
+        })
+
+      if (upsertError) {
+        console.error(`Error upserting policy for ${country}:`, upsertError)
+        errors.push(country)
+      } else {
+        processed.push(country)
+        console.log(`Successfully processed policy for ${country}`)
+      }
+
+      // Rate limiting delay between API calls
+      await delay(RATE_LIMIT_DELAY)
+    } catch (error) {
+      console.error(`Error processing country ${country}:`, error)
+      errors.push(country)
+    }
+  }
+
+  return { processed, errors }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -59,60 +113,40 @@ Deno.serve(async (req) => {
 
     console.log('Total countries fetched:', countries.length)
 
-    // Process only first 5 countries for testing
+    // Process all countries (removed the slice)
     const uniqueCountries = countries
       .map(row => row.country?.trim() || '')
       .filter(country => country !== '')
       .map(country => country.normalize('NFKC').trim())
       .sort()
-      .slice(0, 5) // Limit to 5 countries for testing
 
     console.log('Processing countries:', uniqueCountries)
     
-    let processedCount = 0
-    let errorCount = 0
-    const processedCountries = new Set()
-    const errorCountries = new Set()
+    const processedCountries = new Set<string>()
+    const errorCountries = new Set<string>()
 
-    for (const country of uniqueCountries) {
-      try {
-        console.log(`Processing country: ${country}`)
-        
-        const policy = await fetchPolicyWithAI(country, 'pet')
-        console.log(`Policy data received for ${country}:`, policy)
+    // Process countries in batches
+    for (let i = 0; i < uniqueCountries.length; i += BATCH_SIZE) {
+      console.log(`Starting batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(uniqueCountries.length/BATCH_SIZE)}`)
+      
+      const { processed, errors } = await processBatch(
+        uniqueCountries,
+        supabaseClient,
+        i
+      )
 
-        const { error: upsertError } = await supabaseClient
-          .from('country_policies')
-          .upsert({
-            country_code: country,
-            policy_type: 'pet',
-            ...policy,
-            last_updated: new Date().toISOString()
-          }, {
-            onConflict: 'country_code,policy_type'
-          })
+      processed.forEach(country => processedCountries.add(country))
+      errors.forEach(country => errorCountries.add(country))
 
-        if (upsertError) {
-          console.error(`Error upserting policy for ${country}:`, upsertError)
-          errorCountries.add(country)
-          errorCount++
-        } else {
-          processedCount++
-          processedCountries.add(country)
-          console.log(`Successfully processed policy for ${country}`)
-        }
-      } catch (error) {
-        console.error(`Error processing country ${country}:`, error)
-        errorCountries.add(country)
-        errorCount++
-      }
+      // Log progress after each batch
+      console.log(`Progress: ${processedCountries.size}/${uniqueCountries.length} countries processed`)
     }
 
     const summary = {
       success: true,
       total_countries: uniqueCountries.length,
-      processed_policies: processedCount,
-      errors: errorCount,
+      processed_policies: processedCountries.size,
+      errors: errorCountries.size,
       processed_countries: Array.from(processedCountries),
       error_countries: Array.from(errorCountries)
     }
@@ -170,52 +204,59 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   "additional_notes": "string or null if none"
 }`
 
-  try {
-    console.log(`Making API request to Perplexity for ${country}...`)
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 1000,
-      }),
-    })
+  let retries = 3
+  while (retries > 0) {
+    try {
+      console.log(`Making API request to Perplexity for ${country} (attempt ${4 - retries}/3)...`)
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-sonar-small-128k-online',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.1,
+          max_tokens: 1000,
+        }),
+      })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Perplexity API error for ${country}:`, errorText)
-      throw new Error(`Perplexity API error: ${response.statusText}`)
-    }
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Perplexity API error for ${country}:`, errorText)
+        throw new Error(`Perplexity API error: ${response.statusText}`)
+      }
 
-    const data = await response.json()
-    console.log(`Received AI response for ${country}. Status: ${response.status}`)
-    
-    const content = data.choices[0].message.content.trim()
-    console.log('Raw AI response:', content)
-    
-    const policyData = JSON.parse(content)
-    
-    return {
-      title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
-      description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
-      requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
-      documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
-      fees: typeof policyData.fees === 'object' ? policyData.fees : {},
-      restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
-      quarantine_requirements: policyData.quarantine_requirements || '',
-      vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
-      additional_notes: policyData.additional_notes || '',
+      const data = await response.json()
+      console.log(`Received AI response for ${country}. Status: ${response.status}`)
+      
+      const content = data.choices[0].message.content.trim()
+      console.log('Raw AI response:', content)
+      
+      const policyData = JSON.parse(content)
+      
+      return {
+        title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
+        description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
+        requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
+        documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
+        fees: typeof policyData.fees === 'object' ? policyData.fees : {},
+        restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
+        quarantine_requirements: policyData.quarantine_requirements || '',
+        vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
+        additional_notes: policyData.additional_notes || '',
+      }
+    } catch (error) {
+      console.error(`Attempt ${4 - retries}/3 failed for ${country}:`, error)
+      retries--
+      if (retries === 0) throw error
+      await delay(2000) // Wait 2 seconds before retrying
     }
-  } catch (error) {
-    console.error(`Error processing policy for ${country}:`, error)
-    throw error
   }
+
+  throw new Error(`Failed to fetch policy for ${country} after 3 attempts`)
 }
