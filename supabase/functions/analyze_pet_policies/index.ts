@@ -6,8 +6,9 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -48,13 +49,13 @@ Deno.serve(async (req) => {
       }
 
       Important: 
-      1. Make sure to return ONLY the JSON object, no additional text or formatting.
-      2. For policy_url, provide the complete URL to the specific pet travel policy page, not just the main website.
-      3. If you can't find the information, return the JSON with all null values.
-      4. Do not include any explanatory text or markdown formatting in your response.
-      5. Make sure all arrays are properly formatted with square brackets and comma-separated values.
-      6. Each array should contain strings only, no objects or nested arrays.
-      7. Do not use trailing commas in arrays or objects.
+      1. Return ONLY valid JSON, no additional text.
+      2. For policy_url, provide the complete URL to the specific pet travel policy page.
+      3. If you can't find the information, return all fields as null.
+      4. Arrays must be properly formatted with square brackets and comma-separated strings.
+      5. Do not use trailing commas in arrays or objects.
+      6. All strings in arrays must be properly quoted.
+      7. Ensure all JSON property names are double-quoted.
     `
 
     console.log('Sending request to Perplexity API...');
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a JSON generator that extracts pet policy information from airline websites. Return only valid JSON objects with no additional text or formatting.'
+            content: 'You are a JSON generator that extracts pet policy information from airline websites. Return only valid JSON objects with no additional text.'
           },
           {
             role: 'user',
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
         temperature: 0.1,
         max_tokens: 1000,
       }),
-    })
+    });
 
     if (!response.ok) {
       console.error('Perplexity API error:', response.status, response.statusText);
@@ -96,83 +97,80 @@ Deno.serve(async (req) => {
       throw new Error('Invalid API response structure');
     }
 
-    const content = data.choices[0].message.content.trim();
-    console.log('Content to parse:', content);
+    let content = data.choices[0].message.content.trim();
+    console.log('Raw content to parse:', content);
 
     let policyData;
     try {
-      // First try direct JSON parse
-      try {
-        policyData = JSON.parse(content);
-      } catch (e) {
-        // If direct parse fails, try to extract JSON from the content
-        console.log('Direct JSON parse failed, attempting to extract JSON from content');
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          console.error('No JSON object found in content');
-          throw new Error('No JSON object found in content');
-        }
-        let jsonString = jsonMatch[0]
-          .replace(/\n/g, ' ')  // Remove newlines
-          .replace(/,\s*([}\]])/g, '$1')  // Remove trailing commas
-          .replace(/([{,])\s*([^"{\s][^:]*?):/g, '$1"$2":')  // Quote unquoted keys
-          .replace(/:\s*'([^']*)'/g, ':"$1"')  // Replace single quotes with double quotes
-          .replace(/,\s*,/g, ',')  // Remove duplicate commas
-          .replace(/\[\s*,/g, '[')  // Remove leading comma in arrays
-          .replace(/,\s*\]/g, ']')  // Remove trailing comma in arrays
-          .replace(/"\s+"/g, '","')  // Fix spacing between array elements
-          .replace(/\[\s*"/, '["')   // Fix spacing at start of arrays
-          .replace(/"\s*\]/, '"]');  // Fix spacing at end of arrays
-
-        console.log('Cleaned JSON string:', jsonString);
-        policyData = JSON.parse(jsonString);
+      // First try to extract just the JSON object if there's any surrounding text
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON object found in content');
       }
+      content = jsonMatch[0];
 
-      // Validate and normalize the structure
-      const requiredFields = [
-        'pet_types_allowed',
-        'carrier_requirements',
-        'documentation_needed',
-        'temperature_restrictions',
-        'breed_restrictions',
-        'policy_url'
-      ];
+      // Clean up the JSON string
+      content = content
+        .replace(/\n/g, ' ') // Remove newlines
+        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+        .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3') // Ensure property names are quoted
+        .replace(/:\s*'([^']*)'/g, ':"$1"') // Replace single quotes with double quotes
+        .replace(/,\s*,/g, ',') // Remove duplicate commas
+        .replace(/\[\s*,/g, '[') // Remove leading comma in arrays
+        .replace(/,\s*\]/g, ']') // Remove trailing comma in arrays
+        .replace(/"\s+"/g, '","') // Fix spacing between array elements
+        .replace(/\[\s*"/g, '["') // Fix spacing at start of arrays
+        .replace(/"\s*\]/g, '"]'); // Fix spacing at end of arrays
 
-      // Ensure all required fields exist
-      requiredFields.forEach(field => {
-        if (!(field in policyData)) {
-          policyData[field] = null;
-        }
-      });
+      console.log('Cleaned JSON string:', content);
+      policyData = JSON.parse(content);
 
-      // Ensure arrays are properly formatted
+      // Normalize the data structure
+      const template = {
+        pet_types_allowed: null,
+        carrier_requirements: null,
+        documentation_needed: null,
+        temperature_restrictions: null,
+        breed_restrictions: null,
+        policy_url: null
+      };
+
+      // Ensure all fields exist with correct types
+      policyData = {
+        ...template,
+        ...policyData
+      };
+
+      // Convert array fields
       ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
-        if (policyData[field] !== null) {
-          if (!Array.isArray(policyData[field])) {
-            if (typeof policyData[field] === 'string') {
-              // Convert comma-separated string to array
-              policyData[field] = policyData[field].split(',').map(item => item.trim());
-            } else {
-              policyData[field] = null;
-            }
+        if (policyData[field]) {
+          if (typeof policyData[field] === 'string') {
+            policyData[field] = [policyData[field]];
           }
-          // Ensure all array elements are strings
           if (Array.isArray(policyData[field])) {
-            policyData[field] = policyData[field].map(item => String(item).trim());
+            policyData[field] = policyData[field].map(item => 
+              typeof item === 'string' ? item.trim() : String(item).trim()
+            ).filter(Boolean);
+          }
+          if (!Array.isArray(policyData[field]) || policyData[field].length === 0) {
+            policyData[field] = null;
           }
         }
       });
 
-      // Ensure string fields are properly formatted
+      // Convert string fields
       ['carrier_requirements', 'temperature_restrictions', 'policy_url'].forEach(field => {
-        if (policyData[field] !== null && typeof policyData[field] !== 'string') {
-          policyData[field] = String(policyData[field]);
+        if (policyData[field] && typeof policyData[field] !== 'string') {
+          policyData[field] = String(policyData[field]).trim();
+        }
+        if (!policyData[field]) {
+          policyData[field] = null;
         }
       });
 
     } catch (e) {
       console.error('Failed to parse policy data:', e);
-      console.error('Raw content:', content);
+      console.error('Content that failed to parse:', content);
       throw new Error(`Failed to parse policy data: ${e.message}`);
     }
 
