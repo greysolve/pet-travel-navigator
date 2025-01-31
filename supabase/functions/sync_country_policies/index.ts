@@ -1,9 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { corsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+// Validate authentication token
+const validateToken = async (req: Request) => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
+  }
+  return authHeader;
+};
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -134,6 +139,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate authentication
+    await validateToken(req);
+    
     console.log('Starting country policies sync process...')
     
     // Initialize Supabase client with error handling
@@ -258,7 +266,7 @@ Deno.serve(async (req) => {
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: error.message.includes('Missing authorization') ? 401 : 500,
       }
     )
   }

@@ -1,4 +1,4 @@
 project_id = "jhokkuszubzngrcamfdb"
 
-[functions.sync_route_data]
+[functions.sync_country_policies]
 verify_jwt = true
