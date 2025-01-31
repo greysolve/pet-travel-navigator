@@ -1,15 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// List of common countries that might not be in airports table
-const additionalCountries = [
-  'United States', 'United Kingdom', 'Canada', 'Australia', 'France', 'Germany',
-  'Italy', 'Spain', 'Japan', 'China', 'India', 'Brazil', 'Mexico', 'Russia',
-  'South Africa', 'Egypt', 'Saudi Arabia', 'UAE', 'Singapore', 'New Zealand',
-  'Ireland', 'Netherlands', 'Belgium', 'Switzerland', 'Sweden', 'Norway',
-  'Denmark', 'Finland', 'Portugal', 'Greece', 'Turkey', 'South Korea'
-];
-
 Deno.serve(async (req) => {
   console.log('Request received:', {
     method: req.method,
@@ -44,30 +35,30 @@ Deno.serve(async (req) => {
       }
     })
     
-    console.log('Fetching airports from database...')
+    console.log('Fetching unique countries from airports table...')
     const { data: airports, error: airportsError } = await supabaseClient
       .from('airports')
       .select('country')
       .not('country', 'is', null)
+      .order('country')
 
     if (airportsError) {
       console.error('Error fetching airports:', airportsError)
       throw airportsError
     }
 
-    // Get unique countries from airports and combine with additional countries
-    const airportCountries = [...new Set(airports.map(a => a.country).filter(Boolean))]
-    const allCountries = [...new Set([...airportCountries, ...additionalCountries])]
-    console.log(`Found ${allCountries.length} total countries to process:`, allCountries.slice(0, 5))
+    // Get unique countries from airports
+    const uniqueCountries = [...new Set(airports.map(a => a.country).filter(Boolean))]
+    console.log(`Found ${uniqueCountries.length} unique countries to process:`, uniqueCountries)
 
     let processedCount = 0
     let errorCount = 0
 
     // Process countries in batches to avoid rate limits
     const BATCH_SIZE = 5
-    for (let i = 0; i < allCountries.length; i += BATCH_SIZE) {
-      const batch = allCountries.slice(i, i + BATCH_SIZE)
-      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(allCountries.length/BATCH_SIZE)}...`)
+    for (let i = 0; i < uniqueCountries.length; i += BATCH_SIZE) {
+      const batch = uniqueCountries.slice(i, i + BATCH_SIZE)
+      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(uniqueCountries.length/BATCH_SIZE)}...`)
       
       for (const country of batch) {
         try {
@@ -123,7 +114,7 @@ Deno.serve(async (req) => {
       }
 
       // Add a delay between batches to respect rate limits
-      if (i + BATCH_SIZE < allCountries.length) {
+      if (i + BATCH_SIZE < uniqueCountries.length) {
         console.log('Waiting before processing next batch...')
         await new Promise(resolve => setTimeout(resolve, 2000))
       }
@@ -131,7 +122,7 @@ Deno.serve(async (req) => {
 
     const summary = {
       success: true,
-      total_countries: allCountries.length,
+      total_countries: uniqueCountries.length,
       policies_processed: processedCount,
       errors: errorCount,
     }
@@ -243,58 +234,42 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const trimmedLine = line.trim()
       if (!trimmedLine) continue
 
-      // Log each line for debugging
-      console.log(`Processing line: ${trimmedLine}`)
-
       if (trimmedLine.toLowerCase().includes('title:')) {
         policy.title = trimmedLine.split(':')[1]?.trim() || `${country} ${policyType} Import Requirements`
-        console.log(`Set title: ${policy.title}`)
       } else if (trimmedLine.toLowerCase().includes('description:')) {
         policy.description = trimmedLine.split(':')[1]?.trim()
-        console.log(`Set description: ${policy.description}`)
       } else if (trimmedLine.toLowerCase().includes('requirements:') || trimmedLine.toLowerCase().includes('key requirements:')) {
         currentSection = 'requirements'
-        console.log('Switching to requirements section')
       } else if (trimmedLine.toLowerCase().includes('documentation:') || trimmedLine.toLowerCase().includes('required documentation:')) {
         currentSection = 'documentation'
-        console.log('Switching to documentation section')
       } else if (trimmedLine.toLowerCase().includes('fees:')) {
         currentSection = 'fees'
         const feesText = trimmedLine.split(':')[1]?.trim()
         if (feesText) {
           policy.fees = { general: feesText }
         }
-        console.log(`Set fees: ${JSON.stringify(policy.fees)}`)
       } else if (trimmedLine.toLowerCase().includes('restrictions:')) {
         currentSection = 'restrictions'
         const restrictionsText = trimmedLine.split(':')[1]?.trim()
         if (restrictionsText) {
           policy.restrictions = { general: restrictionsText }
         }
-        console.log(`Set restrictions: ${JSON.stringify(policy.restrictions)}`)
       } else if (trimmedLine.toLowerCase().includes('quarantine:')) {
         policy.quarantine_requirements = trimmedLine.split(':')[1]?.trim()
-        console.log(`Set quarantine requirements: ${policy.quarantine_requirements}`)
       } else if (trimmedLine.toLowerCase().includes('vaccination:')) {
         currentSection = 'vaccination'
-        console.log('Switching to vaccination section')
       } else if (trimmedLine.toLowerCase().includes('additional notes:')) {
         currentSection = 'notes'
-        console.log('Switching to notes section')
       } else if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•') || /^\d+\./.test(trimmedLine)) {
         const item = trimmedLine.replace(/^[-•\d.]+/, '').trim()
         if (currentSection === 'requirements') {
           policy.requirements.push(item)
-          console.log(`Added requirement: ${item}`)
         } else if (currentSection === 'documentation') {
           policy.documentation_needed.push(item)
-          console.log(`Added documentation: ${item}`)
         } else if (currentSection === 'vaccination') {
           policy.vaccination_requirements.push(item)
-          console.log(`Added vaccination requirement: ${item}`)
         } else if (currentSection === 'notes') {
           policy.additional_notes += item + ' '
-          console.log(`Added to notes: ${item}`)
         }
       }
     }
@@ -309,7 +284,6 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       policy.description = `Official pet import requirements and regulations for ${country}. These requirements must be followed when bringing pets into the country.`
     }
 
-    console.log(`Final parsed policy for ${country}:`, policy)
     return policy
   } catch (error) {
     console.error(`Error processing policy for ${country}:`, error)
