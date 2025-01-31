@@ -4,6 +4,14 @@ import { corsHeaders } from '../_shared/cors.ts'
 console.log('Edge Function: sync_country_policies initialized')
 
 Deno.serve(async (req) => {
+  // Add detailed request logging
+  console.log('Request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -14,12 +22,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Request received:', {
-      method: req.method,
-      url: req.url,
-      headers: Object.fromEntries(req.headers.entries())
-    })
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
@@ -27,6 +29,7 @@ Deno.serve(async (req) => {
       throw new Error('Missing Supabase credentials')
     }
 
+    console.log('Initializing Supabase client...')
     const supabaseClient = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
@@ -47,39 +50,25 @@ Deno.serve(async (req) => {
       throw airportsError
     }
 
-    // Log raw airport data with more detail
-    console.log('Raw airport countries data (with type and length):', airports.map(a => ({
-      country: a.country,
-      type: typeof a.country,
-      length: a.country?.length,
-      trimmedLength: a.country?.trim().length
-    })))
+    // Log raw airport data
+    console.log('Raw airports data:', airports)
 
-    // Get unique countries with normalization
-    const countrySet = new Set(
+    // Get unique countries and normalize them
+    const uniqueCountries = [...new Set(
       airports
         .map(a => a.country?.trim())
         .filter(Boolean)
-        .map(country => ({
-          original: country,
-          normalized: country.normalize('NFKC').trim()
-        }))
-    )
-    
-    console.log('Unique countries before processing:', Array.from(countrySet))
+        .map(country => country.normalize('NFKC').trim())
+    )].sort()
 
-    // Convert to array and sort
-    const uniqueCountries = Array.from(countrySet).map(c => c.normalized).sort()
-    console.log(`Found ${uniqueCountries.length} unique countries to process:`, uniqueCountries)
+    console.log(`Found ${uniqueCountries.length} unique countries:`, uniqueCountries)
 
     let processedCount = 0
     let errorCount = 0
-    let skippedCount = 0
     const processedCountries = new Set()
-    const skippedCountries = new Set()
     const errorCountries = new Set()
 
-    // Process countries in batches to avoid rate limits
+    // Process countries in smaller batches
     const BATCH_SIZE = 5
     for (let i = 0; i < uniqueCountries.length; i += BATCH_SIZE) {
       const batch = uniqueCountries.slice(i, i + BATCH_SIZE)
@@ -87,31 +76,11 @@ Deno.serve(async (req) => {
       
       for (const country of batch) {
         try {
-          console.log(`Starting processing for country: ${country}`)
+          console.log(`Processing country: ${country}`)
           const policyTypes: Array<'pet' | 'live_animal'> = ['pet', 'live_animal']
           
           for (const policyType of policyTypes) {
             try {
-              // Check if policy already exists
-              const { data: existingPolicies } = await supabaseClient
-                .from('country_policies')
-                .select('last_updated')
-                .eq('country_code', country)
-                .eq('policy_type', policyType)
-                .single()
-
-              // Temporarily remove the 7-day restriction for testing
-              // if (existingPolicies?.last_updated) {
-              //   const lastUpdated = new Date(existingPolicies.last_updated)
-              //   const daysSinceUpdate = (new Date().getTime() - lastUpdated.getTime()) / (1000 * 3600 * 24)
-              //   if (daysSinceUpdate < 7) {
-              //     console.log(`Skipping ${country} ${policyType} policy - updated ${daysSinceUpdate.toFixed(1)} days ago`)
-              //     skippedCountries.add(country)
-              //     skippedCount++
-              //     continue
-              //   }
-              // }
-
               console.log(`Fetching ${policyType} policy for ${country}...`)
               const policy = await fetchPolicyWithAI(country, policyType)
 
@@ -119,9 +88,9 @@ Deno.serve(async (req) => {
               const { error: upsertError } = await supabaseClient
                 .from('country_policies')
                 .upsert({
-                  ...policy,
                   country_code: country,
                   policy_type: policyType,
+                  ...policy,
                   last_updated: new Date().toISOString()
                 }, {
                   onConflict: 'country_code,policy_type'
@@ -149,7 +118,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Add a delay between batches to respect rate limits
+      // Add a delay between batches
       if (i + BATCH_SIZE < uniqueCountries.length) {
         console.log('Waiting before processing next batch...')
         await new Promise(resolve => setTimeout(resolve, 2000))
@@ -160,10 +129,8 @@ Deno.serve(async (req) => {
       success: true,
       total_countries: uniqueCountries.length,
       processed: processedCount,
-      skipped: skippedCount,
       errors: errorCount,
       processed_countries: Array.from(processedCountries),
-      skipped_countries: Array.from(skippedCountries),
       error_countries: Array.from(errorCountries)
     }
 
