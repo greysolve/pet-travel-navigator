@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Add a delay between batches
+      // Add a delay between batches to prevent rate limiting
       if (i + BATCH_SIZE < uniqueCountries.length) {
         console.log('Waiting before processing next batch...')
         await new Promise(resolve => setTimeout(resolve, 2000))
@@ -155,7 +155,11 @@ Deno.serve(async (req) => {
         error: error.message 
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        },
         status: 500,
       }
     )
