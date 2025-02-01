@@ -45,22 +45,22 @@ export const SyncSection = () => {
 
       console.log('DEBUG: Raw sync progress data:', data);
 
-      // Group by type and get the most recent record with the highest processed count
+      // Group by type and get the most recent record for each sync session
       const progressByType = (data as SyncProgressDBRecord[]).reduce((acc: SyncProgressRecord, curr) => {
         const existingProgress = acc[curr.type];
-        const currDate = new Date(curr.created_at);
         
+        // If this is a new sync session (different start_time) or has more progress
         if (!existingProgress || 
-            curr.processed > existingProgress.processed || 
-            (curr.processed === existingProgress.processed && 
-             currDate > new Date(existingProgress.startTime!))) {
+            !existingProgress.startTime || 
+            curr.start_time !== existingProgress.startTime || 
+            curr.processed > existingProgress.processed) {
           acc[curr.type] = {
             total: curr.total,
             processed: curr.processed,
             lastProcessed: curr.last_processed,
             processedItems: curr.processed_items || [],
             errorItems: curr.error_items || [],
-            startTime: curr.start_time || curr.created_at,
+            startTime: curr.start_time,
             isComplete: curr.is_complete,
           };
         }
@@ -83,27 +83,60 @@ export const SyncSection = () => {
         currentSyncProgress: syncProgress
       });
       
-      const { data, error } = await supabase
+      // First try to update existing record
+      const { data: existingData, error: existingError } = await supabase
         .from('sync_progress')
-        .insert({
-          type,
-          total: progress.total,
-          processed: progress.processed,
-          last_processed: progress.lastProcessed,
-          processed_items: progress.processedItems,
-          error_items: progress.errorItems,
-          start_time: progress.startTime,
-          is_complete: progress.isComplete
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('type', type)
+        .eq('start_time', progress.startTime)
+        .maybeSingle();
 
-      if (error) {
-        console.error('DEBUG: Error inserting sync progress:', error);
-        throw error;
+      if (existingError) {
+        console.error('DEBUG: Error checking existing sync progress:', existingError);
+        throw existingError;
+      }
+
+      let result;
+      if (existingData) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from('sync_progress')
+          .update({
+            total: progress.total,
+            processed: progress.processed,
+            last_processed: progress.lastProcessed,
+            processed_items: progress.processedItems,
+            error_items: progress.errorItems,
+            is_complete: progress.isComplete
+          })
+          .eq('id', existingData.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
+      } else {
+        // Insert new record
+        const { data, error } = await supabase
+          .from('sync_progress')
+          .insert({
+            type,
+            total: progress.total,
+            processed: progress.processed,
+            last_processed: progress.lastProcessed,
+            processed_items: progress.processedItems,
+            error_items: progress.errorItems,
+            start_time: progress.startTime,
+            is_complete: progress.isComplete
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
       }
       
-      console.log('DEBUG: Successfully inserted sync progress:', data);
+      console.log('DEBUG: Successfully updated sync progress:', result);
       
       // Update the cache
       queryClient.setQueryData<SyncProgressRecord>(["syncProgress"], (old) => ({
