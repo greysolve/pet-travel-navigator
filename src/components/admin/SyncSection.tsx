@@ -6,8 +6,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { initializeSyncProgress, updateSyncProgress } from "@/utils/syncProgress";
 
-// Define the database record type
 interface SyncProgressDB {
   id: string;
   type: string;
@@ -80,7 +80,7 @@ export const SyncSection = () => {
     };
   }, [queryClient]);
 
-  const { data: syncProgress, error } = useQuery<SyncProgressRecord>({
+  const { data: syncProgress, error } = useQuery({
     queryKey: ["syncProgress"],
     queryFn: async () => {
       console.log('Fetching initial sync progress...');
@@ -111,42 +111,9 @@ export const SyncSection = () => {
       console.log('Processed sync progress data:', progressRecord);
       return progressRecord;
     },
-    staleTime: 0, // Always fetch fresh data
-    refetchInterval: 5000, // Refetch every 5 seconds as backup
+    staleTime: 0,
+    refetchInterval: 5000,
   });
-
-  const updateSyncProgress = async (type: string, progress: SyncProgress) => {
-    try {
-      console.log('Updating sync progress:', { type, progress });
-      
-      const { error } = await supabase
-        .from('sync_progress')
-        .upsert({
-          type,
-          total: progress.total,
-          processed: progress.processed,
-          last_processed: progress.lastProcessed,
-          processed_items: progress.processedItems,
-          error_items: progress.errorItems,
-          start_time: progress.startTime,
-          is_complete: progress.isComplete
-        }, {
-          onConflict: 'type'
-        });
-
-      if (error) throw error;
-      
-      console.log('Successfully updated sync progress');
-      
-    } catch (error: any) {
-      console.error('Error in updateSyncProgress:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to update sync progress: ${error.message}`,
-      });
-    }
-  };
 
   const handleSync = async (type: SyncType, resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
@@ -172,17 +139,7 @@ export const SyncSection = () => {
             .select('id, name, website')
             .eq('active', true);
 
-          const initialProgress: SyncProgress = {
-            total: airlines?.length || 0,
-            processed: 0,
-            lastProcessed: null,
-            processedItems: [],
-            errorItems: [],
-            startTime: new Date().toISOString(),
-            isComplete: false
-          };
-
-          await updateSyncProgress('petPolicies', initialProgress);
+          await initializeSyncProgress('petPolicies', airlines?.length || 0);
         }
 
         let continuationToken = resume ? syncProgress?.petPolicies?.lastProcessed : null;
@@ -200,11 +157,12 @@ export const SyncSection = () => {
           if (error) throw error;
 
           const updatedProgress: SyncProgress = {
-            ...syncProgress?.petPolicies,
+            total: data.total_airlines,
             processed: (syncProgress?.petPolicies?.processed || 0) + data.processed_count,
             lastProcessed: data.continuation_token,
             processedItems: [...(syncProgress?.petPolicies?.processedItems || []), ...data.processed_airlines],
             errorItems: [...(syncProgress?.petPolicies?.errorItems || []), ...data.error_airlines],
+            startTime: syncProgress?.petPolicies?.startTime || new Date().toISOString(),
             isComplete: !data.continuation_token
           };
 
@@ -220,17 +178,7 @@ export const SyncSection = () => {
       } else if (type === 'countryPolicies') {
         if (!resume) {
           console.log('Initializing country policies sync');
-          const initialProgress: SyncProgress = {
-            total: 0,
-            processed: 0,
-            lastProcessed: null,
-            processedItems: [],
-            errorItems: [],
-            startTime: new Date().toISOString(),
-            isComplete: false
-          };
-
-          await updateSyncProgress('countryPolicies', initialProgress);
+          await initializeSyncProgress('countryPolicies', 0);
         }
 
         let continuationToken = resume ? syncProgress?.countryPolicies?.lastProcessed : null;
@@ -241,7 +189,7 @@ export const SyncSection = () => {
           const { data, error } = await supabase.functions.invoke('sync_country_policies', {
             body: { 
               lastProcessedCountry: continuationToken,
-              batchSize: 10 // Increased from default of 5
+              batchSize: 10
             }
           });
 
@@ -252,10 +200,10 @@ export const SyncSection = () => {
           if (data.total_countries > 0) {
             const updatedProgress: SyncProgress = {
               total: data.total_countries,
-              processed: (syncProgress?.countryPolicies?.processed || 0) + data.processed_policies,
+              processed: data.processed_policies,
               lastProcessed: data.continuation_token,
-              processedItems: [...(syncProgress?.countryPolicies?.processedItems || []), ...data.processed_countries],
-              errorItems: [...(syncProgress?.countryPolicies?.errorItems || []), ...data.error_countries],
+              processedItems: data.processed_countries,
+              errorItems: data.error_countries,
               startTime: syncProgress?.countryPolicies?.startTime || new Date().toISOString(),
               isComplete: !data.continuation_token
             };
@@ -266,7 +214,7 @@ export const SyncSection = () => {
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms to 1000ms
+            await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
             completed = true;
           }
@@ -281,7 +229,7 @@ export const SyncSection = () => {
         const { data, error } = await supabase.functions.invoke(functionName);
         if (error) throw error;
 
-        const syncProgressData: SyncProgress = {
+        await updateSyncProgress(type, {
           total: 1,
           processed: 1,
           lastProcessed: null,
@@ -289,9 +237,7 @@ export const SyncSection = () => {
           errorItems: [],
           startTime: new Date().toISOString(),
           isComplete: true
-        };
-
-        await updateSyncProgress(type, syncProgressData);
+        });
       }
 
       toast({

@@ -1,13 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { corsHeaders } from '../_shared/cors.ts'
 
-console.log('Edge Function: sync_country_policies initialized')
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
-const BATCH_SIZE = 10
-const MAX_RETRIES = 3
-const MAX_EXECUTION_TIME = 25000
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const BATCH_SIZE = 10;
+const MAX_RETRIES = 3;
 
 interface ProcessingState {
   lastProcessedCountry: string | null;
@@ -39,7 +38,7 @@ async function processBatch(
       ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
       : 0;
 
-    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}, current processed count: ${processedCount}`);
+    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`);
 
     if (startIndex >= countries.length) {
       console.log('All countries have been processed');
@@ -56,17 +55,11 @@ async function processBatch(
     console.log(`Processing countries from index ${startIndex} to ${endIndex}`);
 
     for (let i = startIndex; i < endIndex; i++) {
-      if (Date.now() - state.startTime > MAX_EXECUTION_TIME) {
-        console.log('Approaching execution time limit, gracefully stopping batch');
-        shouldContinue = true;
-        break;
-      }
-
       const country = countries[i];
       try {
         console.log(`Processing country ${i + 1}/${countries.length}: ${country}`);
         
-        const policy = await fetchPolicyWithRetry(country, 'pet');
+        const policy = await fetchPolicyWithAI(country, 'pet');
         console.log(`Policy data received for ${country}:`, policy);
 
         const { error: upsertError } = await supabaseClient
@@ -110,8 +103,6 @@ async function processBatch(
           } catch (progressUpdateError) {
             console.error('Failed to update progress:', progressUpdateError);
           }
-          
-          console.log(`Successfully processed policy for ${country}. Total processed: ${processedCount}`);
         }
 
       } catch (error) {
@@ -127,7 +118,7 @@ async function processBatch(
     }
 
     const hasMoreCountries = endIndex < countries.length;
-    console.log(`Batch complete. Processed: ${processed.length}, Total processed: ${processedCount}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`);
+    console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`);
     
     return { 
       processed, 
@@ -162,31 +153,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({
-      error: 'Method not allowed'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 405
-    });
-  }
-
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials');
-    }
-
-    console.log('Initializing Supabase client...');
-    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      }
-    });
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
     const requestBody = await req.json().catch(() => ({}));
     const lastProcessedCountry = requestBody.lastProcessedCountry || null;
@@ -211,7 +181,6 @@ Deno.serve(async (req) => {
       }
     } else {
       console.log('Starting new sync, resetting progress...');
-      // Reset progress when starting a new sync
       const { error: resetError } = await supabaseClient
         .from('sync_progress')
         .upsert({
