@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface SyncCardProps {
   title: string;
@@ -74,7 +74,14 @@ export const SyncCard = ({
     <div className="p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md">
       <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
         {title}
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+        {isLoading && (
+          <div className="animate-pulse">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        )}
+        {syncProgress?.isComplete && !isLoading && (
+          <CheckCircle2 className="w-5 h-5 text-green-500" />
+        )}
       </h2>
       
       <div className="flex items-center space-x-3 mb-6">
@@ -83,6 +90,7 @@ export const SyncCard = ({
           checked={clearData}
           onCheckedChange={(checked) => onClearDataChange(checked === true)}
           disabled={isLoading || isSyncInProgress()}
+          className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
         />
         <Label 
           htmlFor={`clear${title.replace(/\s+/g, '')}`} 
@@ -97,20 +105,31 @@ export const SyncCard = ({
           <div className="space-y-2">
             <Progress 
               value={Number(progressPercentage)}
-              className="h-2"
+              className="h-2 transition-all"
             />
             <p className="text-sm text-muted-foreground text-right">{progressPercentage}%</p>
           </div>
           
           <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
             <div>
-              <p>Progress: {syncProgress.processed} of {syncProgress.total}</p>
-              <p>Elapsed time: {elapsedTime}</p>
+              <p className="flex items-center gap-1">
+                <span className="font-medium">Progress:</span> 
+                {syncProgress.processed} of {syncProgress.total}
+              </p>
+              <p className="flex items-center gap-1">
+                <span className="font-medium">Elapsed:</span> 
+                {elapsedTime}
+              </p>
             </div>
             <div>
-              <p>Est. remaining: {estimatedTimeRemaining}</p>
+              <p className="flex items-center gap-1">
+                <span className="font-medium">Remaining:</span> 
+                {estimatedTimeRemaining}
+              </p>
               {syncProgress.lastProcessed && (
-                <p className="truncate">Last: {syncProgress.lastProcessed}</p>
+                <p className="truncate">
+                  <span className="font-medium">Last:</span> {syncProgress.lastProcessed}
+                </p>
               )}
             </div>
           </div>
@@ -119,15 +138,19 @@ export const SyncCard = ({
             <div>
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 Processed
-                <span className="text-xs bg-secondary/20 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                   {syncProgress.processedItems.length}
                 </span>
               </h3>
               <ScrollArea className="h-32 rounded border p-2">
                 <div className="space-y-1">
                   {syncProgress.processedItems.map((item, i) => (
-                    <div key={i} className="text-sm py-1 px-2 rounded hover:bg-accent/50 transition-colors">
-                      {item}
+                    <div 
+                      key={i} 
+                      className="text-sm py-1 px-2 rounded hover:bg-accent/50 transition-colors flex items-center gap-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="truncate">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -138,7 +161,7 @@ export const SyncCard = ({
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 Errors
                 {syncProgress.errorItems.length > 0 && (
-                  <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
                     {syncProgress.errorItems.length}
                   </span>
                 )}
@@ -146,8 +169,12 @@ export const SyncCard = ({
               <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
                 <div className="space-y-1">
                   {syncProgress.errorItems.map((item, i) => (
-                    <div key={i} className="text-sm text-destructive py-1 px-2 rounded hover:bg-destructive/10 transition-colors">
-                      {item}
+                    <div 
+                      key={i} 
+                      className="text-sm text-destructive py-1 px-2 rounded hover:bg-destructive/10 transition-colors flex items-center gap-2"
+                    >
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -171,10 +198,17 @@ export const SyncCard = ({
             onClick={() => onSync(true)}
             disabled={isLoading}
             size="lg"
-            className="w-full text-lg relative overflow-hidden group"
+            className="w-full text-lg relative overflow-hidden group bg-primary hover:bg-primary/90"
           >
-            <span className="relative z-10">
-              {isLoading ? "Resuming Sync..." : "Resume Sync"}
+            <span className="relative z-10 flex items-center gap-2">
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Resuming Sync...
+                </>
+              ) : (
+                "Resume Sync"
+              )}
             </span>
             <div className="absolute inset-0 bg-primary/10 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
           </Button>
@@ -186,9 +220,17 @@ export const SyncCard = ({
           variant={isSyncInProgress() ? "outline" : "default"}
           className="w-full text-lg relative overflow-hidden group"
         >
-          <span className="relative z-10">
-            {isLoading ? `Syncing ${title}...` : 
-             isSyncInProgress() ? "Sync in Progress..." : "Start New Sync"}
+          <span className="relative z-10 flex items-center gap-2">
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Syncing {title}...
+              </>
+            ) : isSyncInProgress() ? (
+              "Sync in Progress..."
+            ) : (
+              "Start New Sync"
+            )}
           </span>
           <div className="absolute inset-0 bg-primary/10 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
         </Button>
