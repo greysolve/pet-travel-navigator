@@ -99,12 +99,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
 Deno.serve(async (req) => {
   try {
-    // Handle CORS preflight
     if (req.method === 'OPTIONS') {
-      return new Response(null, { 
-        status: 204,
-        headers: corsHeaders 
-      })
+      return new Response(null, { headers: corsHeaders })
     }
 
     if (req.method !== 'POST') {
@@ -143,14 +139,28 @@ Deno.serve(async (req) => {
     const requestBody = await req.json().catch(() => ({}))
     console.log('Received request with body:', requestBody)
     
-    const {
-      lastProcessedItem,
-      currentProcessed = 0,
-      processedItems = [],
-      errorItems = [],
-      startTime,
-      batchSize = BATCH_SIZE
-    } = requestBody
+    const { lastProcessedItem, batchSize = BATCH_SIZE } = requestBody
+
+    // Get current sync progress from database
+    const { data: currentProgress, error: progressError } = await supabase
+      .from('sync_progress')
+      .select('*')
+      .eq('type', 'countryPolicies')
+      .single()
+
+    if (progressError && progressError.code !== 'PGRST116') {
+      console.error('Error fetching current progress:', progressError)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Database error',
+          details: progressError.message 
+        }), 
+        { 
+          status: 500,
+          headers: corsHeaders
+        }
+      )
+    }
 
     const { data: countries, error: countriesError } = await supabase
       .rpc('get_distinct_countries')
@@ -202,8 +212,8 @@ Deno.serve(async (req) => {
           success: true,
           total,
           processed: total,
-          processed_items: processedItems,
-          error_items: errorItems,
+          processed_items: currentProgress?.processed_items || [],
+          error_items: currentProgress?.error_items || [],
           continuation_token: null,
           is_complete: true
         }),
@@ -215,8 +225,8 @@ Deno.serve(async (req) => {
     const endIndex = Math.min(startIndex + batchSize, uniqueCountries.length)
     const batchCountries = uniqueCountries.slice(startIndex, endIndex)
     
-    const newProcessedItems = [...processedItems]
-    const newErrorItems = [...errorItems]
+    const processedItems = currentProgress?.processed_items || []
+    const errorItems = currentProgress?.error_items || []
 
     for (const country of batchCountries) {
       try {
@@ -236,21 +246,21 @@ Deno.serve(async (req) => {
 
         if (upsertError) {
           console.error(`Error upserting policy for ${country}:`, upsertError)
-          newErrorItems.push(country)
+          errorItems.push(country)
         } else {
-          newProcessedItems.push(country)
+          processedItems.push(country)
           
-          // Update progress after each country
+          // Update progress using database values
           const { error: progressError } = await supabase
             .from('sync_progress')
             .upsert({
               type: 'countryPolicies',
               total,
-              processed: currentProcessed + newProcessedItems.length,
+              processed: processedItems.length,
               last_processed: country,
-              processed_items: newProcessedItems,
-              error_items: newErrorItems,
-              start_time: startTime || new Date().toISOString(),
+              processed_items: processedItems,
+              error_items: errorItems,
+              start_time: currentProgress?.start_time || new Date().toISOString(),
               is_complete: false
             }, {
               onConflict: 'type'
@@ -260,11 +270,9 @@ Deno.serve(async (req) => {
             console.error('Error updating progress:', progressError);
           }
         }
-        
-        // Removed the delay here
       } catch (error) {
         console.error(`Error processing country ${country}:`, error)
-        newErrorItems.push(country)
+        errorItems.push(country)
         
         if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
           console.log('Rate limit or quota reached, stopping batch')
@@ -272,9 +280,9 @@ Deno.serve(async (req) => {
             JSON.stringify({
               success: true,
               total,
-              processed: currentProcessed + newProcessedItems.length,
-              processed_items: newProcessedItems,
-              error_items: newErrorItems,
+              processed: processedItems.length,
+              processed_items: processedItems,
+              error_items: errorItems,
               continuation_token: country
             }),
             { headers: corsHeaders }
@@ -290,9 +298,9 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         total,
-        processed: currentProcessed + newProcessedItems.length,
-        processed_items: newProcessedItems,
-        error_items: newErrorItems,
+        processed: processedItems.length,
+        processed_items: processedItems,
+        error_items: errorItems,
         continuation_token: continuationToken
       }),
       { headers: corsHeaders }
