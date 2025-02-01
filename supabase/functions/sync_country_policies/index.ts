@@ -8,33 +8,34 @@ const corsHeaders = {
 }
 
 const BATCH_SIZE = 10;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000; // 5 seconds
 
-async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
+async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal', retryCount = 0) {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
   if (!PERPLEXITY_API_KEY) {
     console.error('Missing Perplexity API key')
     throw new Error('Server configuration error: Missing API key')
   }
 
-  console.log(`Starting AI policy fetch for ${country} (${policyType})`)
-
-  const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. The response must start with { and end with }.'
-  
-  const userPrompt = `Generate a JSON object for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements. The response must start with { and end with }. Use this exact structure:
-{
-  "title": "string or null if unknown",
-  "description": "string or null if unknown",
-  "requirements": ["string"] or [] if none,
-  "documentation_needed": ["string"] or [] if none,
-  "fees": {"description": "string"} or {} if none,
-  "restrictions": {"description": "string"} or {} if none,
-  "quarantine_requirements": "string or null if none",
-  "vaccination_requirements": ["string"] or [] if none,
-  "additional_notes": "string or null if none"
-}`
+  console.log(`Starting AI policy fetch for ${country} (${policyType}) - Attempt ${retryCount + 1}`)
 
   try {
-    console.log(`Making API request to Perplexity for ${country}...`)
+    const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. The response must start with { and end with }.'
+    
+    const userPrompt = `Generate a JSON object for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements. The response must start with { and end with }. Use this exact structure:
+  {
+    "title": "string or null if unknown",
+    "description": "string or null if unknown",
+    "requirements": ["string"] or [] if none,
+    "documentation_needed": ["string"] or [] if none,
+    "fees": {"description": "string"} or {} if none,
+    "restrictions": {"description": "string"} or {} if none,
+    "quarantine_requirements": "string or null if none",
+    "vaccination_requirements": ["string"] or [] if none,
+    "additional_notes": "string or null if none"
+  }`
+
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -55,6 +56,13 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`Perplexity API error for ${country}:`, errorText)
+      
+      if (retryCount < MAX_RETRIES && (response.status === 429 || response.status >= 500)) {
+        console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`)
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+        return fetchPolicyWithAI(country, policyType, retryCount + 1)
+      }
+      
       throw new Error(`API error: ${response.status} - ${response.statusText}`)
     }
 
@@ -78,6 +86,13 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     }
   } catch (error) {
     console.error(`Error in fetchPolicyWithAI for ${country}:`, error)
+    
+    if (retryCount < MAX_RETRIES) {
+      console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+      return fetchPolicyWithAI(country, policyType, retryCount + 1)
+    }
+    
     throw error
   }
 }
@@ -182,6 +197,22 @@ Deno.serve(async (req) => {
       ? uniqueCountries.findIndex(c => c === lastProcessedItem) + 1
       : 0
 
+    // If we've processed all countries, mark as complete
+    if (startIndex >= uniqueCountries.length) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          total,
+          processed: total,
+          processed_items: processedItems,
+          error_items: errorItems,
+          continuation_token: null,
+          is_complete: true
+        }),
+        { headers: corsHeaders }
+      )
+    }
+
     console.log(`Processing batch of ${batchSize} countries starting from index ${startIndex}`)
     const endIndex = Math.min(startIndex + batchSize, uniqueCountries.length)
     const batchCountries = uniqueCountries.slice(startIndex, endIndex)
@@ -218,6 +249,7 @@ Deno.serve(async (req) => {
         console.error(`Error processing country ${country}:`, error)
         newErrorItems.push(country)
         
+        // If we hit API limits, return current progress
         if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
           console.log('Rate limit or quota reached, stopping batch')
           return new Response(
