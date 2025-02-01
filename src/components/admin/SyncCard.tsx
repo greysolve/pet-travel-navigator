@@ -70,6 +70,10 @@ export const SyncCard = ({
     ? ((syncProgress.processed / syncProgress.total) * 100).toFixed(1) 
     : 0;
 
+  // Ensure arrays have default values
+  const processedItems = syncProgress?.processed_items || [];
+  const errorItems = syncProgress?.error_items || [];
+
   return (
     <div className="p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md">
       <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
@@ -139,12 +143,12 @@ export const SyncCard = ({
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 Processed
                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                  {syncProgress.processed_items.length}
+                  {processedItems.length}
                 </span>
               </h3>
               <ScrollArea className="h-32 rounded border p-2">
                 <div className="space-y-1">
-                  {syncProgress.processed_items.map((item, i) => (
+                  {processedItems.map((item, i) => (
                     <div 
                       key={i} 
                       className="text-sm py-1 px-2 rounded hover:bg-accent/50 transition-colors flex items-center gap-2"
@@ -160,15 +164,15 @@ export const SyncCard = ({
             <div>
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 Errors
-                {syncProgress.error_items.length > 0 && (
+                {errorItems.length > 0 && (
                   <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
-                    {syncProgress.error_items.length}
+                    {errorItems.length}
                   </span>
                 )}
               </h3>
               <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
                 <div className="space-y-1">
-                  {syncProgress.error_items.map((item, i) => (
+                  {errorItems.map((item, i) => (
                     <div 
                       key={i} 
                       className="text-sm text-destructive py-1 px-2 rounded hover:bg-destructive/10 transition-colors flex items-center gap-2"
