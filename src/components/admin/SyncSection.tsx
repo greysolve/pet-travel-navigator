@@ -1,22 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
-
-interface SyncProgressDBRecord {
-  created_at: string;
-  type: string;
-  total: number;
-  processed: number;
-  last_processed: string | null;
-  processed_items: string[];
-  error_items: string[];
-  start_time: string | null;
-  is_complete: boolean;
-}
 
 export const SyncSection = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
@@ -29,121 +17,102 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
+  useEffect(() => {
+    console.log('Setting up real-time subscription for sync progress');
+    const channel = supabase
+      .channel('sync_progress_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sync_progress'
+        },
+        (payload) => {
+          console.log('Received sync progress update:', payload);
+          const { new: newRecord } = payload;
+          if (newRecord) {
+            queryClient.setQueryData<SyncProgressRecord>(
+              ["syncProgress"],
+              (old) => ({
+                ...old,
+                [newRecord.type]: {
+                  total: newRecord.total,
+                  processed: newRecord.processed,
+                  lastProcessed: newRecord.last_processed,
+                  processedItems: newRecord.processed_items || [],
+                  errorItems: newRecord.error_items || [],
+                  startTime: newRecord.start_time,
+                  isComplete: newRecord.is_complete,
+                }
+              })
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up sync progress subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const { data: syncProgress, error } = useQuery<SyncProgressRecord>({
     queryKey: ["syncProgress"],
     queryFn: async () => {
-      console.log('DEBUG: Starting to fetch sync progress...');
+      console.log('Fetching initial sync progress...');
       const { data, error } = await supabase
         .from('sync_progress')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
       if (error) {
         console.error('Error fetching sync progress:', error);
         throw error;
       }
 
-      console.log('DEBUG: Raw sync progress data:', data);
+      console.log('Raw sync progress data:', data);
 
-      // Find the latest active sync session for each type
-      const progressByType = (data as SyncProgressDBRecord[]).reduce((acc: SyncProgressRecord, curr) => {
-        if (!acc[curr.type] || 
-            (!curr.is_complete && curr.start_time && 
-             (!acc[curr.type].startTime || 
-              new Date(curr.start_time) > new Date(acc[curr.type].startTime!)))) {
-          acc[curr.type] = {
-            total: curr.total,
-            processed: curr.processed,
-            lastProcessed: curr.last_processed,
-            processedItems: curr.processed_items || [],
-            errorItems: curr.error_items || [],
-            startTime: curr.start_time,
-            isComplete: curr.is_complete,
-          };
-        }
+      return data.reduce((acc: SyncProgressRecord, curr) => {
+        acc[curr.type] = {
+          total: curr.total,
+          processed: curr.processed,
+          lastProcessed: curr.last_processed,
+          processedItems: curr.processed_items || [],
+          errorItems: curr.error_items || [],
+          startTime: curr.start_time,
+          isComplete: curr.is_complete,
+        };
         return acc;
       }, {});
-
-      console.log('DEBUG: Processed sync progress by type:', progressByType);
-      return progressByType;
     },
-    refetchInterval: 2000,
-    refetchIntervalInBackground: true,
-    staleTime: 0,
   });
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
     try {
-      console.log('DEBUG: Attempting to update sync progress:', {
-        type,
-        progress,
-        currentSyncProgress: syncProgress
-      });
+      console.log('Updating sync progress:', { type, progress });
       
-      // First try to update existing record
-      const { data: existingData, error: existingError } = await supabase
+      const { error } = await supabase
         .from('sync_progress')
-        .select('*')
-        .eq('type', type)
-        .eq('start_time', progress.startTime)
-        .eq('is_complete', false)
-        .maybeSingle();
+        .upsert({
+          type,
+          total: progress.total,
+          processed: progress.processed,
+          last_processed: progress.lastProcessed,
+          processed_items: progress.processedItems,
+          error_items: progress.errorItems,
+          start_time: progress.startTime,
+          is_complete: progress.isComplete
+        }, {
+          onConflict: 'type'
+        });
 
-      if (existingError) {
-        console.error('DEBUG: Error checking existing sync progress:', existingError);
-        throw existingError;
-      }
-
-      let result;
-      if (existingData) {
-        // Update existing record
-        const { data, error } = await supabase
-          .from('sync_progress')
-          .update({
-            total: progress.total,
-            processed: progress.processed,
-            last_processed: progress.lastProcessed,
-            processed_items: progress.processedItems,
-            error_items: progress.errorItems,
-            is_complete: progress.isComplete
-          })
-          .eq('id', existingData.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        result = data;
-      } else {
-        // Insert new record
-        const { data, error } = await supabase
-          .from('sync_progress')
-          .insert({
-            type,
-            total: progress.total,
-            processed: progress.processed,
-            last_processed: progress.lastProcessed,
-            processed_items: progress.processedItems,
-            error_items: progress.errorItems,
-            start_time: progress.startTime,
-            is_complete: progress.isComplete
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        result = data;
-      }
+      if (error) throw error;
       
-      console.log('DEBUG: Successfully updated sync progress:', result);
-      
-      // Update the cache
-      queryClient.setQueryData<SyncProgressRecord>(["syncProgress"], (old) => ({
-        ...old,
-        [type]: progress
-      }));
+      console.log('Successfully updated sync progress');
       
     } catch (error: any) {
-      console.error('DEBUG: Error in updateSyncProgress:', error);
+      console.error('Error in updateSyncProgress:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -189,7 +158,7 @@ export const SyncSection = () => {
           await updateSyncProgress('petPolicies', initialProgress);
         }
 
-        let continuationToken = resume ? syncProgress.petPolicies?.lastProcessed : null;
+        let continuationToken = resume ? syncProgress?.petPolicies?.lastProcessed : null;
         let completed = false;
 
         while (!completed) {
@@ -204,11 +173,11 @@ export const SyncSection = () => {
           if (error) throw error;
 
           const updatedProgress: SyncProgress = {
-            ...syncProgress.petPolicies,
-            processed: (syncProgress.petPolicies?.processed || 0) + data.processed_count,
+            ...syncProgress?.petPolicies,
+            processed: (syncProgress?.petPolicies?.processed || 0) + data.processed_count,
             lastProcessed: data.continuation_token,
-            processedItems: [...(syncProgress.petPolicies?.processedItems || []), ...data.processed_airlines],
-            errorItems: [...(syncProgress.petPolicies?.errorItems || []), ...data.error_airlines],
+            processedItems: [...(syncProgress?.petPolicies?.processedItems || []), ...data.processed_airlines],
+            errorItems: [...(syncProgress?.petPolicies?.errorItems || []), ...data.error_airlines],
             isComplete: !data.continuation_token
           };
 
