@@ -17,6 +17,15 @@ interface SyncCardProps {
   syncProgress?: SyncProgress;
 }
 
+const formatTitle = (title: string) => {
+  // First, split by capital letters and spaces
+  const words = title.split(/(?=[A-Z])|[\s_-]+/);
+  // Capitalize first letter of each word and join with spaces
+  return words
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export const SyncCard = ({
   title,
   clearData,
@@ -67,10 +76,12 @@ export const SyncCard = ({
   const processedItems = syncProgress?.processedItems || [];
   const errorItems = syncProgress?.errorItems || [];
 
+  const formattedTitle = formatTitle(title);
+
   return (
     <div className="p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md">
       <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-        {title}
+        {formattedTitle}
         {isLoading && (
           <div className="animate-pulse">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -93,7 +104,7 @@ export const SyncCard = ({
           htmlFor={`clear${title.replace(/\s+/g, '')}`} 
           className={`text-lg ${(isLoading || isSyncInProgress()) ? 'opacity-50' : ''}`}
         >
-          Clear existing {title.toLowerCase()} data first
+          Clear existing {formattedTitle.toLowerCase()} data first
         </Label>
       </div>
 
@@ -221,7 +232,7 @@ export const SyncCard = ({
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Syncing {title}...
+                Syncing {formattedTitle}...
               </>
             ) : isSyncInProgress() ? (
               "Sync in Progress..."
