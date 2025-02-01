@@ -146,7 +146,8 @@ Deno.serve(async (req) => {
     // Parse the JSON and validate its structure
     let parsedData;
     try {
-      parsedData = JSON.parse(jsonMatch[0]);
+      const jsonString = jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+      parsedData = JSON.parse(jsonString);
       console.log('Successfully parsed JSON:', parsedData);
     } catch (error) {
       console.error('JSON parsing error:', error);
