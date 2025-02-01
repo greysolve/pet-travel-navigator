@@ -47,7 +47,7 @@ export const SyncSection = () => {
           const newRecord = payload.new as SyncProgressDB;
           
           if (newRecord && 'type' in newRecord) {
-            console.log('Updating sync progress in React Query cache:', newRecord);
+            console.log(`Updating sync progress in React Query cache for ${newRecord.type}:`, newRecord);
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (old) => {
@@ -79,7 +79,7 @@ export const SyncSection = () => {
     };
   }, [queryClient]);
 
-  const { data: syncProgress, error } = useQuery({
+  const { data: syncProgress } = useQuery({
     queryKey: ["syncProgress"],
     queryFn: async () => {
       console.log('Fetching initial sync progress...');
@@ -184,13 +184,18 @@ export const SyncSection = () => {
 
       // Handle the response in a unified way
       if (data) {
+        const currentProgress = syncProgress?.[type];
         const updatedProgress: SyncProgress = {
           total: data.total || 0,
-          processed: data.processed || 0,
+          processed: (resume ? (currentProgress?.processed || 0) : 0) + (data.processed || 0),
           lastProcessed: data.continuation_token || null,
-          processedItems: data.processed_items || [],
-          errorItems: data.error_items || [],
-          startTime: resume ? syncProgress?.[type]?.startTime || new Date().toISOString() : new Date().toISOString(),
+          processedItems: resume ? 
+            [...(currentProgress?.processedItems || []), ...(data.processed_items || [])] :
+            (data.processed_items || []),
+          errorItems: resume ?
+            [...(currentProgress?.errorItems || []), ...(data.error_items || [])] :
+            (data.error_items || []),
+          startTime: resume ? currentProgress?.startTime || new Date().toISOString() : new Date().toISOString(),
           isComplete: !data.continuation_token
         };
 
@@ -253,13 +258,13 @@ export const SyncSection = () => {
 
   return (
     <div className="space-y-8">
-      {Object.entries(syncProgress || {}).some(([_, progress]: [string, SyncProgress | undefined]) => 
+      {Object.entries(syncProgress || {}).some(([_, progress]) => 
         progress && !progress.isComplete && progress.processed < progress.total
       ) && (
         <div className="bg-accent/20 p-4 rounded-lg mb-8">
           <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
           <div className="space-y-2">
-            {Object.entries(syncProgress || {}).map(([type, progress]: [string, SyncProgress | undefined]) => 
+            {Object.entries(syncProgress || {}).map(([type, progress]) => 
               progress && !progress.isComplete && progress.processed < progress.total && (
                 <div key={type} className="text-sm">
                   {type}: {progress.processed} of {progress.total} items processed
