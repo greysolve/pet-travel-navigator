@@ -27,89 +27,100 @@ async function processBatch(
   lastProcessedCountry: string | null,
   processedCount: number 
 }> {
-  console.log(`Processing batch starting after country: ${state.lastProcessedCountry || 'START'}`)
+  console.log(`Starting batch processing from country: ${state.lastProcessedCountry || 'START'}`)
   const processed: string[] = []
   const errors: string[] = []
   let shouldContinue = true
   let processedCount = 0
 
-  const startIndex = state.lastProcessedCountry 
-    ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
-    : 0
+  try {
+    const startIndex = state.lastProcessedCountry 
+      ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
+      : 0
 
-  console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`)
+    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`)
 
-  if (startIndex >= countries.length) {
-    console.log('All countries have been processed')
-    return {
-      processed,
-      errors,
-      shouldContinue: false,
-      lastProcessedCountry: null,
-      processedCount: 0
-    }
-  }
-
-  const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length)
-  console.log(`Processing countries from index ${startIndex} to ${endIndex}`)
-
-  for (let i = startIndex; i < endIndex; i++) {
-    if (Date.now() - state.startTime > MAX_EXECUTION_TIME) {
-      console.log('Approaching execution time limit, gracefully stopping batch processing')
-      shouldContinue = true
-      break
-    }
-
-    const country = countries[i]
-    try {
-      console.log(`Processing country ${i + 1}/${countries.length}: ${country}`)
-      
-      const policy = await fetchPolicyWithRetry(country, 'pet')
-      console.log(`Policy data received for ${country}:`, policy)
-
-      const { error: upsertError } = await supabaseClient
-        .from('country_policies')
-        .upsert({
-          country_code: country,
-          policy_type: 'pet',
-          ...policy,
-          last_updated: new Date().toISOString()
-        }, {
-          onConflict: 'country_code,policy_type'
-        })
-
-      if (upsertError) {
-        console.error(`Error upserting policy for ${country}:`, upsertError)
-        errors.push(country)
-      } else {
-        processed.push(country)
-        state.lastProcessedCountry = country
-        processedCount++
-        console.log(`Successfully processed policy for ${country}. Total processed in this batch: ${processedCount}`)
+    if (startIndex >= countries.length) {
+      console.log('All countries have been processed')
+      return {
+        processed,
+        errors,
+        shouldContinue: false,
+        lastProcessedCountry: null,
+        processedCount: 0
       }
+    }
 
-      await delay(RATE_LIMIT_DELAY)
-    } catch (error) {
-      console.error(`Error processing country ${country}:`, error)
-      errors.push(country)
-      
-      if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
-        console.log('Rate limit or quota reached, gracefully stopping batch processing')
+    const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length)
+    console.log(`Processing countries from index ${startIndex} to ${endIndex}`)
+
+    for (let i = startIndex; i < endIndex; i++) {
+      if (Date.now() - state.startTime > MAX_EXECUTION_TIME) {
+        console.log('Approaching execution time limit, gracefully stopping batch')
         shouldContinue = true
         break
       }
-    }
-  }
 
-  const hasMoreCountries = endIndex < countries.length
-  console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`)
-  
-  return { 
-    processed, 
-    errors, 
-    shouldContinue: hasMoreCountries,
-    lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null,
-    processedCount
+      const country = countries[i]
+      try {
+        console.log(`Processing country ${i + 1}/${countries.length}: ${country}`)
+        
+        const policy = await fetchPolicyWithRetry(country, 'pet')
+        console.log(`Policy data received for ${country}:`, policy)
+
+        const { error: upsertError } = await supabaseClient
+          .from('country_policies')
+          .upsert({
+            country_code: country,
+            policy_type: 'pet',
+            ...policy,
+            last_updated: new Date().toISOString()
+          }, {
+            onConflict: 'country_code,policy_type'
+          })
+
+        if (upsertError) {
+          console.error(`Error upserting policy for ${country}:`, upsertError)
+          errors.push(country)
+        } else {
+          processed.push(country)
+          state.lastProcessedCountry = country
+          processedCount++
+          console.log(`Successfully processed policy for ${country}. Total processed in this batch: ${processedCount}`)
+        }
+
+        await delay(RATE_LIMIT_DELAY)
+      } catch (error) {
+        console.error(`Error processing country ${country}:`, error)
+        errors.push(country)
+        
+        if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
+          console.log('Rate limit or quota reached, gracefully stopping batch')
+          shouldContinue = true
+          break
+        }
+      }
+    }
+
+    const hasMoreCountries = endIndex < countries.length
+    console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`)
+    
+    return { 
+      processed, 
+      errors, 
+      shouldContinue: hasMoreCountries,
+      lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null,
+      processedCount
+    }
+  } catch (error) {
+    console.error('Unexpected error in processBatch:', error)
+    return {
+      processed,
+      errors: [...errors, 'BATCH_PROCESSING_ERROR'],
+      shouldContinue: true,
+      lastProcessedCountry: state.lastProcessedCountry,
+      processedCount
+    }
   }
 }
 
@@ -128,6 +139,13 @@ async function fetchPolicyWithRetry(country: string, policyType: 'pet' | 'live_a
     throw error
   }
 }
+
+// Add shutdown handling
+addEventListener('beforeunload', (ev) => {
+  console.log('Function shutdown initiated:', ev.detail?.reason)
+  // Log the current state before shutdown
+  console.log('Current processing state will be preserved in the database')
+})
 
 Deno.serve(async (req) => {
   console.log('Request received:', {
@@ -296,17 +314,22 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   const content = data.choices[0].message.content.trim()
   console.log('Raw AI response:', content)
   
-  const policyData = JSON.parse(content)
-  
-  return {
-    title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
-    description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
-    requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
-    documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
-    fees: typeof policyData.fees === 'object' ? policyData.fees : {},
-    restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
-    quarantine_requirements: policyData.quarantine_requirements || '',
-    vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
-    additional_notes: policyData.additional_notes || '',
+  try {
+    const policyData = JSON.parse(content)
+    
+    return {
+      title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
+      description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
+      requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
+      documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
+      fees: typeof policyData.fees === 'object' ? policyData.fees : {},
+      restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
+      quarantine_requirements: policyData.quarantine_requirements || '',
+      vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
+      additional_notes: policyData.additional_notes || '',
+    }
+  } catch (error) {
+    console.error(`Error parsing AI response for ${country}:`, error)
+    throw new Error(`Invalid AI response format for ${country}`)
   }
 }
