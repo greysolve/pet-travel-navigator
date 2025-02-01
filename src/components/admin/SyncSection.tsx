@@ -46,8 +46,8 @@ export const SyncSection = () => {
         },
         (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log('Received sync progress update:', payload);
-          const newRecord = payload.new;
-          if (newRecord) {
+          const newRecord = payload.new as SyncProgressDB | null;
+          if (newRecord && 'type' in newRecord) {
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (old) => ({
