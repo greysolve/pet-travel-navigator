@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -30,25 +30,37 @@ export const SyncCard = ({
   onSync,
   syncProgress,
 }: SyncCardProps) => {
-  const getElapsedTime = (startTime: string | null) => {
-    if (!startTime) return '';
-    const elapsed = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    return `${minutes}m ${seconds}s`;
-  };
+  const [elapsedTime, setElapsedTime] = useState('');
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState('Calculating...');
 
-  const getEstimatedTimeRemaining = (progress: { total: number, processed: number, startTime: string | null }) => {
-    if (!progress.startTime || progress.processed === 0) return 'Calculating...';
-    
-    const elapsed = (Date.now() - new Date(progress.startTime).getTime()) / 1000;
-    const ratePerItem = elapsed / progress.processed;
-    const remaining = (progress.total - progress.processed) * ratePerItem;
-    
-    const minutes = Math.floor(remaining / 60);
-    const seconds = Math.floor(remaining % 60);
-    return `~${minutes}m ${seconds}s`;
-  };
+  useEffect(() => {
+    let intervalId: number;
+
+    if (syncProgress?.startTime && !syncProgress.isComplete) {
+      // Update elapsed time every second
+      intervalId = window.setInterval(() => {
+        const elapsed = Math.floor((Date.now() - new Date(syncProgress.startTime!).getTime()) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        setElapsedTime(`${minutes}m ${seconds}s`);
+
+        // Calculate estimated time remaining
+        if (syncProgress.processed > 0) {
+          const ratePerItem = elapsed / syncProgress.processed;
+          const remaining = (syncProgress.total - syncProgress.processed) * ratePerItem;
+          const remainingMinutes = Math.floor(remaining / 60);
+          const remainingSeconds = Math.floor(remaining % 60);
+          setEstimatedTimeRemaining(`~${remainingMinutes}m ${remainingSeconds}s`);
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [syncProgress?.startTime, syncProgress?.processed, syncProgress?.total, syncProgress?.isComplete]);
 
   const isSyncInProgress = () => {
     return syncProgress && !syncProgress.isComplete;
@@ -76,8 +88,8 @@ export const SyncCard = ({
           />
           <div className="text-sm space-y-2">
             <p>Progress: {syncProgress.processed} of {syncProgress.total} items ({((syncProgress.processed / syncProgress.total) * 100).toFixed(1)}%)</p>
-            <p>Elapsed time: {getElapsedTime(syncProgress.startTime)}</p>
-            <p>Estimated time remaining: {getEstimatedTimeRemaining(syncProgress)}</p>
+            <p>Elapsed time: {elapsedTime}</p>
+            <p>Estimated time remaining: {estimatedTimeRemaining}</p>
             {syncProgress.lastProcessed && (
               <p>Last processed: {syncProgress.lastProcessed}</p>
             )}
