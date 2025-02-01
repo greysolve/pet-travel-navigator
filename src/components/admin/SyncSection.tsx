@@ -120,7 +120,7 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
-      // Reset progress if not resuming
+      // Only reset progress if not resuming
       if (!resume) {
         console.log(`Resetting progress for ${type}`);
         const { error: resetError } = await supabase
@@ -152,9 +152,14 @@ export const SyncSection = () => {
           
           if (clearError) throw clearError;
         }
+      } else {
+        // When resuming, ensure we keep the existing start time
+        const currentProgress = syncProgress?.[type];
+        if (currentProgress) {
+          console.log(`Resuming sync for ${type} with existing progress:`, currentProgress);
+        }
       }
 
-      // Map sync types to their corresponding function names
       const functionMap: Record<SyncType, string> = {
         airlines: 'sync_airline_data',
         airports: 'sync_airport_data',
@@ -182,11 +187,10 @@ export const SyncSection = () => {
 
       console.log(`Received response from ${functionName}:`, data);
 
-      // Handle the response in a unified way
       if (data) {
         const currentProgress = syncProgress?.[type];
         const updatedProgress: SyncProgress = {
-          total: data.total || 0,
+          total: data.total || currentProgress?.total || 0,
           processed: (resume ? (currentProgress?.processed || 0) : 0) + (data.processed || 0),
           lastProcessed: data.continuation_token || null,
           processedItems: resume ? 
@@ -218,7 +222,6 @@ export const SyncSection = () => {
 
         if (updateError) throw updateError;
 
-        // If there's more to process and this is a batch-based sync
         if (data.continuation_token && (type === 'petPolicies' || type === 'countryPolicies')) {
           console.log(`Continuing batch processing for ${type}`);
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -241,7 +244,6 @@ export const SyncSection = () => {
         description: error.message || `Failed to sync ${type} data.`,
       });
 
-      // Update sync progress to mark as complete if there was an error
       const { error: updateError } = await supabase
         .from('sync_progress')
         .update({ is_complete: true })
@@ -283,7 +285,7 @@ export const SyncSection = () => {
             setClearData(prev => ({ ...prev, airlines: checked }));
           }}
           isLoading={isLoading.airlines}
-          onSync={() => handleSync('airlines')}
+          onSync={(resume) => handleSync('airlines', resume)}
           syncProgress={syncProgress?.airlines}
         />
 
@@ -294,7 +296,7 @@ export const SyncSection = () => {
             setClearData(prev => ({ ...prev, airports: checked }));
           }}
           isLoading={isLoading.airports}
-          onSync={() => handleSync('airports')}
+          onSync={(resume) => handleSync('airports', resume)}
           syncProgress={syncProgress?.airports}
         />
 
@@ -316,7 +318,7 @@ export const SyncSection = () => {
             setClearData(prev => ({ ...prev, routes: checked }));
           }}
           isLoading={isLoading.routes}
-          onSync={() => handleSync('routes')}
+          onSync={(resume) => handleSync('routes', resume)}
           syncProgress={syncProgress?.routes}
         />
 
