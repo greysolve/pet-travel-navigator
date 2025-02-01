@@ -47,21 +47,27 @@ export const SyncSection = () => {
         (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log('Received sync progress update:', payload);
           const newRecord = payload.new as SyncProgressDB | null;
+          
           if (newRecord && 'type' in newRecord) {
+            console.log('Updating sync progress in React Query cache:', newRecord);
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
-              (old) => ({
-                ...old,
-                [newRecord.type]: {
-                  total: newRecord.total,
-                  processed: newRecord.processed,
-                  lastProcessed: newRecord.last_processed,
-                  processedItems: newRecord.processed_items || [],
-                  errorItems: newRecord.error_items || [],
-                  startTime: newRecord.start_time,
-                  isComplete: newRecord.is_complete,
-                }
-              })
+              (old) => {
+                const updated = {
+                  ...old,
+                  [newRecord.type]: {
+                    total: newRecord.total,
+                    processed: newRecord.processed,
+                    lastProcessed: newRecord.last_processed,
+                    processedItems: newRecord.processed_items || [],
+                    errorItems: newRecord.error_items || [],
+                    startTime: newRecord.start_time,
+                    isComplete: newRecord.is_complete,
+                  }
+                };
+                console.log('Updated sync progress state:', updated);
+                return updated;
+              }
             );
           }
         }
@@ -89,7 +95,7 @@ export const SyncSection = () => {
 
       console.log('Raw sync progress data:', data);
 
-      return data.reduce((acc: SyncProgressRecord, curr) => {
+      const progressRecord = data.reduce((acc: SyncProgressRecord, curr) => {
         acc[curr.type] = {
           total: curr.total,
           processed: curr.processed,
@@ -101,7 +107,12 @@ export const SyncSection = () => {
         };
         return acc;
       }, {});
+
+      console.log('Processed sync progress data:', progressRecord);
+      return progressRecord;
     },
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 5000, // Refetch every 5 seconds as backup
   });
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
