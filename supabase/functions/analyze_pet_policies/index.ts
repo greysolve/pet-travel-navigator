@@ -33,6 +33,35 @@ function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
   return !excludedDomains.includes(policyDomain);
 }
 
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryWithBackoff(
+  operation: () => Promise<any>,
+  retries = 3,
+  baseDelay = 1000,
+  maxDelay = 10000
+): Promise<any> {
+  let lastError;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      console.error(`Attempt ${i + 1} failed:`, error);
+      
+      if (i < retries - 1) {
+        const delayTime = Math.min(baseDelay * Math.pow(2, i), maxDelay);
+        await delay(delayTime);
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 function extractJSONFromText(text: string): any {
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -57,7 +86,7 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting pet policy batch analysis...');
     
-    const { lastProcessedAirline, batchSize = 5 } = await req.json();
+    const { lastProcessedAirline, batchSize = 3 } = await req.json();
     console.log('Request body:', { lastProcessedAirline, batchSize });
 
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
@@ -95,6 +124,7 @@ Deno.serve(async (req) => {
     for (const airline of airlines || []) {
       try {
         console.log(`Processing airline: ${airline.name} (${airline.id})`);
+        await delay(2000); // Add delay between airlines to avoid rate limits
 
         const prompt = `
           Analyze this airline: ${airline.name}
@@ -124,33 +154,37 @@ Deno.serve(async (req) => {
           7. Do not wrap the JSON in code blocks
         `;
 
-        console.log('Sending request to Perplexity API...');
-        const response = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.1-sonar-small-128k-online',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 1000,
-          }),
-        });
+        const response = await retryWithBackoff(async () => {
+          console.log('Sending request to Perplexity API...');
+          const res = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
+                },
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              temperature: 0.1,
+              max_tokens: 1000,
+            }),
+          });
 
-        if (!response.ok) {
-          throw new Error(`Perplexity API error: ${response.statusText}`);
-        }
+          if (!response.ok) {
+            throw new Error(`Perplexity API error: ${response.statusText}`);
+          }
+
+          return response;
+        });
 
         const rawResponseText = await response.text();
         console.log('Raw Perplexity API response:', rawResponseText);
