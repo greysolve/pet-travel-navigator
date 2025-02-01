@@ -1,9 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { SyncProgressManager } from '../_shared/syncProgress.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 const BATCH_SIZE = 10;
@@ -81,12 +81,22 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
-
   try {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { 
+        status: 204,
+        headers: corsHeaders 
+      })
+    }
+
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -158,6 +168,9 @@ Deno.serve(async (req) => {
         } else {
           newProcessedItems.push(country)
         }
+
+        // Add a small delay between requests to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000))
       } catch (error) {
         console.error(`Error processing country ${country}:`, error)
         newErrorItems.push(country)
@@ -177,9 +190,6 @@ Deno.serve(async (req) => {
           )
         }
       }
-
-      // Add a small delay between requests to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
     const hasMoreCountries = endIndex < uniqueCountries.length
