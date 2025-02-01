@@ -34,11 +34,26 @@ const Admin = () => {
     startTime: null
   });
 
+  const [petPolicyProgress, setPetPolicyProgress] = useState<{
+    total: number;
+    processed: number;
+    lastAirline: string | null;
+    processedAirlines: string[];
+    errorAirlines: string[];
+    startTime: number | null;
+  }>({
+    total: 0,
+    processed: 0,
+    lastAirline: null,
+    processedAirlines: [],
+    errorAirlines: [],
+    startTime: null
+  });
+
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies') => {
     setIsLoading(prev => ({ ...prev, [type]: true }));
     try {
       if (clearData[type]) {
-        // Clear existing data first
         const { error: clearError } = await supabase
           .from(type === 'countryPolicies' ? 'country_policies' : type)
           .delete()
@@ -47,53 +62,62 @@ const Admin = () => {
         if (clearError) throw clearError;
       }
 
-      // For pet policies, we need to get airlines first
       if (type === 'petPolicies') {
+        setPetPolicyProgress({
+          total: 0,
+          processed: 0,
+          lastAirline: null,
+          processedAirlines: [],
+          errorAirlines: [],
+          startTime: Date.now()
+        });
+
         const { data: airlines, error: airlinesError } = await supabase
           .from('airlines')
-          .select('id, website')
+          .select('id, name, website')
           .eq('active', true);
 
         if (airlinesError) throw airlinesError;
 
         console.log(`Found ${airlines?.length} active airlines to analyze`);
+        setPetPolicyProgress(prev => ({ ...prev, total: airlines?.length || 0 }));
 
-        // Process each airline sequentially
-        for (const airline of airlines || []) {
-          if (!airline.website) {
-            console.log(`Skipping airline ${airline.id} - no website available`);
-            continue;
-          }
+        let continuationToken = null;
+        let completed = false;
 
-          try {
-            console.log(`Processing airline ${airline.id} with website ${airline.website}`);
-            const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
-              body: {
-                airline_id: airline.id,
-                website: airline.website
-              }
-            });
-
-            if (error) {
-              console.error(`Error processing airline ${airline.id}:`, error);
-              toast({
-                variant: "destructive",
-                title: "Error",
-                description: `Failed to process airline: ${error.message}`,
-              });
-              continue;
+        while (!completed) {
+          console.log(`Processing batch of airlines with continuation token:`, continuationToken);
+          const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
+            body: {
+              lastProcessedAirline: continuationToken,
+              batchSize: 5 // Process 5 airlines at a time
             }
+          });
 
-            console.log(`Successfully processed airline ${airline.id}`);
-          } catch (err) {
-            console.error(`Error processing airline ${airline.id}:`, err);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: `Failed to process airline: ${err.message}`,
-            });
+          if (error) throw error;
+          console.log(`Pet policy batch sync response:`, data);
+
+          setPetPolicyProgress(prev => ({
+            ...prev,
+            processed: prev.processed + data.processed_count,
+            lastAirline: data.continuation_token,
+            processedAirlines: [...prev.processedAirlines, ...data.processed_airlines],
+            errorAirlines: [...prev.errorAirlines, ...data.error_airlines]
+          }));
+
+          if (data.continuation_token) {
+            continuationToken = data.continuation_token;
+            // Add delay between batches to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            completed = true;
           }
         }
+
+        toast({
+          title: "Pet Policies Sync Complete",
+          description: `Successfully processed ${petPolicyProgress.processed} airlines.`,
+        });
       } else if (type === 'countryPolicies') {
         let continuationToken = null;
         let completed = false;
@@ -176,20 +200,20 @@ const Admin = () => {
     }
   };
 
-  const getElapsedTime = () => {
-    if (!syncProgress.startTime) return '';
-    const elapsed = Math.floor((Date.now() - syncProgress.startTime) / 1000);
+  const getElapsedTime = (startTime: number | null) => {
+    if (!startTime) return '';
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
     return `${minutes}m ${seconds}s`;
   };
 
-  const getEstimatedTimeRemaining = () => {
-    if (!syncProgress.startTime || syncProgress.processed === 0) return 'Calculating...';
+  const getEstimatedTimeRemaining = (progress: { total: number, processed: number, startTime: number | null }) => {
+    if (!progress.startTime || progress.processed === 0) return 'Calculating...';
     
-    const elapsed = (Date.now() - syncProgress.startTime) / 1000;
-    const ratePerCountry = elapsed / syncProgress.processed;
-    const remaining = (syncProgress.total - syncProgress.processed) * ratePerCountry;
+    const elapsed = (Date.now() - progress.startTime) / 1000;
+    const ratePerItem = elapsed / progress.processed;
+    const remaining = (progress.total - progress.processed) * ratePerItem;
     
     const minutes = Math.floor(remaining / 60);
     const seconds = Math.floor(remaining % 60);
@@ -208,164 +232,208 @@ const Admin = () => {
 
         <TabsContent value="sync" className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Airlines Sync */}
-        <div className="p-8 border rounded-lg bg-card shadow-sm">
-          <h2 className="text-2xl font-semibold mb-6">Airlines Synchronization</h2>
-          <div className="flex items-center space-x-3 mb-6">
-            <Checkbox 
-              id="clearAirlines"
-              checked={clearData.airlines}
-              onCheckedChange={(checked) => 
-                setClearData(prev => ({ ...prev, airlines: checked === true }))
-              }
-            />
-            <Label htmlFor="clearAirlines" className="text-lg">Clear existing airline data first</Label>
-          </div>
-          <Button 
-            onClick={() => handleSync('airlines')}
-            disabled={isLoading.airlines}
-            size="lg"
-            className="w-full text-lg"
-          >
-            {isLoading.airlines ? "Syncing Airlines..." : "Sync Airlines"}
-          </Button>
-        </div>
+            {/* Airlines Sync */}
+            <div className="p-8 border rounded-lg bg-card shadow-sm">
+              <h2 className="text-2xl font-semibold mb-6">Airlines Synchronization</h2>
+              <div className="flex items-center space-x-3 mb-6">
+                <Checkbox 
+                  id="clearAirlines"
+                  checked={clearData.airlines}
+                  onCheckedChange={(checked) => 
+                    setClearData(prev => ({ ...prev, airlines: checked === true }))
+                  }
+                />
+                <Label htmlFor="clearAirlines" className="text-lg">Clear existing airline data first</Label>
+              </div>
+              <Button 
+                onClick={() => handleSync('airlines')}
+                disabled={isLoading.airlines}
+                size="lg"
+                className="w-full text-lg"
+              >
+                {isLoading.airlines ? "Syncing Airlines..." : "Sync Airlines"}
+              </Button>
+            </div>
 
-        {/* Airports Sync */}
-        <div className="p-8 border rounded-lg bg-card shadow-sm">
-          <h2 className="text-2xl font-semibold mb-6">Airports Synchronization</h2>
-          <div className="flex items-center space-x-3 mb-6">
-            <Checkbox 
-              id="clearAirports"
-              checked={clearData.airports}
-              onCheckedChange={(checked) => 
-                setClearData(prev => ({ ...prev, airports: checked === true }))
-              }
-            />
-            <Label htmlFor="clearAirports" className="text-lg">Clear existing airport data first</Label>
-          </div>
-          <Button 
-            onClick={() => handleSync('airports')}
-            disabled={isLoading.airports}
-            size="lg"
-            className="w-full text-lg"
-          >
-            {isLoading.airports ? "Syncing Airports..." : "Sync Airports"}
-          </Button>
-        </div>
+            {/* Airports Sync */}
+            <div className="p-8 border rounded-lg bg-card shadow-sm">
+              <h2 className="text-2xl font-semibold mb-6">Airports Synchronization</h2>
+              <div className="flex items-center space-x-3 mb-6">
+                <Checkbox 
+                  id="clearAirports"
+                  checked={clearData.airports}
+                  onCheckedChange={(checked) => 
+                    setClearData(prev => ({ ...prev, airports: checked === true }))
+                  }
+                />
+                <Label htmlFor="clearAirports" className="text-lg">Clear existing airport data first</Label>
+              </div>
+              <Button 
+                onClick={() => handleSync('airports')}
+                disabled={isLoading.airports}
+                size="lg"
+                className="w-full text-lg"
+              >
+                {isLoading.airports ? "Syncing Airports..." : "Sync Airports"}
+              </Button>
+            </div>
 
-        {/* Pet Policies Sync */}
-        <div className="p-8 border rounded-lg bg-card shadow-sm">
-          <h2 className="text-2xl font-semibold mb-6">Pet Policies Synchronization</h2>
-          <div className="flex items-center space-x-3 mb-6">
-            <Checkbox 
-              id="clearPolicies"
-              checked={clearData.petPolicies}
-              onCheckedChange={(checked) => 
-                setClearData(prev => ({ ...prev, petPolicies: checked === true }))
-              }
-            />
-            <Label htmlFor="clearPolicies" className="text-lg">Clear existing pet policy data first</Label>
-          </div>
-          <Button 
-            onClick={() => handleSync('petPolicies')}
-            disabled={isLoading.petPolicies}
-            size="lg"
-            className="w-full text-lg"
-          >
-            {isLoading.petPolicies ? "Syncing Pet Policies..." : "Sync Pet Policies"}
-          </Button>
-        </div>
+            {/* Pet Policies Sync */}
+            <div className="p-8 border rounded-lg bg-card shadow-sm">
+              <h2 className="text-2xl font-semibold mb-6">Pet Policies Synchronization</h2>
+              <div className="flex items-center space-x-3 mb-6">
+                <Checkbox 
+                  id="clearPolicies"
+                  checked={clearData.petPolicies}
+                  onCheckedChange={(checked) => 
+                    setClearData(prev => ({ ...prev, petPolicies: checked === true }))
+                  }
+                />
+                <Label htmlFor="clearPolicies" className="text-lg">Clear existing pet policy data first</Label>
+              </div>
 
-        {/* Routes Sync */}
-        <div className="p-8 border rounded-lg bg-card shadow-sm">
-          <h2 className="text-2xl font-semibold mb-6">Routes Synchronization</h2>
-          <div className="flex items-center space-x-3 mb-6">
-            <Checkbox 
-              id="clearRoutes"
-              checked={clearData.routes}
-              onCheckedChange={(checked) => 
-                setClearData(prev => ({ ...prev, routes: checked === true }))
-              }
-            />
-            <Label htmlFor="clearRoutes" className="text-lg">Clear existing route data first</Label>
-          </div>
-          <Button 
-            onClick={() => handleSync('routes')}
-            disabled={isLoading.routes}
-            size="lg"
-            className="w-full text-lg"
-          >
-            {isLoading.routes ? "Syncing Routes..." : "Sync Routes"}
-          </Button>
-        </div>
+              {petPolicyProgress.total > 0 && (
+                <div className="mb-6 space-y-4">
+                  <Progress 
+                    value={(petPolicyProgress.processed / petPolicyProgress.total) * 100} 
+                    className="mb-2"
+                  />
+                  <div className="text-sm space-y-2">
+                    <p>Progress: {petPolicyProgress.processed} of {petPolicyProgress.total} airlines ({((petPolicyProgress.processed / petPolicyProgress.total) * 100).toFixed(1)}%)</p>
+                    <p>Elapsed time: {getElapsedTime(petPolicyProgress.startTime)}</p>
+                    <p>Estimated time remaining: {getEstimatedTimeRemaining(petPolicyProgress)}</p>
+                    {petPolicyProgress.lastAirline && (
+                      <p>Last processed: {petPolicyProgress.lastAirline}</p>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Processed Airlines ({petPolicyProgress.processedAirlines.length})</h3>
+                      <ScrollArea className="h-32 rounded border p-2">
+                        <div className="space-y-1">
+                          {petPolicyProgress.processedAirlines.map((airline, i) => (
+                            <div key={i} className="text-sm">{airline}</div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                    
+                    {petPolicyProgress.errorAirlines.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold mb-2 text-destructive">Errors ({petPolicyProgress.errorAirlines.length})</h3>
+                        <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
+                          <div className="space-y-1">
+                            {petPolicyProgress.errorAirlines.map((airline, i) => (
+                              <div key={i} className="text-sm text-destructive">{airline}</div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-        {/* Country Policies Sync */}
-        <div className="p-8 border rounded-lg bg-card shadow-sm">
-          <h2 className="text-2xl font-semibold mb-6">Country Policies Synchronization</h2>
-          <div className="flex items-center space-x-3 mb-6">
-            <Checkbox 
-              id="clearCountryPolicies"
-              checked={clearData.countryPolicies}
-              onCheckedChange={(checked) => 
-                setClearData(prev => ({ ...prev, countryPolicies: checked === true }))
-              }
-            />
-            <Label htmlFor="clearCountryPolicies" className="text-lg">Clear existing country policy data first</Label>
-          </div>
-          
-          {syncProgress.total > 0 && (
-            <div className="mb-6 space-y-4">
-              <Progress 
-                value={(syncProgress.processed / syncProgress.total) * 100} 
-                className="mb-2"
-              />
-              <div className="text-sm space-y-2">
-                <p>Progress: {syncProgress.processed} of {syncProgress.total} countries ({((syncProgress.processed / syncProgress.total) * 100).toFixed(1)}%)</p>
-                <p>Elapsed time: {getElapsedTime()}</p>
-                <p>Estimated time remaining: {getEstimatedTimeRemaining()}</p>
-                {syncProgress.lastCountry && (
-                  <p>Last processed: {syncProgress.lastCountry}</p>
-                )}
+              <Button 
+                onClick={() => handleSync('petPolicies')}
+                disabled={isLoading.petPolicies}
+                size="lg"
+                className="w-full text-lg"
+              >
+                {isLoading.petPolicies ? "Syncing Pet Policies..." : "Sync Pet Policies"}
+              </Button>
+            </div>
+
+            {/* Routes Sync */}
+            <div className="p-8 border rounded-lg bg-card shadow-sm">
+              <h2 className="text-2xl font-semibold mb-6">Routes Synchronization</h2>
+              <div className="flex items-center space-x-3 mb-6">
+                <Checkbox 
+                  id="clearRoutes"
+                  checked={clearData.routes}
+                  onCheckedChange={(checked) => 
+                    setClearData(prev => ({ ...prev, routes: checked === true }))
+                  }
+                />
+                <Label htmlFor="clearRoutes" className="text-lg">Clear existing route data first</Label>
+              </div>
+              <Button 
+                onClick={() => handleSync('routes')}
+                disabled={isLoading.routes}
+                size="lg"
+                className="w-full text-lg"
+              >
+                {isLoading.routes ? "Syncing Routes..." : "Sync Routes"}
+              </Button>
+            </div>
+
+            {/* Country Policies Sync */}
+            <div className="p-8 border rounded-lg bg-card shadow-sm">
+              <h2 className="text-2xl font-semibold mb-6">Country Policies Synchronization</h2>
+              <div className="flex items-center space-x-3 mb-6">
+                <Checkbox 
+                  id="clearCountryPolicies"
+                  checked={clearData.countryPolicies}
+                  onCheckedChange={(checked) => 
+                    setClearData(prev => ({ ...prev, countryPolicies: checked === true }))
+                  }
+                />
+                <Label htmlFor="clearCountryPolicies" className="text-lg">Clear existing country policy data first</Label>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Processed Countries ({syncProgress.processedCountries.length})</h3>
-                  <ScrollArea className="h-32 rounded border p-2">
-                    <div className="space-y-1">
-                      {syncProgress.processedCountries.map((country, i) => (
-                        <div key={i} className="text-sm">{country}</div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-                
-                {syncProgress.errorCountries.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-2 text-destructive">Errors ({syncProgress.errorCountries.length})</h3>
-                    <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
-                      <div className="space-y-1">
-                        {syncProgress.errorCountries.map((country, i) => (
-                          <div key={i} className="text-sm text-destructive">{country}</div>
-                        ))}
-                      </div>
-                    </ScrollArea>
+              {syncProgress.total > 0 && (
+                <div className="mb-6 space-y-4">
+                  <Progress 
+                    value={(syncProgress.processed / syncProgress.total) * 100} 
+                    className="mb-2"
+                  />
+                  <div className="text-sm space-y-2">
+                    <p>Progress: {syncProgress.processed} of {syncProgress.total} countries ({((syncProgress.processed / syncProgress.total) * 100).toFixed(1)}%)</p>
+                    <p>Elapsed time: {getElapsedTime(syncProgress.startTime)}</p>
+                    <p>Estimated time remaining: {getEstimatedTimeRemaining(syncProgress)}</p>
+                    {syncProgress.lastCountry && (
+                      <p>Last processed: {syncProgress.lastCountry}</p>
+                    )}
                   </div>
-                )}
-              </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Processed Countries ({syncProgress.processedCountries.length})</h3>
+                      <ScrollArea className="h-32 rounded border p-2">
+                        <div className="space-y-1">
+                          {syncProgress.processedCountries.map((country, i) => (
+                            <div key={i} className="text-sm">{country}</div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                    
+                    {syncProgress.errorCountries.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold mb-2 text-destructive">Errors ({syncProgress.errorCountries.length})</h3>
+                        <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
+                          <div className="space-y-1">
+                            {syncProgress.errorCountries.map((country, i) => (
+                              <div key={i} className="text-sm text-destructive">{country}</div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              <Button 
+                onClick={() => handleSync('countryPolicies')}
+                disabled={isLoading.countryPolicies}
+                size="lg"
+                className="w-full text-lg"
+              >
+                {isLoading.countryPolicies ? "Syncing Country Policies..." : "Sync Country Policies"}
+              </Button>
             </div>
-          )}
-          
-          <Button 
-            onClick={() => handleSync('countryPolicies')}
-            disabled={isLoading.countryPolicies}
-            size="lg"
-            className="w-full text-lg"
-          >
-            {isLoading.countryPolicies ? "Syncing Country Policies..." : "Sync Country Policies"}
-          </Button>
-        </div>
           </div>
         </TabsContent>
 

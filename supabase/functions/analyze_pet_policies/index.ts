@@ -34,7 +34,6 @@ function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
 }
 
 function extractJSONFromText(text: string): any {
-  // Try to find JSON-like structure in the text
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     console.error('No JSON object found in content:', text);
@@ -56,14 +55,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Starting pet policy and website analysis...');
+    console.log('Starting pet policy batch analysis...');
     
-    const { airline_id } = await req.json();
-    console.log('Request body:', { airline_id });
-
-    if (!airline_id) {
-      throw new Error('Missing required parameter: airline_id');
-    }
+    const { lastProcessedAirline, batchSize = 5 } = await req.json();
+    console.log('Request body:', { lastProcessedAirline, batchSize });
 
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
@@ -74,194 +69,194 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: airlineData, error: airlineError } = await supabase
+    let query = supabase
       .from('airlines')
-      .select('name, website')
-      .eq('id', airline_id)
-      .single();
+      .select('id, name, website')
+      .eq('active', true)
+      .order('id')
+      .limit(batchSize);
 
-    if (airlineError || !airlineData) {
-      throw new Error(`Failed to fetch airline data: ${airlineError?.message || 'Airline not found'}`);
+    if (lastProcessedAirline) {
+      query = query.gt('id', lastProcessedAirline);
     }
 
-    console.log('Analyzing airline:', { name: airlineData.name, website: airlineData.website });
+    const { data: airlines, error: airlinesError } = await query;
 
-    const prompt = `
-      Analyze this airline: ${airlineData.name}
-      
-      Return a JSON object with these fields (use null if data is not found):
-      {
-        "airline_info": {
-          "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
-        },
-        "pet_policy": {
-          "pet_types_allowed": ["string"],
-          "carrier_requirements": "string",
-          "documentation_needed": ["string"],
-          "temperature_restrictions": "string",
-          "breed_restrictions": ["string"],
-          "policy_url": "string (must be from the airline's own website domain)"
-        }
-      }
-      
-      IMPORTANT RULES:
-      1. The official_website must be the airline's actual website, not a third-party site
-      2. The policy_url must be from the airline's own domain
-      3. All URLs must start with https:// and be complete
-      4. Return null for any field where you're not completely confident of the accuracy
-      5. Return ONLY the JSON object, no additional text or explanations
-      6. Do not include any markdown formatting
-      7. Do not wrap the JSON in code blocks
-    `;
-
-    console.log('Sending request to Perplexity API...');
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 1000,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Perplexity API error:', response.status, response.statusText);
-      const errorText = await response.text();
-      console.error('Error response:', errorText);
-      throw new Error(`Perplexity API error: ${response.statusText}`);
+    if (airlinesError) {
+      throw new Error(`Failed to fetch airlines: ${airlinesError.message}`);
     }
 
-    const rawResponseText = await response.text();
-    console.log('Raw Perplexity API response:', rawResponseText);
+    console.log(`Processing batch of ${airlines?.length} airlines`);
 
-    let data;
-    try {
-      data = JSON.parse(rawResponseText);
-      console.log('Parsed API response:', data);
-    } catch (error) {
-      console.error('Initial JSON parsing failed, attempting to extract JSON from text');
+    const processedAirlines: string[] = [];
+    const errorAirlines: string[] = [];
+    let processedCount = 0;
+
+    for (const airline of airlines || []) {
       try {
-        // If the direct parse fails, try to extract JSON from the text
-        const content = data?.choices?.[0]?.message?.content || rawResponseText;
-        data = { choices: [{ message: { content: extractJSONFromText(content) } }] };
-      } catch (extractError) {
-        console.error('Failed to extract JSON from response:', extractError);
-        throw new Error('Could not parse response from Perplexity API');
-      }
-    }
+        console.log(`Processing airline: ${airline.name} (${airline.id})`);
 
-    if (!data.choices?.[0]?.message?.content) {
-      throw new Error('Invalid API response structure');
-    }
+        const prompt = `
+          Analyze this airline: ${airline.name}
+          
+          Return a JSON object with these fields (use null if data is not found):
+          {
+            "airline_info": {
+              "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
+            },
+            "pet_policy": {
+              "pet_types_allowed": ["string"],
+              "carrier_requirements": "string",
+              "documentation_needed": ["string"],
+              "temperature_restrictions": "string",
+              "breed_restrictions": ["string"],
+              "policy_url": "string (must be from the airline's own website domain)"
+            }
+          }
+          
+          IMPORTANT RULES:
+          1. The official_website must be the airline's actual website, not a third-party site
+          2. The policy_url must be from the airline's own domain
+          3. All URLs must start with https:// and be complete
+          4. Return null for any field where you're not completely confident of the accuracy
+          5. Return ONLY the JSON object, no additional text or explanations
+          6. Do not include any markdown formatting
+          7. Do not wrap the JSON in code blocks
+        `;
 
-    let parsedData;
-    try {
-      // Handle both cases where content might be a string or already an object
-      const content = typeof data.choices[0].message.content === 'string' 
-        ? extractJSONFromText(data.choices[0].message.content)
-        : data.choices[0].message.content;
-      
-      parsedData = content;
-      console.log('Successfully parsed JSON:', parsedData);
-    } catch (error) {
-      console.error('Final JSON parsing error:', error);
-      throw new Error(`Failed to parse final JSON: ${error.message}`);
-    }
-
-    // Validate the parsed data structure
-    if (!parsedData.airline_info || !parsedData.pet_policy) {
-      throw new Error('Invalid response structure: missing required sections');
-    }
-    
-    // Update airline website if we got a valid one
-    if (parsedData.airline_info?.official_website) {
-      console.log('Updating airline website:', parsedData.airline_info.official_website);
-      const { error: websiteError } = await supabase
-        .from('airlines')
-        .update({ 
-          website: parsedData.airline_info.official_website,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', airline_id);
-
-      if (websiteError) {
-        console.error('Error updating airline website:', websiteError);
-      }
-    }
-
-    // Process pet policy data
-    const policyData = parsedData.pet_policy || {};
-    
-    // Validate policy URL against the official website
-    if (policyData.policy_url && parsedData.airline_info?.official_website) {
-      if (!isValidPolicyUrl(parsedData.airline_info.official_website, policyData.policy_url)) {
-        console.log(`Invalid policy URL detected: ${policyData.policy_url}`);
-        policyData.policy_url = null;
-      }
-    }
-
-    // Clean and validate arrays
-    ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
-      if (!Array.isArray(policyData[field])) {
-        policyData[field] = policyData[field] ? [String(policyData[field])] : null;
-      } else if (policyData[field].length === 0) {
-        policyData[field] = null;
-      } else {
-        policyData[field] = policyData[field].map(item => String(item).trim()).filter(Boolean);
-        if (policyData[field].length === 0) {
-          policyData[field] = null;
-        }
-      }
-    });
-
-    // Clean string fields
-    ['carrier_requirements', 'temperature_restrictions'].forEach(field => {
-      if (policyData[field] && typeof policyData[field] !== 'string') {
-        policyData[field] = String(policyData[field]).trim();
-      }
-      if (!policyData[field]) {
-        policyData[field] = null;
-      }
-    });
-
-    // Only store policy if we found valid data
-    if (policyData.policy_url || policyData.pet_types_allowed || policyData.carrier_requirements) {
-      console.log('Storing valid policy data:', policyData);
-      const { error } = await supabase
-        .from('pet_policies')
-        .upsert({
-          airline_id,
-          ...policyData,
-          updated_at: new Date().toISOString(),
-        }, { 
-          onConflict: 'airline_id'
+        console.log('Sending request to Perplexity API...');
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-sonar-small-128k-online',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 1000,
+          }),
         });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+        if (!response.ok) {
+          throw new Error(`Perplexity API error: ${response.statusText}`);
+        }
+
+        const rawResponseText = await response.text();
+        console.log('Raw Perplexity API response:', rawResponseText);
+
+        let parsedData;
+        try {
+          parsedData = JSON.parse(rawResponseText);
+          console.log('Parsed API response:', parsedData);
+          
+          if (!parsedData.choices?.[0]?.message?.content) {
+            throw new Error('Invalid API response structure');
+          }
+
+          const content = typeof parsedData.choices[0].message.content === 'string'
+            ? extractJSONFromText(parsedData.choices[0].message.content)
+            : parsedData.choices[0].message.content;
+
+          // Update airline website if we got a valid one
+          if (content.airline_info?.official_website) {
+            console.log('Updating airline website:', content.airline_info.official_website);
+            await supabase
+              .from('airlines')
+              .update({ 
+                website: content.airline_info.official_website,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', airline.id);
+          }
+
+          // Process pet policy data
+          const policyData = content.pet_policy || {};
+          
+          // Validate policy URL against the official website
+          if (policyData.policy_url && content.airline_info?.official_website) {
+            if (!isValidPolicyUrl(content.airline_info.official_website, policyData.policy_url)) {
+              console.log(`Invalid policy URL detected: ${policyData.policy_url}`);
+              policyData.policy_url = null;
+            }
+          }
+
+          // Clean and validate arrays
+          ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
+            if (!Array.isArray(policyData[field])) {
+              policyData[field] = policyData[field] ? [String(policyData[field])] : null;
+            } else if (policyData[field].length === 0) {
+              policyData[field] = null;
+            } else {
+              policyData[field] = policyData[field].map((item: any) => String(item).trim()).filter(Boolean);
+              if (policyData[field].length === 0) {
+                policyData[field] = null;
+              }
+            }
+          });
+
+          // Clean string fields
+          ['carrier_requirements', 'temperature_restrictions'].forEach(field => {
+            if (policyData[field] && typeof policyData[field] !== 'string') {
+              policyData[field] = String(policyData[field]).trim();
+            }
+            if (!policyData[field]) {
+              policyData[field] = null;
+            }
+          });
+
+          // Store policy if we found valid data
+          if (policyData.policy_url || policyData.pet_types_allowed || policyData.carrier_requirements) {
+            console.log('Storing valid policy data:', policyData);
+            await supabase
+              .from('pet_policies')
+              .upsert({
+                airline_id: airline.id,
+                ...policyData,
+                updated_at: new Date().toISOString(),
+              }, { 
+                onConflict: 'airline_id'
+              });
+          }
+
+          processedAirlines.push(airline.name);
+          processedCount++;
+
+        } catch (parseError) {
+          console.error('Error processing airline data:', parseError);
+          errorAirlines.push(`${airline.name} (Parse Error)`);
+        }
+
+      } catch (airlineError) {
+        console.error(`Error processing airline ${airline.name}:`, airlineError);
+        errorAirlines.push(`${airline.name} (${airlineError.message})`);
       }
-    } else {
-      console.log('No valid policy data found, skipping storage');
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const lastProcessedId = airlines && airlines.length > 0 ? airlines[airlines.length - 1].id : null;
+    const hasMore = airlines && airlines.length === batchSize;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        processed_count: processedCount,
+        processed_airlines: processedAirlines,
+        error_airlines: errorAirlines,
+        continuation_token: hasMore ? lastProcessedId : null
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
     console.error('Error:', error);
     return new Response(
