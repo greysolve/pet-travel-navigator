@@ -31,9 +31,9 @@ export const SyncCard = ({
   useEffect(() => {
     let intervalId: number;
 
-    if (syncProgress?.start_time && !syncProgress.is_complete) {
+    if (syncProgress?.startTime && !syncProgress.isComplete) {
       intervalId = window.setInterval(() => {
-        const elapsed = Math.floor((Date.now() - new Date(syncProgress.start_time!).getTime()) / 1000);
+        const elapsed = Math.floor((Date.now() - new Date(syncProgress.startTime!).getTime()) / 1000);
         const minutes = Math.floor(elapsed / 60);
         const seconds = elapsed % 60;
         setElapsedTime(`${minutes}m ${seconds}s`);
@@ -53,10 +53,10 @@ export const SyncCard = ({
         window.clearInterval(intervalId);
       }
     };
-  }, [syncProgress?.start_time, syncProgress?.processed, syncProgress?.total, syncProgress?.is_complete]);
+  }, [syncProgress?.startTime, syncProgress?.processed, syncProgress?.total, syncProgress?.isComplete]);
 
   const isSyncInProgress = () => {
-    return syncProgress && !syncProgress.is_complete;
+    return syncProgress && !syncProgress.isComplete;
   };
 
   const progressPercentage = syncProgress 
@@ -64,8 +64,8 @@ export const SyncCard = ({
     : 0;
 
   // Ensure arrays have default values
-  const processedItems = syncProgress?.processed_items || [];
-  const errorItems = syncProgress?.error_items || [];
+  const processedItems = syncProgress?.processedItems || [];
+  const errorItems = syncProgress?.errorItems || [];
 
   return (
     <div className="p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md">
@@ -76,7 +76,7 @@ export const SyncCard = ({
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
           </div>
         )}
-        {syncProgress?.is_complete && !isLoading && (
+        {syncProgress?.isComplete && !isLoading && (
           <CheckCircle2 className="w-5 h-5 text-green-500" />
         )}
       </h2>
@@ -97,7 +97,7 @@ export const SyncCard = ({
         </Label>
       </div>
 
-      {syncProgress?.total > 0 && !syncProgress.is_complete ? (
+      {syncProgress?.total > 0 && !syncProgress.isComplete ? (
         <div className="mb-6 space-y-4 animate-fade-in">
           <div className="space-y-2">
             <Progress 
@@ -123,9 +123,9 @@ export const SyncCard = ({
                 <span className="font-medium">Remaining:</span> 
                 {estimatedTimeRemaining}
               </p>
-              {syncProgress.last_processed && (
+              {syncProgress.lastProcessed && (
                 <p className="truncate">
-                  <span className="font-medium">Last:</span> {syncProgress.last_processed}
+                  <span className="font-medium">Last:</span> {syncProgress.lastProcessed}
                 </p>
               )}
             </div>
