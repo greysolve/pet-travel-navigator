@@ -6,6 +6,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 
+// Interface for the raw database record
+interface SyncProgressDBRecord extends SyncProgress {
+  created_at: string;
+  type: string;
+}
+
 export const SyncSection = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key in SyncType]: boolean}>({
@@ -35,16 +41,16 @@ export const SyncSection = () => {
       console.log('DEBUG: Sync progress query result:', { data, error });
 
       // Group by type and get the most recent for each
-      const progressByType = data.reduce((acc: SyncProgressRecord, curr: any) => {
-        if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
+      const progressByType = (data as SyncProgressDBRecord[]).reduce((acc: SyncProgressRecord, curr) => {
+        if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].startTime!)) {
           acc[curr.type] = {
             total: curr.total,
             processed: curr.processed,
-            lastProcessed: curr.last_processed,
-            processedItems: curr.processed_items || [],
-            errorItems: curr.error_items || [],
-            startTime: curr.start_time,
-            isComplete: curr.is_complete,
+            lastProcessed: curr.lastProcessed,
+            processedItems: curr.processedItems || [],
+            errorItems: curr.errorItems || [],
+            startTime: curr.created_at,
+            isComplete: curr.isComplete,
           };
         }
         return acc;
