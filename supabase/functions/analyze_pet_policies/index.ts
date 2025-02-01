@@ -15,16 +15,12 @@ function getDomainFromUrl(url: string): string {
 }
 
 function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
-  // Get base domains
   const airlineDomain = getDomainFromUrl(websiteDomain);
   const policyDomain = getDomainFromUrl(policyUrl);
   
   if (!airlineDomain || !policyDomain) return false;
-
-  // Check if policy domain matches airline domain
   if (policyDomain === airlineDomain) return true;
 
-  // List of known third-party booking/info sites we want to exclude
   const excludedDomains = [
     'rover.com',
     'pettravel.com',
@@ -34,10 +30,7 @@ function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
     'fetchapet.co.uk'
   ];
 
-  // Reject if policy is from a known third-party site
-  if (excludedDomains.includes(policyDomain)) return false;
-
-  return false;
+  return !excludedDomains.includes(policyDomain);
 }
 
 Deno.serve(async (req) => {
@@ -46,43 +39,58 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Starting pet policy analysis...');
+    console.log('Starting pet policy and website analysis...');
     
     const body = await req.json();
     console.log('Request body:', body);
 
-    const { airline_id, website } = body;
+    const { airline_id, website: currentWebsite } = body;
 
-    if (!airline_id || !website) {
-      throw new Error('Missing required parameters: airline_id and website are required');
+    if (!airline_id) {
+      throw new Error('Missing required parameter: airline_id');
     }
-
-    console.log(`Analyzing pet policy for airline ${airline_id} from ${website}`);
 
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     if (!PERPLEXITY_API_KEY) {
       throw new Error('Missing Perplexity API key');
     }
 
+    // First, get the airline name from the database
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: airlineData, error: airlineError } = await supabase
+      .from('airlines')
+      .select('name')
+      .eq('id', airline_id)
+      .single();
+
+    if (airlineError || !airlineData) {
+      throw new Error(`Failed to fetch airline data: ${airlineError?.message || 'Airline not found'}`);
+    }
+
     const prompt = `
-      Analyze the pet travel policy from this airline's website: ${website}
+      Analyze this airline: ${airlineData.name}
       
-      IMPORTANT: For the policy_url field:
-      1. Search ONLY for official pet/animal travel policy pages on ${website}
-      2. Do NOT return URLs from third-party websites or blogs
-      3. The URL must be from the airline's own domain
-      4. Return null if no official policy page is found
-      5. The URL must be complete (including https://) and directly accessible
-      
-      Return a JSON object with ONLY these fields (use null if data is not found):
+      Return a JSON object with these fields (use null if data is not found):
       {
-        "pet_types_allowed": ["string"],
-        "carrier_requirements": "string",
-        "documentation_needed": ["string"],
-        "temperature_restrictions": "string",
-        "breed_restrictions": ["string"],
-        "policy_url": "string"
+        "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)",
+        "pet_policy": {
+          "pet_types_allowed": ["string"],
+          "carrier_requirements": "string",
+          "documentation_needed": ["string"],
+          "temperature_restrictions": "string",
+          "breed_restrictions": ["string"],
+          "policy_url": "string (must be from the airline's own website domain)"
+        }
       }
+      
+      IMPORTANT RULES:
+      1. The official_website must be the airline's actual website, not a third-party site
+      2. The policy_url must be from the airline's own domain
+      3. All URLs must start with https:// and be complete
+      4. Return null for any field where you're not completely confident of the accuracy
     `;
 
     console.log('Sending request to Perplexity API...');
@@ -97,7 +105,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a specialized AI focused on finding and extracting pet travel policies from airline websites. Your primary goal is to locate specific policy URLs and detailed policy information. Only return URLs from the airline\'s official website.'
+            content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites.'
           },
           {
             role: 'user',
@@ -132,15 +140,37 @@ Deno.serve(async (req) => {
     }
     content = jsonMatch[0];
 
-    let policyData = JSON.parse(content);
+    const parsedData = JSON.parse(content);
+    console.log('Parsed data:', parsedData);
     
-    // Validate policy URL
-    if (policyData.policy_url && !isValidPolicyUrl(website, policyData.policy_url)) {
-      console.log(`Invalid policy URL detected: ${policyData.policy_url} for website ${website}`);
-      policyData.policy_url = null;
+    // Update airline website if we got a valid one
+    if (parsedData.official_website) {
+      console.log('Updating airline website:', parsedData.official_website);
+      const { error: websiteError } = await supabase
+        .from('airlines')
+        .update({ 
+          website: parsedData.official_website,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', airline_id);
+
+      if (websiteError) {
+        console.error('Error updating airline website:', websiteError);
+      }
     }
 
-    // Clean and validate other fields
+    // Process pet policy data
+    const policyData = parsedData.pet_policy;
+    
+    // Validate policy URL against the official website
+    if (policyData.policy_url && parsedData.official_website) {
+      if (!isValidPolicyUrl(parsedData.official_website, policyData.policy_url)) {
+        console.log(`Invalid policy URL detected: ${policyData.policy_url}`);
+        policyData.policy_url = null;
+      }
+    }
+
+    // Clean and validate arrays
     ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
       if (!Array.isArray(policyData[field])) {
         policyData[field] = policyData[field] ? [String(policyData[field])] : null;
@@ -154,6 +184,7 @@ Deno.serve(async (req) => {
       }
     });
 
+    // Clean string fields
     ['carrier_requirements', 'temperature_restrictions'].forEach(field => {
       if (policyData[field] && typeof policyData[field] !== 'string') {
         policyData[field] = String(policyData[field]).trim();
@@ -162,10 +193,6 @@ Deno.serve(async (req) => {
         policyData[field] = null;
       }
     });
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Only store policy if we found valid data
     if (policyData.policy_url || policyData.pet_types_allowed || policyData.carrier_requirements) {
