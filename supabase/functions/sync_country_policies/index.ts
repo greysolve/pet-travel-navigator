@@ -3,8 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 console.log('Edge Function: sync_country_policies initialized')
 
-const BATCH_SIZE = 5
-const RATE_LIMIT_DELAY = 2000
+const BATCH_SIZE = 10
 const MAX_RETRIES = 3
 const MAX_EXECUTION_TIME = 25000
 
@@ -31,7 +30,7 @@ async function processBatch(
   const processed: string[] = [];
   const errors: string[] = [];
   let shouldContinue = true;
-  let processedCount = state.processedCount; // Start from existing processed count
+  let processedCount = state.processedCount;
 
   try {
     const startIndex = state.lastProcessedCountry 
@@ -84,12 +83,31 @@ async function processBatch(
           errors.push(country);
         } else {
           processed.push(country);
-          state.lastProcessedCountry = country;
-          processedCount++; // Increment the cumulative count
+          processedCount++;
+          
+          // Update progress after each country
+          const { error: progressError } = await supabaseClient
+            .from('sync_progress')
+            .upsert({
+              type: 'countryPolicies',
+              total: countries.length,
+              processed: processedCount,
+              last_processed: country,
+              processed_items: processed,
+              error_items: errors,
+              start_time: new Date(state.startTime).toISOString(),
+              is_complete: false
+            }, {
+              onConflict: 'type'
+            });
+
+          if (progressError) {
+            console.error('Error updating progress:', progressError);
+          }
+          
           console.log(`Successfully processed policy for ${country}. Total processed: ${processedCount}`);
         }
 
-        await delay(RATE_LIMIT_DELAY);
       } catch (error) {
         console.error(`Error processing country ${country}:`, error);
         errors.push(country);
@@ -109,7 +127,7 @@ async function processBatch(
       processed, 
       errors, 
       shouldContinue: hasMoreCountries,
-      lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null,
+      lastProcessedCountry: hasMoreCountries ? countries[endIndex - 1] : null,
       processedCount
     };
   } catch (error) {
@@ -189,7 +207,6 @@ Deno.serve(async (req) => {
 
     const requestBody = await req.json().catch(() => ({}));
     const lastProcessedCountry = requestBody.lastProcessedCountry || null;
-    const batchSize = requestBody.batchSize || 5;
     
     const { data: countries, error: countriesError } = await supabaseClient
       .rpc('get_distinct_countries');
