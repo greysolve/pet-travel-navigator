@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting pet policy and website analysis...');
     
-    const { airline_id, website } = await req.json();
-    console.log('Request body:', { airline_id, website });
+    const { airline_id } = await req.json();
+    console.log('Request body:', { airline_id });
 
     if (!airline_id) {
       throw new Error('Missing required parameter: airline_id');
@@ -59,12 +59,24 @@ Deno.serve(async (req) => {
 
     const { data: airlineData, error: airlineError } = await supabase
       .from('airlines')
-      .select('name')
+      .select('name, website')
       .eq('id', airline_id)
       .single();
 
     if (airlineError || !airlineData) {
       throw new Error(`Failed to fetch airline data: ${airlineError?.message || 'Airline not found'}`);
+    }
+
+    // Check for website before making the Perplexity API call
+    if (!airlineData.website) {
+      console.log(`Skipping airline ${airline_id} - no website available`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Skipped - no website available' 
+        }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const prompt = `
@@ -140,21 +152,10 @@ Deno.serve(async (req) => {
       throw new Error('No JSON object found in content');
     }
 
-    // Clean and parse the JSON string
+    // Parse the JSON string
     let parsedData;
     try {
-      // Remove any control characters and normalize whitespace
-      const jsonString = jsonMatch[0]
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      // Ensure the string is valid JSON
-      if (!jsonString.startsWith('{') || !jsonString.endsWith('}')) {
-        throw new Error('Invalid JSON structure');
-      }
-      
-      parsedData = JSON.parse(jsonString);
+      parsedData = JSON.parse(jsonMatch[0]);
       console.log('Successfully parsed JSON:', parsedData);
     } catch (error) {
       console.error('JSON parsing error:', error);
