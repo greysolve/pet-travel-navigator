@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -18,39 +18,75 @@ const Admin = () => {
     routes: false,
     countryPolicies: false
   });
-  const [syncProgress, setSyncProgress] = useState<{
-    total: number;
-    processed: number;
-    lastCountry: string | null;
-    processedCountries: string[];
-    errorCountries: string[];
-    startTime: number | null;
-  }>({
-    total: 0,
-    processed: 0,
-    lastCountry: null,
-    processedCountries: [],
-    errorCountries: [],
-    startTime: null
-  });
 
-  const [petPolicyProgress, setPetPolicyProgress] = useState<{
-    total: number;
-    processed: number;
-    lastAirline: string | null;
-    processedAirlines: string[];
-    errorAirlines: string[];
-    startTime: number | null;
-    isComplete: boolean;
-  }>({
-    total: 0,
-    processed: 0,
-    lastAirline: null,
-    processedAirlines: [],
-    errorAirlines: [],
-    startTime: null,
-    isComplete: false
-  });
+  const [syncProgress, setSyncProgress] = useState<{
+    [key: string]: {
+      total: number;
+      processed: number;
+      lastProcessed: string | null;
+      processedItems: string[];
+      errorItems: string[];
+      startTime: string | null;
+      isComplete: boolean;
+    };
+  }>({});
+
+  // Fetch existing sync progress on mount and periodically
+  useEffect(() => {
+    const fetchProgress = async () => {
+      const { data, error } = await supabase
+        .from('sync_progress')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching sync progress:', error);
+        return;
+      }
+
+      const progressByType = data.reduce((acc, curr) => ({
+        ...acc,
+        [curr.type]: {
+          total: curr.total,
+          processed: curr.processed,
+          lastProcessed: curr.last_processed,
+          processedItems: curr.processed_items || [],
+          errorItems: curr.error_items || [],
+          startTime: curr.start_time,
+          isComplete: curr.is_complete
+        }
+      }), {});
+
+      setSyncProgress(progressByType);
+    };
+
+    // Fetch immediately
+    fetchProgress();
+
+    // Set up polling every 5 seconds
+    const interval = setInterval(fetchProgress, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateSyncProgress = async (type: string, progressData: any) => {
+    const { error } = await supabase
+      .from('sync_progress')
+      .upsert({
+        type,
+        total: progressData.total,
+        processed: progressData.processed,
+        last_processed: progressData.lastProcessed,
+        processed_items: progressData.processedItems,
+        error_items: progressData.errorItems,
+        start_time: progressData.startTime || new Date().toISOString(),
+        is_complete: progressData.isComplete
+      });
+
+    if (error) {
+      console.error(`Error updating sync progress for ${type}:`, error);
+    }
+  };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
     setIsLoading(prev => ({ ...prev, [type]: true }));
@@ -65,35 +101,31 @@ const Admin = () => {
       }
 
       if (type === 'petPolicies') {
-        // Only reset progress if not resuming
+        // Initialize or resume progress
         if (!resume) {
-          setPetPolicyProgress({
-            total: 0,
-            processed: 0,
-            lastAirline: null,
-            processedAirlines: [],
-            errorAirlines: [],
-            startTime: Date.now(),
-            isComplete: false
-          });
-
-          const { data: airlines, error: airlinesError } = await supabase
+          const { data: airlines } = await supabase
             .from('airlines')
             .select('id, name, website')
             .eq('active', true);
 
-          if (airlinesError) throw airlinesError;
+          const initialProgress = {
+            total: airlines?.length || 0,
+            processed: 0,
+            lastProcessed: null,
+            processedItems: [],
+            errorItems: [],
+            startTime: new Date().toISOString(),
+            isComplete: false
+          };
 
-          console.log(`Found ${airlines?.length} active airlines to analyze`);
-          setPetPolicyProgress(prev => ({ ...prev, total: airlines?.length || 0 }));
+          await updateSyncProgress('petPolicies', initialProgress);
+          setSyncProgress(prev => ({ ...prev, petPolicies: initialProgress }));
         }
 
-        let continuationToken = resume ? petPolicyProgress.lastAirline : null;
+        let continuationToken = resume ? syncProgress.petPolicies?.lastProcessed : null;
         let completed = false;
-        let totalProcessed = resume ? petPolicyProgress.processed : 0;
 
         while (!completed) {
-          console.log(`Processing batch of airlines with continuation token:`, continuationToken);
           const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
             body: {
               lastProcessedAirline: continuationToken,
@@ -102,94 +134,96 @@ const Admin = () => {
           });
 
           if (error) throw error;
-          console.log(`Pet policy batch sync response:`, data);
 
-          totalProcessed += data.processed_count;
-          setPetPolicyProgress(prev => ({
-            ...prev,
-            processed: totalProcessed,
-            lastAirline: data.continuation_token,
-            processedAirlines: [...prev.processedAirlines, ...data.processed_airlines],
-            errorAirlines: [...prev.errorAirlines, ...data.error_airlines]
-          }));
+          const updatedProgress = {
+            ...syncProgress.petPolicies,
+            processed: (syncProgress.petPolicies?.processed || 0) + data.processed_count,
+            lastProcessed: data.continuation_token,
+            processedItems: [...(syncProgress.petPolicies?.processedItems || []), ...data.processed_airlines],
+            errorItems: [...(syncProgress.petPolicies?.errorItems || []), ...data.error_airlines],
+            isComplete: !data.continuation_token
+          };
+
+          await updateSyncProgress('petPolicies', updatedProgress);
+          setSyncProgress(prev => ({ ...prev, petPolicies: updatedProgress }));
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
             await new Promise(resolve => setTimeout(resolve, 2000));
           } else {
             completed = true;
-            setPetPolicyProgress(prev => ({ ...prev, isComplete: true }));
           }
         }
-
-        toast({
-          title: "Pet Policies Sync Complete",
-          description: `Successfully processed ${totalProcessed} airlines.`,
-        });
       } else if (type === 'countryPolicies') {
-        let continuationToken = null;
+        // Initialize progress
+        if (!resume) {
+          const initialProgress = {
+            total: 0,
+            processed: 0,
+            lastProcessed: null,
+            processedItems: [],
+            errorItems: [],
+            startTime: new Date().toISOString(),
+            isComplete: false
+          };
+
+          await updateSyncProgress('countryPolicies', initialProgress);
+          setSyncProgress(prev => ({ ...prev, countryPolicies: initialProgress }));
+        }
+
+        let continuationToken = resume ? syncProgress.countryPolicies?.lastProcessed : null;
         let completed = false;
-        
-        // Reset progress state at the start of sync
-        setSyncProgress({
-          total: 0,
-          processed: 0,
-          lastCountry: null,
-          processedCountries: [],
-          errorCountries: [],
-          startTime: Date.now()
-        });
 
         while (!completed) {
-          console.log(`Calling sync_country_policies with continuation token:`, continuationToken);
           const { data, error } = await supabase.functions.invoke('sync_country_policies', {
             body: { lastProcessedCountry: continuationToken }
           });
 
           if (error) throw error;
-          console.log(`Country policies sync response:`, data);
 
           if (data.total_countries > 0) {
-            setSyncProgress(prev => ({
-              ...prev,
+            const updatedProgress = {
+              ...syncProgress.countryPolicies,
               total: data.total_countries,
-              processed: prev.processed + data.processed_policies,
-              lastCountry: data.continuation_token,
-              processedCountries: [...prev.processedCountries, ...data.processed_countries],
-              errorCountries: [...prev.errorCountries, ...data.error_countries]
-            }));
+              processed: (syncProgress.countryPolicies?.processed || 0) + data.processed_policies,
+              lastProcessed: data.continuation_token,
+              processedItems: [...(syncProgress.countryPolicies?.processedItems || []), ...data.processed_countries],
+              errorItems: [...(syncProgress.countryPolicies?.errorItems || []), ...data.error_countries],
+              isComplete: !data.continuation_token
+            };
+
+            await updateSyncProgress('countryPolicies', updatedProgress);
+            setSyncProgress(prev => ({ ...prev, countryPolicies: updatedProgress }));
           }
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
-            // Add delay between batches to avoid rate limits
             await new Promise(resolve => setTimeout(resolve, 2000));
           } else {
             completed = true;
           }
-
-          if (!data.success) {
-            throw new Error('Sync failed');
-          }
         }
-
-        toast({
-          title: "Country Policies Sync Complete",
-          description: `Successfully processed ${syncProgress.processed} countries.`,
-        });
       } else {
-        // Call other sync functions as before
+        // Handle other sync types
         const functionName = type === 'airlines' 
           ? 'sync_airline_data' 
           : type === 'airports' 
             ? 'sync_airport_data' 
             : 'sync_route_data';
 
-        console.log(`Calling ${functionName} edge function...`);
         const { data, error } = await supabase.functions.invoke(functionName);
-
         if (error) throw error;
-        console.log(`${type} sync response:`, data);
+
+        // Update progress for other sync types
+        await updateSyncProgress(type, {
+          total: 1,
+          processed: 1,
+          lastProcessed: null,
+          processedItems: [],
+          errorItems: [],
+          startTime: new Date().toISOString(),
+          isComplete: true
+        });
       }
 
       toast({
@@ -208,18 +242,18 @@ const Admin = () => {
     }
   };
 
-  const getElapsedTime = (startTime: number | null) => {
+  const getElapsedTime = (startTime: string | null) => {
     if (!startTime) return '';
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const elapsed = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
     return `${minutes}m ${seconds}s`;
   };
 
-  const getEstimatedTimeRemaining = (progress: { total: number, processed: number, startTime: number | null }) => {
+  const getEstimatedTimeRemaining = (progress: { total: number, processed: number, startTime: string | null }) => {
     if (!progress.startTime || progress.processed === 0) return 'Calculating...';
     
-    const elapsed = (Date.now() - progress.startTime) / 1000;
+    const elapsed = (Date.now() - new Date(progress.startTime).getTime()) / 1000;
     const ratePerItem = elapsed / progress.processed;
     const remaining = (progress.total - progress.processed) * ratePerItem;
     
@@ -300,39 +334,39 @@ const Admin = () => {
                 <Label htmlFor="clearPolicies" className="text-lg">Clear existing pet policy data first</Label>
               </div>
 
-              {petPolicyProgress.total > 0 && (
+              {syncProgress.petPolicies?.total > 0 && (
                 <div className="mb-6 space-y-4">
                   <Progress 
-                    value={Math.min((petPolicyProgress.processed / petPolicyProgress.total) * 100, 100)} 
+                    value={Math.min((syncProgress.petPolicies.processed / syncProgress.petPolicies.total) * 100, 100)} 
                     className="mb-2"
                   />
                   <div className="text-sm space-y-2">
-                    <p>Progress: {petPolicyProgress.processed} of {petPolicyProgress.total} airlines ({((petPolicyProgress.processed / petPolicyProgress.total) * 100).toFixed(1)}%)</p>
-                    <p>Elapsed time: {getElapsedTime(petPolicyProgress.startTime)}</p>
-                    <p>Estimated time remaining: {getEstimatedTimeRemaining(petPolicyProgress)}</p>
-                    {petPolicyProgress.lastAirline && (
-                      <p>Last processed: {petPolicyProgress.lastAirline}</p>
+                    <p>Progress: {syncProgress.petPolicies.processed} of {syncProgress.petPolicies.total} airlines ({((syncProgress.petPolicies.processed / syncProgress.petPolicies.total) * 100).toFixed(1)}%)</p>
+                    <p>Elapsed time: {getElapsedTime(syncProgress.petPolicies.startTime)}</p>
+                    <p>Estimated time remaining: {getEstimatedTimeRemaining(syncProgress.petPolicies)}</p>
+                    {syncProgress.petPolicies.lastProcessed && (
+                      <p>Last processed: {syncProgress.petPolicies.lastProcessed}</p>
                     )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h3 className="font-semibold mb-2">Processed Airlines ({petPolicyProgress.processedAirlines.length})</h3>
+                      <h3 className="font-semibold mb-2">Processed Airlines ({syncProgress.petPolicies.processedItems.length})</h3>
                       <ScrollArea className="h-32 rounded border p-2">
                         <div className="space-y-1">
-                          {petPolicyProgress.processedAirlines.map((airline, i) => (
+                          {syncProgress.petPolicies.processedItems.map((airline, i) => (
                             <div key={i} className="text-sm">{airline}</div>
                           ))}
                         </div>
                       </ScrollArea>
                     </div>
                     
-                    {petPolicyProgress.errorAirlines.length > 0 && (
+                    {syncProgress.petPolicies.errorItems.length > 0 && (
                       <div>
-                        <h3 className="font-semibold mb-2 text-destructive">Errors ({petPolicyProgress.errorAirlines.length})</h3>
+                        <h3 className="font-semibold mb-2 text-destructive">Errors ({syncProgress.petPolicies.errorItems.length})</h3>
                         <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
                           <div className="space-y-1">
-                            {petPolicyProgress.errorAirlines.map((airline, i) => (
+                            {syncProgress.petPolicies.errorItems.map((airline, i) => (
                               <div key={i} className="text-sm text-destructive">{airline}</div>
                             ))}
                           </div>
@@ -344,7 +378,7 @@ const Admin = () => {
               )}
 
               <div className="space-y-2">
-                {petPolicyProgress.lastAirline && !petPolicyProgress.isComplete && (
+                {syncProgress.petPolicies?.lastProcessed && !syncProgress.petPolicies?.isComplete && (
                   <Button 
                     onClick={() => handleSync('petPolicies', true)}
                     disabled={isLoading.petPolicies}
@@ -358,7 +392,7 @@ const Admin = () => {
                   onClick={() => handleSync('petPolicies')}
                   disabled={isLoading.petPolicies}
                   size="lg"
-                  variant={petPolicyProgress.lastAirline && !petPolicyProgress.isComplete ? "outline" : "default"}
+                  variant={syncProgress.petPolicies?.lastProcessed && !syncProgress.petPolicies?.isComplete ? "outline" : "default"}
                   className="w-full text-lg"
                 >
                   {isLoading.petPolicies ? "Syncing Pet Policies..." : "Start New Sync"}
@@ -403,39 +437,39 @@ const Admin = () => {
                 <Label htmlFor="clearCountryPolicies" className="text-lg">Clear existing country policy data first</Label>
               </div>
               
-              {syncProgress.total > 0 && (
+              {syncProgress.countryPolicies?.total > 0 && (
                 <div className="mb-6 space-y-4">
                   <Progress 
-                    value={(syncProgress.processed / syncProgress.total) * 100} 
+                    value={(syncProgress.countryPolicies.processed / syncProgress.countryPolicies.total) * 100} 
                     className="mb-2"
                   />
                   <div className="text-sm space-y-2">
-                    <p>Progress: {syncProgress.processed} of {syncProgress.total} countries ({((syncProgress.processed / syncProgress.total) * 100).toFixed(1)}%)</p>
-                    <p>Elapsed time: {getElapsedTime(syncProgress.startTime)}</p>
-                    <p>Estimated time remaining: {getEstimatedTimeRemaining(syncProgress)}</p>
-                    {syncProgress.lastCountry && (
-                      <p>Last processed: {syncProgress.lastCountry}</p>
+                    <p>Progress: {syncProgress.countryPolicies.processed} of {syncProgress.countryPolicies.total} countries ({((syncProgress.countryPolicies.processed / syncProgress.countryPolicies.total) * 100).toFixed(1)}%)</p>
+                    <p>Elapsed time: {getElapsedTime(syncProgress.countryPolicies.startTime)}</p>
+                    <p>Estimated time remaining: {getEstimatedTimeRemaining(syncProgress.countryPolicies)}</p>
+                    {syncProgress.countryPolicies.lastProcessed && (
+                      <p>Last processed: {syncProgress.countryPolicies.lastProcessed}</p>
                     )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h3 className="font-semibold mb-2">Processed Countries ({syncProgress.processedCountries.length})</h3>
+                      <h3 className="font-semibold mb-2">Processed Countries ({syncProgress.countryPolicies.processedItems.length})</h3>
                       <ScrollArea className="h-32 rounded border p-2">
                         <div className="space-y-1">
-                          {syncProgress.processedCountries.map((country, i) => (
+                          {syncProgress.countryPolicies.processedItems.map((country, i) => (
                             <div key={i} className="text-sm">{country}</div>
                           ))}
                         </div>
                       </ScrollArea>
                     </div>
                     
-                    {syncProgress.errorCountries.length > 0 && (
+                    {syncProgress.countryPolicies.errorItems.length > 0 && (
                       <div>
-                        <h3 className="font-semibold mb-2 text-destructive">Errors ({syncProgress.errorCountries.length})</h3>
+                        <h3 className="font-semibold mb-2 text-destructive">Errors ({syncProgress.countryPolicies.errorItems.length})</h3>
                         <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
                           <div className="space-y-1">
-                            {syncProgress.errorCountries.map((country, i) => (
+                            {syncProgress.countryPolicies.errorItems.map((country, i) => (
                               <div key={i} className="text-sm text-destructive">{country}</div>
                             ))}
                           </div>

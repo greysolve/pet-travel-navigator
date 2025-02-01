@@ -360,6 +360,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_progress: {
+        Row: {
+          created_at: string | null
+          error_items: string[] | null
+          id: string
+          is_complete: boolean | null
+          last_processed: string | null
+          processed: number
+          processed_items: string[] | null
+          start_time: string | null
+          total: number
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_items?: string[] | null
+          id?: string
+          is_complete?: boolean | null
+          last_processed?: string | null
+          processed?: number
+          processed_items?: string[] | null
+          start_time?: string | null
+          total?: number
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_items?: string[] | null
+          id?: string
+          is_complete?: boolean | null
+          last_processed?: string | null
+          processed?: number
+          processed_items?: string[] | null
+          start_time?: string | null
+          total?: number
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
