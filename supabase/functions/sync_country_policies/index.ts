@@ -152,13 +152,13 @@ Deno.serve(async (req) => {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
-  })
+  });
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
       status: 204
-    })
+    });
   }
 
   if (req.method !== 'POST') {
@@ -167,59 +167,60 @@ Deno.serve(async (req) => {
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 405
-    })
+    });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials')
+      throw new Error('Missing Supabase credentials');
     }
 
-    console.log('Initializing Supabase client...')
+    console.log('Initializing Supabase client...');
     const supabaseClient = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false
       }
-    })
+    });
 
-    const requestBody = await req.json().catch(() => ({}))
-    const lastProcessedCountry = requestBody.lastProcessedCountry || null
+    const requestBody = await req.json().catch(() => ({}));
+    const lastProcessedCountry = requestBody.lastProcessedCountry || null;
+    const batchSize = requestBody.batchSize || 5;
     
     const { data: countries, error: countriesError } = await supabaseClient
-      .rpc('get_distinct_countries')
+      .rpc('get_distinct_countries');
 
     if (countriesError) {
-      console.error('Error fetching countries:', countriesError)
-      throw countriesError
+      console.error('Error fetching countries:', countriesError);
+      throw countriesError;
     }
 
     if (!countries || !Array.isArray(countries)) {
-      throw new Error('Invalid response from get_distinct_countries')
+      throw new Error('Invalid response from get_distinct_countries');
     }
 
-    console.log('Total countries fetched:', countries.length)
+    console.log('Total countries fetched:', countries.length);
 
     const uniqueCountries = countries
       .map(row => row.country?.trim() || '')
       .filter(country => country !== '')
       .map(country => country.normalize('NFKC').trim())
-      .sort()
+      .sort();
 
-    console.log('Processing countries:', uniqueCountries)
+    console.log('Processing countries:', uniqueCountries);
     
     const state: ProcessingState = {
       lastProcessedCountry,
       processedCount: 0,
       startTime: Date.now()
-    }
+    };
 
     const { processed, errors, shouldContinue, lastProcessedCountry: finalProcessedCountry, processedCount } = 
-      await processBatch(uniqueCountries, supabaseClient, state)
+      await processBatch(uniqueCountries, supabaseClient, state);
 
     const summary = {
       success: true,
@@ -229,9 +230,9 @@ Deno.serve(async (req) => {
       error_countries: errors,
       continuation_token: shouldContinue ? finalProcessedCountry : null,
       completed: !shouldContinue
-    }
+    };
 
-    console.log('Country policies sync progress:', summary)
+    console.log('Country policies sync progress:', summary);
 
     return new Response(
       JSON.stringify(summary),
@@ -242,9 +243,9 @@ Deno.serve(async (req) => {
         },
         status: 200,
       }
-    )
+    );
   } catch (error) {
-    console.error('Error in sync_country_policies:', error)
+    console.error('Error in sync_country_policies:', error);
     return new Response(
       JSON.stringify({ 
         success: false,
@@ -257,9 +258,9 @@ Deno.serve(async (req) => {
         },
         status: 500,
       }
-    )
+    );
   }
-})
+});
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')

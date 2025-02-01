@@ -239,7 +239,10 @@ export const SyncSection = () => {
         while (!completed) {
           console.log('Processing country policies batch, token:', continuationToken);
           const { data, error } = await supabase.functions.invoke('sync_country_policies', {
-            body: { lastProcessedCountry: continuationToken }
+            body: { 
+              lastProcessedCountry: continuationToken,
+              batchSize: 10 // Increased from default of 5
+            }
           });
 
           if (error) throw error;
@@ -263,7 +266,7 @@ export const SyncSection = () => {
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms to 1000ms
           } else {
             completed = true;
           }
