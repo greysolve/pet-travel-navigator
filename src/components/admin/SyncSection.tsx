@@ -6,6 +6,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 
+// Define the database record type
+interface SyncProgressDB {
+  id: string;
+  type: string;
+  total: number;
+  processed: number;
+  last_processed: string | null;
+  processed_items: string[];
+  error_items: string[];
+  start_time: string | null;
+  is_complete: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export const SyncSection = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key in SyncType]: boolean}>({
@@ -28,7 +43,7 @@ export const SyncSection = () => {
           schema: 'public',
           table: 'sync_progress'
         },
-        (payload) => {
+        (payload: { new: SyncProgressDB }) => {
           console.log('Received sync progress update:', payload);
           const { new: newRecord } = payload;
           if (newRecord) {
