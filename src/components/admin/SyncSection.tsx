@@ -3,18 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
 import { SyncCard } from "./SyncCard";
-
-interface SyncProgress {
-  total: number;
-  processed: number;
-  lastProcessed: string | null;
-  processedItems: string[];
-  errorItems: string[];
-  startTime: string | null;
-  isComplete: boolean;
-}
+import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 
 export const SyncSection = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
@@ -27,7 +17,7 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
-  const { data: syncProgress, error } = useQuery({
+  const { data: syncProgress, error } = useQuery<SyncProgressRecord>({
     queryKey: ["syncProgress"],
     queryFn: async () => {
       console.log('DEBUG: Starting to fetch sync progress...');
@@ -45,7 +35,7 @@ export const SyncSection = () => {
       console.log('DEBUG: Sync progress query result:', { data, error });
 
       // Group by type and get the most recent for each
-      const progressByType = data.reduce((acc: any, curr: any) => {
+      const progressByType = data.reduce((acc: SyncProgressRecord, curr: any) => {
         if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
           acc[curr.type] = {
             total: curr.total,
@@ -55,7 +45,6 @@ export const SyncSection = () => {
             errorItems: curr.error_items || [],
             startTime: curr.start_time,
             isComplete: curr.is_complete,
-            created_at: curr.created_at
           };
         }
         return acc;
@@ -64,9 +53,9 @@ export const SyncSection = () => {
       console.log('DEBUG: Processed sync progress by type:', progressByType);
       return progressByType;
     },
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000,
     refetchIntervalInBackground: true,
-    staleTime: 0, // Consider data immediately stale to enable background updates
+    staleTime: 0,
   });
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
@@ -98,15 +87,13 @@ export const SyncSection = () => {
       }
       
       console.log('DEBUG: Successfully inserted sync progress:', data);
-      console.log('DEBUG: Previous sync progress:', syncProgress);
       
-      const updatedProgress = {
-        ...syncProgress,
+      // Update the cache instead of using setState
+      queryClient.setQueryData<SyncProgressRecord>(["syncProgress"], (old) => ({
+        ...old,
         [type]: progress
-      };
+      }));
       
-      console.log('DEBUG: Setting new sync progress:', updatedProgress);
-      setSyncProgress(updatedProgress);
     } catch (error: any) {
       console.error('DEBUG: Error in updateSyncProgress:', error);
       toast({
