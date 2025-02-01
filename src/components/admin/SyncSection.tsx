@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SyncCard } from "./SyncCard";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -41,6 +41,8 @@ export const SyncSection = ({
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
     try {
       console.log(`Updating sync progress for ${type}:`, progress);
+      
+      // First update the database
       const { error } = await supabase
         .from('sync_progress')
         .insert({
@@ -54,9 +56,13 @@ export const SyncSection = ({
           is_complete: progress.isComplete
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting sync progress:', error);
+        throw error;
+      }
       
-      // Update local state
+      // Then update local state
+      console.log('Previous sync progress:', syncProgress);
       const updatedProgress = {
         ...syncProgress,
         [type]: progress
@@ -75,10 +81,11 @@ export const SyncSection = ({
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
-    setIsLoading({ ...isLoading, [type]: true });
+    setIsLoading(prevLoading => ({ ...prevLoading, [type]: true }));
     
     try {
       if (!resume && clearData[type]) {
+        console.log(`Clearing existing data for ${type}`);
         const { error: clearError } = await supabase
           .from(type === 'countryPolicies' ? 'country_policies' : type)
           .delete()
@@ -89,6 +96,7 @@ export const SyncSection = ({
 
       if (type === 'petPolicies') {
         if (!resume) {
+          console.log('Initializing pet policies sync');
           const { data: airlines } = await supabase
             .from('airlines')
             .select('id, name, website')
@@ -111,6 +119,7 @@ export const SyncSection = ({
         let completed = false;
 
         while (!completed) {
+          console.log('Processing pet policies batch, token:', continuationToken);
           const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
             body: {
               lastProcessedAirline: continuationToken,
@@ -140,6 +149,7 @@ export const SyncSection = ({
         }
       } else if (type === 'countryPolicies') {
         if (!resume) {
+          console.log('Initializing country policies sync');
           const initialProgress: SyncProgress = {
             total: 0,
             processed: 0,
@@ -157,6 +167,7 @@ export const SyncSection = ({
         let completed = false;
 
         while (!completed) {
+          console.log('Processing country policies batch, token:', continuationToken);
           const { data, error } = await supabase.functions.invoke('sync_country_policies', {
             body: { lastProcessedCountry: continuationToken }
           });
@@ -219,7 +230,7 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      setIsLoading({ ...isLoading, [type]: false });
+      setIsLoading(prevLoading => ({ ...prevLoading, [type]: false }));
     }
   };
 
@@ -229,7 +240,7 @@ export const SyncSection = ({
         title="Airlines Synchronization"
         clearData={clearData.airlines}
         onClearDataChange={(checked) => {
-          setClearData({ ...clearData, airlines: checked });
+          setClearData(prev => ({ ...prev, airlines: checked }));
         }}
         isLoading={isLoading.airlines}
         onSync={() => handleSync('airlines')}
@@ -240,7 +251,7 @@ export const SyncSection = ({
         title="Airports Synchronization"
         clearData={clearData.airports}
         onClearDataChange={(checked) => {
-          setClearData({ ...clearData, airports: checked });
+          setClearData(prev => ({ ...prev, airports: checked }));
         }}
         isLoading={isLoading.airports}
         onSync={() => handleSync('airports')}
@@ -251,7 +262,7 @@ export const SyncSection = ({
         title="Pet Policies Synchronization"
         clearData={clearData.petPolicies}
         onClearDataChange={(checked) => {
-          setClearData({ ...clearData, petPolicies: checked });
+          setClearData(prev => ({ ...prev, petPolicies: checked }));
         }}
         isLoading={isLoading.petPolicies}
         onSync={(resume) => handleSync('petPolicies', resume)}
@@ -262,7 +273,7 @@ export const SyncSection = ({
         title="Routes Synchronization"
         clearData={clearData.routes}
         onClearDataChange={(checked) => {
-          setClearData({ ...clearData, routes: checked });
+          setClearData(prev => ({ ...prev, routes: checked }));
         }}
         isLoading={isLoading.routes}
         onSync={() => handleSync('routes')}
@@ -273,7 +284,7 @@ export const SyncSection = ({
         title="Country Policies Synchronization"
         clearData={clearData.countryPolicies}
         onClearDataChange={(checked) => {
-          setClearData({ ...clearData, countryPolicies: checked });
+          setClearData(prev => ({ ...prev, countryPolicies: checked }));
         }}
         isLoading={isLoading.countryPolicies}
         onSync={(resume) => handleSync('countryPolicies', resume)}
