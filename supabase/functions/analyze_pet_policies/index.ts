@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log('Request body:', body);
 
-    const { airline_id, website: currentWebsite } = body;
+    const { airline_id } = body;
 
     if (!airline_id) {
       throw new Error('Missing required parameter: airline_id');
@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
       
       Return a JSON object with these fields (use null if data is not found):
       {
-        "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)",
+        "airline_info": {
+          "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
+        },
         "pet_policy": {
           "pet_types_allowed": ["string"],
           "carrier_requirements": "string",
@@ -144,12 +146,12 @@ Deno.serve(async (req) => {
     console.log('Parsed data:', parsedData);
     
     // Update airline website if we got a valid one
-    if (parsedData.official_website) {
-      console.log('Updating airline website:', parsedData.official_website);
+    if (parsedData.airline_info?.official_website) {
+      console.log('Updating airline website:', parsedData.airline_info.official_website);
       const { error: websiteError } = await supabase
         .from('airlines')
         .update({ 
-          website: parsedData.official_website,
+          website: parsedData.airline_info.official_website,
           updated_at: new Date().toISOString()
         })
         .eq('id', airline_id);
@@ -160,11 +162,11 @@ Deno.serve(async (req) => {
     }
 
     // Process pet policy data
-    const policyData = parsedData.pet_policy;
+    const policyData = parsedData.pet_policy || {};
     
     // Validate policy URL against the official website
-    if (policyData.policy_url && parsedData.official_website) {
-      if (!isValidPolicyUrl(parsedData.official_website, policyData.policy_url)) {
+    if (policyData.policy_url && parsedData.airline_info?.official_website) {
+      if (!isValidPolicyUrl(parsedData.airline_info.official_website, policyData.policy_url)) {
         console.log(`Invalid policy URL detected: ${policyData.policy_url}`);
         policyData.policy_url = null;
       }
