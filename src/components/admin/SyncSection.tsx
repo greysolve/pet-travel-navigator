@@ -198,7 +198,7 @@ export const SyncSection = () => {
           processedItems: data.processed_items || [],
           errorItems: data.error_items || [],
           startTime: resume ? currentProgress?.startTime || new Date().toISOString() : new Date().toISOString(),
-          isComplete: !data.continuation_token
+          isComplete: !data.continuation_token && data.processed === data.total
         };
 
         console.log(`Updating progress for ${type}:`, updatedProgress);
@@ -220,8 +220,9 @@ export const SyncSection = () => {
 
         if (updateError) throw updateError;
 
-        if (data.continuation_token && (type === 'petPolicies' || type === 'countryPolicies')) {
-          console.log(`Continuing batch processing for ${type}`);
+        // Continue processing if there's more data and we haven't hit any limits
+        if (data.continuation_token && !data.error && updatedProgress.processed < updatedProgress.total) {
+          console.log(`Continuing batch processing for ${type} from ${data.continuation_token}`);
           await new Promise(resolve => setTimeout(resolve, 2000));
           await handleSync(type, true);
           return;
