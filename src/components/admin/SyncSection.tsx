@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { initializeSyncProgress, updateSyncProgress } from "@/utils/syncProgress";
+import { initializeSyncProgress, updateSyncProgress, getAllActiveSyncs } from "@/utils/syncManager";
 
 interface SyncProgressDB {
   id: string;
@@ -46,13 +46,14 @@ export const SyncSection = () => {
         },
         (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log('Received sync progress update:', payload);
-          const newRecord = payload.new as SyncProgressDB | null;
+          const newRecord = payload.new as SyncProgressDB;
           
           if (newRecord && 'type' in newRecord) {
             console.log('Updating sync progress in React Query cache:', newRecord);
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (old) => {
+                if (!old) return {};
                 const updated = {
                   ...old,
                   [newRecord.type]: {
@@ -259,7 +260,7 @@ export const SyncSection = () => {
 
   return (
     <div className="space-y-8">
-      {Object.keys(syncProgress || {}).length > 0 && (
+      {Object.entries(syncProgress || {}).some(([_, progress]) => !progress.isComplete) && (
         <div className="bg-accent/20 p-4 rounded-lg mb-8">
           <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
           <div className="space-y-2">
