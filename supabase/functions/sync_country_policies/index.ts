@@ -29,10 +29,10 @@ async function processBatch(
   processedCount: number 
 }> {
   console.log(`Starting batch processing from country: ${state.lastProcessedCountry || 'START'}`);
-  const processed = [...state.processedItems]; // Preserve existing processed items
-  const errors = [...state.errorItems]; // Preserve existing error items
+  const processed = [...state.processedItems];
+  const errors = [...state.errorItems];
   let shouldContinue = true;
-  let processedCount = state.processedCount; // Start from existing count
+  let processedCount = state.processedCount;
 
   try {
     const startIndex = state.lastProcessedCountry 
@@ -148,31 +148,13 @@ async function processBatch(
   }
 }
 
-async function fetchPolicyWithRetry(country: string, policyType: 'pet' | 'live_animal', retryCount = 0): Promise<any> {
-  try {
-    return await fetchPolicyWithAI(country, policyType)
-  } catch (error) {
-    console.error(`Attempt ${retryCount + 1} failed for ${country}:`, error)
-    
-    if (retryCount < MAX_RETRIES && 
-        (error.message?.includes('rate limit') || error.message?.includes('quota exceeded'))) {
-      const backoffDelay = Math.pow(2, retryCount) * 1000
-      await delay(backoffDelay)
-      return fetchPolicyWithRetry(country, policyType, retryCount + 1)
-    }
-    throw error
-  }
-}
-
 Deno.serve(async (req) => {
-  // Log incoming request details
   console.log('Request received:', {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
   });
 
-  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
@@ -208,10 +190,12 @@ Deno.serve(async (req) => {
 
     const requestBody = await req.json().catch(() => ({}));
     const lastProcessedCountry = requestBody.lastProcessedCountry || null;
+    const isResuming = !!lastProcessedCountry;
     
-    // Get existing progress if resuming
+    // Get existing progress if resuming, otherwise reset
     let existingProgress = { processed: 0, processedItems: [], errorItems: [] };
-    if (lastProcessedCountry) {
+    if (isResuming) {
+      console.log('Resuming sync, fetching existing progress...');
       const { data: progressData } = await supabaseClient
         .from('sync_progress')
         .select('*')
@@ -224,6 +208,27 @@ Deno.serve(async (req) => {
           processedItems: progressData.processed_items || [],
           errorItems: progressData.error_items || []
         };
+      }
+    } else {
+      console.log('Starting new sync, resetting progress...');
+      // Reset progress when starting a new sync
+      const { error: resetError } = await supabaseClient
+        .from('sync_progress')
+        .upsert({
+          type: 'countryPolicies',
+          total: 0,
+          processed: 0,
+          processed_items: [],
+          error_items: [],
+          start_time: new Date().toISOString(),
+          is_complete: false
+        }, {
+          onConflict: 'type'
+        });
+
+      if (resetError) {
+        console.error('Error resetting progress:', resetError);
+        throw resetError;
       }
     }
 
@@ -251,9 +256,9 @@ Deno.serve(async (req) => {
     
     const state: ProcessingState = {
       lastProcessedCountry,
-      processedCount: existingProgress.processed,
-      processedItems: existingProgress.processedItems,
-      errorItems: existingProgress.errorItems,
+      processedCount: isResuming ? existingProgress.processed : 0,
+      processedItems: isResuming ? existingProgress.processedItems : [],
+      errorItems: isResuming ? existingProgress.errorItems : [],
       startTime: Date.now()
     };
 
