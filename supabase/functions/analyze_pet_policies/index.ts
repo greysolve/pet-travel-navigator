@@ -154,39 +154,46 @@ Deno.serve(async (req) => {
           7. Do not wrap the JSON in code blocks
         `;
 
-        const response = await retryWithBackoff(async () => {
-          console.log('Sending request to Perplexity API...');
-          const res = await fetch('https://api.perplexity.ai/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama-3.1-sonar-small-128k-online',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
-                },
-                {
-                  role: 'user',
-                  content: prompt
-                }
-              ],
-              temperature: 0.1,
-              max_tokens: 1000,
-            }),
+        let perplexityResponse;
+        try {
+          perplexityResponse = await retryWithBackoff(async () => {
+            console.log('Sending request to Perplexity API...');
+            const res = await fetch('https://api.perplexity.ai/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'llama-3.1-sonar-small-128k-online',
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
+                  },
+                  {
+                    role: 'user',
+                    content: prompt
+                  }
+                ],
+                temperature: 0.1,
+                max_tokens: 1000,
+              }),
+            });
+
+            if (!res.ok) {
+              throw new Error(`Perplexity API error: ${res.statusText}`);
+            }
+
+            return res;
           });
+        } catch (error) {
+          console.error(`Failed to get response from Perplexity API for ${airline.name}:`, error);
+          errorAirlines.push(`${airline.name} (API Error: ${error.message})`);
+          continue;
+        }
 
-          if (!response.ok) {
-            throw new Error(`Perplexity API error: ${response.statusText}`);
-          }
-
-          return response;
-        });
-
-        const rawResponseText = await response.text();
+        const rawResponseText = await perplexityResponse.text();
         console.log('Raw Perplexity API response:', rawResponseText);
 
         let parsedData;
@@ -268,7 +275,7 @@ Deno.serve(async (req) => {
 
         } catch (parseError) {
           console.error('Error processing airline data:', parseError);
-          errorAirlines.push(`${airline.name} (Parse Error)`);
+          errorAirlines.push(`${airline.name} (Parse Error: ${parseError.message})`);
         }
 
       } catch (airlineError) {
