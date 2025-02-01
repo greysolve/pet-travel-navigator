@@ -16,11 +16,11 @@ interface SyncCardProps {
   syncProgress?: {
     total: number;
     processed: number;
-    lastProcessed: string | null;
-    processedItems: string[];
-    errorItems: string[];
-    startTime: string | null;
-    isComplete: boolean;
+    last_processed: string | null;
+    processed_items: string[];
+    error_items: string[];
+    start_time: string | null;
+    is_complete: boolean;
   };
 }
 
@@ -38,9 +38,9 @@ export const SyncCard = ({
   useEffect(() => {
     let intervalId: number;
 
-    if (syncProgress?.startTime && !syncProgress.isComplete) {
+    if (syncProgress?.start_time && !syncProgress.is_complete) {
       intervalId = window.setInterval(() => {
-        const elapsed = Math.floor((Date.now() - new Date(syncProgress.startTime!).getTime()) / 1000);
+        const elapsed = Math.floor((Date.now() - new Date(syncProgress.start_time!).getTime()) / 1000);
         const minutes = Math.floor(elapsed / 60);
         const seconds = elapsed % 60;
         setElapsedTime(`${minutes}m ${seconds}s`);
@@ -60,10 +60,10 @@ export const SyncCard = ({
         window.clearInterval(intervalId);
       }
     };
-  }, [syncProgress?.startTime, syncProgress?.processed, syncProgress?.total, syncProgress?.isComplete]);
+  }, [syncProgress?.start_time, syncProgress?.processed, syncProgress?.total, syncProgress?.is_complete]);
 
   const isSyncInProgress = () => {
-    return syncProgress && !syncProgress.isComplete;
+    return syncProgress && !syncProgress.is_complete;
   };
 
   const progressPercentage = syncProgress 
@@ -79,7 +79,7 @@ export const SyncCard = ({
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
           </div>
         )}
-        {syncProgress?.isComplete && !isLoading && (
+        {syncProgress?.is_complete && !isLoading && (
           <CheckCircle2 className="w-5 h-5 text-green-500" />
         )}
       </h2>
@@ -100,7 +100,7 @@ export const SyncCard = ({
         </Label>
       </div>
 
-      {syncProgress?.total > 0 && !syncProgress.isComplete ? (
+      {syncProgress?.total > 0 && !syncProgress.is_complete ? (
         <div className="mb-6 space-y-4 animate-fade-in">
           <div className="space-y-2">
             <Progress 
@@ -126,9 +126,9 @@ export const SyncCard = ({
                 <span className="font-medium">Remaining:</span> 
                 {estimatedTimeRemaining}
               </p>
-              {syncProgress.lastProcessed && (
+              {syncProgress.last_processed && (
                 <p className="truncate">
-                  <span className="font-medium">Last:</span> {syncProgress.lastProcessed}
+                  <span className="font-medium">Last:</span> {syncProgress.last_processed}
                 </p>
               )}
             </div>
@@ -139,12 +139,12 @@ export const SyncCard = ({
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 Processed
                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                  {syncProgress.processedItems.length}
+                  {syncProgress.processed_items.length}
                 </span>
               </h3>
               <ScrollArea className="h-32 rounded border p-2">
                 <div className="space-y-1">
-                  {syncProgress.processedItems.map((item, i) => (
+                  {syncProgress.processed_items.map((item, i) => (
                     <div 
                       key={i} 
                       className="text-sm py-1 px-2 rounded hover:bg-accent/50 transition-colors flex items-center gap-2"
@@ -160,15 +160,15 @@ export const SyncCard = ({
             <div>
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 Errors
-                {syncProgress.errorItems.length > 0 && (
+                {syncProgress.error_items.length > 0 && (
                   <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
-                    {syncProgress.errorItems.length}
+                    {syncProgress.error_items.length}
                   </span>
                 )}
               </h3>
               <ScrollArea className="h-32 rounded border border-destructive/20 p-2">
                 <div className="space-y-1">
-                  {syncProgress.errorItems.map((item, i) => (
+                  {syncProgress.error_items.map((item, i) => (
                     <div 
                       key={i} 
                       className="text-sm text-destructive py-1 px-2 rounded hover:bg-destructive/10 transition-colors flex items-center gap-2"
