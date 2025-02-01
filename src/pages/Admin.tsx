@@ -41,19 +41,21 @@ const Admin = () => {
     processedAirlines: string[];
     errorAirlines: string[];
     startTime: number | null;
+    isComplete: boolean;
   }>({
     total: 0,
     processed: 0,
     lastAirline: null,
     processedAirlines: [],
     errorAirlines: [],
-    startTime: null
+    startTime: null,
+    isComplete: false
   });
 
-  const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies') => {
+  const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
     setIsLoading(prev => ({ ...prev, [type]: true }));
     try {
-      if (clearData[type]) {
+      if (!resume && clearData[type]) {
         const { error: clearError } = await supabase
           .from(type === 'countryPolicies' ? 'country_policies' : type)
           .delete()
@@ -63,35 +65,39 @@ const Admin = () => {
       }
 
       if (type === 'petPolicies') {
-        setPetPolicyProgress({
-          total: 0,
-          processed: 0,
-          lastAirline: null,
-          processedAirlines: [],
-          errorAirlines: [],
-          startTime: Date.now()
-        });
+        // Only reset progress if not resuming
+        if (!resume) {
+          setPetPolicyProgress({
+            total: 0,
+            processed: 0,
+            lastAirline: null,
+            processedAirlines: [],
+            errorAirlines: [],
+            startTime: Date.now(),
+            isComplete: false
+          });
 
-        const { data: airlines, error: airlinesError } = await supabase
-          .from('airlines')
-          .select('id, name, website')
-          .eq('active', true);
+          const { data: airlines, error: airlinesError } = await supabase
+            .from('airlines')
+            .select('id, name, website')
+            .eq('active', true);
 
-        if (airlinesError) throw airlinesError;
+          if (airlinesError) throw airlinesError;
 
-        console.log(`Found ${airlines?.length} active airlines to analyze`);
-        setPetPolicyProgress(prev => ({ ...prev, total: airlines?.length || 0 }));
+          console.log(`Found ${airlines?.length} active airlines to analyze`);
+          setPetPolicyProgress(prev => ({ ...prev, total: airlines?.length || 0 }));
+        }
 
-        let continuationToken = null;
+        let continuationToken = resume ? petPolicyProgress.lastAirline : null;
         let completed = false;
-        let totalProcessed = 0;
+        let totalProcessed = resume ? petPolicyProgress.processed : 0;
 
         while (!completed) {
           console.log(`Processing batch of airlines with continuation token:`, continuationToken);
           const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
             body: {
               lastProcessedAirline: continuationToken,
-              batchSize: 3 // Process 3 airlines at a time
+              batchSize: 3
             }
           });
 
@@ -109,10 +115,10 @@ const Admin = () => {
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
-            // Add delay between batches to avoid rate limits
             await new Promise(resolve => setTimeout(resolve, 2000));
           } else {
             completed = true;
+            setPetPolicyProgress(prev => ({ ...prev, isComplete: true }));
           }
         }
 
@@ -337,14 +343,27 @@ const Admin = () => {
                 </div>
               )}
 
-              <Button 
-                onClick={() => handleSync('petPolicies')}
-                disabled={isLoading.petPolicies}
-                size="lg"
-                className="w-full text-lg"
-              >
-                {isLoading.petPolicies ? "Syncing Pet Policies..." : "Sync Pet Policies"}
-              </Button>
+              <div className="space-y-2">
+                {petPolicyProgress.lastAirline && !petPolicyProgress.isComplete && (
+                  <Button 
+                    onClick={() => handleSync('petPolicies', true)}
+                    disabled={isLoading.petPolicies}
+                    size="lg"
+                    className="w-full text-lg"
+                  >
+                    {isLoading.petPolicies ? "Resuming Sync..." : "Resume Sync"}
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => handleSync('petPolicies')}
+                  disabled={isLoading.petPolicies}
+                  size="lg"
+                  variant={petPolicyProgress.lastAirline && !petPolicyProgress.isComplete ? "outline" : "default"}
+                  className="w-full text-lg"
+                >
+                  {isLoading.petPolicies ? "Syncing Pet Policies..." : "Start New Sync"}
+                </Button>
+              </div>
             </div>
 
             {/* Routes Sync */}
