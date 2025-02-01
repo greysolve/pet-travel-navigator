@@ -120,7 +120,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY')
@@ -153,7 +152,6 @@ Deno.serve(async (req) => {
       batchSize = BATCH_SIZE
     } = requestBody
 
-    // Fetch countries
     const { data: countries, error: countriesError } = await supabase
       .rpc('get_distinct_countries')
     
@@ -262,14 +260,12 @@ Deno.serve(async (req) => {
             console.error('Error updating progress:', progressError);
           }
         }
-
-        // Add a delay between requests to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Removed the delay here
       } catch (error) {
         console.error(`Error processing country ${country}:`, error)
         newErrorItems.push(country)
         
-        // If we hit API limits, return current progress
         if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
           console.log('Rate limit or quota reached, stopping batch')
           return new Response(
