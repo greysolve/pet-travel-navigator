@@ -34,6 +34,7 @@ const Admin = () => {
   // Fetch existing sync progress on mount and periodically
   useEffect(() => {
     const fetchProgress = async () => {
+      console.log('Fetching sync progress...');
       const { data, error } = await supabase
         .from('sync_progress')
         .select('*')
@@ -44,19 +45,27 @@ const Admin = () => {
         return;
       }
 
-      const progressByType = data.reduce((acc, curr) => ({
-        ...acc,
-        [curr.type]: {
-          total: curr.total,
-          processed: curr.processed,
-          lastProcessed: curr.last_processed,
-          processedItems: curr.processed_items || [],
-          errorItems: curr.error_items || [],
-          startTime: curr.start_time,
-          isComplete: curr.is_complete
-        }
-      }), {});
+      console.log('Received sync progress data:', data);
 
+      // Group by type and get the most recent for each
+      const progressByType = data.reduce((acc, curr) => {
+        // Only update if we don't have this type yet or if this entry is more recent
+        if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
+          acc[curr.type] = {
+            total: curr.total,
+            processed: curr.processed,
+            lastProcessed: curr.last_processed,
+            processedItems: curr.processed_items || [],
+            errorItems: curr.error_items || [],
+            startTime: curr.start_time,
+            isComplete: curr.is_complete,
+            created_at: curr.created_at
+          };
+        }
+        return acc;
+      }, {});
+
+      console.log('Processed sync progress by type:', progressByType);
       setSyncProgress(progressByType);
     };
 
@@ -262,6 +271,11 @@ const Admin = () => {
     return `~${minutes}m ${seconds}s`;
   };
 
+  const isSyncInProgress = (type: string) => {
+    const progress = syncProgress[type];
+    return progress && !progress.isComplete;
+  };
+
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
@@ -334,7 +348,7 @@ const Admin = () => {
                 <Label htmlFor="clearPolicies" className="text-lg">Clear existing pet policy data first</Label>
               </div>
 
-              {syncProgress.petPolicies?.total > 0 && (
+              {syncProgress.petPolicies?.total > 0 && !syncProgress.petPolicies?.isComplete && (
                 <div className="mb-6 space-y-4">
                   <Progress 
                     value={Math.min((syncProgress.petPolicies.processed / syncProgress.petPolicies.total) * 100, 100)} 
@@ -378,7 +392,7 @@ const Admin = () => {
               )}
 
               <div className="space-y-2">
-                {syncProgress.petPolicies?.lastProcessed && !syncProgress.petPolicies?.isComplete && (
+                {isSyncInProgress('petPolicies') && (
                   <Button 
                     onClick={() => handleSync('petPolicies', true)}
                     disabled={isLoading.petPolicies}
@@ -390,12 +404,13 @@ const Admin = () => {
                 )}
                 <Button 
                   onClick={() => handleSync('petPolicies')}
-                  disabled={isLoading.petPolicies}
+                  disabled={isLoading.petPolicies || isSyncInProgress('petPolicies')}
                   size="lg"
-                  variant={syncProgress.petPolicies?.lastProcessed && !syncProgress.petPolicies?.isComplete ? "outline" : "default"}
+                  variant={isSyncInProgress('petPolicies') ? "outline" : "default"}
                   className="w-full text-lg"
                 >
-                  {isLoading.petPolicies ? "Syncing Pet Policies..." : "Start New Sync"}
+                  {isLoading.petPolicies ? "Syncing Pet Policies..." : 
+                   isSyncInProgress('petPolicies') ? "Sync in Progress..." : "Start New Sync"}
                 </Button>
               </div>
             </div>
