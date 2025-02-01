@@ -24,13 +24,15 @@ interface SyncSectionProps {
   setIsLoading: (loading: { [key: string]: boolean }) => void;
 }
 
+type SyncType = 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies';
+
 export const SyncSection = ({ 
   syncProgress, 
   isLoading,
   setSyncProgress,
   setIsLoading 
 }: SyncSectionProps) => {
-  const [clearData, setClearData] = useState<{[key: string]: boolean}>({
+  const [clearData, setClearData] = useState<{[key in SyncType]: boolean}>({
     airlines: false,
     airports: false,
     petPolicies: false,
@@ -42,7 +44,6 @@ export const SyncSection = ({
     try {
       console.log(`Updating sync progress for ${type}:`, progress);
       
-      // First update the database
       const { error } = await supabase
         .from('sync_progress')
         .insert({
@@ -61,7 +62,6 @@ export const SyncSection = ({
         throw error;
       }
       
-      // Then update local state
       console.log('Previous sync progress:', syncProgress);
       const updatedProgress = {
         ...syncProgress,
@@ -79,9 +79,8 @@ export const SyncSection = ({
     }
   };
 
-  const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
+  const handleSync = async (type: SyncType, resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
-    // Create a new loading state object instead of using the function form
     const newLoadingState = { ...isLoading, [type]: true };
     setIsLoading(newLoadingState);
     
@@ -232,7 +231,6 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      // Create a new loading state object for the final state update
       const finalLoadingState = { ...isLoading, [type]: false };
       setIsLoading(finalLoadingState);
     }
