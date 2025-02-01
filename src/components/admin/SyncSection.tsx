@@ -49,12 +49,15 @@ export const SyncSection = ({
       try {
         setIsFetchingProgress(true);
         setError(null);
-        console.log('Fetching initial sync progress...');
+        console.log('DEBUG: Starting to fetch sync progress...');
         
         const { data, error } = await supabase
           .from('sync_progress')
           .select('*')
+          .eq('is_complete', false)  // Only get incomplete syncs
           .order('created_at', { ascending: false });
+
+        console.log('DEBUG: Sync progress query result:', { data, error });
 
         if (error) {
           console.error('Error fetching sync progress:', error);
@@ -63,7 +66,7 @@ export const SyncSection = ({
         }
 
         if (data && data.length > 0) {
-          console.log('Received initial sync progress data:', data);
+          console.log('DEBUG: Found incomplete syncs:', data);
           
           // Group by type and get the most recent for each
           const progressByType = data.reduce((acc: any, curr: any) => {
@@ -82,8 +85,10 @@ export const SyncSection = ({
             return acc;
           }, {});
 
-          console.log('Processed initial sync progress by type:', progressByType);
+          console.log('DEBUG: Processed sync progress by type:', progressByType);
           setSyncProgress(progressByType);
+        } else {
+          console.log('DEBUG: No incomplete syncs found');
         }
       } catch (error) {
         console.error('Error in fetchInitialProgress:', error);
@@ -94,6 +99,10 @@ export const SyncSection = ({
     };
 
     fetchInitialProgress();
+    
+    // Set up polling
+    const interval = setInterval(fetchInitialProgress, 5000);
+    return () => clearInterval(interval);
   }, [setSyncProgress]);
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
