@@ -173,20 +173,23 @@ export const SyncSection = () => {
         batchSize: type === 'petPolicies' ? 3 : type === 'countryPolicies' ? 10 : undefined
       };
 
+      console.log(`Invoking edge function ${functionName} with payload:`, payload);
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: payload
       });
 
       if (error) throw error;
 
+      console.log(`Received response from ${functionName}:`, data);
+
       // Handle the response in a unified way
-      if (data.total) {
+      if (data) {
         const updatedProgress: SyncProgress = {
-          total: data.total_airlines || data.total_countries || data.total || 0,
-          processed: data.processed_count || data.processed_policies || data.processed || 0,
+          total: data.total || 0,
+          processed: data.processed || 0,
           lastProcessed: data.continuation_token || null,
-          processedItems: data.processed_airlines || data.processed_countries || [],
-          errorItems: data.error_airlines || data.error_countries || [],
+          processedItems: data.processed_items || [],
+          errorItems: data.error_items || [],
           startTime: resume ? syncProgress?.[type]?.startTime || new Date().toISOString() : new Date().toISOString(),
           isComplete: !data.continuation_token
         };
@@ -212,6 +215,7 @@ export const SyncSection = () => {
 
         // If there's more to process and this is a batch-based sync
         if (data.continuation_token && (type === 'petPolicies' || type === 'countryPolicies')) {
+          console.log(`Continuing batch processing for ${type}`);
           await new Promise(resolve => setTimeout(resolve, 2000));
           await handleSync(type, true);
           return;
