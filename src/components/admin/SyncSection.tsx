@@ -45,15 +45,12 @@ export const SyncSection = () => {
 
       console.log('DEBUG: Raw sync progress data:', data);
 
-      // Group by type and get the most recent record for each sync session
+      // Find the latest active sync session for each type
       const progressByType = (data as SyncProgressDBRecord[]).reduce((acc: SyncProgressRecord, curr) => {
-        const existingProgress = acc[curr.type];
-        
-        // If this is a new sync session (different start_time) or has more progress
-        if (!existingProgress || 
-            !existingProgress.startTime || 
-            curr.start_time !== existingProgress.startTime || 
-            curr.processed > existingProgress.processed) {
+        if (!acc[curr.type] || 
+            (!curr.is_complete && curr.start_time && 
+             (!acc[curr.type].startTime || 
+              new Date(curr.start_time) > new Date(acc[curr.type].startTime!)))) {
           acc[curr.type] = {
             total: curr.total,
             processed: curr.processed,
@@ -89,6 +86,7 @@ export const SyncSection = () => {
         .select('*')
         .eq('type', type)
         .eq('start_time', progress.startTime)
+        .eq('is_complete', false)
         .maybeSingle();
 
       if (existingError) {
@@ -313,14 +311,6 @@ export const SyncSection = () => {
       setIsLoading(finalLoadingState);
     }
   };
-
-  if (error) {
-    return (
-      <Alert variant="destructive" className="mb-8">
-        <AlertDescription>Failed to fetch sync progress</AlertDescription>
-      </Alert>
-    );
-  }
 
   return (
     <div className="space-y-8">
