@@ -40,6 +40,7 @@ export const SyncSection = ({
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
     try {
+      console.log(`Updating sync progress for ${type}:`, progress);
       const { error } = await supabase
         .from('sync_progress')
         .insert({
@@ -54,6 +55,14 @@ export const SyncSection = ({
         });
 
       if (error) throw error;
+      
+      // Update local state
+      const updatedProgress = {
+        ...syncProgress,
+        [type]: progress
+      };
+      console.log('Setting new sync progress:', updatedProgress);
+      setSyncProgress(updatedProgress);
     } catch (error: any) {
       console.error('Error updating sync progress:', error);
       toast({
@@ -65,8 +74,8 @@ export const SyncSection = ({
   };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
-    const newLoading = { ...isLoading, [type]: true };
-    setIsLoading(newLoading);
+    console.log(`Starting sync for ${type}, resume: ${resume}`);
+    setIsLoading({ ...isLoading, [type]: true });
     
     try {
       if (!resume && clearData[type]) {
@@ -96,7 +105,6 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', initialProgress);
-          setSyncProgress({ ...syncProgress, petPolicies: initialProgress });
         }
 
         let continuationToken = resume ? syncProgress.petPolicies?.lastProcessed : null;
@@ -122,7 +130,6 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', updatedProgress);
-          setSyncProgress({ ...syncProgress, petPolicies: updatedProgress });
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
@@ -144,7 +151,6 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('countryPolicies', initialProgress);
-          setSyncProgress({ ...syncProgress, countryPolicies: initialProgress });
         }
 
         let continuationToken = resume ? syncProgress.countryPolicies?.lastProcessed : null;
@@ -169,7 +175,6 @@ export const SyncSection = ({
             };
 
             await updateSyncProgress('countryPolicies', updatedProgress);
-            setSyncProgress({ ...syncProgress, countryPolicies: updatedProgress });
           }
 
           if (data.continuation_token) {
