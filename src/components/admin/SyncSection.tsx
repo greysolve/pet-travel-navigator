@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { SyncCard } from "./SyncCard";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { SyncCard } from "./SyncCard";
 
 interface SyncProgress {
   total: number;
@@ -15,25 +16,8 @@ interface SyncProgress {
   isComplete: boolean;
 }
 
-interface SyncSectionProps {
-  syncProgress: {
-    [key: string]: SyncProgress;
-  };
-  isLoading: {
-    [key: string]: boolean;
-  };
-  setSyncProgress: (progress: { [key: string]: SyncProgress }) => void;
-  setIsLoading: (loading: { [key: string]: boolean }) => void;
-}
-
-type SyncType = 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies';
-
-export const SyncSection = ({ 
-  syncProgress, 
-  isLoading,
-  setSyncProgress,
-  setIsLoading 
-}: SyncSectionProps) => {
+export const SyncSection = () => {
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key in SyncType]: boolean}>({
     airlines: false,
     airports: false,
@@ -41,69 +25,49 @@ export const SyncSection = ({
     routes: false,
     countryPolicies: false
   });
-  const [isFetchingProgress, setIsFetchingProgress] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchInitialProgress = async () => {
-      try {
-        setIsFetchingProgress(true);
-        setError(null);
-        console.log('DEBUG: Starting to fetch sync progress...');
-        
-        const { data, error } = await supabase
-          .from('sync_progress')
-          .select('*')
-          .eq('is_complete', false)  // Only get incomplete syncs
-          .order('created_at', { ascending: false });
+  const { data: syncProgress, error } = useQuery({
+    queryKey: ["syncProgress"],
+    queryFn: async () => {
+      console.log('DEBUG: Starting to fetch sync progress...');
+      const { data, error } = await supabase
+        .from('sync_progress')
+        .select('*')
+        .eq('is_complete', false)
+        .order('created_at', { ascending: false });
 
-        console.log('DEBUG: Sync progress query result:', { data, error });
-
-        if (error) {
-          console.error('Error fetching sync progress:', error);
-          setError('Failed to fetch sync progress');
-          return;
-        }
-
-        if (data && data.length > 0) {
-          console.log('DEBUG: Found incomplete syncs:', data);
-          
-          // Group by type and get the most recent for each
-          const progressByType = data.reduce((acc: any, curr: any) => {
-            if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
-              acc[curr.type] = {
-                total: curr.total,
-                processed: curr.processed,
-                lastProcessed: curr.last_processed,
-                processedItems: curr.processed_items || [],
-                errorItems: curr.error_items || [],
-                startTime: curr.start_time,
-                isComplete: curr.is_complete,
-                created_at: curr.created_at
-              };
-            }
-            return acc;
-          }, {});
-
-          console.log('DEBUG: Processed sync progress by type:', progressByType);
-          setSyncProgress(progressByType);
-        } else {
-          console.log('DEBUG: No incomplete syncs found');
-        }
-      } catch (error) {
-        console.error('Error in fetchInitialProgress:', error);
-        setError('Failed to fetch sync progress');
-      } finally {
-        setIsFetchingProgress(false);
+      if (error) {
+        console.error('Error fetching sync progress:', error);
+        throw error;
       }
-    };
 
-    fetchInitialProgress();
-    
-    // Set up polling
-    const interval = setInterval(fetchInitialProgress, 5000);
-    return () => clearInterval(interval);
-  }, [setSyncProgress]);
+      console.log('DEBUG: Sync progress query result:', { data, error });
+
+      // Group by type and get the most recent for each
+      const progressByType = data.reduce((acc: any, curr: any) => {
+        if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
+          acc[curr.type] = {
+            total: curr.total,
+            processed: curr.processed,
+            lastProcessed: curr.last_processed,
+            processedItems: curr.processed_items || [],
+            errorItems: curr.error_items || [],
+            startTime: curr.start_time,
+            isComplete: curr.is_complete,
+            created_at: curr.created_at
+          };
+        }
+        return acc;
+      }, {});
+
+      console.log('DEBUG: Processed sync progress by type:', progressByType);
+      return progressByType;
+    },
+    refetchInterval: 5000, // Poll every 5 seconds
+    refetchIntervalInBackground: true,
+    staleTime: 0, // Consider data immediately stale to enable background updates
+  });
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
     try {
@@ -310,30 +274,21 @@ export const SyncSection = ({
     }
   };
 
-  if (isFetchingProgress) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[200px] space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-lg">Loading sync progress...</p>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <Alert variant="destructive" className="mb-8">
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>Failed to fetch sync progress</AlertDescription>
       </Alert>
     );
   }
 
   return (
     <div className="space-y-8">
-      {Object.keys(syncProgress).length > 0 && (
+      {Object.keys(syncProgress || {}).length > 0 && (
         <div className="bg-accent/20 p-4 rounded-lg mb-8">
           <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
           <div className="space-y-2">
-            {Object.entries(syncProgress).map(([type, progress]) => !progress.isComplete && (
+            {Object.entries(syncProgress || {}).map(([type, progress]) => !progress.isComplete && (
               <div key={type} className="text-sm">
                 {type}: {progress.processed} of {progress.total} items processed
               </div>
@@ -351,7 +306,7 @@ export const SyncSection = ({
           }}
           isLoading={isLoading.airlines}
           onSync={() => handleSync('airlines')}
-          syncProgress={syncProgress.airlines}
+          syncProgress={syncProgress?.airlines}
         />
 
         <SyncCard
@@ -362,7 +317,7 @@ export const SyncSection = ({
           }}
           isLoading={isLoading.airports}
           onSync={() => handleSync('airports')}
-          syncProgress={syncProgress.airports}
+          syncProgress={syncProgress?.airports}
         />
 
         <SyncCard
@@ -373,7 +328,7 @@ export const SyncSection = ({
           }}
           isLoading={isLoading.petPolicies}
           onSync={(resume) => handleSync('petPolicies', resume)}
-          syncProgress={syncProgress.petPolicies}
+          syncProgress={syncProgress?.petPolicies}
         />
 
         <SyncCard
@@ -384,7 +339,7 @@ export const SyncSection = ({
           }}
           isLoading={isLoading.routes}
           onSync={() => handleSync('routes')}
-          syncProgress={syncProgress.routes}
+          syncProgress={syncProgress?.routes}
         />
 
         <SyncCard
@@ -395,7 +350,7 @@ export const SyncSection = ({
           }}
           isLoading={isLoading.countryPolicies}
           onSync={(resume) => handleSync('countryPolicies', resume)}
-          syncProgress={syncProgress.countryPolicies}
+          syncProgress={syncProgress?.countryPolicies}
         />
       </div>
     </div>
