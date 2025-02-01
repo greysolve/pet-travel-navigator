@@ -6,6 +6,8 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AirlineDataManager } from "@/components/admin/AirlineDataManager";
 
 const Admin = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
@@ -198,7 +200,14 @@ const Admin = () => {
     <div className="container mx-auto p-8">
       <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <Tabs defaultValue="sync" className="space-y-8">
+        <TabsList>
+          <TabsTrigger value="sync">Data Sync</TabsTrigger>
+          <TabsTrigger value="airlines">Airline Data</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sync" className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Airlines Sync */}
         <div className="p-8 border rounded-lg bg-card shadow-sm">
           <h2 className="text-2xl font-semibold mb-6">Airlines Synchronization</h2>
@@ -357,7 +366,13 @@ const Admin = () => {
             {isLoading.countryPolicies ? "Syncing Country Policies..." : "Sync Country Policies"}
           </Button>
         </div>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="airlines">
+          <AirlineDataManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
