@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 
-// Interface for the raw database record
 interface SyncProgressDBRecord extends SyncProgress {
   created_at: string;
   type: string;
@@ -23,14 +22,13 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
-  const { data: syncProgress, error } = useQuery<SyncProgressRecord>({
+  const { data: syncProgress } = useQuery<SyncProgressRecord>({
     queryKey: ["syncProgress"],
     queryFn: async () => {
       console.log('DEBUG: Starting to fetch sync progress...');
       const { data, error } = await supabase
         .from('sync_progress')
         .select('*')
-        .eq('is_complete', false)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -42,15 +40,20 @@ export const SyncSection = () => {
 
       // Group by type and get the most recent for each
       const progressByType = (data as SyncProgressDBRecord[]).reduce((acc: SyncProgressRecord, curr) => {
-        if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].startTime!)) {
+        const existingProgress = acc[curr.type];
+        
+        // Only update if this record is more recent or has more progress
+        if (!existingProgress || 
+            new Date(curr.created_at) > new Date(existingProgress.startTime!) ||
+            curr.processed > existingProgress.processed) {
           acc[curr.type] = {
             total: curr.total,
             processed: curr.processed,
-            lastProcessed: curr.lastProcessed,
-            processedItems: curr.processedItems || [],
-            errorItems: curr.errorItems || [],
+            lastProcessed: curr.last_processed,
+            processedItems: curr.processed_items || [],
+            errorItems: curr.error_items || [],
             startTime: curr.created_at,
-            isComplete: curr.isComplete,
+            isComplete: curr.is_complete,
           };
         }
         return acc;
@@ -59,7 +62,7 @@ export const SyncSection = () => {
       console.log('DEBUG: Processed sync progress by type:', progressByType);
       return progressByType;
     },
-    refetchInterval: 5000,
+    refetchInterval: 2000, // Increased frequency to 2 seconds
     refetchIntervalInBackground: true,
     staleTime: 0,
   });
@@ -94,7 +97,7 @@ export const SyncSection = () => {
       
       console.log('DEBUG: Successfully inserted sync progress:', data);
       
-      // Update the cache instead of using setState
+      // Update the cache
       queryClient.setQueryData<SyncProgressRecord>(["syncProgress"], (old) => ({
         ...old,
         [type]: progress
