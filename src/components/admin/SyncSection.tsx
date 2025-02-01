@@ -81,7 +81,9 @@ export const SyncSection = ({
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
-    setIsLoading(prevLoading => ({ ...prevLoading, [type]: true }));
+    // Create a new loading state object instead of using the function form
+    const newLoadingState = { ...isLoading, [type]: true };
+    setIsLoading(newLoadingState);
     
     try {
       if (!resume && clearData[type]) {
@@ -230,7 +232,9 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      setIsLoading(prevLoading => ({ ...prevLoading, [type]: false }));
+      // Create a new loading state object for the final state update
+      const finalLoadingState = { ...isLoading, [type]: false };
+      setIsLoading(finalLoadingState);
     }
   };
 
