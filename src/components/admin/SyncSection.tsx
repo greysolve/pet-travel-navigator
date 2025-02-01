@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
+import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 // Define the database record type
 interface SyncProgressDB {
@@ -43,9 +44,9 @@ export const SyncSection = () => {
           schema: 'public',
           table: 'sync_progress'
         },
-        (payload: { new: SyncProgressDB }) => {
+        (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log('Received sync progress update:', payload);
-          const { new: newRecord } = payload;
+          const newRecord = payload.new;
           if (newRecord) {
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
