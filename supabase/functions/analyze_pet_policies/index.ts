@@ -67,17 +67,7 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to fetch airline data: ${airlineError?.message || 'Airline not found'}`);
     }
 
-    // Check for website before making the Perplexity API call
-    if (!airlineData.website) {
-      console.log(`Skipping airline ${airline_id} - no website available`);
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Skipped - no website available' 
-        }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log('Analyzing airline:', { name: airlineData.name, website: airlineData.website });
 
     const prompt = `
       Analyze this airline: ${airlineData.name}
@@ -136,19 +126,30 @@ Deno.serve(async (req) => {
       throw new Error(`Perplexity API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    console.log('Perplexity API response:', data);
+    const rawResponseText = await response.text();
+    console.log('Raw Perplexity API response:', rawResponseText);
+
+    let data;
+    try {
+      data = JSON.parse(rawResponseText);
+      console.log('Parsed API response:', data);
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      console.error('Raw text that failed to parse:', rawResponseText);
+      throw new Error(`Failed to parse response JSON: ${error.message}`);
+    }
 
     if (!data.choices?.[0]?.message?.content) {
       throw new Error('Invalid API response structure');
     }
 
     let content = data.choices[0].message.content.trim();
-    console.log('Raw content to parse:', content);
+    console.log('Content to parse:', content);
 
     // Extract JSON from the content and ensure it's properly formatted
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error('No JSON object found in content:', content);
       throw new Error('No JSON object found in content');
     }
 
@@ -159,6 +160,7 @@ Deno.serve(async (req) => {
       console.log('Successfully parsed JSON:', parsedData);
     } catch (error) {
       console.error('JSON parsing error:', error);
+      console.error('Text that failed to parse:', jsonMatch[0]);
       throw new Error(`Failed to parse response JSON: ${error.message}`);
     }
 
