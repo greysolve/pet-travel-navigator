@@ -6,7 +6,6 @@ const corsHeaders = {
 }
 
 const BATCH_SIZE = 10;
-const MAX_RETRIES = 3;
 
 interface ProcessingState {
   lastProcessedCountry: string | null;
@@ -80,7 +79,6 @@ async function processBatch(
           processed.push(country);
           processedCount++;
           
-          // Update progress after each country
           try {
             const { error: progressError } = await supabaseClient
               .from('sync_progress')
@@ -140,12 +138,7 @@ async function processBatch(
 }
 
 Deno.serve(async (req) => {
-  console.log('Request received:', {
-    method: req.method,
-    url: req.url,
-    headers: Object.fromEntries(req.headers.entries())
-  });
-
+  // Add CORS headers to all responses
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
@@ -154,6 +147,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Request received:', {
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries())
+    });
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
@@ -162,7 +161,6 @@ Deno.serve(async (req) => {
     const lastProcessedCountry = requestBody.lastProcessedCountry || null;
     const isResuming = !!lastProcessedCountry;
     
-    // Get existing progress if resuming, otherwise reset
     let existingProgress = { processed: 0, processedItems: [], errorItems: [] };
     if (isResuming) {
       console.log('Resuming sync, fetching existing progress...');
@@ -236,10 +234,10 @@ Deno.serve(async (req) => {
 
     const summary = {
       success: true,
-      total_countries: uniqueCountries.length,
-      processed_policies: processedCount,
-      processed_countries: processed,
-      error_countries: errors,
+      total: uniqueCountries.length,
+      processed: processedCount,
+      processed_items: processed,
+      error_items: errors,
       continuation_token: shouldContinue ? finalProcessedCountry : null,
       completed: !shouldContinue
     };
