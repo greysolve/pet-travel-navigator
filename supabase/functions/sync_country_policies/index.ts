@@ -86,23 +86,27 @@ async function processBatch(
           processedCount++;
           
           // Update progress after each country
-          const { error: progressError } = await supabaseClient
-            .from('sync_progress')
-            .upsert({
-              type: 'countryPolicies',
-              total: countries.length,
-              processed: processedCount,
-              last_processed: country,
-              processed_items: processed,
-              error_items: errors,
-              start_time: new Date(state.startTime).toISOString(),
-              is_complete: false
-            }, {
-              onConflict: 'type'
-            });
+          try {
+            const { error: progressError } = await supabaseClient
+              .from('sync_progress')
+              .upsert({
+                type: 'countryPolicies',
+                total: countries.length,
+                processed: processedCount,
+                last_processed: country,
+                processed_items: processed,
+                error_items: errors,
+                start_time: new Date(state.startTime).toISOString(),
+                is_complete: false
+              }, {
+                onConflict: 'type'
+              });
 
-          if (progressError) {
-            console.error('Error updating progress:', progressError);
+            if (progressError) {
+              console.error('Error updating progress:', progressError);
+            }
+          } catch (progressUpdateError) {
+            console.error('Failed to update progress:', progressUpdateError);
           }
           
           console.log(`Successfully processed policy for ${country}. Total processed: ${processedCount}`);
@@ -158,20 +162,15 @@ async function fetchPolicyWithRetry(country: string, policyType: 'pet' | 'live_a
   }
 }
 
-// Add shutdown handling
-addEventListener('beforeunload', (ev) => {
-  console.log('Function shutdown initiated:', ev.detail?.reason)
-  // Log the current state before shutdown
-  console.log('Current processing state will be preserved in the database')
-})
-
 Deno.serve(async (req) => {
+  // Log incoming request details
   console.log('Request received:', {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
   });
 
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
