@@ -3,12 +3,11 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 console.log('Edge Function: sync_country_policies initialized')
 
-const BATCH_SIZE = 5 // Reduced batch size to avoid rate limits
-const RATE_LIMIT_DELAY = 2000 // Increased delay between API calls to 2 seconds
+const BATCH_SIZE = 5
+const RATE_LIMIT_DELAY = 2000
 const MAX_RETRIES = 3
-const MAX_EXECUTION_TIME = 25000 // 25 seconds to ensure we stay within edge function limits
+const MAX_EXECUTION_TIME = 25000
 
-// Helper function to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 interface ProcessingState {
@@ -17,7 +16,6 @@ interface ProcessingState {
   startTime: number;
 }
 
-// Helper function to process a batch of countries
 async function processBatch(
   countries: string[], 
   supabaseClient: any,
@@ -26,42 +24,45 @@ async function processBatch(
   processed: string[], 
   errors: string[], 
   shouldContinue: boolean,
-  lastProcessedCountry: string | null 
+  lastProcessedCountry: string | null,
+  processedCount: number 
 }> {
   console.log(`Processing batch starting after country: ${state.lastProcessedCountry || 'START'}`)
   const processed: string[] = []
   const errors: string[] = []
   let shouldContinue = true
+  let processedCount = 0
 
-  // Find starting index based on last processed country
   const startIndex = state.lastProcessedCountry 
     ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
     : 0
 
   console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`)
 
-  // Check if we've processed all countries
   if (startIndex >= countries.length) {
     console.log('All countries have been processed')
     return {
       processed,
       errors,
       shouldContinue: false,
-      lastProcessedCountry: null
+      lastProcessedCountry: null,
+      processedCount: 0
     }
   }
 
-  for (let i = 0; i < BATCH_SIZE && (startIndex + i) < countries.length; i++) {
-    // Check if we're approaching the time limit
+  const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length)
+  console.log(`Processing countries from index ${startIndex} to ${endIndex}`)
+
+  for (let i = startIndex; i < endIndex; i++) {
     if (Date.now() - state.startTime > MAX_EXECUTION_TIME) {
       console.log('Approaching execution time limit, gracefully stopping batch processing')
-      shouldContinue = true // Changed to true to indicate more processing needed
+      shouldContinue = true
       break
     }
 
-    const country = countries[startIndex + i]
+    const country = countries[i]
     try {
-      console.log(`Processing country ${startIndex + i + 1}/${countries.length}: ${country}`)
+      console.log(`Processing country ${i + 1}/${countries.length}: ${country}`)
       
       const policy = await fetchPolicyWithRetry(country, 'pet')
       console.log(`Policy data received for ${country}:`, policy)
@@ -83,11 +84,10 @@ async function processBatch(
       } else {
         processed.push(country)
         state.lastProcessedCountry = country
-        state.processedCount++
-        console.log(`Successfully processed policy for ${country}. Total processed: ${state.processedCount}`)
+        processedCount++
+        console.log(`Successfully processed policy for ${country}. Total processed in this batch: ${processedCount}`)
       }
 
-      // Rate limiting delay between API calls
       await delay(RATE_LIMIT_DELAY)
     } catch (error) {
       console.error(`Error processing country ${country}:`, error)
@@ -95,27 +95,24 @@ async function processBatch(
       
       if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
         console.log('Rate limit or quota reached, gracefully stopping batch processing')
-        shouldContinue = true // Changed to true to indicate more processing needed
+        shouldContinue = true
         break
       }
     }
   }
 
-  // Set continuation token to the last processed country if there are more countries to process
-  const nextIndex = startIndex + processed.length
-  const hasMoreCountries = nextIndex < countries.length
-  
+  const hasMoreCountries = endIndex < countries.length
   console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`)
   
   return { 
     processed, 
     errors, 
     shouldContinue: hasMoreCountries,
-    lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null
+    lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null,
+    processedCount
   }
 }
 
-// Helper function with retry logic
 async function fetchPolicyWithRetry(country: string, policyType: 'pet' | 'live_animal', retryCount = 0): Promise<any> {
   try {
     return await fetchPolicyWithAI(country, policyType)
@@ -124,11 +121,10 @@ async function fetchPolicyWithRetry(country: string, policyType: 'pet' | 'live_a
     
     if (retryCount < MAX_RETRIES && 
         (error.message?.includes('rate limit') || error.message?.includes('quota exceeded'))) {
-      const backoffDelay = Math.pow(2, retryCount) * 1000 // Exponential backoff
+      const backoffDelay = Math.pow(2, retryCount) * 1000
       await delay(backoffDelay)
       return fetchPolicyWithRetry(country, policyType, retryCount + 1)
     }
-    
     throw error
   }
 }
@@ -140,7 +136,6 @@ Deno.serve(async (req) => {
     headers: Object.fromEntries(req.headers.entries())
   })
 
-  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
@@ -174,11 +169,9 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Get request body for continuation token
     const requestBody = await req.json().catch(() => ({}))
     const lastProcessedCountry = requestBody.lastProcessedCountry || null
     
-    // Get unique countries
     const { data: countries, error: countriesError } = await supabaseClient
       .rpc('get_distinct_countries')
 
@@ -207,15 +200,13 @@ Deno.serve(async (req) => {
       startTime: Date.now()
     }
 
-    // Process countries in batches
-    const { processed, errors, shouldContinue, lastProcessedCountry: finalProcessedCountry } = 
+    const { processed, errors, shouldContinue, lastProcessedCountry: finalProcessedCountry, processedCount } = 
       await processBatch(uniqueCountries, supabaseClient, state)
 
     const summary = {
       success: true,
       total_countries: uniqueCountries.length,
-      processed_policies: processed.length,
-      errors: errors.length,
+      processed_policies: processedCount,
       processed_countries: processed,
       error_countries: errors,
       continuation_token: shouldContinue ? finalProcessedCountry : null,
