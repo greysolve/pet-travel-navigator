@@ -136,10 +136,46 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
+      // Force reset progress for country policies if not resuming
+      if (type === 'countryPolicies' && !resume) {
+        console.log('Forcing reset of country policies sync progress');
+        const { error: resetError } = await supabase
+          .from('sync_progress')
+          .update({
+            total: 0,
+            processed: 0,
+            last_processed: null,
+            processed_items: [],
+            error_items: [],
+            start_time: new Date().toISOString(),
+            is_complete: false
+          })
+          .eq('type', type);
+
+        if (resetError) {
+          console.error('Error resetting country policies sync:', resetError);
+          throw resetError;
+        }
+
+        // Clear existing country policies if requested
+        if (clearData[type]) {
+          console.log('Clearing existing country policies data');
+          const { error: clearError } = await supabase
+            .from('country_policies')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000');
+          
+          if (clearError) {
+            console.error('Error clearing country policies:', clearError);
+            throw clearError;
+          }
+        }
+      }
+
       const currentProgress = syncProgress?.[type];
       
-      // Only reset progress if not resuming
-      if (!resume) {
+      // Only reset progress if not resuming and not country policies (handled above)
+      if (!resume && type !== 'countryPolicies') {
         console.log(`Resetting progress for ${type}`);
         const { error: resetError } = await supabase
           .from('sync_progress')
@@ -160,8 +196,7 @@ export const SyncSection = () => {
 
         if (clearData[type]) {
           console.log(`Clearing existing data for ${type}`);
-          const tableName = type === 'countryPolicies' ? 'country_policies' : 
-                           type === 'petPolicies' ? 'pet_policies' : type;
+          const tableName = type === 'petPolicies' ? 'pet_policies' : type;
           
           const { error: clearError } = await supabase
             .from(tableName)
@@ -170,8 +205,6 @@ export const SyncSection = () => {
           
           if (clearError) throw clearError;
         }
-      } else {
-        console.log(`Resuming sync for ${type} with existing progress:`, currentProgress);
       }
 
       const functionMap: Record<SyncType, string> = {
@@ -312,4 +345,3 @@ export const SyncSection = () => {
 };
 
 export default SyncSection;
-
