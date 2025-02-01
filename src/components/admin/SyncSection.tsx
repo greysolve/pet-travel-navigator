@@ -196,15 +196,30 @@ export const SyncSection = () => {
 
         if (clearData[type]) {
           console.log(`Clearing existing data for ${type}`);
-          const tableName = type === 'petPolicies' ? 'pet_policies' : type;
+          // Map sync types to their corresponding table names
+          const tableNameMap: Record<keyof typeof SyncType, string> = {
+            airlines: 'airlines',
+            airports: 'airports',
+            petPolicies: 'pet_policies',
+            routes: 'routes',
+            countryPolicies: 'country_policies'
+          };
+          
+          const tableName = tableNameMap[type];
+          console.log(`Clearing data from table: ${tableName}`);
           
           const { error: clearError } = await supabase
             .from(tableName)
             .delete()
             .neq('id', '00000000-0000-0000-0000-000000000000');
           
-          if (clearError) throw clearError;
+          if (clearError) {
+            console.error(`Error clearing ${tableName}:`, clearError);
+            throw clearError;
+          }
         }
+      } else if (resume) {
+        console.log(`Resuming sync for ${type} with existing progress:`, currentProgress);
       }
 
       const functionMap: Record<SyncType, string> = {
