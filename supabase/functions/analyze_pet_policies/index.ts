@@ -137,15 +137,26 @@ Deno.serve(async (req) => {
     let content = data.choices[0].message.content.trim();
     console.log('Raw content to parse:', content);
 
-    // Extract JSON from the content
+    // Extract JSON from the content and ensure it's properly formatted
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No JSON object found in content');
     }
-    content = jsonMatch[0];
 
-    const parsedData = JSON.parse(content);
-    console.log('Parsed data:', parsedData);
+    // Parse the JSON and validate its structure
+    let parsedData;
+    try {
+      parsedData = JSON.parse(jsonMatch[0]);
+      console.log('Successfully parsed JSON:', parsedData);
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      throw new Error(`Failed to parse response JSON: ${error.message}`);
+    }
+
+    // Validate the parsed data structure
+    if (!parsedData.airline_info || !parsedData.pet_policy) {
+      throw new Error('Invalid response structure: missing required sections');
+    }
     
     // Update airline website if we got a valid one
     if (parsedData.airline_info?.official_website) {
