@@ -22,7 +22,7 @@ interface SyncProgressDB {
 
 export const SyncSection = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
-  const [clearData, setClearData] = useState<{[key in SyncType]: boolean}>({
+  const [clearData, setClearData] = useState<{[key in keyof typeof SyncType]: boolean}>({
     airlines: false,
     airports: false,
     petPolicies: false,
@@ -47,7 +47,7 @@ export const SyncSection = () => {
           },
           (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
             console.log(`Received sync progress update for ${syncType}:`, payload);
-            const newRecord = payload.new;
+            const newRecord = payload.new as SyncProgressDB;
             
             if (newRecord) {
               console.log(`Updating sync progress for ${syncType}:`, newRecord);
@@ -112,8 +112,8 @@ export const SyncSection = () => {
 
       console.log('Raw sync progress data:', data);
 
-      const progressRecord = data.reduce((acc: SyncProgressRecord, curr) => {
-        acc[curr.type] = {
+      const progressRecord = (data as SyncProgressDB[]).reduce((acc: SyncProgressRecord, curr) => {
+        acc[curr.type as keyof typeof SyncType] = {
           total: curr.total,
           processed: curr.processed,
           lastProcessed: curr.last_processed,
@@ -131,7 +131,7 @@ export const SyncSection = () => {
     refetchInterval: 0, // Disable polling since we're using real-time updates
   });
 
-  const handleSync = async (type: SyncType, resume: boolean = false) => {
+  const handleSync = async (type: keyof typeof SyncType, resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
     const newLoadingState = { ...isLoading, [type]: true };
     setIsLoading(newLoadingState);
@@ -294,60 +294,19 @@ export const SyncSection = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <SyncCard
-          title="Airlines Synchronization"
-          clearData={clearData.airlines}
-          onClearDataChange={(checked) => {
-            setClearData(prev => ({ ...prev, airlines: checked }));
-          }}
-          isLoading={isLoading.airlines}
-          onSync={(resume) => handleSync('airlines', resume)}
-          syncProgress={syncProgress?.airlines}
-        />
-
-        <SyncCard
-          title="Airports Synchronization"
-          clearData={clearData.airports}
-          onClearDataChange={(checked) => {
-            setClearData(prev => ({ ...prev, airports: checked }));
-          }}
-          isLoading={isLoading.airports}
-          onSync={(resume) => handleSync('airports', resume)}
-          syncProgress={syncProgress?.airports}
-        />
-
-        <SyncCard
-          title="Pet Policies Synchronization"
-          clearData={clearData.petPolicies}
-          onClearDataChange={(checked) => {
-            setClearData(prev => ({ ...prev, petPolicies: checked }));
-          }}
-          isLoading={isLoading.petPolicies}
-          onSync={(resume) => handleSync('petPolicies', resume)}
-          syncProgress={syncProgress?.petPolicies}
-        />
-
-        <SyncCard
-          title="Routes Synchronization"
-          clearData={clearData.routes}
-          onClearDataChange={(checked) => {
-            setClearData(prev => ({ ...prev, routes: checked }));
-          }}
-          isLoading={isLoading.routes}
-          onSync={(resume) => handleSync('routes', resume)}
-          syncProgress={syncProgress?.routes}
-        />
-
-        <SyncCard
-          title="Country Policies Synchronization"
-          clearData={clearData.countryPolicies}
-          onClearDataChange={(checked) => {
-            setClearData(prev => ({ ...prev, countryPolicies: checked }));
-          }}
-          isLoading={isLoading.countryPolicies}
-          onSync={(resume) => handleSync('countryPolicies', resume)}
-          syncProgress={syncProgress?.countryPolicies}
-        />
+        {Object.entries(SyncType).map(([key, value]) => (
+          <SyncCard
+            key={key}
+            title={`${key.replace(/([A-Z])/g, ' $1').trim()} Synchronization`}
+            clearData={clearData[key as keyof typeof SyncType]}
+            onClearDataChange={(checked) => {
+              setClearData(prev => ({ ...prev, [key]: checked }));
+            }}
+            isLoading={isLoading[value]}
+            onSync={(resume) => handleSync(key as keyof typeof SyncType, resume)}
+            syncProgress={syncProgress?.[value]}
+          />
+        ))}
       </div>
     </div>
   );

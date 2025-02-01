@@ -1,4 +1,12 @@
-export type SyncType = 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies';
+export const SyncType = {
+  airlines: 'airlines',
+  airports: 'airports',
+  petPolicies: 'petPolicies',
+  routes: 'routes',
+  countryPolicies: 'countryPolicies'
+} as const;
+
+export type SyncType = typeof SyncType[keyof typeof SyncType];
 
 export interface SyncProgress {
   total: number;
