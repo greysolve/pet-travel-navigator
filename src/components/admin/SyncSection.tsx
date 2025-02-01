@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { initializeSyncProgress, updateSyncProgress, getAllActiveSyncs } from "@/utils/syncManager";
 
 interface SyncProgressDB {
   id: string;
@@ -124,121 +122,79 @@ export const SyncSection = () => {
     try {
       if (!resume && clearData[type]) {
         console.log(`Clearing existing data for ${type}`);
+        const tableName = type === 'countryPolicies' ? 'country_policies' : 
+                         type === 'petPolicies' ? 'pet_policies' : type;
+        
         const { error: clearError } = await supabase
-          .from(type === 'countryPolicies' ? 'country_policies' : type)
+          .from(tableName)
           .delete()
           .neq('id', '00000000-0000-0000-0000-000000000000');
         
         if (clearError) throw clearError;
       }
 
-      if (type === 'petPolicies') {
-        if (!resume) {
-          console.log('Initializing pet policies sync');
-          const { data: airlines } = await supabase
-            .from('airlines')
-            .select('id, name, website')
-            .eq('active', true);
+      // Map sync types to their corresponding function names
+      const functionMap: Record<SyncType, string> = {
+        airlines: 'sync_airline_data',
+        airports: 'sync_airport_data',
+        routes: 'sync_route_data',
+        petPolicies: 'analyze_pet_policies',
+        countryPolicies: 'sync_country_policies'
+      };
 
-          await initializeSyncProgress('petPolicies', airlines?.length || 0);
-        }
+      const functionName = functionMap[type];
+      if (!functionName) {
+        throw new Error(`Unknown sync type: ${type}`);
+      }
 
-        let continuationToken = resume ? syncProgress?.petPolicies?.lastProcessed : null;
-        let completed = false;
+      const payload = {
+        lastProcessedItem: resume ? syncProgress?.[type]?.lastProcessed : null,
+        batchSize: type === 'petPolicies' ? 3 : type === 'countryPolicies' ? 10 : undefined
+      };
 
-        while (!completed) {
-          console.log('Processing pet policies batch, token:', continuationToken);
-          const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
-            body: {
-              lastProcessedAirline: continuationToken,
-              batchSize: 3
-            }
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: payload
+      });
+
+      if (error) throw error;
+
+      // Handle the response in a unified way
+      if (data.total) {
+        const updatedProgress: SyncProgress = {
+          total: data.total_airlines || data.total_countries || data.total || 1,
+          processed: data.processed_count || data.processed_policies || data.processed || 1,
+          lastProcessed: data.continuation_token || null,
+          processedItems: data.processed_airlines || data.processed_countries || [],
+          errorItems: data.error_airlines || data.error_countries || [],
+          startTime: syncProgress?.[type]?.startTime || new Date().toISOString(),
+          isComplete: !data.continuation_token
+        };
+
+        console.log(`Updating progress for ${type}:`, updatedProgress);
+        
+        const { error: updateError } = await supabase
+          .from('sync_progress')
+          .upsert({
+            type,
+            total: updatedProgress.total,
+            processed: updatedProgress.processed,
+            last_processed: updatedProgress.lastProcessed,
+            processed_items: updatedProgress.processedItems,
+            error_items: updatedProgress.errorItems,
+            start_time: updatedProgress.startTime,
+            is_complete: updatedProgress.isComplete
+          }, {
+            onConflict: 'type'
           });
 
-          if (error) throw error;
+        if (updateError) throw updateError;
 
-          const updatedProgress: SyncProgress = {
-            total: data.total_airlines,
-            processed: (syncProgress?.petPolicies?.processed || 0) + data.processed_count,
-            lastProcessed: data.continuation_token,
-            processedItems: [...(syncProgress?.petPolicies?.processedItems || []), ...data.processed_airlines],
-            errorItems: [...(syncProgress?.petPolicies?.errorItems || []), ...data.error_airlines],
-            startTime: syncProgress?.petPolicies?.startTime || new Date().toISOString(),
-            isComplete: !data.continuation_token
-          };
-
-          await updateSyncProgress('petPolicies', updatedProgress);
-
-          if (data.continuation_token) {
-            continuationToken = data.continuation_token;
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } else {
-            completed = true;
-          }
+        // If there's more to process and this is a batch-based sync
+        if (data.continuation_token && (type === 'petPolicies' || type === 'countryPolicies')) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          await handleSync(type, true);
+          return;
         }
-      } else if (type === 'countryPolicies') {
-        if (!resume) {
-          console.log('Initializing country policies sync');
-          await initializeSyncProgress('countryPolicies', 0);
-        }
-
-        let continuationToken = resume ? syncProgress?.countryPolicies?.lastProcessed : null;
-        let completed = false;
-
-        while (!completed) {
-          console.log('Processing country policies batch, token:', continuationToken);
-          const { data, error } = await supabase.functions.invoke('sync_country_policies', {
-            body: { 
-              lastProcessedCountry: continuationToken,
-              batchSize: 10
-            }
-          });
-
-          if (error) throw error;
-
-          console.log('DEBUG: Received response from sync_country_policies:', data);
-
-          if (data.total_countries > 0) {
-            const updatedProgress: SyncProgress = {
-              total: data.total_countries,
-              processed: data.processed_policies,
-              lastProcessed: data.continuation_token,
-              processedItems: data.processed_countries,
-              errorItems: data.error_countries,
-              startTime: syncProgress?.countryPolicies?.startTime || new Date().toISOString(),
-              isComplete: !data.continuation_token
-            };
-
-            console.log('DEBUG: Updating progress:', updatedProgress);
-            await updateSyncProgress('countryPolicies', updatedProgress);
-          }
-
-          if (data.continuation_token) {
-            continuationToken = data.continuation_token;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            completed = true;
-          }
-        }
-      } else {
-        const functionName = type === 'airlines' 
-          ? 'sync_airline_data' 
-          : type === 'airports' 
-            ? 'sync_airport_data' 
-            : 'sync_route_data';
-
-        const { data, error } = await supabase.functions.invoke(functionName);
-        if (error) throw error;
-
-        await updateSyncProgress(type, {
-          total: 1,
-          processed: 1,
-          lastProcessed: null,
-          processedItems: [],
-          errorItems: [],
-          startTime: new Date().toISOString(),
-          isComplete: true
-        });
       }
 
       toast({
@@ -261,15 +217,15 @@ export const SyncSection = () => {
   return (
     <div className="space-y-8">
       {Object.entries(syncProgress || {}).some(([_, progress]) => 
-        progress && (progress as SyncProgress).isComplete === false
+        progress && !progress.isComplete
       ) && (
         <div className="bg-accent/20 p-4 rounded-lg mb-8">
           <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
           <div className="space-y-2">
             {Object.entries(syncProgress || {}).map(([type, progress]) => 
-              progress && !(progress as SyncProgress).isComplete && (
+              progress && !progress.isComplete && (
                 <div key={type} className="text-sm">
-                  {type}: {(progress as SyncProgress).processed} of {(progress as SyncProgress).total} items processed
+                  {type}: {progress.processed} of {progress.total} items processed
                 </div>
               )
             )}
