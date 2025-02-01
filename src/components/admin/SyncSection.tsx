@@ -49,13 +49,14 @@ export const SyncSection = () => {
           if (newRecord && 'type' in newRecord) {
             console.log(`Updating sync progress for ${newRecord.type}:`, newRecord);
             
-            // Update the cache immediately for responsive UI
-            queryClient.setQueryData<SyncProgressRecord>(
-              ["syncProgress"],
-              (old) => {
-                if (!old) return {};
-                return {
-                  ...old,
+            // Get the current cache state
+            const currentCache = queryClient.getQueryData<SyncProgressRecord>(["syncProgress"]);
+            
+            if (!currentCache) {
+              console.log('No existing cache found, creating new cache');
+              queryClient.setQueryData<SyncProgressRecord>(
+                ["syncProgress"],
+                {
                   [newRecord.type]: {
                     total: newRecord.total,
                     processed: newRecord.processed,
@@ -65,7 +66,34 @@ export const SyncSection = () => {
                     startTime: newRecord.start_time,
                     isComplete: newRecord.is_complete,
                   }
-                };
+                }
+              );
+              return;
+            }
+
+            // Check if this sync type already exists in cache
+            const existingSync = currentCache[newRecord.type];
+            console.log(`Existing sync data for ${newRecord.type}:`, existingSync);
+
+            // Merge the new data with existing data
+            const updatedSync = {
+              total: newRecord.total,
+              processed: newRecord.processed,
+              lastProcessed: newRecord.last_processed,
+              processedItems: newRecord.processed_items || [],
+              errorItems: newRecord.error_items || [],
+              startTime: existingSync?.startTime || newRecord.start_time,
+              isComplete: newRecord.is_complete,
+            };
+
+            console.log(`Merged sync data for ${newRecord.type}:`, updatedSync);
+
+            // Update only this specific sync's data in the cache
+            queryClient.setQueryData<SyncProgressRecord>(
+              ["syncProgress"],
+              {
+                ...currentCache,
+                [newRecord.type]: updatedSync
               }
             );
           }
@@ -333,6 +361,6 @@ export const SyncSection = () => {
       </div>
     </div>
   );
-});
+};
 
 export default SyncSection;
