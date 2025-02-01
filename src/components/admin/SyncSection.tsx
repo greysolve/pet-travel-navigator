@@ -120,17 +120,38 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
-      if (!resume && clearData[type]) {
-        console.log(`Clearing existing data for ${type}`);
-        const tableName = type === 'countryPolicies' ? 'country_policies' : 
-                         type === 'petPolicies' ? 'pet_policies' : type;
-        
-        const { error: clearError } = await supabase
-          .from(tableName)
-          .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000');
-        
-        if (clearError) throw clearError;
+      // Reset progress if not resuming
+      if (!resume) {
+        console.log(`Resetting progress for ${type}`);
+        const { error: resetError } = await supabase
+          .from('sync_progress')
+          .upsert({
+            type,
+            total: 0,
+            processed: 0,
+            last_processed: null,
+            processed_items: [],
+            error_items: [],
+            start_time: new Date().toISOString(),
+            is_complete: false
+          }, {
+            onConflict: 'type'
+          });
+
+        if (resetError) throw resetError;
+
+        if (clearData[type]) {
+          console.log(`Clearing existing data for ${type}`);
+          const tableName = type === 'countryPolicies' ? 'country_policies' : 
+                           type === 'petPolicies' ? 'pet_policies' : type;
+          
+          const { error: clearError } = await supabase
+            .from(tableName)
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000');
+          
+          if (clearError) throw clearError;
+        }
       }
 
       // Map sync types to their corresponding function names
@@ -161,12 +182,12 @@ export const SyncSection = () => {
       // Handle the response in a unified way
       if (data.total) {
         const updatedProgress: SyncProgress = {
-          total: data.total_airlines || data.total_countries || data.total || 1,
-          processed: data.processed_count || data.processed_policies || data.processed || 1,
+          total: data.total_airlines || data.total_countries || data.total || 0,
+          processed: data.processed_count || data.processed_policies || data.processed || 0,
           lastProcessed: data.continuation_token || null,
           processedItems: data.processed_airlines || data.processed_countries || [],
           errorItems: data.error_airlines || data.error_countries || [],
-          startTime: syncProgress?.[type]?.startTime || new Date().toISOString(),
+          startTime: resume ? syncProgress?.[type]?.startTime || new Date().toISOString() : new Date().toISOString(),
           isComplete: !data.continuation_token
         };
 
@@ -197,10 +218,12 @@ export const SyncSection = () => {
         }
       }
 
-      toast({
-        title: "Sync Successful",
-        description: `Successfully synchronized ${type} data.`,
-      });
+      if (!resume) {
+        toast({
+          title: "Sync Started",
+          description: `Started synchronizing ${type} data.`,
+        });
+      }
     } catch (error: any) {
       console.error(`Error syncing ${type}:`, error);
       toast({
@@ -208,6 +231,16 @@ export const SyncSection = () => {
         title: "Sync Failed",
         description: error.message || `Failed to sync ${type} data.`,
       });
+
+      // Update sync progress to mark as complete if there was an error
+      const { error: updateError } = await supabase
+        .from('sync_progress')
+        .update({ is_complete: true })
+        .eq('type', type);
+
+      if (updateError) {
+        console.error('Error updating sync progress after failure:', updateError);
+      }
     } finally {
       const finalLoadingState = { ...isLoading, [type]: false };
       setIsLoading(finalLoadingState);
@@ -217,13 +250,13 @@ export const SyncSection = () => {
   return (
     <div className="space-y-8">
       {Object.entries(syncProgress || {}).some(([_, progress]: [string, SyncProgress | undefined]) => 
-        progress && !progress.isComplete
+        progress && !progress.isComplete && progress.processed < progress.total
       ) && (
         <div className="bg-accent/20 p-4 rounded-lg mb-8">
           <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
           <div className="space-y-2">
             {Object.entries(syncProgress || {}).map(([type, progress]: [string, SyncProgress | undefined]) => 
-              progress && !progress.isComplete && (
+              progress && !progress.isComplete && progress.processed < progress.total && (
                 <div key={type} className="text-sm">
                   {type}: {progress.processed} of {progress.total} items processed
                 </div>
