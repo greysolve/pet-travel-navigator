@@ -4,6 +4,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
 }
 
 const BATCH_SIZE = 10;
@@ -91,14 +92,35 @@ Deno.serve(async (req) => {
     }
 
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
-        status: 405,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return new Response(
+        JSON.stringify({ 
+          error: 'Method not allowed',
+          details: `Method ${req.method} is not supported` 
+        }), 
+        { 
+          status: 405,
+          headers: corsHeaders
+        }
+      )
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing required environment variables')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Server configuration error',
+          details: 'Missing required environment variables' 
+        }), 
+        { 
+          status: 500,
+          headers: corsHeaders
+        }
+      )
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey)
     
     const requestBody = await req.json().catch(() => ({}))
@@ -120,12 +142,30 @@ Deno.serve(async (req) => {
     
     if (countriesError) {
       console.error('Error fetching countries:', countriesError)
-      throw countriesError
+      return new Response(
+        JSON.stringify({ 
+          error: 'Database error',
+          details: countriesError.message 
+        }), 
+        { 
+          status: 500,
+          headers: corsHeaders
+        }
+      )
     }
     
     if (!countries?.length) {
       console.error('No countries found')
-      throw new Error('No countries found')
+      return new Response(
+        JSON.stringify({ 
+          error: 'No data',
+          details: 'No countries found in the database' 
+        }), 
+        { 
+          status: 404,
+          headers: corsHeaders
+        }
+      )
     }
 
     const uniqueCountries = countries
@@ -170,7 +210,7 @@ Deno.serve(async (req) => {
         }
 
         // Add a small delay between requests to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 2000))
       } catch (error) {
         console.error(`Error processing country ${country}:`, error)
         newErrorItems.push(country)
@@ -186,7 +226,7 @@ Deno.serve(async (req) => {
               error_items: newErrorItems,
               continuation_token: country
             }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { headers: corsHeaders }
           )
         }
       }
@@ -204,7 +244,7 @@ Deno.serve(async (req) => {
         error_items: newErrorItems,
         continuation_token: continuationToken
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: corsHeaders }
     )
 
   } catch (error) {
@@ -212,11 +252,12 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'An unexpected error occurred'
+        error: error.message || 'An unexpected error occurred',
+        details: error.stack
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: corsHeaders
       }
     )
   }
