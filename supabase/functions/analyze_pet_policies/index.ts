@@ -5,6 +5,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function getDomainFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace('www.', '');
+  } catch (e) {
+    return '';
+  }
+}
+
+function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
+  // Get base domains
+  const airlineDomain = getDomainFromUrl(websiteDomain);
+  const policyDomain = getDomainFromUrl(policyUrl);
+  
+  if (!airlineDomain || !policyDomain) return false;
+
+  // Check if policy domain matches airline domain
+  if (policyDomain === airlineDomain) return true;
+
+  // List of known third-party booking/info sites we want to exclude
+  const excludedDomains = [
+    'rover.com',
+    'pettravel.com',
+    'alternativeairlines.com',
+    'seatmaestro.com',
+    'ticketterrier.com',
+    'fetchapet.co.uk'
+  ];
+
+  // Reject if policy is from a known third-party site
+  if (excludedDomains.includes(policyDomain)) return false;
+
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -13,14 +48,8 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting pet policy analysis...');
     
-    let body;
-    try {
-      body = await req.json();
-      console.log('Request body:', body);
-    } catch (e) {
-      console.error('Failed to parse request body:', e);
-      throw new Error('Invalid request body');
-    }
+    const body = await req.json();
+    console.log('Request body:', body);
 
     const { airline_id, website } = body;
 
@@ -39,10 +68,10 @@ Deno.serve(async (req) => {
       Analyze the pet travel policy from this airline's website: ${website}
       
       IMPORTANT: For the policy_url field:
-      1. Search specifically for a dedicated pet/animal travel policy page
-      2. If no dedicated page exists, find the most relevant page containing pet policy information
-      3. If the policy is part of a larger document, provide the URL to that document
-      4. Only return null if absolutely no relevant URL can be found
+      1. Search ONLY for official pet/animal travel policy pages on ${website}
+      2. Do NOT return URLs from third-party websites or blogs
+      3. The URL must be from the airline's own domain
+      4. Return null if no official policy page is found
       5. The URL must be complete (including https://) and directly accessible
       
       Return a JSON object with ONLY these fields (use null if data is not found):
@@ -54,16 +83,6 @@ Deno.serve(async (req) => {
         "breed_restrictions": ["string"],
         "policy_url": "string"
       }
-      
-      Rules:
-      1. Return ONLY valid JSON, no other text
-      2. All arrays must be properly formatted with square brackets
-      3. All strings must be properly quoted
-      4. Empty arrays should be null, not []
-      5. All property names must be exactly as shown above
-      6. Do not add any additional fields
-      7. No trailing commas
-      8. For policy_url, provide the most specific and relevant URL possible
     `;
 
     console.log('Sending request to Perplexity API...');
@@ -78,7 +97,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a specialized AI focused on finding and extracting pet travel policies from airline websites. Your primary goal is to locate specific policy URLs and detailed policy information.'
+            content: 'You are a specialized AI focused on finding and extracting pet travel policies from airline websites. Your primary goal is to locate specific policy URLs and detailed policy information. Only return URLs from the airline\'s official website.'
           },
           {
             role: 'user',
@@ -101,7 +120,6 @@ Deno.serve(async (req) => {
     console.log('Perplexity API response:', data);
 
     if (!data.choices?.[0]?.message?.content) {
-      console.error('Invalid API response structure:', data);
       throw new Error('Invalid API response structure');
     }
 
@@ -114,84 +132,62 @@ Deno.serve(async (req) => {
     }
     content = jsonMatch[0];
 
-    let policyData;
-    try {
-      policyData = JSON.parse(content);
-      
-      const requiredFields = [
-        'pet_types_allowed',
-        'carrier_requirements',
-        'documentation_needed',
-        'temperature_restrictions',
-        'breed_restrictions',
-        'policy_url'
-      ];
-
-      for (const field of requiredFields) {
-        if (!(field in policyData)) {
-          policyData[field] = null;
-        }
-      }
-
-      ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
-        if (!Array.isArray(policyData[field])) {
-          policyData[field] = policyData[field] ? [String(policyData[field])] : null;
-        } else if (policyData[field].length === 0) {
-          policyData[field] = null;
-        } else {
-          policyData[field] = policyData[field].map(item => String(item).trim()).filter(Boolean);
-          if (policyData[field].length === 0) {
-            policyData[field] = null;
-          }
-        }
-      });
-
-      ['carrier_requirements', 'temperature_restrictions', 'policy_url'].forEach(field => {
-        if (policyData[field] && typeof policyData[field] !== 'string') {
-          policyData[field] = String(policyData[field]).trim();
-        }
-        if (!policyData[field]) {
-          policyData[field] = null;
-        }
-      });
-
-      // Validate policy URL format if one is provided
-      if (policyData.policy_url) {
-        try {
-          new URL(policyData.policy_url);
-        } catch (e) {
-          console.warn(`Invalid policy URL format: ${policyData.policy_url}`);
-          policyData.policy_url = null;
-        }
-      }
-
-    } catch (e) {
-      console.error('Failed to parse policy data:', e);
-      console.error('Content that failed to parse:', content);
-      throw new Error(`Failed to parse policy data: ${e.message}`);
+    let policyData = JSON.parse(content);
+    
+    // Validate policy URL
+    if (policyData.policy_url && !isValidPolicyUrl(website, policyData.policy_url)) {
+      console.log(`Invalid policy URL detected: ${policyData.policy_url} for website ${website}`);
+      policyData.policy_url = null;
     }
+
+    // Clean and validate other fields
+    ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
+      if (!Array.isArray(policyData[field])) {
+        policyData[field] = policyData[field] ? [String(policyData[field])] : null;
+      } else if (policyData[field].length === 0) {
+        policyData[field] = null;
+      } else {
+        policyData[field] = policyData[field].map(item => String(item).trim()).filter(Boolean);
+        if (policyData[field].length === 0) {
+          policyData[field] = null;
+        }
+      }
+    });
+
+    ['carrier_requirements', 'temperature_restrictions'].forEach(field => {
+      if (policyData[field] && typeof policyData[field] !== 'string') {
+        policyData[field] = String(policyData[field]).trim();
+      }
+      if (!policyData[field]) {
+        policyData[field] = null;
+      }
+    });
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('Storing policy data in Supabase:', policyData);
-    const { error } = await supabase
-      .from('pet_policies')
-      .upsert({
-        airline_id,
-        ...policyData,
-        updated_at: new Date().toISOString(),
-      }, { 
-        onConflict: 'airline_id'
-      });
+    // Only store policy if we found valid data
+    if (policyData.policy_url || policyData.pet_types_allowed || policyData.carrier_requirements) {
+      console.log('Storing valid policy data:', policyData);
+      const { error } = await supabase
+        .from('pet_policies')
+        .upsert({
+          airline_id,
+          ...policyData,
+          updated_at: new Date().toISOString(),
+        }, { 
+          onConflict: 'airline_id'
+        });
 
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+    } else {
+      console.log('No valid policy data found, skipping storage');
     }
 
-    console.log('Successfully stored policy data');
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
