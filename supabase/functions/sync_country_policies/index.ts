@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { SyncProgressManager } from '../_shared/syncProgress.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,132 +7,6 @@ const corsHeaders = {
 }
 
 const BATCH_SIZE = 10;
-
-interface ProcessingState {
-  lastProcessedCountry: string | null;
-  processedCount: number;
-  startTime: number;
-  processedItems: string[];
-  errorItems: string[];
-}
-
-async function processBatch(
-  countries: string[], 
-  supabaseClient: any,
-  state: ProcessingState
-): Promise<{ 
-  processed: string[], 
-  errors: string[], 
-  shouldContinue: boolean,
-  lastProcessedCountry: string | null,
-  processedCount: number 
-}> {
-  console.log(`Starting batch processing from country: ${state.lastProcessedCountry || 'START'}`);
-  const processed = [...state.processedItems];
-  const errors = [...state.errorItems];
-  let shouldContinue = true;
-  let processedCount = state.processedCount;
-
-  try {
-    const startIndex = state.lastProcessedCountry 
-      ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
-      : 0;
-
-    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`);
-
-    if (startIndex >= countries.length) {
-      console.log('All countries have been processed');
-      return {
-        processed,
-        errors,
-        shouldContinue: false,
-        lastProcessedCountry: null,
-        processedCount
-      };
-    }
-
-    const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
-    console.log(`Processing countries from index ${startIndex} to ${endIndex}`);
-
-    for (let i = startIndex; i < endIndex; i++) {
-      const country = countries[i];
-      try {
-        console.log(`Processing country ${i + 1}/${countries.length}: ${country}`);
-        
-        const policy = await fetchPolicyWithAI(country, 'pet');
-        console.log(`Policy data received for ${country}:`, policy);
-
-        const { error: upsertError } = await supabaseClient
-          .from('country_policies')
-          .upsert({
-            country_code: country,
-            policy_type: 'pet',
-            ...policy,
-            last_updated: new Date().toISOString()
-          }, {
-            onConflict: 'country_code,policy_type'
-          });
-
-        if (upsertError) {
-          console.error(`Error upserting policy for ${country}:`, upsertError);
-          errors.push(country);
-        } else {
-          processed.push(country);
-          processedCount++;
-          
-          // Update progress without affecting other syncs
-          const { error: progressError } = await supabaseClient
-            .from('sync_progress')
-            .update({
-              processed: processedCount,
-              last_processed: country,
-              processed_items: processed,
-              error_items: errors,
-              is_complete: false,
-              updated_at: new Date().toISOString()
-            })
-            .eq('type', 'countryPolicies')
-            .select()
-            .single();
-
-          if (progressError) {
-            console.error('Error updating progress:', progressError);
-          }
-        }
-
-      } catch (error) {
-        console.error(`Error processing country ${country}:`, error);
-        errors.push(country);
-        
-        if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
-          console.log('Rate limit or quota reached, gracefully stopping batch');
-          shouldContinue = true;
-          break;
-        }
-      }
-    }
-
-    const hasMoreCountries = endIndex < countries.length;
-    console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`);
-    
-    return { 
-      processed, 
-      errors, 
-      shouldContinue: hasMoreCountries,
-      lastProcessedCountry: hasMoreCountries ? countries[endIndex - 1] : null,
-      processedCount
-    };
-  } catch (error) {
-    console.error('Unexpected error in processBatch:', error);
-    return {
-      processed,
-      errors: [...errors, 'BATCH_PROCESSING_ERROR'],
-      shouldContinue: true,
-      lastProcessedCountry: state.lastProcessedCountry,
-      processedCount
-    };
-  }
-}
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -206,79 +81,86 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   }
 }
 
+async function processBatch(
+  countries: string[],
+  supabase: any,
+  syncManager: SyncProgressManager,
+  startIndex: number
+): Promise<{ 
+  shouldContinue: boolean,
+  lastProcessedCountry: string | null
+}> {
+  console.log(`Processing batch starting at index ${startIndex}`);
+  
+  const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
+  
+  for (let i = startIndex; i < endIndex; i++) {
+    const country = countries[i];
+    try {
+      console.log(`Processing country ${i + 1}/${countries.length}: ${country}`);
+      
+      const policy = await fetchPolicyWithAI(country, 'pet');
+      
+      const { error: upsertError } = await supabase
+        .from('country_policies')
+        .upsert({
+          country_code: country,
+          policy_type: 'pet',
+          ...policy,
+          last_updated: new Date().toISOString()
+        }, {
+          onConflict: 'country_code,policy_type'
+        });
+
+      if (upsertError) {
+        console.error(`Error upserting policy for ${country}:`, upsertError);
+        await syncManager.addErrorItem(country);
+      } else {
+        await syncManager.addProcessedItem(country);
+      }
+
+    } catch (error) {
+      console.error(`Error processing country ${country}:`, error);
+      await syncManager.addErrorItem(country);
+      
+      if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
+        console.log('Rate limit or quota reached, gracefully stopping batch');
+        return {
+          shouldContinue: true,
+          lastProcessedCountry: countries[i]
+        };
+      }
+    }
+  }
+
+  const hasMoreCountries = endIndex < countries.length;
+  return { 
+    shouldContinue: hasMoreCountries,
+    lastProcessedCountry: hasMoreCountries ? countries[endIndex - 1] : null
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: corsHeaders,
-      status: 204
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Request received:', {
-      method: req.method,
-      url: req.url,
-      headers: Object.fromEntries(req.headers.entries())
-    });
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseClient = createClient(supabaseUrl, supabaseKey);
-
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
     const requestBody = await req.json().catch(() => ({}));
     const lastProcessedCountry = requestBody.lastProcessedCountry || null;
     const isResuming = !!lastProcessedCountry;
-    
-    // Get existing progress without resetting
-    let existingProgress = { processed: 0, processedItems: [], errorItems: [] };
-    const { data: progressData } = await supabaseClient
-      .from('sync_progress')
-      .select('*')
-      .eq('type', 'countryPolicies')
-      .single();
-    
-    if (progressData) {
-      existingProgress = {
-        processed: progressData.processed || 0,
-        processedItems: progressData.processed_items || [],
-        errorItems: progressData.error_items || []
-      };
-      console.log('Retrieved existing progress:', existingProgress);
-    } else if (!isResuming) {
-      // Only initialize if there's no existing progress and we're not resuming
-      const { error: initError } = await supabaseClient
-        .from('sync_progress')
-        .upsert({
-          type: 'countryPolicies',
-          total: 0,
-          processed: 0,
-          processed_items: [],
-          error_items: [],
-          start_time: new Date().toISOString(),
-          is_complete: false
-        }, {
-          onConflict: 'type'
-        });
 
-      if (initError) {
-        console.error('Error initializing progress:', initError);
-        throw initError;
-      }
-    }
-
-    const { data: countries, error: countriesError } = await supabaseClient
+    const syncManager = new SyncProgressManager(supabaseUrl, supabaseKey, 'countryPolicies');
+    
+    const { data: countries, error: countriesError } = await supabase
       .rpc('get_distinct_countries');
 
-    if (countriesError) {
-      console.error('Error fetching countries:', countriesError);
-      throw countriesError;
-    }
-
-    if (!countries || !Array.isArray(countries)) {
-      throw new Error('Invalid response from get_distinct_countries');
-    }
-
-    console.log('Total countries fetched:', countries.length);
+    if (countriesError) throw countriesError;
+    if (!countries?.length) throw new Error('No countries found');
 
     const uniqueCountries = countries
       .map(row => row.country?.trim() || '')
@@ -286,87 +168,46 @@ Deno.serve(async (req) => {
       .map(country => country.normalize('NFKC').trim())
       .sort();
 
-    console.log('Processing countries:', uniqueCountries);
-    
-    // Maintain state across batches
-    const state: ProcessingState = {
-      lastProcessedCountry,
-      processedCount: existingProgress.processed,
-      startTime: isResuming ? 
-        (await supabaseClient
-          .from('sync_progress')
-          .select('start_time')
-          .eq('type', 'countryPolicies')
-          .single()
-        ).data?.start_time || Date.now() 
-        : Date.now(),
-      processedItems: existingProgress.processedItems,
-      errorItems: existingProgress.errorItems
-    };
-
-    // Update total only if we're starting fresh
+    // Initialize progress if starting fresh
     if (!isResuming) {
-      const { error: updateTotalError } = await supabaseClient
-        .from('sync_progress')
-        .update({ total: uniqueCountries.length })
-        .eq('type', 'countryPolicies');
-
-      if (updateTotalError) {
-        console.error('Error updating total:', updateTotalError);
-        throw updateTotalError;
-      }
+      await syncManager.initialize(uniqueCountries.length);
     }
 
-    const { processed, errors, shouldContinue, lastProcessedCountry: finalProcessedCountry, processedCount } = 
-      await processBatch(uniqueCountries, supabaseClient, state);
+    const startIndex = lastProcessedCountry
+      ? uniqueCountries.findIndex(c => c === lastProcessedCountry) + 1
+      : 0;
 
-    // Only mark as complete if we're done with all countries
+    const { shouldContinue, lastProcessedCountry: finalProcessedCountry } = 
+      await processBatch(uniqueCountries, supabase, syncManager, startIndex);
+
     if (!shouldContinue) {
-      const { error: completeError } = await supabaseClient
-        .from('sync_progress')
-        .update({ is_complete: true })
-        .eq('type', 'countryPolicies');
-
-      if (completeError) {
-        console.error('Error marking sync as complete:', completeError);
-      }
+      await syncManager.markComplete();
     }
 
-    const summary = {
-      success: true,
-      total: uniqueCountries.length,
-      processed: processedCount,
-      processed_items: processed,
-      error_items: errors,
-      continuation_token: shouldContinue ? finalProcessedCountry : null,
-      completed: !shouldContinue
-    };
-
-    console.log('Country policies sync progress:', summary);
+    const currentProgress = await syncManager.getCurrentProgress();
 
     return new Response(
-      JSON.stringify(summary),
+      JSON.stringify({
+        success: true,
+        total: uniqueCountries.length,
+        processed: currentProgress?.processed || 0,
+        processed_items: currentProgress?.processedItems || [],
+        error_items: currentProgress?.errorItems || [],
+        continuation_token: shouldContinue ? finalProcessedCountry : null,
+        completed: !shouldContinue
+      }),
       {
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
+
   } catch (error) {
     console.error('Error in sync_country_policies:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error.message 
-      }),
+      JSON.stringify({ success: false, error: error.message }),
       {
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
