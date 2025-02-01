@@ -13,6 +13,8 @@ interface ProcessingState {
   lastProcessedCountry: string | null;
   processedCount: number;
   startTime: number;
+  processedItems: string[];
+  errorItems: string[];
 }
 
 async function processBatch(
@@ -27,17 +29,17 @@ async function processBatch(
   processedCount: number 
 }> {
   console.log(`Starting batch processing from country: ${state.lastProcessedCountry || 'START'}`);
-  const processed: string[] = [];
-  const errors: string[] = [];
+  const processed = [...state.processedItems]; // Preserve existing processed items
+  const errors = [...state.errorItems]; // Preserve existing error items
   let shouldContinue = true;
-  let processedCount = state.processedCount;
+  let processedCount = state.processedCount; // Start from existing count
 
   try {
     const startIndex = state.lastProcessedCountry 
       ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
       : 0;
 
-    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`);
+    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}, current processed count: ${processedCount}`);
 
     if (startIndex >= countries.length) {
       console.log('All countries have been processed');
@@ -207,6 +209,24 @@ Deno.serve(async (req) => {
     const requestBody = await req.json().catch(() => ({}));
     const lastProcessedCountry = requestBody.lastProcessedCountry || null;
     
+    // Get existing progress if resuming
+    let existingProgress = { processed: 0, processedItems: [], errorItems: [] };
+    if (lastProcessedCountry) {
+      const { data: progressData } = await supabaseClient
+        .from('sync_progress')
+        .select('*')
+        .eq('type', 'countryPolicies')
+        .single();
+      
+      if (progressData) {
+        existingProgress = {
+          processed: progressData.processed || 0,
+          processedItems: progressData.processed_items || [],
+          errorItems: progressData.error_items || []
+        };
+      }
+    }
+
     const { data: countries, error: countriesError } = await supabaseClient
       .rpc('get_distinct_countries');
 
@@ -231,7 +251,9 @@ Deno.serve(async (req) => {
     
     const state: ProcessingState = {
       lastProcessedCountry,
-      processedCount: 0,
+      processedCount: existingProgress.processed,
+      processedItems: existingProgress.processedItems,
+      errorItems: existingProgress.errorItems,
       startTime: Date.now()
     };
 
