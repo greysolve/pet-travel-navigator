@@ -34,6 +34,7 @@ function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,10 +42,8 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting pet policy and website analysis...');
     
-    const body = await req.json();
-    console.log('Request body:', body);
-
-    const { airline_id } = body;
+    const { airline_id, website } = await req.json();
+    console.log('Request body:', { airline_id, website });
 
     if (!airline_id) {
       throw new Error('Missing required parameter: airline_id');
@@ -55,11 +54,12 @@ Deno.serve(async (req) => {
       throw new Error('Missing Perplexity API key');
     }
 
-    // First, get the airline name from the database
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Get airline name
     const { data: airlineData, error: airlineError } = await supabase
       .from('airlines')
       .select('name')
@@ -224,9 +224,12 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
