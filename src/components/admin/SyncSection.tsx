@@ -1,9 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { SyncCard } from "./SyncCard";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
@@ -69,7 +65,9 @@ export const SyncSection = ({
   };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
-    setIsLoading((prev: { [key: string]: boolean }) => ({ ...prev, [type]: true }));
+    const newLoading = { ...isLoading, [type]: true };
+    setIsLoading(newLoading);
+    
     try {
       if (!resume && clearData[type]) {
         const { error: clearError } = await supabase
@@ -98,7 +96,8 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', initialProgress);
-          setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, petPolicies: initialProgress }));
+          const newProgress = { ...syncProgress, petPolicies: initialProgress };
+          setSyncProgress(newProgress);
         }
 
         let continuationToken = resume ? syncProgress.petPolicies?.lastProcessed : null;
@@ -124,7 +123,8 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', updatedProgress);
-          setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, petPolicies: updatedProgress }));
+          const newProgress = { ...syncProgress, petPolicies: updatedProgress };
+          setSyncProgress(newProgress);
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
@@ -191,7 +191,7 @@ export const SyncSection = ({
         const { data, error } = await supabase.functions.invoke(functionName);
         if (error) throw error;
 
-        await updateSyncProgress(type, {
+        const syncProgressData: SyncProgress = {
           total: 1,
           processed: 1,
           lastProcessed: null,
@@ -199,7 +199,9 @@ export const SyncSection = ({
           errorItems: [],
           startTime: new Date().toISOString(),
           isComplete: true
-        });
+        };
+
+        await updateSyncProgress(type, syncProgressData);
       }
 
       toast({
@@ -214,7 +216,8 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      setIsLoading((prev: { [key: string]: boolean }) => ({ ...prev, [type]: false }));
+      const newLoading = { ...isLoading, [type]: false };
+      setIsLoading(newLoading);
     }
   };
 
