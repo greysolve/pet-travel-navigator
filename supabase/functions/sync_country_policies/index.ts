@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const BATCH_SIZE = 10;
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000; // 5 seconds
+const RETRY_DELAY = 5000;
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal', retryCount = 0) {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -147,7 +147,6 @@ Deno.serve(async (req) => {
     const {
       lastProcessedItem,
       currentProcessed = 0,
-      currentTotal = 0,
       processedItems = [],
       errorItems = [],
       startTime,
@@ -186,16 +185,17 @@ Deno.serve(async (req) => {
       )
     }
 
-    const uniqueCountries = countries
-      .map(row => row.country?.trim() || '')
-      .filter(country => country !== '')
-      .map(country => country.normalize('NFKC').trim())
-      .sort()
+    const uniqueCountries = [...new Set(
+      countries
+        .map(row => row.country?.trim() || '')
+        .filter(country => country !== '')
+        .map(country => country.normalize('NFKC').trim())
+    )].sort();
 
-    const total = uniqueCountries.length
+    const total = uniqueCountries.length;
     const startIndex = lastProcessedItem
       ? uniqueCountries.findIndex(c => c === lastProcessedItem) + 1
-      : 0
+      : 0;
 
     // If we've processed all countries, mark as complete
     if (startIndex >= uniqueCountries.length) {
@@ -241,6 +241,26 @@ Deno.serve(async (req) => {
           newErrorItems.push(country)
         } else {
           newProcessedItems.push(country)
+          
+          // Update progress after each country
+          const { error: progressError } = await supabase
+            .from('sync_progress')
+            .upsert({
+              type: 'countryPolicies',
+              total,
+              processed: currentProcessed + newProcessedItems.length,
+              last_processed: country,
+              processed_items: newProcessedItems,
+              error_items: newErrorItems,
+              start_time: startTime || new Date().toISOString(),
+              is_complete: false
+            }, {
+              onConflict: 'type'
+            });
+
+          if (progressError) {
+            console.error('Error updating progress:', progressError);
+          }
         }
 
         // Add a delay between requests to avoid rate limits

@@ -31,79 +31,69 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
+  // Set up individual real-time subscriptions for each sync type
   useEffect(() => {
-    console.log('Setting up real-time subscription for sync progress');
-    const channel = supabase
-      .channel('sync_progress_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sync_progress'
-        },
-        (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
-          console.log('Received sync progress update:', payload);
-          const newRecord = payload.new as SyncProgressDB;
-          
-          if (newRecord && 'type' in newRecord) {
-            console.log(`Updating sync progress for ${newRecord.type}:`, newRecord);
+    const channels = Object.values(SyncType).map(syncType => {
+      console.log(`Setting up real-time subscription for ${syncType}`);
+      return supabase
+        .channel(`sync_progress_${syncType}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'sync_progress',
+            filter: `type=eq.${syncType}`
+          },
+          (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
+            console.log(`Received sync progress update for ${syncType}:`, payload);
+            const newRecord = payload.new;
             
-            // Get the current cache state
-            const currentCache = queryClient.getQueryData<SyncProgressRecord>(["syncProgress"]);
-            
-            if (!currentCache) {
-              console.log('No existing cache found, creating new cache');
+            if (newRecord) {
+              console.log(`Updating sync progress for ${syncType}:`, newRecord);
+              
               queryClient.setQueryData<SyncProgressRecord>(
                 ["syncProgress"],
-                {
-                  [newRecord.type]: {
-                    total: newRecord.total,
-                    processed: newRecord.processed,
-                    lastProcessed: newRecord.last_processed,
-                    processedItems: newRecord.processed_items || [],
-                    errorItems: newRecord.error_items || [],
-                    startTime: newRecord.start_time,
-                    isComplete: newRecord.is_complete,
+                (oldData) => {
+                  if (!oldData) {
+                    return {
+                      [syncType]: {
+                        total: newRecord.total,
+                        processed: newRecord.processed,
+                        lastProcessed: newRecord.last_processed,
+                        processedItems: newRecord.processed_items || [],
+                        errorItems: newRecord.error_items || [],
+                        startTime: newRecord.start_time,
+                        isComplete: newRecord.is_complete,
+                      }
+                    };
                   }
+
+                  return {
+                    ...oldData,
+                    [syncType]: {
+                      total: newRecord.total,
+                      processed: newRecord.processed,
+                      lastProcessed: newRecord.last_processed,
+                      processedItems: newRecord.processed_items || [],
+                      errorItems: newRecord.error_items || [],
+                      startTime: oldData[syncType]?.startTime || newRecord.start_time,
+                      isComplete: newRecord.is_complete,
+                    }
+                  };
                 }
               );
-              return;
             }
-
-            // Check if this sync type already exists in cache
-            const existingSync = currentCache[newRecord.type];
-            console.log(`Existing sync data for ${newRecord.type}:`, existingSync);
-
-            // Merge the new data with existing data
-            const updatedSync = {
-              total: newRecord.total,
-              processed: newRecord.processed,
-              lastProcessed: newRecord.last_processed,
-              processedItems: newRecord.processed_items || [],
-              errorItems: newRecord.error_items || [],
-              startTime: existingSync?.startTime || newRecord.start_time,
-              isComplete: newRecord.is_complete,
-            };
-
-            console.log(`Merged sync data for ${newRecord.type}:`, updatedSync);
-
-            // Update only this specific sync's data in the cache
-            queryClient.setQueryData<SyncProgressRecord>(
-              ["syncProgress"],
-              {
-                ...currentCache,
-                [newRecord.type]: updatedSync
-              }
-            );
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    });
 
     return () => {
-      console.log('Cleaning up sync progress subscription');
-      supabase.removeChannel(channel);
+      console.log('Cleaning up sync progress subscriptions');
+      channels.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
     };
   }, [queryClient]);
 
