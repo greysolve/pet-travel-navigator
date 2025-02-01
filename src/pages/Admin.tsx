@@ -84,22 +84,24 @@ const Admin = () => {
 
         let continuationToken = null;
         let completed = false;
+        let totalProcessed = 0;
 
         while (!completed) {
           console.log(`Processing batch of airlines with continuation token:`, continuationToken);
           const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
             body: {
               lastProcessedAirline: continuationToken,
-              batchSize: 5 // Process 5 airlines at a time
+              batchSize: 3 // Process 3 airlines at a time
             }
           });
 
           if (error) throw error;
           console.log(`Pet policy batch sync response:`, data);
 
+          totalProcessed += data.processed_count;
           setPetPolicyProgress(prev => ({
             ...prev,
-            processed: prev.processed + data.processed_count,
+            processed: totalProcessed,
             lastAirline: data.continuation_token,
             processedAirlines: [...prev.processedAirlines, ...data.processed_airlines],
             errorAirlines: [...prev.errorAirlines, ...data.error_airlines]
@@ -116,7 +118,7 @@ const Admin = () => {
 
         toast({
           title: "Pet Policies Sync Complete",
-          description: `Successfully processed ${petPolicyProgress.processed} airlines.`,
+          description: `Successfully processed ${totalProcessed} airlines.`,
         });
       } else if (type === 'countryPolicies') {
         let continuationToken = null;
@@ -295,7 +297,7 @@ const Admin = () => {
               {petPolicyProgress.total > 0 && (
                 <div className="mb-6 space-y-4">
                   <Progress 
-                    value={(petPolicyProgress.processed / petPolicyProgress.total) * 100} 
+                    value={Math.min((petPolicyProgress.processed / petPolicyProgress.total) * 100, 100)} 
                     className="mb-2"
                   />
                   <div className="text-sm space-y-2">
