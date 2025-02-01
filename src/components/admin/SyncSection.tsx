@@ -136,9 +136,9 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
-      // Force reset progress for country policies if not resuming
+      // Always reset progress for country policies if not resuming
       if (type === 'countryPolicies' && !resume) {
-        console.log('Forcing reset of country policies sync progress');
+        console.log('Forcing complete reset of country policies sync progress');
         const { error: resetError } = await supabase
           .from('sync_progress')
           .update({
