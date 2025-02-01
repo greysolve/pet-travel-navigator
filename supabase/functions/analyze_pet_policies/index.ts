@@ -33,6 +33,23 @@ function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
   return !excludedDomains.includes(policyDomain);
 }
 
+function extractJSONFromText(text: string): any {
+  // Try to find JSON-like structure in the text
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.error('No JSON object found in content:', text);
+    throw new Error('No JSON object found in response');
+  }
+
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error('JSON parsing error:', error);
+    console.error('Text that failed to parse:', jsonMatch[0]);
+    throw new Error(`Failed to parse response JSON: ${error.message}`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -92,7 +109,9 @@ Deno.serve(async (req) => {
       2. The policy_url must be from the airline's own domain
       3. All URLs must start with https:// and be complete
       4. Return null for any field where you're not completely confident of the accuracy
-      5. Return ONLY the JSON object, no additional text
+      5. Return ONLY the JSON object, no additional text or explanations
+      6. Do not include any markdown formatting
+      7. Do not wrap the JSON in code blocks
     `;
 
     console.log('Sending request to Perplexity API...');
@@ -107,7 +126,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites.'
+            content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
           },
           {
             role: 'user',
@@ -134,34 +153,33 @@ Deno.serve(async (req) => {
       data = JSON.parse(rawResponseText);
       console.log('Parsed API response:', data);
     } catch (error) {
-      console.error('JSON parsing error:', error);
-      console.error('Raw text that failed to parse:', rawResponseText);
-      throw new Error(`Failed to parse response JSON: ${error.message}`);
+      console.error('Initial JSON parsing failed, attempting to extract JSON from text');
+      try {
+        // If the direct parse fails, try to extract JSON from the text
+        const content = data?.choices?.[0]?.message?.content || rawResponseText;
+        data = { choices: [{ message: { content: extractJSONFromText(content) } }] };
+      } catch (extractError) {
+        console.error('Failed to extract JSON from response:', extractError);
+        throw new Error('Could not parse response from Perplexity API');
+      }
     }
 
     if (!data.choices?.[0]?.message?.content) {
       throw new Error('Invalid API response structure');
     }
 
-    let content = data.choices[0].message.content.trim();
-    console.log('Content to parse:', content);
-
-    // Extract JSON from the content and ensure it's properly formatted
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('No JSON object found in content:', content);
-      throw new Error('No JSON object found in content');
-    }
-
-    // Parse the JSON string
     let parsedData;
     try {
-      parsedData = JSON.parse(jsonMatch[0]);
+      // Handle both cases where content might be a string or already an object
+      const content = typeof data.choices[0].message.content === 'string' 
+        ? extractJSONFromText(data.choices[0].message.content)
+        : data.choices[0].message.content;
+      
+      parsedData = content;
       console.log('Successfully parsed JSON:', parsedData);
     } catch (error) {
-      console.error('JSON parsing error:', error);
-      console.error('Text that failed to parse:', jsonMatch[0]);
-      throw new Error(`Failed to parse response JSON: ${error.message}`);
+      console.error('Final JSON parsing error:', error);
+      throw new Error(`Failed to parse final JSON: ${error.message}`);
     }
 
     // Validate the parsed data structure
