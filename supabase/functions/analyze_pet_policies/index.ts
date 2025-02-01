@@ -34,7 +34,6 @@ function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -54,12 +53,10 @@ Deno.serve(async (req) => {
       throw new Error('Missing Perplexity API key');
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get airline name
     const { data: airlineData, error: airlineError } = await supabase
       .from('airlines')
       .select('name')
@@ -143,10 +140,20 @@ Deno.serve(async (req) => {
       throw new Error('No JSON object found in content');
     }
 
-    // Parse the JSON and validate its structure
+    // Clean and parse the JSON string
     let parsedData;
     try {
-      const jsonString = jsonMatch[0].replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+      // Remove any control characters and normalize whitespace
+      const jsonString = jsonMatch[0]
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // Ensure the string is valid JSON
+      if (!jsonString.startsWith('{') || !jsonString.endsWith('}')) {
+        throw new Error('Invalid JSON structure');
+      }
+      
       parsedData = JSON.parse(jsonString);
       console.log('Successfully parsed JSON:', parsedData);
     } catch (error) {
