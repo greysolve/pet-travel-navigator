@@ -120,6 +120,8 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
+      const currentProgress = syncProgress?.[type];
+      
       // Only reset progress if not resuming
       if (!resume) {
         console.log(`Resetting progress for ${type}`);
@@ -153,11 +155,7 @@ export const SyncSection = () => {
           if (clearError) throw clearError;
         }
       } else {
-        // When resuming, ensure we keep the existing start time
-        const currentProgress = syncProgress?.[type];
-        if (currentProgress) {
-          console.log(`Resuming sync for ${type} with existing progress:`, currentProgress);
-        }
+        console.log(`Resuming sync for ${type} with existing progress:`, currentProgress);
       }
 
       const functionMap: Record<SyncType, string> = {
@@ -174,7 +172,12 @@ export const SyncSection = () => {
       }
 
       const payload = {
-        lastProcessedItem: resume ? syncProgress?.[type]?.lastProcessed : null,
+        lastProcessedItem: resume ? currentProgress?.lastProcessed : null,
+        currentProcessed: resume ? currentProgress?.processed || 0 : 0,
+        currentTotal: currentProgress?.total || 0,
+        processedItems: resume ? currentProgress?.processedItems || [] : [],
+        errorItems: resume ? currentProgress?.errorItems || [] : [],
+        startTime: resume ? currentProgress?.startTime : new Date().toISOString(),
         batchSize: type === 'petPolicies' ? 3 : type === 'countryPolicies' ? 10 : undefined
       };
 
@@ -188,17 +191,12 @@ export const SyncSection = () => {
       console.log(`Received response from ${functionName}:`, data);
 
       if (data) {
-        const currentProgress = syncProgress?.[type];
         const updatedProgress: SyncProgress = {
           total: data.total || currentProgress?.total || 0,
-          processed: (resume ? (currentProgress?.processed || 0) : 0) + (data.processed || 0),
+          processed: data.processed || 0,
           lastProcessed: data.continuation_token || null,
-          processedItems: resume ? 
-            [...(currentProgress?.processedItems || []), ...(data.processed_items || [])] :
-            (data.processed_items || []),
-          errorItems: resume ?
-            [...(currentProgress?.errorItems || []), ...(data.error_items || [])] :
-            (data.error_items || []),
+          processedItems: data.processed_items || [],
+          errorItems: data.error_items || [],
           startTime: resume ? currentProgress?.startTime || new Date().toISOString() : new Date().toISOString(),
           isComplete: !data.continuation_token
         };

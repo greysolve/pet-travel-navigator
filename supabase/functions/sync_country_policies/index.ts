@@ -81,65 +81,6 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   }
 }
 
-async function processBatch(
-  countries: string[],
-  supabase: any,
-  syncManager: SyncProgressManager,
-  startIndex: number
-): Promise<{ 
-  shouldContinue: boolean,
-  lastProcessedCountry: string | null
-}> {
-  console.log(`Processing batch starting at index ${startIndex}`);
-  
-  const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
-  
-  for (let i = startIndex; i < endIndex; i++) {
-    const country = countries[i];
-    try {
-      console.log(`Processing country ${i + 1}/${countries.length}: ${country}`);
-      
-      const policy = await fetchPolicyWithAI(country, 'pet');
-      
-      const { error: upsertError } = await supabase
-        .from('country_policies')
-        .upsert({
-          country_code: country,
-          policy_type: 'pet',
-          ...policy,
-          last_updated: new Date().toISOString()
-        }, {
-          onConflict: 'country_code,policy_type'
-        });
-
-      if (upsertError) {
-        console.error(`Error upserting policy for ${country}:`, upsertError);
-        await syncManager.addErrorItem(country);
-      } else {
-        await syncManager.addProcessedItem(country);
-      }
-
-    } catch (error) {
-      console.error(`Error processing country ${country}:`, error);
-      await syncManager.addErrorItem(country);
-      
-      if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
-        console.log('Rate limit or quota reached, gracefully stopping batch');
-        return {
-          shouldContinue: true,
-          lastProcessedCountry: countries[i]
-        };
-      }
-    }
-  }
-
-  const hasMoreCountries = endIndex < countries.length;
-  return { 
-    shouldContinue: hasMoreCountries,
-    lastProcessedCountry: hasMoreCountries ? countries[endIndex - 1] : null
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -151,10 +92,17 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     const requestBody = await req.json().catch(() => ({}));
-    const lastProcessedCountry = requestBody.lastProcessedCountry || null;
-    const isResuming = !!lastProcessedCountry;
+    const {
+      lastProcessedItem,
+      currentProcessed = 0,
+      currentTotal = 0,
+      processedItems = [],
+      errorItems = [],
+      startTime,
+      batchSize = BATCH_SIZE
+    } = requestBody;
 
-    const syncManager = new SyncProgressManager(supabaseUrl, supabaseKey, 'countryPolicies');
+    console.log('Received request with body:', requestBody);
     
     const { data: countries, error: countriesError } = await supabase
       .rpc('get_distinct_countries');
@@ -168,33 +116,74 @@ Deno.serve(async (req) => {
       .map(country => country.normalize('NFKC').trim())
       .sort();
 
-    // Initialize progress if starting fresh
-    if (!isResuming) {
-      await syncManager.initialize(uniqueCountries.length);
-    }
-
-    const startIndex = lastProcessedCountry
-      ? uniqueCountries.findIndex(c => c === lastProcessedCountry) + 1
+    const total = uniqueCountries.length;
+    const startIndex = lastProcessedItem
+      ? uniqueCountries.findIndex(c => c === lastProcessedItem) + 1
       : 0;
 
-    const { shouldContinue, lastProcessedCountry: finalProcessedCountry } = 
-      await processBatch(uniqueCountries, supabase, syncManager, startIndex);
+    console.log(`Processing batch of ${batchSize} countries starting from index ${startIndex}`);
+    const endIndex = Math.min(startIndex + batchSize, uniqueCountries.length);
+    const batchCountries = uniqueCountries.slice(startIndex, endIndex);
+    
+    const newProcessedItems = [...processedItems];
+    const newErrorItems = [...errorItems];
 
-    if (!shouldContinue) {
-      await syncManager.markComplete();
+    for (const country of batchCountries) {
+      try {
+        console.log(`Processing country: ${country}`);
+        const policy = await fetchPolicyWithAI(country, 'pet');
+        
+        const { error: upsertError } = await supabase
+          .from('country_policies')
+          .upsert({
+            country_code: country,
+            policy_type: 'pet',
+            ...policy,
+            last_updated: new Date().toISOString()
+          }, {
+            onConflict: 'country_code,policy_type'
+          });
+
+        if (upsertError) {
+          console.error(`Error upserting policy for ${country}:`, upsertError);
+          newErrorItems.push(country);
+        } else {
+          newProcessedItems.push(country);
+        }
+      } catch (error) {
+        console.error(`Error processing country ${country}:`, error);
+        newErrorItems.push(country);
+        
+        if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
+          console.log('Rate limit or quota reached, stopping batch');
+          return new Response(
+            JSON.stringify({
+              success: true,
+              total,
+              processed: currentProcessed + newProcessedItems.length,
+              processed_items: newProcessedItems,
+              error_items: newErrorItems,
+              continuation_token: country
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+      }
     }
 
-    const currentProgress = await syncManager.getCurrentProgress();
+    const hasMoreCountries = endIndex < uniqueCountries.length;
+    const continuationToken = hasMoreCountries ? uniqueCountries[endIndex - 1] : null;
 
     return new Response(
       JSON.stringify({
         success: true,
-        total: uniqueCountries.length,
-        processed: currentProgress?.processed || 0,
-        processed_items: currentProgress?.processed_items || [],
-        error_items: currentProgress?.error_items || [],
-        continuation_token: shouldContinue ? finalProcessedCountry : null,
-        completed: !shouldContinue
+        total,
+        processed: currentProcessed + newProcessedItems.length,
+        processed_items: newProcessedItems,
+        error_items: newErrorItems,
+        continuation_token: continuationToken
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
