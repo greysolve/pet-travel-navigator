@@ -6,9 +6,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SyncCard } from "./SyncCard";
 import { SyncType, SyncProgress, SyncProgressRecord } from "@/types/sync";
 
-interface SyncProgressDBRecord extends SyncProgress {
+interface SyncProgressDBRecord {
   created_at: string;
   type: string;
+  total: number;
+  processed: number;
+  last_processed: string | null;
+  processed_items: string[];
+  error_items: string[];
+  start_time: string | null;
+  is_complete: boolean;
 }
 
 export const SyncSection = () => {
@@ -22,7 +29,7 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
-  const { data: syncProgress } = useQuery<SyncProgressRecord>({
+  const { data: syncProgress, error } = useQuery<SyncProgressRecord>({
     queryKey: ["syncProgress"],
     queryFn: async () => {
       console.log('DEBUG: Starting to fetch sync progress...');
