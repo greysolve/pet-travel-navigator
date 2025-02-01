@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
       2. The policy_url must be from the airline's own domain
       3. All URLs must start with https:// and be complete
       4. Return null for any field where you're not completely confident of the accuracy
+      5. Return ONLY the JSON object, no additional text
     `;
 
     console.log('Sending request to Perplexity API...');
@@ -136,6 +137,7 @@ Deno.serve(async (req) => {
     let content = data.choices[0].message.content.trim();
     console.log('Raw content to parse:', content);
 
+    // Extract JSON from the content
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No JSON object found in content');
