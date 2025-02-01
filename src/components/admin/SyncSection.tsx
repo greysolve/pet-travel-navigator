@@ -107,9 +107,13 @@ export const SyncSection = ({
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
     try {
-      console.log(`Updating sync progress for ${type}:`, progress);
+      console.log('DEBUG: Attempting to update sync progress:', {
+        type,
+        progress,
+        currentSyncProgress: syncProgress
+      });
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('sync_progress')
         .insert({
           type,
@@ -120,26 +124,31 @@ export const SyncSection = ({
           error_items: progress.errorItems,
           start_time: progress.startTime,
           is_complete: progress.isComplete
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
-        console.error('Error inserting sync progress:', error);
+        console.error('DEBUG: Error inserting sync progress:', error);
         throw error;
       }
       
-      console.log('Previous sync progress:', syncProgress);
+      console.log('DEBUG: Successfully inserted sync progress:', data);
+      console.log('DEBUG: Previous sync progress:', syncProgress);
+      
       const updatedProgress = {
         ...syncProgress,
         [type]: progress
       };
-      console.log('Setting new sync progress:', updatedProgress);
+      
+      console.log('DEBUG: Setting new sync progress:', updatedProgress);
       setSyncProgress(updatedProgress);
     } catch (error: any) {
-      console.error('Error updating sync progress:', error);
+      console.error('DEBUG: Error in updateSyncProgress:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update sync progress.",
+        description: `Failed to update sync progress: ${error.message}`,
       });
     }
   };
