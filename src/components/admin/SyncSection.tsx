@@ -65,7 +65,8 @@ export const SyncSection = ({
   };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
-    const newLoading = { ...isLoading, [type]: true };
+    const newLoading = { ...isLoading };
+    newLoading[type] = true;
     setIsLoading(newLoading);
     
     try {
@@ -96,7 +97,8 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', initialProgress);
-          const newProgress = { ...syncProgress, petPolicies: initialProgress };
+          const newProgress = { ...syncProgress };
+          newProgress.petPolicies = initialProgress;
           setSyncProgress(newProgress);
         }
 
@@ -123,7 +125,8 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', updatedProgress);
-          const newProgress = { ...syncProgress, petPolicies: updatedProgress };
+          const newProgress = { ...syncProgress };
+          newProgress.petPolicies = updatedProgress;
           setSyncProgress(newProgress);
 
           if (data.continuation_token) {
@@ -146,7 +149,9 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('countryPolicies', initialProgress);
-          setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, countryPolicies: initialProgress }));
+          const newProgress = { ...syncProgress };
+          newProgress.countryPolicies = initialProgress;
+          setSyncProgress(newProgress);
         }
 
         let continuationToken = resume ? syncProgress.countryPolicies?.lastProcessed : null;
@@ -171,7 +176,9 @@ export const SyncSection = ({
             };
 
             await updateSyncProgress('countryPolicies', updatedProgress);
-            setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, countryPolicies: updatedProgress }));
+            const newProgress = { ...syncProgress };
+            newProgress.countryPolicies = updatedProgress;
+            setSyncProgress(newProgress);
           }
 
           if (data.continuation_token) {
@@ -216,7 +223,8 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      const newLoading = { ...isLoading, [type]: false };
+      const newLoading = { ...isLoading };
+      newLoading[type] = false;
       setIsLoading(newLoading);
     }
   };
@@ -226,9 +234,11 @@ export const SyncSection = ({
       <SyncCard
         title="Airlines Synchronization"
         clearData={clearData.airlines}
-        onClearDataChange={(checked) => 
-          setClearData(prev => ({ ...prev, airlines: checked }))
-        }
+        onClearDataChange={(checked) => {
+          const newClearData = { ...clearData };
+          newClearData.airlines = checked;
+          setClearData(newClearData);
+        }}
         isLoading={isLoading.airlines}
         onSync={() => handleSync('airlines')}
         syncProgress={syncProgress.airlines}
@@ -237,9 +247,11 @@ export const SyncSection = ({
       <SyncCard
         title="Airports Synchronization"
         clearData={clearData.airports}
-        onClearDataChange={(checked) => 
-          setClearData(prev => ({ ...prev, airports: checked }))
-        }
+        onClearDataChange={(checked) => {
+          const newClearData = { ...clearData };
+          newClearData.airports = checked;
+          setClearData(newClearData);
+        }}
         isLoading={isLoading.airports}
         onSync={() => handleSync('airports')}
         syncProgress={syncProgress.airports}
@@ -248,9 +260,11 @@ export const SyncSection = ({
       <SyncCard
         title="Pet Policies Synchronization"
         clearData={clearData.petPolicies}
-        onClearDataChange={(checked) => 
-          setClearData(prev => ({ ...prev, petPolicies: checked }))
-        }
+        onClearDataChange={(checked) => {
+          const newClearData = { ...clearData };
+          newClearData.petPolicies = checked;
+          setClearData(newClearData);
+        }}
         isLoading={isLoading.petPolicies}
         onSync={(resume) => handleSync('petPolicies', resume)}
         syncProgress={syncProgress.petPolicies}
@@ -259,9 +273,11 @@ export const SyncSection = ({
       <SyncCard
         title="Routes Synchronization"
         clearData={clearData.routes}
-        onClearDataChange={(checked) => 
-          setClearData(prev => ({ ...prev, routes: checked }))
-        }
+        onClearDataChange={(checked) => {
+          const newClearData = { ...clearData };
+          newClearData.routes = checked;
+          setClearData(newClearData);
+        }}
         isLoading={isLoading.routes}
         onSync={() => handleSync('routes')}
         syncProgress={syncProgress.routes}
@@ -270,9 +286,11 @@ export const SyncSection = ({
       <SyncCard
         title="Country Policies Synchronization"
         clearData={clearData.countryPolicies}
-        onClearDataChange={(checked) => 
-          setClearData(prev => ({ ...prev, countryPolicies: checked }))
-        }
+        onClearDataChange={(checked) => {
+          const newClearData = { ...clearData };
+          newClearData.countryPolicies = checked;
+          setClearData(newClearData);
+        }}
         isLoading={isLoading.countryPolicies}
         onSync={(resume) => handleSync('countryPolicies', resume)}
         syncProgress={syncProgress.countryPolicies}
