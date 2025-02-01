@@ -31,7 +31,6 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
-  // Set up individual real-time subscriptions for each sync type
   useEffect(() => {
     const channels = Object.values(SyncType).map(syncType => {
       console.log(`Setting up real-time subscription for ${syncType}`);
@@ -77,7 +76,7 @@ export const SyncSection = () => {
                       lastProcessed: newRecord.last_processed,
                       processedItems: newRecord.processed_items || [],
                       errorItems: newRecord.error_items || [],
-                      startTime: oldData[syncType]?.startTime || newRecord.start_time,
+                      startTime: newRecord.start_time,
                       isComplete: newRecord.is_complete,
                     }
                   };
@@ -313,3 +312,4 @@ export const SyncSection = () => {
 };
 
 export default SyncSection;
+

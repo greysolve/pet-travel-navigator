@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { SyncProgress } from "@/types/sync";
 
 interface SyncCardProps {
   title: string;
@@ -13,15 +14,7 @@ interface SyncCardProps {
   onClearDataChange: (checked: boolean) => void;
   isLoading: boolean;
   onSync: (resume?: boolean) => void;
-  syncProgress?: {
-    total: number;
-    processed: number;
-    last_processed: string | null;
-    processed_items: string[];
-    error_items: string[];
-    start_time: string | null;
-    is_complete: boolean;
-  };
+  syncProgress?: SyncProgress;
 }
 
 export const SyncCard = ({
