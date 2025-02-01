@@ -23,7 +23,8 @@ const formatTitle = (title: string) => {
   // Capitalize first letter of each word and join with spaces
   return words
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+    .join(' ')
+    .replace(' Synchronization', ''); // Remove "Synchronization" from the title
 };
 
 export const SyncCard = ({
@@ -80,7 +81,7 @@ export const SyncCard = ({
 
   return (
     <div className="p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md">
-      <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+      <h2 className="text-2xl font-semibold mb-6 flex items-center justify-center gap-2">
         {formattedTitle}
         {isLoading && (
           <div className="animate-pulse">
