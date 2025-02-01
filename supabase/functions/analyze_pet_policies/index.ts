@@ -5,82 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function getDomainFromUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.replace('www.', '');
-  } catch (e) {
-    return '';
-  }
-}
-
-function isValidPolicyUrl(websiteDomain: string, policyUrl: string): boolean {
-  const airlineDomain = getDomainFromUrl(websiteDomain);
-  const policyDomain = getDomainFromUrl(policyUrl);
-  
-  if (!airlineDomain || !policyDomain) return false;
-  if (policyDomain === airlineDomain) return true;
-
-  const excludedDomains = [
-    'rover.com',
-    'pettravel.com',
-    'alternativeairlines.com',
-    'seatmaestro.com',
-    'ticketterrier.com',
-    'fetchapet.co.uk'
-  ];
-
-  return !excludedDomains.includes(policyDomain);
-}
-
-async function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function retryWithBackoff(
-  operation: () => Promise<any>,
-  retries = 3,
-  baseDelay = 1000,
-  maxDelay = 10000
-): Promise<any> {
-  let lastError;
-  
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      console.error(`Attempt ${i + 1} failed:`, error);
-      
-      if (i < retries - 1) {
-        const delayTime = Math.min(baseDelay * Math.pow(2, i), maxDelay);
-        await delay(delayTime);
-      }
-    }
-  }
-  
-  throw lastError;
-}
-
-function extractJSONFromText(text: string): any {
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    console.error('No JSON object found in content:', text);
-    throw new Error('No JSON object found in response');
-  }
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch (error) {
-    console.error('JSON parsing error:', error);
-    console.error('Text that failed to parse:', jsonMatch[0]);
-    throw new Error(`Failed to parse response JSON: ${error.message}`);
-  }
-}
-
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
@@ -112,6 +43,7 @@ Deno.serve(async (req) => {
     const { data: airlines, error: airlinesError } = await query;
 
     if (airlinesError) {
+      console.error('Error fetching airlines:', airlinesError);
       throw new Error(`Failed to fetch airlines: ${airlinesError.message}`);
     }
 
@@ -124,7 +56,7 @@ Deno.serve(async (req) => {
     for (const airline of airlines || []) {
       try {
         console.log(`Processing airline: ${airline.name} (${airline.id})`);
-        await delay(2000); // Add delay between airlines to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Rate limiting delay
 
         const prompt = `
           Analyze this airline: ${airline.name}
@@ -143,168 +75,115 @@ Deno.serve(async (req) => {
               "policy_url": "string (must be from the airline's own website domain)"
             }
           }
-          
-          IMPORTANT RULES:
-          1. The official_website must be the airline's actual website, not a third-party site
-          2. The policy_url must be from the airline's own domain
-          3. All URLs must start with https:// and be complete
-          4. Return null for any field where you're not completely confident of the accuracy
-          5. Return ONLY the JSON object, no additional text or explanations
-          6. Do not include any markdown formatting
-          7. Do not wrap the JSON in code blocks
         `;
 
-        let perplexityResponse;
-        try {
-          perplexityResponse = await retryWithBackoff(async () => {
-            console.log('Sending request to Perplexity API...');
-            const res = await fetch('https://api.perplexity.ai/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-                'Content-Type': 'application/json',
+        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-sonar-small-128k-online',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
               },
-              body: JSON.stringify({
-                model: 'llama-3.1-sonar-small-128k-online',
-                messages: [
-                  {
-                    role: 'system',
-                    content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
-                  },
-                  {
-                    role: 'user',
-                    content: prompt
-                  }
-                ],
-                temperature: 0.1,
-                max_tokens: 1000,
-              }),
-            });
-
-            if (!res.ok) {
-              throw new Error(`Perplexity API error: ${res.statusText}`);
-            }
-
-            return res;
-          });
-        } catch (error) {
-          console.error(`Failed to get response from Perplexity API for ${airline.name}:`, error);
-          errorAirlines.push(`${airline.name} (API Error: ${error.message})`);
-          continue;
-        }
-
-        const rawResponseText = await perplexityResponse.text();
-        console.log('Raw Perplexity API response:', rawResponseText);
-
-        let parsedData;
-        try {
-          parsedData = JSON.parse(rawResponseText);
-          console.log('Parsed API response:', parsedData);
-          
-          if (!parsedData.choices?.[0]?.message?.content) {
-            throw new Error('Invalid API response structure');
-          }
-
-          const content = typeof parsedData.choices[0].message.content === 'string'
-            ? extractJSONFromText(parsedData.choices[0].message.content)
-            : parsedData.choices[0].message.content;
-
-          // Update airline website if we got a valid one
-          if (content.airline_info?.official_website) {
-            console.log('Updating airline website:', content.airline_info.official_website);
-            await supabase
-              .from('airlines')
-              .update({ 
-                website: content.airline_info.official_website,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', airline.id);
-          }
-
-          // Process pet policy data
-          const policyData = content.pet_policy || {};
-          
-          // Validate policy URL against the official website
-          if (policyData.policy_url && content.airline_info?.official_website) {
-            if (!isValidPolicyUrl(content.airline_info.official_website, policyData.policy_url)) {
-              console.log(`Invalid policy URL detected: ${policyData.policy_url}`);
-              policyData.policy_url = null;
-            }
-          }
-
-          // Clean and validate arrays
-          ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'].forEach(field => {
-            if (!Array.isArray(policyData[field])) {
-              policyData[field] = policyData[field] ? [String(policyData[field])] : null;
-            } else if (policyData[field].length === 0) {
-              policyData[field] = null;
-            } else {
-              policyData[field] = policyData[field].map((item: any) => String(item).trim()).filter(Boolean);
-              if (policyData[field].length === 0) {
-                policyData[field] = null;
+              {
+                role: 'user',
+                content: prompt
               }
-            }
-          });
+            ],
+            temperature: 0.1,
+            max_tokens: 1000,
+          }),
+        });
 
-          // Clean string fields
-          ['carrier_requirements', 'temperature_restrictions'].forEach(field => {
-            if (policyData[field] && typeof policyData[field] !== 'string') {
-              policyData[field] = String(policyData[field]).trim();
-            }
-            if (!policyData[field]) {
-              policyData[field] = null;
-            }
-          });
-
-          // Store policy if we found valid data
-          if (policyData.policy_url || policyData.pet_types_allowed || policyData.carrier_requirements) {
-            console.log('Storing valid policy data:', policyData);
-            await supabase
-              .from('pet_policies')
-              .upsert({
-                airline_id: airline.id,
-                ...policyData,
-                updated_at: new Date().toISOString(),
-              }, { 
-                onConflict: 'airline_id'
-              });
-          }
-
-          processedAirlines.push(airline.name);
-          processedCount++;
-
-        } catch (parseError) {
-          console.error('Error processing airline data:', parseError);
-          errorAirlines.push(`${airline.name} (Parse Error: ${parseError.message})`);
+        if (!perplexityResponse.ok) {
+          throw new Error(`Perplexity API error: ${perplexityResponse.statusText}`);
         }
 
-      } catch (airlineError) {
-        console.error(`Error processing airline ${airline.name}:`, airlineError);
-        errorAirlines.push(`${airline.name} (${airlineError.message})`);
+        const responseData = await perplexityResponse.json();
+        console.log('Perplexity API response:', responseData);
+
+        if (!responseData.choices?.[0]?.message?.content) {
+          throw new Error('Invalid API response structure');
+        }
+
+        const content = JSON.parse(responseData.choices[0].message.content);
+
+        // Update airline website if we got a valid one
+        if (content.airline_info?.official_website) {
+          console.log('Updating airline website:', content.airline_info.official_website);
+          await supabase
+            .from('airlines')
+            .update({ 
+              website: content.airline_info.official_website,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', airline.id);
+        }
+
+        // Process pet policy data
+        if (content.pet_policy) {
+          console.log('Storing pet policy data:', content.pet_policy);
+          await supabase
+            .from('pet_policies')
+            .upsert({
+              airline_id: airline.id,
+              ...content.pet_policy,
+              updated_at: new Date().toISOString(),
+            }, { 
+              onConflict: 'airline_id'
+            });
+        }
+
+        processedAirlines.push(airline.name);
+        processedCount++;
+
+      } catch (error) {
+        console.error(`Error processing airline ${airline.name}:`, error);
+        errorAirlines.push(`${airline.name} (${error.message})`);
       }
     }
 
     const lastProcessedId = airlines && airlines.length > 0 ? airlines[airlines.length - 1].id : null;
     const hasMore = airlines && airlines.length === batchSize;
 
+    const response = {
+      success: true,
+      processed: processedCount,
+      processed_items: processedAirlines,
+      error_items: errorAirlines,
+      continuation_token: hasMore ? lastProcessedId : null
+    };
+
+    console.log('Returning response:', response);
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        processed_count: processedCount,
-        processed_airlines: processedAirlines,
-        error_airlines: errorAirlines,
-        continuation_token: hasMore ? lastProcessedId : null
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify(response),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        } 
+      }
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in edge function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ 
+        error: error.message,
+        success: false 
+      }), 
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        }
       }
     );
   }
