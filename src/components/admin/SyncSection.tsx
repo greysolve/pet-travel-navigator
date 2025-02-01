@@ -48,6 +48,11 @@ export const SyncSection = () => {
           
           if (newRecord && 'type' in newRecord) {
             console.log(`Updating sync progress in React Query cache for ${newRecord.type}:`, newRecord);
+            
+            // Force a refetch instead of just updating the cache
+            queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
+            
+            // Also update the cache immediately for responsive UI
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (old) => {
@@ -110,8 +115,8 @@ export const SyncSection = () => {
       console.log('Processed sync progress data:', progressRecord);
       return progressRecord;
     },
-    staleTime: 0,
-    refetchInterval: 5000,
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 3000, // Poll every 3 seconds as backup
   });
 
   const handleSync = async (type: SyncType, resume: boolean = false) => {
