@@ -43,23 +43,24 @@ export const SyncSection = () => {
         throw error;
       }
 
-      console.log('DEBUG: Sync progress query result:', { data, error });
+      console.log('DEBUG: Raw sync progress data:', data);
 
-      // Group by type and get the most recent for each
+      // Group by type and get the most recent record with the highest processed count
       const progressByType = (data as SyncProgressDBRecord[]).reduce((acc: SyncProgressRecord, curr) => {
         const existingProgress = acc[curr.type];
+        const currDate = new Date(curr.created_at);
         
-        // Only update if this record is more recent or has more progress
         if (!existingProgress || 
-            new Date(curr.created_at) > new Date(existingProgress.startTime!) ||
-            curr.processed > existingProgress.processed) {
+            curr.processed > existingProgress.processed || 
+            (curr.processed === existingProgress.processed && 
+             currDate > new Date(existingProgress.startTime!))) {
           acc[curr.type] = {
             total: curr.total,
             processed: curr.processed,
             lastProcessed: curr.last_processed,
             processedItems: curr.processed_items || [],
             errorItems: curr.error_items || [],
-            startTime: curr.created_at,
+            startTime: curr.start_time || curr.created_at,
             isComplete: curr.is_complete,
           };
         }
@@ -69,7 +70,7 @@ export const SyncSection = () => {
       console.log('DEBUG: Processed sync progress by type:', progressByType);
       return progressByType;
     },
-    refetchInterval: 2000, // Increased frequency to 2 seconds
+    refetchInterval: 2000,
     refetchIntervalInBackground: true,
     staleTime: 0,
   });
@@ -205,7 +206,7 @@ export const SyncSection = () => {
           await updateSyncProgress('countryPolicies', initialProgress);
         }
 
-        let continuationToken = resume ? syncProgress.countryPolicies?.lastProcessed : null;
+        let continuationToken = resume ? syncProgress?.countryPolicies?.lastProcessed : null;
         let completed = false;
 
         while (!completed) {
@@ -216,17 +217,20 @@ export const SyncSection = () => {
 
           if (error) throw error;
 
+          console.log('DEBUG: Received response from sync_country_policies:', data);
+
           if (data.total_countries > 0) {
             const updatedProgress: SyncProgress = {
-              ...syncProgress.countryPolicies,
               total: data.total_countries,
-              processed: (syncProgress.countryPolicies?.processed || 0) + data.processed_policies,
+              processed: (syncProgress?.countryPolicies?.processed || 0) + data.processed_policies,
               lastProcessed: data.continuation_token,
-              processedItems: [...(syncProgress.countryPolicies?.processedItems || []), ...data.processed_countries],
-              errorItems: [...(syncProgress.countryPolicies?.errorItems || []), ...data.error_countries],
+              processedItems: [...(syncProgress?.countryPolicies?.processedItems || []), ...data.processed_countries],
+              errorItems: [...(syncProgress?.countryPolicies?.errorItems || []), ...data.error_countries],
+              startTime: syncProgress?.countryPolicies?.startTime || new Date().toISOString(),
               isComplete: !data.continuation_token
             };
 
+            console.log('DEBUG: Updating progress:', updatedProgress);
             await updateSyncProgress('countryPolicies', updatedProgress);
           }
 
