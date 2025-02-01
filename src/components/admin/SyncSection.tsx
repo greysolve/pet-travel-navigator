@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { SyncCard } from "./SyncCard";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 interface SyncProgress {
   total: number;
@@ -39,6 +41,60 @@ export const SyncSection = ({
     routes: false,
     countryPolicies: false
   });
+  const [isFetchingProgress, setIsFetchingProgress] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchInitialProgress = async () => {
+      try {
+        setIsFetchingProgress(true);
+        setError(null);
+        console.log('Fetching initial sync progress...');
+        
+        const { data, error } = await supabase
+          .from('sync_progress')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching sync progress:', error);
+          setError('Failed to fetch sync progress');
+          return;
+        }
+
+        if (data && data.length > 0) {
+          console.log('Received initial sync progress data:', data);
+          
+          // Group by type and get the most recent for each
+          const progressByType = data.reduce((acc: any, curr: any) => {
+            if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
+              acc[curr.type] = {
+                total: curr.total,
+                processed: curr.processed,
+                lastProcessed: curr.last_processed,
+                processedItems: curr.processed_items || [],
+                errorItems: curr.error_items || [],
+                startTime: curr.start_time,
+                isComplete: curr.is_complete,
+                created_at: curr.created_at
+              };
+            }
+            return acc;
+          }, {});
+
+          console.log('Processed initial sync progress by type:', progressByType);
+          setSyncProgress(progressByType);
+        }
+      } catch (error) {
+        console.error('Error in fetchInitialProgress:', error);
+        setError('Failed to fetch sync progress');
+      } finally {
+        setIsFetchingProgress(false);
+      }
+    };
+
+    fetchInitialProgress();
+  }, [setSyncProgress]);
 
   const updateSyncProgress = async (type: string, progress: SyncProgress) => {
     try {
@@ -236,62 +292,94 @@ export const SyncSection = ({
     }
   };
 
+  if (isFetchingProgress) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-lg">Loading sync progress...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mb-8">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <SyncCard
-        title="Airlines Synchronization"
-        clearData={clearData.airlines}
-        onClearDataChange={(checked) => {
-          setClearData(prev => ({ ...prev, airlines: checked }));
-        }}
-        isLoading={isLoading.airlines}
-        onSync={() => handleSync('airlines')}
-        syncProgress={syncProgress.airlines}
-      />
+    <div className="space-y-8">
+      {Object.keys(syncProgress).length > 0 && (
+        <div className="bg-accent/20 p-4 rounded-lg mb-8">
+          <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
+          <div className="space-y-2">
+            {Object.entries(syncProgress).map(([type, progress]) => !progress.isComplete && (
+              <div key={type} className="text-sm">
+                {type}: {progress.processed} of {progress.total} items processed
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      <SyncCard
-        title="Airports Synchronization"
-        clearData={clearData.airports}
-        onClearDataChange={(checked) => {
-          setClearData(prev => ({ ...prev, airports: checked }));
-        }}
-        isLoading={isLoading.airports}
-        onSync={() => handleSync('airports')}
-        syncProgress={syncProgress.airports}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <SyncCard
+          title="Airlines Synchronization"
+          clearData={clearData.airlines}
+          onClearDataChange={(checked) => {
+            setClearData(prev => ({ ...prev, airlines: checked }));
+          }}
+          isLoading={isLoading.airlines}
+          onSync={() => handleSync('airlines')}
+          syncProgress={syncProgress.airlines}
+        />
 
-      <SyncCard
-        title="Pet Policies Synchronization"
-        clearData={clearData.petPolicies}
-        onClearDataChange={(checked) => {
-          setClearData(prev => ({ ...prev, petPolicies: checked }));
-        }}
-        isLoading={isLoading.petPolicies}
-        onSync={(resume) => handleSync('petPolicies', resume)}
-        syncProgress={syncProgress.petPolicies}
-      />
+        <SyncCard
+          title="Airports Synchronization"
+          clearData={clearData.airports}
+          onClearDataChange={(checked) => {
+            setClearData(prev => ({ ...prev, airports: checked }));
+          }}
+          isLoading={isLoading.airports}
+          onSync={() => handleSync('airports')}
+          syncProgress={syncProgress.airports}
+        />
 
-      <SyncCard
-        title="Routes Synchronization"
-        clearData={clearData.routes}
-        onClearDataChange={(checked) => {
-          setClearData(prev => ({ ...prev, routes: checked }));
-        }}
-        isLoading={isLoading.routes}
-        onSync={() => handleSync('routes')}
-        syncProgress={syncProgress.routes}
-      />
+        <SyncCard
+          title="Pet Policies Synchronization"
+          clearData={clearData.petPolicies}
+          onClearDataChange={(checked) => {
+            setClearData(prev => ({ ...prev, petPolicies: checked }));
+          }}
+          isLoading={isLoading.petPolicies}
+          onSync={(resume) => handleSync('petPolicies', resume)}
+          syncProgress={syncProgress.petPolicies}
+        />
 
-      <SyncCard
-        title="Country Policies Synchronization"
-        clearData={clearData.countryPolicies}
-        onClearDataChange={(checked) => {
-          setClearData(prev => ({ ...prev, countryPolicies: checked }));
-        }}
-        isLoading={isLoading.countryPolicies}
-        onSync={(resume) => handleSync('countryPolicies', resume)}
-        syncProgress={syncProgress.countryPolicies}
-      />
+        <SyncCard
+          title="Routes Synchronization"
+          clearData={clearData.routes}
+          onClearDataChange={(checked) => {
+            setClearData(prev => ({ ...prev, routes: checked }));
+          }}
+          isLoading={isLoading.routes}
+          onSync={() => handleSync('routes')}
+          syncProgress={syncProgress.routes}
+        />
+
+        <SyncCard
+          title="Country Policies Synchronization"
+          clearData={clearData.countryPolicies}
+          onClearDataChange={(checked) => {
+            setClearData(prev => ({ ...prev, countryPolicies: checked }));
+          }}
+          isLoading={isLoading.countryPolicies}
+          onSync={(resume) => handleSync('countryPolicies', resume)}
+          syncProgress={syncProgress.countryPolicies}
+        />
+      </div>
     </div>
   );
 };
