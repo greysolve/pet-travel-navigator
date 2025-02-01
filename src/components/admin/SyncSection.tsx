@@ -258,13 +258,13 @@ export const SyncSection = () => {
 
   return (
     <div className="space-y-8">
-      {Object.entries(syncProgress || {}).some(([_, progress]) => 
+      {Object.entries(syncProgress || {}).some(([_, progress]: [string, SyncProgress]) => 
         progress && !progress.isComplete && progress.processed < progress.total
       ) && (
         <div className="bg-accent/20 p-4 rounded-lg mb-8">
           <h3 className="text-lg font-semibold mb-2">Active Syncs</h3>
           <div className="space-y-2">
-            {Object.entries(syncProgress || {}).map(([type, progress]) => 
+            {Object.entries(syncProgress || {}).map(([type, progress]: [string, SyncProgress]) => 
               progress && !progress.isComplete && progress.processed < progress.total && (
                 <div key={type} className="text-sm">
                   {type}: {progress.processed} of {progress.total} items processed
