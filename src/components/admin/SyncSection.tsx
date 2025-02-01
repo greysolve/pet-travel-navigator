@@ -143,13 +143,14 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
+      const currentProgress = syncProgress?.[type];
+      console.log(`Current progress for ${type}:`, currentProgress);
+      
       // Always reset progress for country policies if not resuming
       if (type === 'countryPolicies' && !resume) {
         console.log('Forcing complete reset of country policies sync progress');
         await resetSyncProgressCache(type);
       }
-
-      const currentProgress = syncProgress?.[type];
       
       // Only reset progress if not resuming and not country policies (handled above)
       if (!resume && type !== 'countryPolicies') {
@@ -173,7 +174,6 @@ export const SyncSection = () => {
 
         if (clearData[type]) {
           console.log(`Clearing existing data for ${type}`);
-          // Map sync types to their corresponding table names
           const tableNameMap: Record<keyof typeof SyncType, string> = {
             airlines: 'airlines',
             airports: 'airports',
@@ -195,8 +195,6 @@ export const SyncSection = () => {
             throw clearError;
           }
         }
-      } else if (resume) {
-        console.log(`Resuming sync for ${type} with existing progress:`, currentProgress);
       }
 
       const functionMap: Record<SyncType, string> = {
@@ -215,7 +213,7 @@ export const SyncSection = () => {
       const payload = {
         lastProcessedItem: resume ? currentProgress?.lastProcessed : null,
         currentProcessed: resume ? currentProgress?.processed || 0 : 0,
-        currentTotal: currentProgress?.total || 0,
+        currentTotal: resume ? currentProgress?.total || 0 : 0,
         processedItems: resume ? currentProgress?.processedItems || [] : [],
         errorItems: resume ? currentProgress?.errorItems || [] : [],
         startTime: resume ? currentProgress?.startTime : new Date().toISOString(),
