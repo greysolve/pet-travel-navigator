@@ -27,46 +27,46 @@ async function processBatch(
   lastProcessedCountry: string | null,
   processedCount: number 
 }> {
-  console.log(`Starting batch processing from country: ${state.lastProcessedCountry || 'START'}`)
-  const processed: string[] = []
-  const errors: string[] = []
-  let shouldContinue = true
-  let processedCount = 0
+  console.log(`Starting batch processing from country: ${state.lastProcessedCountry || 'START'}`);
+  const processed: string[] = [];
+  const errors: string[] = [];
+  let shouldContinue = true;
+  let processedCount = state.processedCount; // Start from existing processed count
 
   try {
     const startIndex = state.lastProcessedCountry 
       ? countries.findIndex(c => c === state.lastProcessedCountry) + 1 
-      : 0
+      : 0;
 
-    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`)
+    console.log(`Starting at index ${startIndex}, total countries: ${countries.length}`);
 
     if (startIndex >= countries.length) {
-      console.log('All countries have been processed')
+      console.log('All countries have been processed');
       return {
         processed,
         errors,
         shouldContinue: false,
         lastProcessedCountry: null,
-        processedCount: 0
-      }
+        processedCount
+      };
     }
 
-    const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length)
-    console.log(`Processing countries from index ${startIndex} to ${endIndex}`)
+    const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
+    console.log(`Processing countries from index ${startIndex} to ${endIndex}`);
 
     for (let i = startIndex; i < endIndex; i++) {
       if (Date.now() - state.startTime > MAX_EXECUTION_TIME) {
-        console.log('Approaching execution time limit, gracefully stopping batch')
-        shouldContinue = true
-        break
+        console.log('Approaching execution time limit, gracefully stopping batch');
+        shouldContinue = true;
+        break;
       }
 
-      const country = countries[i]
+      const country = countries[i];
       try {
-        console.log(`Processing country ${i + 1}/${countries.length}: ${country}`)
+        console.log(`Processing country ${i + 1}/${countries.length}: ${country}`);
         
-        const policy = await fetchPolicyWithRetry(country, 'pet')
-        console.log(`Policy data received for ${country}:`, policy)
+        const policy = await fetchPolicyWithRetry(country, 'pet');
+        console.log(`Policy data received for ${country}:`, policy);
 
         const { error: upsertError } = await supabaseClient
           .from('country_policies')
@@ -77,33 +77,33 @@ async function processBatch(
             last_updated: new Date().toISOString()
           }, {
             onConflict: 'country_code,policy_type'
-          })
+          });
 
         if (upsertError) {
-          console.error(`Error upserting policy for ${country}:`, upsertError)
-          errors.push(country)
+          console.error(`Error upserting policy for ${country}:`, upsertError);
+          errors.push(country);
         } else {
-          processed.push(country)
-          state.lastProcessedCountry = country
-          processedCount++
-          console.log(`Successfully processed policy for ${country}. Total processed in this batch: ${processedCount}`)
+          processed.push(country);
+          state.lastProcessedCountry = country;
+          processedCount++; // Increment the cumulative count
+          console.log(`Successfully processed policy for ${country}. Total processed: ${processedCount}`);
         }
 
-        await delay(RATE_LIMIT_DELAY)
+        await delay(RATE_LIMIT_DELAY);
       } catch (error) {
-        console.error(`Error processing country ${country}:`, error)
-        errors.push(country)
+        console.error(`Error processing country ${country}:`, error);
+        errors.push(country);
         
         if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
-          console.log('Rate limit or quota reached, gracefully stopping batch')
-          shouldContinue = true
-          break
+          console.log('Rate limit or quota reached, gracefully stopping batch');
+          shouldContinue = true;
+          break;
         }
       }
     }
 
-    const hasMoreCountries = endIndex < countries.length
-    console.log(`Batch complete. Processed: ${processed.length}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`)
+    const hasMoreCountries = endIndex < countries.length;
+    console.log(`Batch complete. Processed: ${processed.length}, Total processed: ${processedCount}, Errors: ${errors.length}, Has more: ${hasMoreCountries}`);
     
     return { 
       processed, 
@@ -111,16 +111,16 @@ async function processBatch(
       shouldContinue: hasMoreCountries,
       lastProcessedCountry: hasMoreCountries ? state.lastProcessedCountry : null,
       processedCount
-    }
+    };
   } catch (error) {
-    console.error('Unexpected error in processBatch:', error)
+    console.error('Unexpected error in processBatch:', error);
     return {
       processed,
       errors: [...errors, 'BATCH_PROCESSING_ERROR'],
       shouldContinue: true,
       lastProcessedCountry: state.lastProcessedCountry,
       processedCount
-    }
+    };
   }
 }
 
