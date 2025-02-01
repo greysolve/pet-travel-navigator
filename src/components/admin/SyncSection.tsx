@@ -31,6 +31,13 @@ export const SyncSection = () => {
   });
   const queryClient = useQueryClient();
 
+  // Function to reset sync progress cache
+  const resetSyncProgressCache = async (type: keyof typeof SyncType) => {
+    console.log(`Resetting sync progress cache for ${type}`);
+    await queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
+    setIsLoading(prev => ({ ...prev, [type]: false }));
+  };
+
   useEffect(() => {
     const channels = Object.values(SyncType).map(syncType => {
       console.log(`Setting up real-time subscription for ${syncType}`);
@@ -139,37 +146,7 @@ export const SyncSection = () => {
       // Always reset progress for country policies if not resuming
       if (type === 'countryPolicies' && !resume) {
         console.log('Forcing complete reset of country policies sync progress');
-        const { error: resetError } = await supabase
-          .from('sync_progress')
-          .update({
-            total: 0,
-            processed: 0,
-            last_processed: null,
-            processed_items: [],
-            error_items: [],
-            start_time: new Date().toISOString(),
-            is_complete: false
-          })
-          .eq('type', type);
-
-        if (resetError) {
-          console.error('Error resetting country policies sync:', resetError);
-          throw resetError;
-        }
-
-        // Clear existing country policies if requested
-        if (clearData[type]) {
-          console.log('Clearing existing country policies data');
-          const { error: clearError } = await supabase
-            .from('country_policies')
-            .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000');
-          
-          if (clearError) {
-            console.error('Error clearing country policies:', clearError);
-            throw clearError;
-          }
-        }
+        await resetSyncProgressCache(type);
       }
 
       const currentProgress = syncProgress?.[type];
