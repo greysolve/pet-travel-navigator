@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { SyncCard } from "./SyncCard";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
@@ -65,7 +69,7 @@ export const SyncSection = ({
   };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
-    setIsLoading(prev => ({ ...prev, [type]: true }));
+    setIsLoading((prev: { [key: string]: boolean }) => ({ ...prev, [type]: true }));
     try {
       if (!resume && clearData[type]) {
         const { error: clearError } = await supabase
@@ -77,14 +81,13 @@ export const SyncSection = ({
       }
 
       if (type === 'petPolicies') {
-        // Initialize or resume progress
         if (!resume) {
           const { data: airlines } = await supabase
             .from('airlines')
             .select('id, name, website')
             .eq('active', true);
 
-          const initialProgress = {
+          const initialProgress: SyncProgress = {
             total: airlines?.length || 0,
             processed: 0,
             lastProcessed: null,
@@ -95,7 +98,7 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', initialProgress);
-          setSyncProgress(prev => ({ ...prev, petPolicies: initialProgress }));
+          setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, petPolicies: initialProgress }));
         }
 
         let continuationToken = resume ? syncProgress.petPolicies?.lastProcessed : null;
@@ -111,7 +114,7 @@ export const SyncSection = ({
 
           if (error) throw error;
 
-          const updatedProgress = {
+          const updatedProgress: SyncProgress = {
             ...syncProgress.petPolicies,
             processed: (syncProgress.petPolicies?.processed || 0) + data.processed_count,
             lastProcessed: data.continuation_token,
@@ -121,7 +124,7 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', updatedProgress);
-          setSyncProgress(prev => ({ ...prev, petPolicies: updatedProgress }));
+          setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, petPolicies: updatedProgress }));
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
@@ -131,9 +134,8 @@ export const SyncSection = ({
           }
         }
       } else if (type === 'countryPolicies') {
-        // Initialize progress
         if (!resume) {
-          const initialProgress = {
+          const initialProgress: SyncProgress = {
             total: 0,
             processed: 0,
             lastProcessed: null,
@@ -144,7 +146,7 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('countryPolicies', initialProgress);
-          setSyncProgress(prev => ({ ...prev, countryPolicies: initialProgress }));
+          setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, countryPolicies: initialProgress }));
         }
 
         let continuationToken = resume ? syncProgress.countryPolicies?.lastProcessed : null;
@@ -158,7 +160,7 @@ export const SyncSection = ({
           if (error) throw error;
 
           if (data.total_countries > 0) {
-            const updatedProgress = {
+            const updatedProgress: SyncProgress = {
               ...syncProgress.countryPolicies,
               total: data.total_countries,
               processed: (syncProgress.countryPolicies?.processed || 0) + data.processed_policies,
@@ -169,7 +171,7 @@ export const SyncSection = ({
             };
 
             await updateSyncProgress('countryPolicies', updatedProgress);
-            setSyncProgress(prev => ({ ...prev, countryPolicies: updatedProgress }));
+            setSyncProgress((prev: { [key: string]: SyncProgress }) => ({ ...prev, countryPolicies: updatedProgress }));
           }
 
           if (data.continuation_token) {
@@ -180,7 +182,6 @@ export const SyncSection = ({
           }
         }
       } else {
-        // Handle other sync types
         const functionName = type === 'airlines' 
           ? 'sync_airline_data' 
           : type === 'airports' 
@@ -190,7 +191,6 @@ export const SyncSection = ({
         const { data, error } = await supabase.functions.invoke(functionName);
         if (error) throw error;
 
-        // Update progress for other sync types
         await updateSyncProgress(type, {
           total: 1,
           processed: 1,
@@ -214,7 +214,7 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      setIsLoading(prev => ({ ...prev, [type]: false }));
+      setIsLoading((prev: { [key: string]: boolean }) => ({ ...prev, [type]: false }));
     }
   };
 
