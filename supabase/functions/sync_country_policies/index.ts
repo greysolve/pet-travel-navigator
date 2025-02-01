@@ -12,7 +12,8 @@ const BATCH_SIZE = 10;
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal') {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
   if (!PERPLEXITY_API_KEY) {
-    throw new Error('Missing Perplexity API key')
+    console.error('Missing Perplexity API key')
+    throw new Error('Server configuration error: Missing API key')
   }
 
   console.log(`Starting AI policy fetch for ${country} (${policyType})`)
@@ -54,7 +55,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`Perplexity API error for ${country}:`, errorText)
-      throw new Error(`Perplexity API error: ${response.statusText}`)
+      throw new Error(`API error: ${response.status} - ${response.statusText}`)
     }
 
     const data = await response.json()
@@ -104,10 +105,12 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY')
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseKey || !perplexityKey) {
       console.error('Missing required environment variables')
       return new Response(
         JSON.stringify({ 
@@ -209,7 +212,7 @@ Deno.serve(async (req) => {
           newProcessedItems.push(country)
         }
 
-        // Add a small delay between requests to avoid rate limits
+        // Add a delay between requests to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 2000))
       } catch (error) {
         console.error(`Error processing country ${country}:`, error)
