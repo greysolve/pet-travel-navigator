@@ -65,8 +65,7 @@ export const SyncSection = ({
   };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
-    const newLoading = { ...isLoading };
-    newLoading[type] = true;
+    const newLoading = { ...isLoading, [type]: true };
     setIsLoading(newLoading);
     
     try {
@@ -97,9 +96,7 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', initialProgress);
-          const newProgress = { ...syncProgress };
-          newProgress.petPolicies = initialProgress;
-          setSyncProgress(newProgress);
+          setSyncProgress({ ...syncProgress, petPolicies: initialProgress });
         }
 
         let continuationToken = resume ? syncProgress.petPolicies?.lastProcessed : null;
@@ -125,9 +122,7 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('petPolicies', updatedProgress);
-          const newProgress = { ...syncProgress };
-          newProgress.petPolicies = updatedProgress;
-          setSyncProgress(newProgress);
+          setSyncProgress({ ...syncProgress, petPolicies: updatedProgress });
 
           if (data.continuation_token) {
             continuationToken = data.continuation_token;
@@ -149,9 +144,7 @@ export const SyncSection = ({
           };
 
           await updateSyncProgress('countryPolicies', initialProgress);
-          const newProgress = { ...syncProgress };
-          newProgress.countryPolicies = initialProgress;
-          setSyncProgress(newProgress);
+          setSyncProgress({ ...syncProgress, countryPolicies: initialProgress });
         }
 
         let continuationToken = resume ? syncProgress.countryPolicies?.lastProcessed : null;
@@ -176,9 +169,7 @@ export const SyncSection = ({
             };
 
             await updateSyncProgress('countryPolicies', updatedProgress);
-            const newProgress = { ...syncProgress };
-            newProgress.countryPolicies = updatedProgress;
-            setSyncProgress(newProgress);
+            setSyncProgress({ ...syncProgress, countryPolicies: updatedProgress });
           }
 
           if (data.continuation_token) {
@@ -223,9 +214,7 @@ export const SyncSection = ({
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      const newLoading = { ...isLoading };
-      newLoading[type] = false;
-      setIsLoading(newLoading);
+      setIsLoading({ ...isLoading, [type]: false });
     }
   };
 
@@ -235,9 +224,7 @@ export const SyncSection = ({
         title="Airlines Synchronization"
         clearData={clearData.airlines}
         onClearDataChange={(checked) => {
-          const newClearData = { ...clearData };
-          newClearData.airlines = checked;
-          setClearData(newClearData);
+          setClearData({ ...clearData, airlines: checked });
         }}
         isLoading={isLoading.airlines}
         onSync={() => handleSync('airlines')}
@@ -248,9 +235,7 @@ export const SyncSection = ({
         title="Airports Synchronization"
         clearData={clearData.airports}
         onClearDataChange={(checked) => {
-          const newClearData = { ...clearData };
-          newClearData.airports = checked;
-          setClearData(newClearData);
+          setClearData({ ...clearData, airports: checked });
         }}
         isLoading={isLoading.airports}
         onSync={() => handleSync('airports')}
@@ -261,9 +246,7 @@ export const SyncSection = ({
         title="Pet Policies Synchronization"
         clearData={clearData.petPolicies}
         onClearDataChange={(checked) => {
-          const newClearData = { ...clearData };
-          newClearData.petPolicies = checked;
-          setClearData(newClearData);
+          setClearData({ ...clearData, petPolicies: checked });
         }}
         isLoading={isLoading.petPolicies}
         onSync={(resume) => handleSync('petPolicies', resume)}
@@ -274,9 +257,7 @@ export const SyncSection = ({
         title="Routes Synchronization"
         clearData={clearData.routes}
         onClearDataChange={(checked) => {
-          const newClearData = { ...clearData };
-          newClearData.routes = checked;
-          setClearData(newClearData);
+          setClearData({ ...clearData, routes: checked });
         }}
         isLoading={isLoading.routes}
         onSync={() => handleSync('routes')}
@@ -287,9 +268,7 @@ export const SyncSection = ({
         title="Country Policies Synchronization"
         clearData={clearData.countryPolicies}
         onClearDataChange={(checked) => {
-          const newClearData = { ...clearData };
-          newClearData.countryPolicies = checked;
-          setClearData(newClearData);
+          setClearData({ ...clearData, countryPolicies: checked });
         }}
         isLoading={isLoading.countryPolicies}
         onSync={(resume) => handleSync('countryPolicies', resume)}
