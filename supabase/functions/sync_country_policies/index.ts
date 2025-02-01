@@ -176,26 +176,7 @@ Deno.serve(async (req) => {
           processedItems: progressData.processed_items || [],
           errorItems: progressData.error_items || []
         };
-      }
-    } else {
-      console.log('Starting new sync, resetting progress...');
-      const { error: resetError } = await supabaseClient
-        .from('sync_progress')
-        .upsert({
-          type: 'countryPolicies',
-          total: 0,
-          processed: 0,
-          processed_items: [],
-          error_items: [],
-          start_time: new Date().toISOString(),
-          is_complete: false
-        }, {
-          onConflict: 'type'
-        });
-
-      if (resetError) {
-        console.error('Error resetting progress:', resetError);
-        throw resetError;
+        console.log('Retrieved existing progress:', existingProgress);
       }
     }
 
@@ -223,10 +204,17 @@ Deno.serve(async (req) => {
     
     const state: ProcessingState = {
       lastProcessedCountry,
-      processedCount: isResuming ? existingProgress.processed : 0,
-      processedItems: isResuming ? existingProgress.processedItems : [],
-      errorItems: isResuming ? existingProgress.errorItems : [],
-      startTime: Date.now()
+      processedCount: existingProgress.processed,
+      startTime: isResuming ? 
+        (await supabaseClient
+          .from('sync_progress')
+          .select('start_time')
+          .eq('type', 'countryPolicies')
+          .single()
+        ).data?.start_time || Date.now() 
+        : Date.now(),
+      processedItems: existingProgress.processedItems,
+      errorItems: existingProgress.errorItems
     };
 
     const { processed, errors, shouldContinue, lastProcessedCountry: finalProcessedCountry, processedCount } = 
