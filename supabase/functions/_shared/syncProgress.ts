@@ -3,11 +3,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 export interface SyncState {
   total: number;
   processed: number;
-  lastProcessed: string | null;
-  processedItems: string[];
-  errorItems: string[];
-  startTime: string | null;
-  isComplete: boolean;
+  last_processed: string | null;
+  processed_items: string[];
+  error_items: string[];
+  start_time: string | null;
+  is_complete: boolean;
 }
 
 export class SyncProgressManager {
@@ -63,11 +63,11 @@ export class SyncProgressManager {
     return {
       total: data.total,
       processed: data.processed,
-      lastProcessed: data.last_processed,
-      processedItems: data.processed_items || [],
-      errorItems: data.error_items || [],
-      startTime: data.start_time,
-      isComplete: data.is_complete
+      last_processed: data.last_processed,
+      processed_items: data.processed_items || [],
+      error_items: data.error_items || [],
+      start_time: data.start_time,
+      is_complete: data.is_complete
     };
   }
 
@@ -111,8 +111,8 @@ export class SyncProgressManager {
 
     await this.updateProgress({
       processed: current.processed + 1,
-      processedItems: [...current.processedItems, item],
-      lastProcessed: item
+      processed_items: [...current.processed_items, item],
+      last_processed: item
     });
   }
 
@@ -121,7 +121,7 @@ export class SyncProgressManager {
     if (!current) return;
 
     await this.updateProgress({
-      errorItems: [...current.errorItems, item]
+      error_items: [...current.error_items, item]
     });
   }
 }

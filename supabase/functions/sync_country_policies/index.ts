@@ -191,8 +191,8 @@ Deno.serve(async (req) => {
         success: true,
         total: uniqueCountries.length,
         processed: currentProgress?.processed || 0,
-        processed_items: currentProgress?.processedItems || [],
-        error_items: currentProgress?.errorItems || [],
+        processed_items: currentProgress?.processed_items || [],
+        error_items: currentProgress?.error_items || [],
         continuation_token: shouldContinue ? finalProcessedCountry : null,
         completed: !shouldContinue
       }),
