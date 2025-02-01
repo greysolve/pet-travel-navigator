@@ -20,9 +20,16 @@ interface SyncSectionProps {
   isLoading: {
     [key: string]: boolean;
   };
+  setSyncProgress: (progress: { [key: string]: SyncProgress }) => void;
+  setIsLoading: (loading: { [key: string]: boolean }) => void;
 }
 
-export const SyncSection = ({ syncProgress, isLoading }: SyncSectionProps) => {
+export const SyncSection = ({ 
+  syncProgress, 
+  isLoading,
+  setSyncProgress,
+  setIsLoading 
+}: SyncSectionProps) => {
   const [clearData, setClearData] = useState<{[key: string]: boolean}>({
     airlines: false,
     airports: false,
@@ -30,6 +37,32 @@ export const SyncSection = ({ syncProgress, isLoading }: SyncSectionProps) => {
     routes: false,
     countryPolicies: false
   });
+
+  const updateSyncProgress = async (type: string, progress: SyncProgress) => {
+    try {
+      const { error } = await supabase
+        .from('sync_progress')
+        .insert({
+          type,
+          total: progress.total,
+          processed: progress.processed,
+          last_processed: progress.lastProcessed,
+          processed_items: progress.processedItems,
+          error_items: progress.errorItems,
+          start_time: progress.startTime,
+          is_complete: progress.isComplete
+        });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error updating sync progress:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update sync progress.",
+      });
+    }
+  };
 
   const handleSync = async (type: 'airlines' | 'airports' | 'petPolicies' | 'routes' | 'countryPolicies', resume: boolean = false) => {
     setIsLoading(prev => ({ ...prev, [type]: true }));

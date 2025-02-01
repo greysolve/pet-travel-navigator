@@ -36,7 +36,7 @@ const Admin = () => {
       console.log('Received sync progress data:', data);
 
       // Group by type and get the most recent for each
-      const progressByType = data.reduce((acc, curr) => {
+      const progressByType = data.reduce((acc: any, curr: any) => {
         if (!acc[curr.type] || new Date(curr.created_at) > new Date(acc[curr.type].created_at)) {
           acc[curr.type] = {
             total: curr.total,
@@ -76,7 +76,12 @@ const Admin = () => {
         </TabsList>
 
         <TabsContent value="sync">
-          <SyncSection syncProgress={syncProgress} isLoading={isLoading} />
+          <SyncSection 
+            syncProgress={syncProgress} 
+            isLoading={isLoading} 
+            setSyncProgress={setSyncProgress}
+            setIsLoading={setIsLoading}
+          />
         </TabsContent>
 
         <TabsContent value="airlines">
