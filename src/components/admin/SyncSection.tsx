@@ -62,19 +62,9 @@ export const SyncSection = () => {
         async (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log(`Received sync progress update:`, payload);
           const newRecord = payload.new as SyncProgressDB;
-          const oldRecord = payload.old as SyncProgressDB;
           
           if (newRecord) {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
-            
-            // Get the latest progress data directly from the query client
-            const currentData = queryClient.getQueryData<SyncProgressRecord>(["syncProgress"]);
-            const currentProgress = currentData?.[newRecord.type];
-            
-            // Preserve existing processed items when continuing
-            const preservedProcessedItems = oldRecord?.processed_items || [];
-            const newProcessedItems = newRecord.processed_items || [];
-            const combinedProcessedItems = [...new Set([...preservedProcessedItems, ...newProcessedItems])];
             
             if (newRecord.needs_continuation) {
               console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
@@ -85,9 +75,9 @@ export const SyncSection = () => {
                   true,
                   {
                     lastProcessed: newRecord.last_processed,
-                    processed: combinedProcessedItems.length,
+                    processed: newRecord.processed,
                     total: newRecord.total,
-                    processedItems: combinedProcessedItems,
+                    processedItems: newRecord.processed_items,
                     errorItems: newRecord.error_items,
                     startTime: newRecord.start_time
                   }
@@ -102,24 +92,21 @@ export const SyncSection = () => {
               }
             }
             
+            // Simply update the cache with what's in the database
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
-              (oldData) => {
-                const updatedData = {
-                  ...(oldData || {}),
-                  [newRecord.type]: {
-                    total: newRecord.total,
-                    processed: combinedProcessedItems.length,
-                    lastProcessed: newRecord.last_processed,
-                    processedItems: combinedProcessedItems,
-                    errorItems: newRecord.error_items || [],
-                    startTime: newRecord.start_time,
-                    isComplete: !newRecord.needs_continuation
-                  }
-                };
-                console.log('Updated sync progress data:', updatedData);
-                return updatedData;
-              }
+              (oldData) => ({
+                ...(oldData || {}),
+                [newRecord.type]: {
+                  total: newRecord.total,
+                  processed: newRecord.processed,
+                  lastProcessed: newRecord.last_processed,
+                  processedItems: newRecord.processed_items || [],
+                  errorItems: newRecord.error_items || [],
+                  startTime: newRecord.start_time,
+                  isComplete: !newRecord.needs_continuation
+                }
+              })
             );
           }
         }
