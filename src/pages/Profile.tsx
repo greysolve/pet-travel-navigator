@@ -8,10 +8,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { UserProfile } from "@/types/auth";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 const Profile = () => {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string>("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // State for contact information
   const [firstName, setFirstName] = useState("");
@@ -40,7 +43,7 @@ const Profile = () => {
   }, []);
 
   // Fetch profile data
-  const { data: profile } = useQuery<UserProfile>({
+  const { data: profile, refetch: refetchProfile } = useQuery<UserProfile>({
     queryKey: ['profile', userId],
     queryFn: async () => {
       if (!userId) return null;
@@ -82,34 +85,40 @@ const Profile = () => {
 
   const updateProfile = async () => {
     if (!userId) return;
+    
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: `${firstName} ${lastName}`,
+          address_line1: addressLine1,
+          address_line2: addressLine2,
+          address_line3: addressLine3,
+          locality: locality,
+          administrative_area: administrativeArea,
+          postal_code: postalCode,
+          country_id: selectedCountryId,
+        })
+        .eq('id', userId);
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: `${firstName} ${lastName}`,
-        address_line1: addressLine1,
-        address_line2: addressLine2,
-        address_line3: addressLine3,
-        locality: locality,
-        administrative_area: administrativeArea,
-        postal_code: postalCode,
-        country_id: selectedCountryId,
-      })
-      .eq('id', userId);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update profile.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (error) {
+      await refetchProfile();
       toast({
-        title: "Error",
-        description: "Failed to update profile.",
-        variant: "destructive",
+        title: "Success",
+        description: "Profile updated successfully.",
       });
-      return;
+    } finally {
+      setIsUpdating(false);
     }
-
-    toast({
-      title: "Success",
-      description: "Profile updated successfully.",
-    });
   };
 
   return (
@@ -160,6 +169,23 @@ const Profile = () => {
               />
             </CardContent>
           </Card>
+
+          <div className="flex justify-end">
+            <Button 
+              onClick={updateProfile} 
+              disabled={isUpdating}
+              className="w-32"
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
         </div>
 
         <Card>
