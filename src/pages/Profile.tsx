@@ -8,13 +8,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 const Profile = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState(profile?.full_name || "");
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  
+  // Split name fields
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  
+  // Address fields
+  const [addressLine1, setAddressLine1] = useState(profile?.address_line1 || "");
+  const [addressLine2, setAddressLine2] = useState(profile?.address_line2 || "");
+  const [addressLine3, setAddressLine3] = useState(profile?.address_line3 || "");
+  const [locality, setLocality] = useState(profile?.locality || "");
+  const [administrativeArea, setAdministrativeArea] = useState(profile?.administrative_area || "");
+  const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
+  const [countryCode, setCountryCode] = useState(profile?.country_code || "");
+
+  // Split full name on component mount
+  useEffect(() => {
+    if (profile?.full_name) {
+      const nameParts = profile.full_name.split(" ");
+      setFirstName(nameParts[0] || "");
+      setLastName(nameParts.slice(1).join(" ") || "");
+    }
+  }, [profile?.full_name]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -24,9 +46,19 @@ const Profile = () => {
 
   const handleUpdateProfile = async () => {
     try {
+      const fullName = `${firstName} ${lastName}`.trim();
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: fullName })
+        .update({
+          full_name: fullName,
+          address_line1: addressLine1,
+          address_line2: addressLine2,
+          address_line3: addressLine3,
+          locality: locality,
+          administrative_area: administrativeArea,
+          postal_code: postalCode,
+          country_code: countryCode,
+        })
         .eq("id", user?.id);
 
       if (error) throw error;
@@ -133,19 +165,85 @@ const Profile = () => {
             </div>
           </div>
           
-          <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <Label className="block text-sm font-medium mb-1">Email</Label>
               <Input value={user.email} disabled />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Full Name</label>
+              <Label className="block text-sm font-medium mb-1">First Name</Label>
               <Input
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Enter your full name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter your first name"
               />
             </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">Last Name</Label>
+              <Input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter your last name"
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">Address Line 1</Label>
+              <Input
+                value={addressLine1}
+                onChange={(e) => setAddressLine1(e.target.value)}
+                placeholder="Street address"
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">Address Line 2</Label>
+              <Input
+                value={addressLine2}
+                onChange={(e) => setAddressLine2(e.target.value)}
+                placeholder="Apartment, suite, etc."
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">Address Line 3</Label>
+              <Input
+                value={addressLine3}
+                onChange={(e) => setAddressLine3(e.target.value)}
+                placeholder="Additional address information"
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">City</Label>
+              <Input
+                value={locality}
+                onChange={(e) => setLocality(e.target.value)}
+                placeholder="City"
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">State/Province</Label>
+              <Input
+                value={administrativeArea}
+                onChange={(e) => setAdministrativeArea(e.target.value)}
+                placeholder="State or province"
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">Postal Code</Label>
+              <Input
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="Postal code"
+              />
+            </div>
+            <div>
+              <Label className="block text-sm font-medium mb-1">Country Code</Label>
+              <Input
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                placeholder="Country code (e.g., US)"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
             <Button onClick={handleUpdateProfile}>Update Profile</Button>
           </div>
         </CardContent>
