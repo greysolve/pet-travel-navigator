@@ -20,10 +20,11 @@ const Profile = () => {
 
   const handleUpdateProfile = async () => {
     try {
+      // Changed from user_id to id
       const { error } = await supabase
         .from("profiles")
         .update({ full_name: fullName })
-        .eq("user_id", user?.id);
+        .eq("id", user?.id);
 
       if (error) throw error;
       toast({
@@ -61,10 +62,6 @@ const Profile = () => {
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Enter your full name"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Role</label>
-            <Input value={profile?.role || "pet_lover"} disabled />
           </div>
           <Button onClick={handleUpdateProfile}>Update Profile</Button>
         </CardContent>

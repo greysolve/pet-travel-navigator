@@ -6,6 +6,7 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
   try {
     console.log('Fetching profile for user:', userId);
     
+    // Changed from user_id to id since that's the correct column name
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('*')
@@ -36,6 +37,7 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
 
 async function createNewProfile(userId: string): Promise<UserProfile | null> {
   console.log('No profile found, creating one...');
+  // Changed to use id instead of user_id
   const { data: newProfile, error: insertError } = await supabase
     .from('profiles')
     .insert([{ 
@@ -67,6 +69,7 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
 
 async function handleDuplicateProfile(userId: string): Promise<UserProfile | null> {
   console.log('Profile already exists (race condition), fetching it...');
+  // Changed from user_id to id
   const { data: retryProfile, error: retryError } = await supabase
     .from('profiles')
     .select('*')
