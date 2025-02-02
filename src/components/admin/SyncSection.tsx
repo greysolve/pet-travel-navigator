@@ -22,7 +22,8 @@ interface SyncProgressDB {
 }
 
 export const SyncSection = () => {
-  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
+  // This now only tracks initial component loading, not sync state
+  const [isInitializing, setIsInitializing] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key in keyof typeof SyncType]: boolean}>({
     airlines: false,
     airports: false,
@@ -35,7 +36,6 @@ export const SyncSection = () => {
   const resetSyncProgressCache = async (type: keyof typeof SyncType) => {
     console.log(`Resetting sync progress cache for ${type}`);
     await queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
-    setIsLoading(prev => ({ ...prev, [type]: false }));
   };
 
   const resetSyncProgress = async (type: keyof typeof SyncType) => {
@@ -149,7 +149,7 @@ export const SyncSection = () => {
 
   const handleSync = async (type: keyof typeof SyncType, resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
-    setIsLoading(prev => ({ ...prev, [type]: true }));
+    setIsInitializing(prev => ({ ...prev, [type]: true }));
     
     try {
       if (!resume) {
@@ -214,6 +214,7 @@ export const SyncSection = () => {
 
       console.log(`Received response from ${functionName}:`, data);
 
+      // Only reset if explicitly told to by the edge function
       if (data?.shouldReset) {
         console.log('Response indicates sync completion, resetting state...');
         await resetSyncProgress(type);
@@ -237,7 +238,8 @@ export const SyncSection = () => {
       await resetSyncProgress(type);
       await resetSyncProgressCache(type);
     } finally {
-      setIsLoading(prev => ({ ...prev, [type]: false }));
+      // Only reset initializing state, not sync state
+      setIsInitializing(prev => ({ ...prev, [type]: false }));
     }
   };
 
@@ -269,7 +271,7 @@ export const SyncSection = () => {
             onClearDataChange={(checked) => {
               setClearData(prev => ({ ...prev, [key]: checked }));
             }}
-            isLoading={isLoading[value]}
+            isLoading={isInitializing[value]}
             onSync={(resume) => handleSync(key as keyof typeof SyncType, resume)}
             syncProgress={syncProgress?.[value]}
           />
