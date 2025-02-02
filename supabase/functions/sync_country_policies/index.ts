@@ -80,9 +80,10 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     
     // Clean the response by removing any markdown formatting
     const cleanedContent = content
-      .replace(/```json\s*/, '') // Remove opening ```json
-      .replace(/```\s*$/, '')    // Remove closing ```
-      .trim();                   // Remove any extra whitespace
+      .replace(/^```json\s*/i, '')    // Remove opening ```json with case insensitivity
+      .replace(/^```\s*/i, '')        // Remove opening ``` with case insensitivity
+      .replace(/\s*```\s*$/i, '')     // Remove closing ``` with case insensitivity
+      .trim();                        // Remove any extra whitespace
     
     console.log('Cleaned content:', cleanedContent);
     
@@ -90,6 +91,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       return JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error(`Error parsing JSON for ${country}:`, parseError);
+      console.error('Failed content:', cleanedContent);
       throw new Error(`Failed to parse policy data: ${parseError.message}`);
     }
   } catch (error) {
