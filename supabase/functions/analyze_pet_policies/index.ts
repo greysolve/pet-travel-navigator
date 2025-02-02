@@ -9,13 +9,22 @@ const corsHeaders = {
 function stripMarkdown(content: string): string {
   console.log('Original content:', content);
   
-  // More robust markdown cleaning
-  const cleaned = content
-    .replace(/^[\s\S]*?```[a-z]*\s*/, '') // Remove everything before and including opening code block
-    .replace(/```[\s\S]*$/, '')           // Remove closing code block and everything after
-    .replace(/^\s*{\s*/, '{')             // Clean up leading whitespace before opening brace
-    .replace(/\s*}\s*$/, '}')             // Clean up trailing whitespace after closing brace
-    .trim();
+  // First, find the first occurrence of a valid JSON object
+  const jsonMatch = content.match(/({[\s\S]*})/);
+  if (!jsonMatch) {
+    console.error('No JSON object found in content');
+    throw new Error('No valid JSON object found in response');
+  }
+
+  // Extract the potential JSON string
+  let cleaned = jsonMatch[1].trim();
+  
+  // Remove any remaining markdown artifacts
+  cleaned = cleaned
+    .replace(/^[\s\S]*?{/, '{') // Ensure we start with {
+    .replace(/}[\s\S]*$/, '}')  // Ensure we end with }
+    .replace(/\\n/g, ' ')       // Replace newlines with spaces
+    .replace(/\s+/g, ' ');      // Normalize whitespace
   
   console.log('Cleaned content:', cleaned);
   
@@ -25,7 +34,8 @@ function stripMarkdown(content: string): string {
     return cleaned;
   } catch (error) {
     console.error('JSON validation failed:', error);
-    throw new Error(`Failed to clean markdown: ${error.message}`);
+    console.error('Failed content:', cleaned);
+    throw new Error(`Failed to parse JSON: ${error.message}`);
   }
 }
 
