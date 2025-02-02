@@ -12,6 +12,7 @@ type FlightData = {
   departureTime: string;
   arrivalTime: string;
   arrivalCountry?: string;
+  airlineName?: string;
 };
 
 export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: FlightData[]) => void }) => {
@@ -54,12 +55,19 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
         console.log('Flight schedules:', data);
         
         if (data && data.scheduledFlights) {
+          // Create a map of airline codes to names from the appendix
+          const airlineMap = data.appendix?.airlines?.reduce((acc: Record<string, string>, airline: any) => {
+            acc[airline.fs] = airline.name;
+            return acc;
+          }, {}) || {};
+
           const flights = data.scheduledFlights.map((flight: any) => ({
             carrierFsCode: flight.carrierFsCode,
             flightNumber: flight.flightNumber,
             departureTime: flight.departureTime,
             arrivalTime: flight.arrivalTime,
             arrivalCountry: destinationCountry,
+            airlineName: airlineMap[flight.carrierFsCode],
           }));
           onSearchResults(flights);
         }
@@ -78,7 +86,7 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 -mt-8"> {/* Changed from max-w-4xl to max-w-3xl */}
+    <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
         <AirlinePolicySearch 
           policySearch={policySearch}
