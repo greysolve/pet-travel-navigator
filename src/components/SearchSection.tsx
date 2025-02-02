@@ -42,10 +42,13 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
     
     setIsSearching(true);
     try {
+      console.log('Fetching airports for search term:', searchTerm);
       const { data, error } = await supabase
         .from('airports')
         .select('iata_code, name, city')
         .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
+        .not('name', 'ilike', '%railway%')  // Exclude railway stations
+        .not('name', 'ilike', '%station%')  // Exclude other types of stations
         .limit(10);
 
       if (error) {
@@ -58,6 +61,7 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
         return;
       }
 
+      console.log('Fetched airports:', data);
       setAirports(data || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
