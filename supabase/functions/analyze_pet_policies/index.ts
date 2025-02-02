@@ -126,7 +126,13 @@ Deno.serve(async (req) => {
           throw new Error('Invalid API response structure');
         }
 
-        const content = JSON.parse(responseData.choices[0].message.content);
+        // Extract JSON from potential markdown code block
+        const rawContent = responseData.choices[0].message.content;
+        const jsonMatch = rawContent.match(/```json\n([\s\S]*?)\n```/) || [null, rawContent];
+        const jsonContent = jsonMatch[1].trim();
+        
+        console.log('Extracted JSON content:', jsonContent);
+        const content = JSON.parse(jsonContent);
         console.log('Parsed content:', content);
 
         // Update airline website if we got a valid one
@@ -175,8 +181,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const lastProcessedId = airlines && airlines.length > 0 ? airlines[airlines.length - 1].id : null;
-    const hasMore = airlines && airlines.length === batchSize;
+    const lastProcessedId = airlines[airlines.length - 1].id;
+    const hasMore = airlines.length === batchSize;
 
     const response = {
       success: true,
