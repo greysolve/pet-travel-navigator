@@ -12,7 +12,7 @@ async function fetchPolicyWithAI(country: string, apiKey: string) {
   Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   
   const userPrompt = `For ${country}'s pet import requirements:
-  1. Find the official government authority and website for animal imports
+  1. Find the official government website for animal imports
   2. Extract the complete policy details
   
   Format as a JSON object with this structure:
@@ -26,8 +26,7 @@ async function fetchPolicyWithAI(country: string, apiKey: string) {
     "quarantine_requirements": "string",
     "vaccination_requirements": ["string"],
     "additional_notes": "string",
-    "policy_url": "URL of official source",
-    "authority": "Name of authority"
+    "policy_url": "URL of official source"
   }`;
 
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
