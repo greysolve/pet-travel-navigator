@@ -21,20 +21,31 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   console.log(`Starting AI policy fetch for ${country} (${policyType}) - Attempt ${retryCount + 1}`)
 
   try {
-    const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. The response must start with { and end with }.'
+    const systemPrompt = `You are a helpful assistant that finds official pet and live animal import policies for different countries. 
+    Always prioritize official government sources over third-party websites. 
+    Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. 
+    The response must start with { and end with }.`
     
-    const userPrompt = `Generate a JSON object for ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements. The response must start with { and end with }. Use this exact structure:
-  {
-    "title": "string or null if unknown",
-    "description": "string or null if unknown",
-    "requirements": ["string"] or [] if none,
-    "documentation_needed": ["string"] or [] if none,
-    "fees": {"description": "string"} or {} if none,
-    "restrictions": {"description": "string"} or {} if none,
-    "quarantine_requirements": "string or null if none",
-    "vaccination_requirements": ["string"] or [] if none,
-    "additional_notes": "string or null if none"
-  }`
+    const userPrompt = `For ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements:
+    1. First identify the official government authority responsible for pet/animal imports
+    2. Find their official website and policy page
+    3. Extract the policy details from this authoritative source
+    4. Include the official policy URL in your response
+    
+    Format as a JSON object with this structure:
+    {
+      "title": "string or null if unknown",
+      "description": "string or null if unknown",
+      "requirements": ["string"] or [] if none,
+      "documentation_needed": ["string"] or [] if none,
+      "fees": {"description": "string"} or {} if none,
+      "restrictions": {"description": "string"} or {} if none,
+      "quarantine_requirements": "string or null if none",
+      "vaccination_requirements": ["string"] or [] if none,
+      "additional_notes": "string or null if none",
+      "policy_url": "URL of the official government source",
+      "authority": "Name of the official government authority"
+    }`
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -51,28 +62,28 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
         temperature: 0.1,
         max_tokens: 1000,
       }),
-    })
+    });
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Perplexity API error for ${country}:`, errorText)
+      const errorText = await response.text();
+      console.error(`Perplexity API error for ${country}:`, errorText);
       
       if (retryCount < MAX_RETRIES && (response.status === 429 || response.status >= 500)) {
-        console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`)
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-        return fetchPolicyWithAI(country, policyType, retryCount + 1)
+        console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchPolicyWithAI(country, policyType, retryCount + 1);
       }
       
-      throw new Error(`API error: ${response.status} - ${response.statusText}`)
+      throw new Error(`API error: ${response.status} - ${response.statusText}`);
     }
 
-    const data = await response.json()
-    console.log(`Received AI response for ${country}. Status: ${response.status}`)
+    const data = await response.json();
+    console.log(`Received AI response for ${country}. Status: ${response.status}`);
     
-    const content = data.choices[0].message.content.trim()
-    console.log('Raw AI response:', content)
+    const content = data.choices[0].message.content.trim();
+    console.log('Raw AI response:', content);
     
-    const policyData = JSON.parse(content)
+    const policyData = JSON.parse(content);
     return {
       title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
       description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
@@ -83,24 +94,26 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       quarantine_requirements: policyData.quarantine_requirements || '',
       vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
       additional_notes: policyData.additional_notes || '',
+      policy_url: policyData.policy_url || null,
+      authority: policyData.authority || null
     }
   } catch (error) {
-    console.error(`Error in fetchPolicyWithAI for ${country}:`, error)
+    console.error(`Error in fetchPolicyWithAI for ${country}:`, error);
     
     if (retryCount < MAX_RETRIES) {
-      console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`)
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-      return fetchPolicyWithAI(country, policyType, retryCount + 1)
+      console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return fetchPolicyWithAI(country, policyType, retryCount + 1);
     }
     
-    throw error
+    throw error;
   }
 }
 
 Deno.serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders })
+      return new Response(null, { headers: corsHeaders });
     }
 
     if (req.method !== 'POST') {
@@ -116,14 +129,14 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json'
           }
         }
-      )
+      );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing environment variables')
+      console.error('Missing environment variables');
       return new Response(
         JSON.stringify({ 
           error: 'Server configuration error',
@@ -136,19 +149,19 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json'
           }
         }
-      )
+      );
     }
 
     // Initialize sync manager and get current progress
-    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies')
-    const currentProgress = await syncManager.getCurrentProgress()
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
+    const currentProgress = await syncManager.getCurrentProgress();
     
     // Get all countries from the database
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    const { data: countries, error: countriesError } = await supabase.rpc('get_distinct_countries')
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: countries, error: countriesError } = await supabase.rpc('get_distinct_countries');
     
     if (countriesError) {
-      console.error('Error fetching countries:', countriesError)
+      console.error('Error fetching countries:', countriesError);
       return new Response(
         JSON.stringify({ 
           error: 'Database error',
@@ -161,11 +174,11 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json'
           }
         }
-      )
+      );
     }
     
     if (!countries?.length) {
-      console.error('No countries found')
+      console.error('No countries found');
       return new Response(
         JSON.stringify({ 
           error: 'No data',
@@ -178,7 +191,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json'
           }
         }
-      )
+      );
     }
 
     const uniqueCountries = [...new Set(
@@ -186,32 +199,32 @@ Deno.serve(async (req) => {
         .map(row => row.country?.trim() || '')
         .filter(country => country !== '')
         .map(country => country.normalize('NFKC').trim())
-    )].sort()
+    )].sort();
 
-    const total = uniqueCountries.length
+    const total = uniqueCountries.length;
     
     // If no progress exists, initialize it
     if (!currentProgress) {
-      await syncManager.initialize(total)
+      await syncManager.initialize(total);
     }
     
     // Get the current progress again (in case we just initialized it)
-    const progress = await syncManager.getCurrentProgress()
+    const progress = await syncManager.getCurrentProgress();
     if (!progress) {
-      throw new Error('Failed to initialize or retrieve sync progress')
+      throw new Error('Failed to initialize or retrieve sync progress');
     }
 
     // Find starting point - use last_processed from database
     const startIndex = progress.last_processed
       ? uniqueCountries.findIndex(c => c === progress.last_processed) + 1
-      : 0
+      : 0;
 
     // If we've processed everything, complete the sync
     if (startIndex >= uniqueCountries.length) {
       await syncManager.updateProgress({
         is_complete: true,
         needs_continuation: false
-      })
+      });
       
       return new Response(
         JSON.stringify({ 
@@ -224,19 +237,19 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json'
           }
         }
-      )
+      );
     }
 
     // Process next batch
-    const endIndex = Math.min(startIndex + BATCH_SIZE, uniqueCountries.length)
-    const batchCountries = uniqueCountries.slice(startIndex, endIndex)
+    const endIndex = Math.min(startIndex + BATCH_SIZE, uniqueCountries.length);
+    const batchCountries = uniqueCountries.slice(startIndex, endIndex);
     
-    console.log(`Processing countries ${startIndex} to ${endIndex} of ${uniqueCountries.length}`)
+    console.log(`Processing countries ${startIndex} to ${endIndex} of ${uniqueCountries.length}`);
     
     for (const country of batchCountries) {
       try {
-        console.log(`Fetching policy for ${country}`)
-        const policy = await fetchPolicyWithAI(country, 'pet')
+        console.log(`Fetching policy for ${country}`);
+        const policy = await fetchPolicyWithAI(country, 'pet');
         
         const { error: upsertError } = await supabase
           .from('country_policies')
@@ -247,24 +260,24 @@ Deno.serve(async (req) => {
             last_updated: new Date().toISOString()
           }, {
             onConflict: 'country_code,policy_type'
-          })
+          });
 
         if (upsertError) {
-          console.error(`Error upserting policy for ${country}:`, upsertError)
-          await syncManager.addErrorItem(country, upsertError.message)
+          console.error(`Error upserting policy for ${country}:`, upsertError);
+          await syncManager.addErrorItem(country, upsertError.message);
         } else {
-          await syncManager.addProcessedItem(country)
+          await syncManager.addProcessedItem(country);
         }
       } catch (error) {
-        console.error(`Error processing ${country}:`, error)
-        await syncManager.addErrorItem(country, error.message)
+        console.error(`Error processing ${country}:`, error);
+        await syncManager.addErrorItem(country, error.message);
       }
     }
 
     // Update progress to indicate more work needed
     await syncManager.updateProgress({
       needs_continuation: endIndex < uniqueCountries.length
-    })
+    });
 
     return new Response(
       JSON.stringify({ 
@@ -278,10 +291,10 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         }
       }
-    )
+    );
 
   } catch (error) {
-    console.error('Error in sync_country_policies:', error)
+    console.error('Error in sync_country_policies:', error);
     
     return new Response(
       JSON.stringify({ 
@@ -298,6 +311,6 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         }
       }
-    )
+    );
   }
 })
