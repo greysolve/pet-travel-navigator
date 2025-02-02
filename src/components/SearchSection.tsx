@@ -1,28 +1,20 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
 import { RouteSearch } from "./search/RouteSearch";
 import { DateSelector } from "./search/DateSelector";
+import { useFlightSearch } from "./search/FlightSearchHandler";
+import type { SearchSectionProps } from "./search/types";
 
-type FlightData = {
-  carrierFsCode: string;
-  flightNumber: string;
-  departureTime: string;
-  arrivalTime: string;
-  arrivalCountry?: string;
-  airlineName?: string;
-};
-
-export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: FlightData[]) => void }) => {
+export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState<Date>();
-  const [isLoading, setIsLoading] = useState(false);
   const [destinationCountry, setDestinationCountry] = useState<string>();
   const { toast } = useToast();
+  const { handleFlightSearch, isLoading } = useFlightSearch();
 
   const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
@@ -44,44 +36,14 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
     }
     
     if (origin && destination && date) {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
-          body: { origin, destination, date: date.toISOString() }
-        });
-
-        if (error) throw error;
-
-        console.log('Flight schedules:', data);
-        
-        if (data && data.scheduledFlights) {
-          // Create a map of airline codes to names from the appendix
-          const airlineMap = data.appendix?.airlines?.reduce((acc: Record<string, string>, airline: any) => {
-            acc[airline.fs] = airline.name;
-            return acc;
-          }, {}) || {};
-
-          const flights = data.scheduledFlights.map((flight: any) => ({
-            carrierFsCode: flight.carrierFsCode,
-            flightNumber: flight.flightNumber,
-            departureTime: flight.departureTime,
-            arrivalTime: flight.arrivalTime,
-            arrivalCountry: destinationCountry,
-            airlineName: airlineMap[flight.carrierFsCode],
-          }));
-          onSearchResults(flights);
-        }
-
-      } catch (error) {
-        console.error('Error searching flights:', error);
-        toast({
-          title: "Error searching flights",
-          description: "There was an error searching for flights. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
+      handleFlightSearch({
+        origin,
+        destination,
+        date,
+        destinationCountry,
+        onSearchResults,
+        onSearchComplete: () => {}
+      });
     }
   };
 
