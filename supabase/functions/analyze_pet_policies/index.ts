@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,12 +7,8 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: corsHeaders,
-      status: 204
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -28,6 +25,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
 
     let query = supabase
       .from('airlines')
@@ -50,6 +48,7 @@ Deno.serve(async (req) => {
     console.log(`Processing batch of ${airlines?.length} airlines`);
     if (!airlines?.length) {
       console.log('No airlines found to process');
+      await syncManager.completeSync();
       return new Response(
         JSON.stringify({
           success: true,
@@ -63,21 +62,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    const processedAirlines: string[] = [];
-    const errorAirlines: string[] = [];
-    let processedCount = 0;
+    const currentProgress = await syncManager.getCurrentProgress();
+    const processedAirlines = currentProgress?.processed_items || [];
+    const errorAirlines = currentProgress?.error_items || [];
+    let processedCount = currentProgress?.processed || 0;
+
+    // Initialize sync if not resuming
+    if (!currentProgress) {
+      const { data: totalAirlines } = await supabase
+        .from('airlines')
+        .select('id', { count: 'exact' })
+        .eq('active', true);
+      
+      await syncManager.initialize(totalAirlines?.length || 0);
+    }
 
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name} (${airline.id})`);
         await new Promise(resolve => setTimeout(resolve, 2000)); // Rate limiting delay
 
-        const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. The response must start with { and end with }. Do not wrap the response in any code blocks or quotes.';
+        const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations.';
         
         const userPrompt = `Generate a JSON object for ${airline.name}'s pet travel policies. Use this exact structure:
 {
   "airline_info": {
-    "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
+    "official_website": "string (the airline's official website URL)"
   },
   "pet_policy": {
     "pet_types_allowed": ["string"],
@@ -85,11 +95,10 @@ Deno.serve(async (req) => {
     "documentation_needed": ["string"],
     "temperature_restrictions": "string",
     "breed_restrictions": ["string"],
-    "policy_url": "string (must be from the airline's own website domain) or null if no information is found -- no explanation of not found data"
+    "policy_url": "string or null if no information is found"
   }
 }`;
 
-        console.log('Sending request to Perplexity API...');
         const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
           method: 'POST',
           headers: {
@@ -112,26 +121,10 @@ Deno.serve(async (req) => {
         }
 
         const responseData = await perplexityResponse.json();
-        console.log('Perplexity API response:', responseData);
-
-        if (!responseData.choices?.[0]?.message?.content) {
-          throw new Error('Invalid API response structure');
-        }
-
-        // Clean the response content by removing any markdown formatting
-        const cleanContent = responseData.choices[0].message.content
-          .replace(/```json\n?/g, '')  // Remove ```json
-          .replace(/```\n?/g, '')      // Remove closing ```
-          .trim();                     // Remove any extra whitespace
-
-        console.log('Cleaned content:', cleanContent);
-        
-        const content = JSON.parse(cleanContent);
-        console.log('Parsed content:', content);
+        const content = JSON.parse(responseData.choices[0].message.content.trim());
 
         // Update airline website if we got a valid one
         if (content.airline_info?.official_website) {
-          console.log('Updating airline website:', content.airline_info.official_website);
           const { error: updateError } = await supabase
             .from('airlines')
             .update({ 
@@ -140,15 +133,11 @@ Deno.serve(async (req) => {
             })
             .eq('id', airline.id);
 
-          if (updateError) {
-            console.error('Error updating airline website:', updateError);
-            throw updateError;
-          }
+          if (updateError) throw updateError;
         }
 
         // Process pet policy data
         if (content.pet_policy) {
-          console.log('Storing pet policy data:', content.pet_policy);
           const { error: policyError } = await supabase
             .from('pet_policies')
             .upsert({
@@ -159,60 +148,73 @@ Deno.serve(async (req) => {
               onConflict: 'airline_id'
             });
 
-          if (policyError) {
-            console.error('Error storing pet policy:', policyError);
-            throw policyError;
-          }
+          if (policyError) throw policyError;
         }
 
         processedAirlines.push(airline.name);
         processedCount++;
+
+        // Update sync progress
+        await syncManager.updateProgress({
+          processed: processedCount,
+          last_processed: airline.name,
+          processed_items: [...new Set(processedAirlines)],
+          error_items: [...new Set(errorAirlines)]
+        });
+
         console.log(`Successfully processed airline: ${airline.name}`);
 
       } catch (error) {
         console.error(`Error processing airline ${airline.name}:`, error);
         errorAirlines.push(`${airline.name} (${error.message})`);
+        
+        // Update sync progress with error
+        await syncManager.updateProgress({
+          error_items: [...new Set(errorAirlines)]
+        });
       }
     }
 
     const lastProcessedId = airlines[airlines.length - 1].id;
     const hasMore = airlines.length === batchSize;
 
-    const response = {
-      success: true,
-      processed: processedCount,
-      processed_items: processedAirlines,
-      error_items: errorAirlines,
-      continuation_token: hasMore ? lastProcessedId : null,
-      shouldReset: !hasMore
-    };
-
-    console.log('Returning response:', response);
+    if (!hasMore) {
+      await syncManager.completeSync();
+    }
 
     return new Response(
-      JSON.stringify(response),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json'
-        } 
-      }
+      JSON.stringify({
+        success: true,
+        processed: processedCount,
+        processed_items: [...new Set(processedAirlines)],
+        error_items: [...new Set(errorAirlines)],
+        continuation_token: hasMore ? lastProcessedId : null,
+        shouldReset: !hasMore
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in edge function:', error);
+    
+    // Clean up on error
+    const syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'petPolicies'
+    );
+    await syncManager.cleanup();
+
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        success: false,
+        success: false, 
+        error: error.message || 'An unexpected error occurred',
+        details: error.stack,
         shouldReset: true
-      }), 
-      { 
+      }),
+      {
         status: 500,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json'
-        }
+        headers: corsHeaders
       }
     );
   }
