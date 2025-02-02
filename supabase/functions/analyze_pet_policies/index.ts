@@ -72,44 +72,9 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name} (${airline.id})`);
         await new Promise(resolve => setTimeout(resolve, 2000)); // Rate limiting delay
 
-        const prompt = `
-          Analyze this airline: ${airline.name}
-          
-          Return a JSON object with these fields (use null if data is not found):
-          {
-            "airline_info": {
-              "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
-            },
-            "pet_policy": {
-              "pet_types_allowed": ["string"],
-              "carrier_requirements": "string",
-              "documentation_needed": ["string"],
-              "temperature_restrictions": "string",
-              "breed_restrictions": ["string"],
-              "policy_url": "string (must be from the airline's own website domain)"
-            }
-          }
-        `;
-
-        console.log('Sending request to Perplexity API...');
-        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.1-sonar-small-128k-online',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations, no text, no markdown formatting, no code blocks. The response must start with { and end with }.'
-              },
-              {
-                role: 'user',
-                content: `Analyze this airline: ${airline.name}
-                
-Return a JSON object with these fields (use null if data is not found):
+        const systemPrompt = 'Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. The response must start with { and end with }. Do not wrap the response in any code blocks or quotes.';
+        
+        const userPrompt = `Generate a JSON object for ${airline.name}'s pet travel policies. Use this exact structure:
 {
   "airline_info": {
     "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
@@ -122,8 +87,20 @@ Return a JSON object with these fields (use null if data is not found):
     "breed_restrictions": ["string"],
     "policy_url": "string (must be from the airline's own website domain)"
   }
-}`
-              }
+}`;
+
+        console.log('Sending request to Perplexity API...');
+        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-sonar-small-128k-online',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
             ],
             temperature: 0.1,
             max_tokens: 1000,
@@ -141,7 +118,15 @@ Return a JSON object with these fields (use null if data is not found):
           throw new Error('Invalid API response structure');
         }
 
-        const content = JSON.parse(responseData.choices[0].message.content);
+        // Clean the response content by removing any markdown formatting
+        const cleanContent = responseData.choices[0].message.content
+          .replace(/```json\n?/g, '')  // Remove ```json
+          .replace(/```\n?/g, '')      // Remove closing ```
+          .trim();                     // Remove any extra whitespace
+
+        console.log('Cleaned content:', cleanContent);
+        
+        const content = JSON.parse(cleanContent);
         console.log('Parsed content:', content);
 
         // Update airline website if we got a valid one
