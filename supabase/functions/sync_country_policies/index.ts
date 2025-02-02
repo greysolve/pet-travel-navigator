@@ -7,9 +7,21 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
-const BATCH_SIZE = 10;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000;
+// Helper to return error responses with CORS headers
+const errorResponse = (message: string, status = 500) => {
+  return new Response(
+    JSON.stringify({
+      error: message
+    }),
+    {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    }
+  )
+}
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal', retryCount = 0) {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -69,9 +81,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       const errorText = await response.text();
       console.error(`Perplexity API error for ${country}:`, errorText);
       
-      if (retryCount < MAX_RETRIES && (response.status === 429 || response.status >= 500)) {
-        console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      if (retryCount < 3 && (response.status === 429 || response.status >= 500)) {
+        console.log(`Retrying ${country} after 5000ms...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
         return fetchPolicyWithAI(country, policyType, retryCount + 1);
       }
       
@@ -84,26 +96,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     const content = data.choices[0].message.content.trim();
     console.log('Raw AI response:', content);
     
-    // Strip any markdown formatting if present
-    const cleanContent = content.replace(/^```json\s*|\s*```$/g, '').trim();
-    console.log('Cleaned content:', cleanContent);
-    
     try {
-      const policyData = JSON.parse(cleanContent);
-      console.log('Parsed policy data:', policyData);
-      return {
-        title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
-        description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
-        requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
-        documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
-        fees: typeof policyData.fees === 'object' ? policyData.fees : {},
-        restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
-        quarantine_requirements: policyData.quarantine_requirements || '',
-        vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
-        additional_notes: policyData.additional_notes || '',
-        policy_url: policyData.policy_url || null,
-        authority: policyData.authority || null
-      };
+      return JSON.parse(content);
     } catch (parseError) {
       console.error(`Error parsing JSON for ${country}:`, parseError);
       throw new Error(`Failed to parse policy data: ${parseError.message}`);
@@ -111,9 +105,9 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   } catch (error) {
     console.error(`Error in fetchPolicyWithAI for ${country}:`, error);
     
-    if (retryCount < MAX_RETRIES) {
-      console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+    if (retryCount < 3) {
+      console.log(`Retrying ${country} after 5000ms...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
       return fetchPolicyWithAI(country, policyType, retryCount + 1);
     }
     
@@ -123,44 +117,20 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
 
 Deno.serve(async (req) => {
   try {
+    // Handle CORS preflight
     if (req.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { headers: corsHeaders })
     }
 
     if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Method not allowed',
-          details: `Method ${req.method} is not supported` 
-        }), 
-        { 
-          status: 405,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      return errorResponse('Method not allowed', 405)
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing environment variables');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Server configuration error',
-          details: 'Missing required environment variables' 
-        }), 
-        { 
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      return errorResponse('Server configuration error: Missing environment variables')
     }
 
     // Parse request body to get testCountry if provided
@@ -182,7 +152,7 @@ Deno.serve(async (req) => {
       const { data: allCountries, error: countriesError } = await supabase.rpc('get_distinct_countries');
       if (countriesError) {
         console.error('Error fetching countries:', countriesError);
-        throw countriesError;
+        return errorResponse(`Error fetching countries: ${countriesError.message}`);
       }
       countries = [...new Set(
         allCountries
@@ -193,20 +163,7 @@ Deno.serve(async (req) => {
     }
 
     if (!countries.length) {
-      console.error('No countries found to process');
-      return new Response(
-        JSON.stringify({ 
-          error: 'No data',
-          details: 'No countries found to process' 
-        }), 
-        { 
-          status: 404,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      return errorResponse('No countries found to process', 404);
     }
 
     const total = countries.length;
@@ -220,37 +177,13 @@ Deno.serve(async (req) => {
     // Get the current progress again (in case we just initialized it)
     const progress = await syncManager.getCurrentProgress();
     if (!progress) {
-      throw new Error('Failed to initialize or retrieve sync progress');
-    }
-
-    // Find starting point - use last_processed from database
-    const startIndex = progress.last_processed
-      ? countries.findIndex(c => c === progress.last_processed) + 1
-      : 0;
-
-    // If we've processed everything, complete the sync
-    if (startIndex >= countries.length) {
-      await syncManager.updateProgress({
-        is_complete: true,
-        needs_continuation: false
-      });
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: 'Sync completed successfully'
-        }), 
-        { 
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      return errorResponse('Failed to initialize or retrieve sync progress');
     }
 
     // Process next batch
-    const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
+    const batchSize = 10;
+    const startIndex = 0;
+    const endIndex = Math.min(startIndex + batchSize, countries.length);
     const batchCountries = countries.slice(startIndex, endIndex);
     
     console.log(`Processing countries ${startIndex} to ${endIndex} of ${countries.length}`);
@@ -283,7 +216,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update progress to indicate more work needed
+    // Update progress
     await syncManager.updateProgress({
       needs_continuation: endIndex < countries.length
     });
@@ -296,30 +229,14 @@ Deno.serve(async (req) => {
       }), 
       { 
         headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...corsHeaders
         }
       }
     );
 
   } catch (error) {
     console.error('Error in sync_country_policies:', error);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || 'An unexpected error occurred',
-        details: error.stack,
-        shouldReset: true,
-        needs_continuation: false
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    return errorResponse(error.message || 'An unexpected error occurred');
   }
 });
