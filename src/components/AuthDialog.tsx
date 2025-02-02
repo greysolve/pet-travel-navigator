@@ -5,6 +5,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 const AuthDialog = () => {
   const { user, signIn, signOut } = useAuth();
@@ -77,36 +84,34 @@ const AuthDialog = () => {
   return (
     <div className="flex gap-2 items-center">
       {user ? (
-        <>
-          {userRole === "site_manager" && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              onClick={() => navigate("/admin")}
-              className="bg-sky-100 hover:bg-sky-200"
+              className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
             >
-              Manage
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={user.user_metadata?.avatar_url} />
+                <AvatarFallback>{getInitials()}</AvatarFallback>
+              </Avatar>
+              {getFirstName()}
+              <ChevronDown className="h-4 w-4" />
             </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => navigate("/profile")}
-            className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
-          >
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={user.user_metadata?.avatar_url} />
-              <AvatarFallback>{getInitials()}</AvatarFallback>
-            </Avatar>
-            {getFirstName()}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSignOut}
-            disabled={isLoading}
-            className="bg-sky-100 hover:bg-sky-200"
-          >
-            Sign Out
-          </Button>
-        </>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {userRole === "site_manager" && (
+              <DropdownMenuItem onClick={() => navigate("/admin")}>
+                Manage
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => navigate("/profile")}>
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : (
         <Button
           variant="outline"
