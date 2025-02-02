@@ -5,19 +5,16 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
   if (!policy) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Destination Pet Policy</h2>
+        <h2 className="text-xl font-semibold mb-4">Switzerland Pet Policy</h2>
         <p className="text-gray-500 italic">No pet policy information available for this destination.</p>
       </div>
     );
   }
 
-  // Extract country name from the title (assuming format "Pet Policy for {Country}")
-  const countryName = policy.title.replace("Pet Policy for ", "");
-
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">{countryName} Pet Policy</h2>
+        <h2 className="text-xl font-semibold">Switzerland Pet Policy</h2>
         <a 
           href="https://www.aphis.usda.gov/aphis/pet-travel" 
           target="_blank"
