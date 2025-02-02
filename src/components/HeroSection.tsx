@@ -1,4 +1,4 @@
-import { AuthDialog } from "./AuthDialog";
+import AuthDialog from "./AuthDialog";
 
 export const HeroSection = () => {
   return (

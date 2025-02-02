@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -45,6 +46,11 @@ const AuthDialog = () => {
     return user.email?.split("@")[0] || "";
   };
 
+  const getInitials = () => {
+    const name = getFirstName();
+    return name.substring(0, 2).toUpperCase();
+  };
+
   const handleSignIn = async () => {
     setIsLoading(true);
     try {
@@ -69,7 +75,7 @@ const AuthDialog = () => {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 items-center">
       {user ? (
         <>
           {userRole === "site_manager" && (
@@ -81,21 +87,27 @@ const AuthDialog = () => {
               Manage
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={() => navigate("/profile")}
-            className="bg-sky-100 hover:bg-sky-200"
-          >
-            {getFirstName()}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSignOut}
-            disabled={isLoading}
-            className="bg-sky-100 hover:bg-sky-200"
-          >
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/profile")}
+              className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
+            >
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={user.user_metadata?.avatar_url} />
+                <AvatarFallback>{getInitials()}</AvatarFallback>
+              </Avatar>
+              <span>{getFirstName()}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleSignOut}
+              disabled={isLoading}
+              className="bg-sky-100 hover:bg-sky-200"
+            >
+              Sign Out
+            </Button>
+          </div>
         </>
       ) : (
         <Button
