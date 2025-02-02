@@ -82,11 +82,14 @@ Deno.serve(async (req) => {
             
             const petPolicy = await analyzePetPolicy(airline, perplexityKey);
             
+            // Changed from insert to upsert
             const { error: upsertError } = await supabase
               .from('pet_policies')
               .upsert({
                 airline_id: airline.id,
                 ...petPolicy
+              }, {
+                onConflict: 'airline_id'  // Specify the column to check for conflicts
               });
 
             if (upsertError) {
