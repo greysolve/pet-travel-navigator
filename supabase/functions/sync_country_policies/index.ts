@@ -205,15 +205,39 @@ Deno.serve(async (req) => {
       ? uniqueCountries.findIndex(c => c === lastProcessedItem) + 1
       : 0;
 
+    // Initialize arrays from database or create new ones
+    const processedItems = currentProgress?.processed_items || [];
+    const errorItems = currentProgress?.error_items || [];
+    const processed = currentProgress?.processed || 0;
+
     // If we've processed all countries, mark as complete
-    if (startIndex >= uniqueCountries.length) {
+    if (startIndex >= uniqueCountries.length || processed >= total) {
+      const { error: completeError } = await supabase
+        .from('sync_progress')
+        .upsert({
+          type: 'countryPolicies',
+          total,
+          processed: total,
+          last_processed: uniqueCountries[uniqueCountries.length - 1],
+          processed_items: [...new Set(processedItems)], // Remove duplicates
+          error_items: [...new Set(errorItems)], // Remove duplicates
+          start_time: currentProgress?.start_time || new Date().toISOString(),
+          is_complete: true
+        }, {
+          onConflict: 'type'
+        });
+
+      if (completeError) {
+        console.error('Error marking sync as complete:', completeError);
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           total,
           processed: total,
-          processed_items: currentProgress?.processed_items || [],
-          error_items: currentProgress?.error_items || [],
+          processed_items: [...new Set(processedItems)],
+          error_items: [...new Set(errorItems)],
           continuation_token: null,
           is_complete: true
         }),
@@ -221,17 +245,20 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Processing batch of ${batchSize} countries starting from index ${startIndex}`)
-    const endIndex = Math.min(startIndex + batchSize, uniqueCountries.length)
-    const batchCountries = uniqueCountries.slice(startIndex, endIndex)
+    console.log(`Processing batch of ${batchSize} countries starting from index ${startIndex}`);
+    const endIndex = Math.min(startIndex + batchSize, uniqueCountries.length);
+    const batchCountries = uniqueCountries.slice(startIndex, endIndex);
     
-    const processedItems = currentProgress?.processed_items || []
-    const errorItems = currentProgress?.error_items || []
-
     for (const country of batchCountries) {
       try {
-        console.log(`Processing country: ${country}`)
-        const policy = await fetchPolicyWithAI(country, 'pet')
+        // Skip if country is already processed
+        if (processedItems.includes(country)) {
+          console.log(`Skipping already processed country: ${country}`);
+          continue;
+        }
+
+        console.log(`Processing country: ${country}`);
+        const policy = await fetchPolicyWithAI(country, 'pet');
         
         const { error: upsertError } = await supabase
           .from('country_policies')
@@ -242,13 +269,13 @@ Deno.serve(async (req) => {
             last_updated: new Date().toISOString()
           }, {
             onConflict: 'country_code,policy_type'
-          })
+          });
 
         if (upsertError) {
-          console.error(`Error upserting policy for ${country}:`, upsertError)
-          errorItems.push(country)
+          console.error(`Error upserting policy for ${country}:`, upsertError);
+          errorItems.push(country);
         } else {
-          processedItems.push(country)
+          processedItems.push(country);
           
           // Update progress using database values
           const { error: progressError } = await supabase
@@ -258,10 +285,10 @@ Deno.serve(async (req) => {
               total,
               processed: processedItems.length,
               last_processed: country,
-              processed_items: processedItems,
-              error_items: errorItems,
+              processed_items: [...new Set(processedItems)], // Remove duplicates
+              error_items: [...new Set(errorItems)], // Remove duplicates
               start_time: currentProgress?.start_time || new Date().toISOString(),
-              is_complete: false
+              is_complete: processedItems.length >= total
             }, {
               onConflict: 'type'
             });
@@ -271,19 +298,20 @@ Deno.serve(async (req) => {
           }
         }
       } catch (error) {
-        console.error(`Error processing country ${country}:`, error)
-        errorItems.push(country)
+        console.error(`Error processing country ${country}:`, error);
+        errorItems.push(country);
         
         if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
-          console.log('Rate limit or quota reached, stopping batch')
+          console.log('Rate limit or quota reached, stopping batch');
           return new Response(
             JSON.stringify({
               success: true,
               total,
               processed: processedItems.length,
-              processed_items: processedItems,
-              error_items: errorItems,
-              continuation_token: country
+              processed_items: [...new Set(processedItems)],
+              error_items: [...new Set(errorItems)],
+              continuation_token: country,
+              is_complete: false
             }),
             { headers: corsHeaders }
           )
@@ -291,23 +319,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const hasMoreCountries = endIndex < uniqueCountries.length
-    const continuationToken = hasMoreCountries ? uniqueCountries[endIndex - 1] : null
+    const hasMoreCountries = endIndex < uniqueCountries.length;
+    const continuationToken = hasMoreCountries ? uniqueCountries[endIndex - 1] : null;
 
     return new Response(
       JSON.stringify({
         success: true,
         total,
         processed: processedItems.length,
-        processed_items: processedItems,
-        error_items: errorItems,
-        continuation_token: continuationToken
+        processed_items: [...new Set(processedItems)],
+        error_items: [...new Set(errorItems)],
+        continuation_token: continuationToken,
+        is_complete: !hasMoreCountries && processedItems.length >= total
       }),
       { headers: corsHeaders }
     )
 
   } catch (error) {
-    console.error('Error in sync_country_policies:', error)
+    console.error('Error in sync_country_policies:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
