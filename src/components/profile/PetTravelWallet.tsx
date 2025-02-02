@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { PetProfileCard } from "./PetProfileCard";
 import { Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
+import { PetProfileForm } from "./PetProfileForm";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 
@@ -62,6 +63,11 @@ export const PetTravelWallet = () => {
     deleteMutation.mutate(id);
   };
 
+  const handleClose = () => {
+    setIsEditing(false);
+    setSelectedPet(null);
+  };
+
   if (isLoading) {
     return <div>Loading pet profiles...</div>;
   }
@@ -92,6 +98,12 @@ export const PetTravelWallet = () => {
           No pets added yet. Click the "Add Pet" button to get started.
         </div>
       )}
+
+      <PetProfileForm
+        isOpen={isEditing}
+        onClose={handleClose}
+        initialData={selectedPet}
+      />
     </div>
   );
 };
