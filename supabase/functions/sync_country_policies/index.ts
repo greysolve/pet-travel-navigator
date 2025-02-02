@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,32 +136,15 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey)
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies')
     
     const requestBody = await req.json().catch(() => ({}))
     console.log('Received request with body:', requestBody)
     
     const { lastProcessedItem, batchSize = BATCH_SIZE } = requestBody
 
-    // Get current sync progress from database
-    const { data: currentProgress, error: progressError } = await supabase
-      .from('sync_progress')
-      .select('*')
-      .eq('type', 'countryPolicies')
-      .single()
-
-    if (progressError && progressError.code !== 'PGRST116') {
-      console.error('Error fetching current progress:', progressError)
-      return new Response(
-        JSON.stringify({ 
-          error: 'Database error',
-          details: progressError.message 
-        }), 
-        { 
-          status: 500,
-          headers: corsHeaders
-        }
-      )
-    }
+    // Get current sync progress
+    const currentProgress = await syncManager.getCurrentProgress()
 
     const { data: countries, error: countriesError } = await supabase
       .rpc('get_distinct_countries')
@@ -213,16 +197,7 @@ Deno.serve(async (req) => {
     // If we've processed all countries or starting index is beyond array length, mark as complete
     if (startIndex >= uniqueCountries.length || processed >= total) {
       console.log('Sync complete, cleaning up...');
-      
-      // Delete the sync progress record instead of marking it complete
-      const { error: deleteError } = await supabase
-        .from('sync_progress')
-        .delete()
-        .eq('type', 'countryPolicies');
-
-      if (deleteError) {
-        console.error('Error deleting sync progress:', deleteError);
-      }
+      await syncManager.completeSync();
 
       return new Response(
         JSON.stringify({
@@ -233,10 +208,15 @@ Deno.serve(async (req) => {
           error_items: [],
           continuation_token: null,
           is_complete: true,
-          shouldReset: true // New flag to trigger UI reset
+          shouldReset: true
         }),
         { headers: corsHeaders }
       )
+    }
+
+    // Initialize sync if not resuming
+    if (!currentProgress) {
+      await syncManager.initialize(total);
     }
 
     console.log(`Processing batch of ${batchSize} countries starting from index ${startIndex}`);
@@ -271,25 +251,13 @@ Deno.serve(async (req) => {
         } else {
           processedItems.push(country);
           
-          // Update progress using database values
-          const { error: progressError } = await supabase
-            .from('sync_progress')
-            .upsert({
-              type: 'countryPolicies',
-              total,
-              processed: processedItems.length,
-              last_processed: country,
-              processed_items: [...new Set(processedItems)], // Remove duplicates
-              error_items: [...new Set(errorItems)], // Remove duplicates
-              start_time: currentProgress?.start_time || new Date().toISOString(),
-              is_complete: processedItems.length >= total
-            }, {
-              onConflict: 'type'
-            });
-
-          if (progressError) {
-            console.error('Error updating progress:', progressError);
-          }
+          // Update progress
+          await syncManager.updateProgress({
+            processed: processedItems.length,
+            last_processed: country,
+            processed_items: [...new Set(processedItems)],
+            error_items: [...new Set(errorItems)]
+          });
         }
       } catch (error) {
         console.error(`Error processing country ${country}:`, error);
@@ -319,15 +287,7 @@ Deno.serve(async (req) => {
     // If this is the last batch, clean up
     if (!hasMoreCountries) {
       console.log('Last batch completed, cleaning up...');
-      
-      const { error: deleteError } = await supabase
-        .from('sync_progress')
-        .delete()
-        .eq('type', 'countryPolicies');
-
-      if (deleteError) {
-        console.error('Error deleting sync progress:', deleteError);
-      }
+      await syncManager.completeSync();
     }
 
     return new Response(
@@ -339,7 +299,7 @@ Deno.serve(async (req) => {
         error_items: [...new Set(errorItems)],
         continuation_token: continuationToken,
         is_complete: !hasMoreCountries,
-        shouldReset: !hasMoreCountries // Add reset flag when complete
+        shouldReset: !hasMoreCountries
       }),
       { headers: corsHeaders }
     )
@@ -348,21 +308,19 @@ Deno.serve(async (req) => {
     console.error('Error in sync_country_policies:', error);
     
     // Clean up on error
-    const { error: deleteError } = await supabase
-      .from('sync_progress')
-      .delete()
-      .eq('type', 'countryPolicies');
-
-    if (deleteError) {
-      console.error('Error deleting sync progress on error:', deleteError);
-    }
+    const syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'countryPolicies'
+    );
+    await syncManager.cleanup();
 
     return new Response(
       JSON.stringify({ 
         success: false, 
         error: error.message || 'An unexpected error occurred',
         details: error.stack,
-        shouldReset: true // Add reset flag on error
+        shouldReset: true
       }),
       {
         status: 500,
@@ -370,4 +328,4 @@ Deno.serve(async (req) => {
       }
     )
   }
-})
+});

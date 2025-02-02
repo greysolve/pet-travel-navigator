@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,7 +7,6 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines')
 
     console.log('Starting airline sync process...')
 
@@ -54,6 +55,15 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('Error in sync_airline_data:', error)
+    
+    // Clean up on error
+    const syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'airlines'
+    );
+    await syncManager.cleanup();
+
     return new Response(
       JSON.stringify({ 
         success: false, 

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,12 +60,16 @@ Deno.serve(async (req) => {
         timezone: airport.timeZoneRegionName || null,
       }));
 
-    // Initialize Supabase client
+    // Initialize Supabase client and SyncManager
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airports')
 
     console.log(`Processing ${airports.length} airports in batches of ${BATCH_SIZE}...`)
+
+    // Initialize sync
+    await syncManager.initialize(airports.length);
 
     // Process airports in batches
     const batches = [];
@@ -74,6 +79,8 @@ Deno.serve(async (req) => {
 
     let processedCount = 0;
     let errorCount = 0;
+    const processedItems: string[] = [];
+    const errorItems: string[] = [];
 
     for (const [index, batch] of batches.entries()) {
       console.log(`Processing batch ${index + 1} of ${batches.length}...`);
@@ -92,8 +99,17 @@ Deno.serve(async (req) => {
         if (error) {
           console.error(`Error in batch ${index + 1}:`, error);
           errorCount++;
+          batch.forEach(airport => errorItems.push(airport.name));
         } else {
           processedCount += batch.length;
+          batch.forEach(airport => processedItems.push(airport.name));
+          
+          // Update sync progress
+          await syncManager.updateProgress({
+            processed: processedCount,
+            processed_items: [...new Set(processedItems)],
+            error_items: [...new Set(errorItems)]
+          });
         }
 
         // Add a small delay between batches to prevent rate limiting
@@ -103,26 +119,45 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(`Failed to process batch ${index + 1}:`, error);
         errorCount++;
+        batch.forEach(airport => errorItems.push(airport.name));
       }
     }
+
+    // Complete sync
+    await syncManager.completeSync();
 
     const summary = {
       total: airports.length,
       processed: processedCount,
       errors: errorCount,
-      success: processedCount > 0
+      success: processedCount > 0,
+      processed_items: [...new Set(processedItems)],
+      error_items: [...new Set(errorItems)]
     };
 
     console.log('Sync complete:', summary);
 
-    return new Response(JSON.stringify(summary), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify(summary), 
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   } catch (error) {
     console.error('Error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    
+    // Clean up on error
+    const syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'airports'
+    );
+    await syncManager.cleanup();
+
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    )
   }
 })
