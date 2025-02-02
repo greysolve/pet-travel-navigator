@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
         }
 
         console.log(`Processing ${airlines.length} airlines`);
-        await syncManager.initialize(airlines.length);
+        await syncManager.initialize(airlines.length, false);
 
         for (const airline of airlines) {
           try {
@@ -72,16 +72,22 @@ Deno.serve(async (req) => {
                 throw upsertError;
               }
 
-              await syncManager.addProcessedItem(airline.name);
+              await syncManager.updateProgress({
+                processed: (await syncManager.getCurrentProgress())?.processed + 1 || 1,
+                last_processed: airline.name,
+                processed_items: [...((await syncManager.getCurrentProgress())?.processed_items || []), airline.name]
+              });
               console.log(`Successfully processed ${airline.name}`);
             }
           } catch (error) {
             console.error(`Error processing ${airline.name}:`, error);
-            await syncManager.addErrorItem(airline.name, error.message);
+            await syncManager.updateProgress({
+              error_items: [...((await syncManager.getCurrentProgress())?.error_items || []), `${airline.name}: ${error.message}`]
+            });
           }
         }
 
-        await syncManager.complete();
+        await syncManager.completeSync();
         
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
