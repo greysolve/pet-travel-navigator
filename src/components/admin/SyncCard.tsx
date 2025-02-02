@@ -4,9 +4,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
 import { SyncProgress } from "@/types/sync";
+import { cn } from "@/lib/utils";
 
 interface SyncCardProps {
   title: string;
@@ -18,13 +18,11 @@ interface SyncCardProps {
 }
 
 const formatTitle = (title: string) => {
-  // First, split by capital letters and spaces
   const words = title.split(/(?=[A-Z])|[\s_-]+/);
-  // Capitalize first letter of each word and join with spaces
   return words
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ')
-    .replace(' Synchronization', ''); // Remove "Synchronization" from the title
+    .replace(' Synchronization', '');
 };
 
 export const SyncCard = ({
@@ -65,32 +63,28 @@ export const SyncCard = ({
     };
   }, [syncProgress?.startTime, syncProgress?.processed, syncProgress?.total, syncProgress?.isComplete]);
 
-  const isSyncInProgress = () => {
-    return syncProgress && !syncProgress.isComplete;
-  };
-
-  const progressPercentage = syncProgress 
-    ? ((syncProgress.processed / syncProgress.total) * 100).toFixed(1) 
-    : 0;
-
-  // Ensure arrays have default values
+  const isSyncInProgress = () => syncProgress && !syncProgress.isComplete;
+  const progressPercentage = syncProgress ? ((syncProgress.processed / syncProgress.total) * 100).toFixed(1) : 0;
   const processedItems = syncProgress?.processedItems || [];
   const errorItems = syncProgress?.errorItems || [];
-
   const formattedTitle = formatTitle(title);
 
+  const getStatusIcon = () => {
+    if (isLoading) return <Loader2 className="w-5 h-5 animate-spin text-primary" />;
+    if (syncProgress?.isComplete) return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+    if (isSyncInProgress()) return <ArrowUp className="w-5 h-5 text-blue-500 animate-bounce" />;
+    return null;
+  };
+
   return (
-    <div className="p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md">
-      <h2 className="text-2xl font-semibold mb-6 flex items-center justify-center gap-2">
-        {formattedTitle}
-        {isLoading && (
-          <div className="animate-pulse">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
-          </div>
-        )}
-        {syncProgress?.isComplete && !isLoading && (
-          <CheckCircle2 className="w-5 h-5 text-green-500" />
-        )}
+    <div className={cn(
+      "p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md",
+      isSyncInProgress() && "border-blue-500/50",
+      syncProgress?.isComplete && "border-green-500/50"
+    )}>
+      <h2 className="text-2xl font-semibold mb-6 flex items-center justify-between">
+        <span>{formattedTitle}</span>
+        {getStatusIcon()}
       </h2>
       
       <div className="flex items-center space-x-3 mb-6">
@@ -99,54 +93,54 @@ export const SyncCard = ({
           checked={clearData}
           onCheckedChange={(checked) => onClearDataChange(checked === true)}
           disabled={isLoading || isSyncInProgress()}
-          className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
         />
         <Label 
           htmlFor={`clear${title.replace(/\s+/g, '')}`} 
-          className={`text-lg ${(isLoading || isSyncInProgress()) ? 'opacity-50' : ''}`}
+          className={cn("text-lg", (isLoading || isSyncInProgress()) && "opacity-50")}
         >
           Clear existing {formattedTitle.toLowerCase()} data first
         </Label>
       </div>
 
       {syncProgress?.total > 0 && !syncProgress.isComplete ? (
-        <div className="mb-6 space-y-4 animate-fade-in">
+        <div className="mb-6 space-y-4">
           <div className="space-y-2">
             <Progress 
               value={Number(progressPercentage)}
               className="h-2 transition-all"
             />
-            <p className="text-sm text-muted-foreground text-right">{progressPercentage}%</p>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>{syncProgress.processed} of {syncProgress.total} items</span>
+              <span>{progressPercentage}%</span>
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
             <div>
               <p className="flex items-center gap-1">
-                <span className="font-medium">Progress:</span> 
-                {syncProgress.processed} of {syncProgress.total}
-              </p>
-              <p className="flex items-center gap-1">
-                <span className="font-medium">Elapsed:</span> 
+                <span className="font-medium">Time Elapsed:</span> 
                 {elapsedTime}
               </p>
-            </div>
-            <div>
               <p className="flex items-center gap-1">
-                <span className="font-medium">Remaining:</span> 
+                <span className="font-medium">Est. Remaining:</span> 
                 {estimatedTimeRemaining}
               </p>
-              {syncProgress.lastProcessed && (
-                <p className="truncate">
-                  <span className="font-medium">Last:</span> {syncProgress.lastProcessed}
-                </p>
-              )}
             </div>
+            {syncProgress.lastProcessed && (
+              <div>
+                <p className="truncate">
+                  <span className="font-medium">Last Processed:</span>
+                  <br />
+                  {syncProgress.lastProcessed}
+                </p>
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h3 className="font-semibold mb-2 flex items-center gap-2">
-                Processed
+                Processed Items
                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                   {processedItems.length}
                 </span>
@@ -158,7 +152,7 @@ export const SyncCard = ({
                       key={i} 
                       className="text-sm py-1 px-2 rounded hover:bg-accent/50 transition-colors flex items-center gap-2"
                     >
-                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <ArrowUp className="w-4 h-4 text-green-500 flex-shrink-0" />
                       <span className="truncate">{item}</span>
                     </div>
                   ))}
@@ -182,21 +176,13 @@ export const SyncCard = ({
                       key={i} 
                       className="text-sm text-destructive py-1 px-2 rounded hover:bg-destructive/10 transition-colors flex items-center gap-2"
                     >
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <ArrowDown className="w-4 h-4 flex-shrink-0" />
                       <span className="truncate">{item}</span>
                     </div>
                   ))}
                 </div>
               </ScrollArea>
             </div>
-          </div>
-        </div>
-      ) : isLoading ? (
-        <div className="space-y-4 mb-6">
-          <Skeleton className="h-2 w-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-4 w-1/2" />
           </div>
         </div>
       ) : null}
@@ -213,15 +199,18 @@ export const SyncCard = ({
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Resuming Sync...
+                  Resuming...
                 </>
               ) : (
-                "Resume Sync"
+                <>
+                  <ArrowUp className="w-4 h-4" />
+                  Resume Sync
+                </>
               )}
             </span>
-            <div className="absolute inset-0 bg-primary/10 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
           </Button>
         )}
+        
         <Button 
           onClick={() => onSync()}
           disabled={isLoading || isSyncInProgress()}
@@ -233,15 +222,20 @@ export const SyncCard = ({
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Syncing {formattedTitle}...
+                Starting {formattedTitle} Sync...
               </>
             ) : isSyncInProgress() ? (
-              "Sync in Progress..."
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sync in Progress...
+              </>
             ) : (
-              "Start New Sync"
+              <>
+                <ArrowUp className="w-4 h-4" />
+                Start New Sync
+              </>
             )}
           </span>
-          <div className="absolute inset-0 bg-primary/10 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
         </Button>
       </div>
     </div>
