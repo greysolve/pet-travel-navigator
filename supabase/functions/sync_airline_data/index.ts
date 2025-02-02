@@ -36,12 +36,14 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to fetch airlines: ${errorText}`)
     }
 
-    console.log('Successfully fetched airlines data')
+    const result = await fetchAirlinesResponse.json()
+    console.log('Fetch airlines result:', result)
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Airlines sync completed successfully'
+        message: 'Airlines sync completed successfully',
+        result
       }), 
       { 
         headers: { 

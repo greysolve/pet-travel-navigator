@@ -48,12 +48,26 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Processing batch of ${airlines?.length} airlines`);
+    if (!airlines?.length) {
+      console.log('No airlines found to process');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          processed_items: [],
+          error_items: [],
+          continuation_token: null,
+          shouldReset: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const processedAirlines: string[] = [];
     const errorAirlines: string[] = [];
     let processedCount = 0;
 
-    for (const airline of airlines || []) {
+    for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name} (${airline.id})`);
         await new Promise(resolve => setTimeout(resolve, 2000)); // Rate limiting delay
@@ -77,6 +91,7 @@ Deno.serve(async (req) => {
           }
         `;
 
+        console.log('Sending request to Perplexity API...');
         const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
           method: 'POST',
           headers: {
@@ -112,23 +127,29 @@ Deno.serve(async (req) => {
         }
 
         const content = JSON.parse(responseData.choices[0].message.content);
+        console.log('Parsed content:', content);
 
         // Update airline website if we got a valid one
         if (content.airline_info?.official_website) {
           console.log('Updating airline website:', content.airline_info.official_website);
-          await supabase
+          const { error: updateError } = await supabase
             .from('airlines')
             .update({ 
               website: content.airline_info.official_website,
               updated_at: new Date().toISOString()
             })
             .eq('id', airline.id);
+
+          if (updateError) {
+            console.error('Error updating airline website:', updateError);
+            throw updateError;
+          }
         }
 
         // Process pet policy data
         if (content.pet_policy) {
           console.log('Storing pet policy data:', content.pet_policy);
-          await supabase
+          const { error: policyError } = await supabase
             .from('pet_policies')
             .upsert({
               airline_id: airline.id,
@@ -137,10 +158,16 @@ Deno.serve(async (req) => {
             }, { 
               onConflict: 'airline_id'
             });
+
+          if (policyError) {
+            console.error('Error storing pet policy:', policyError);
+            throw policyError;
+          }
         }
 
         processedAirlines.push(airline.name);
         processedCount++;
+        console.log(`Successfully processed airline: ${airline.name}`);
 
       } catch (error) {
         console.error(`Error processing airline ${airline.name}:`, error);
@@ -156,7 +183,8 @@ Deno.serve(async (req) => {
       processed: processedCount,
       processed_items: processedAirlines,
       error_items: errorAirlines,
-      continuation_token: hasMore ? lastProcessedId : null
+      continuation_token: hasMore ? lastProcessedId : null,
+      shouldReset: !hasMore
     };
 
     console.log('Returning response:', response);
@@ -176,7 +204,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        success: false 
+        success: false,
+        shouldReset: true
       }), 
       { 
         status: 500,
