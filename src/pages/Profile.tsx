@@ -7,12 +7,14 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ContactInformation } from "@/components/profile/ContactInformation";
 import { AddressInformation } from "@/components/profile/AddressInformation";
 import { useProfileData } from "@/hooks/useProfileData";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Profile = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
-  // Use the new profile hook
+  // Use the profile hook
   const { profile, isLoading, updateProfile } = useProfileData(user?.id || "");
   
   // Form state
@@ -88,9 +90,9 @@ const Profile = () => {
             <ProfileAvatar 
               userId={user.id}
               avatarUrl={profile?.avatar_url}
-              onAvatarUpdate={() => {
+              onAvatarUpdate={async () => {
                 // Refresh profile data after avatar update
-                queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+                await queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
               }}
             />
           </div>
