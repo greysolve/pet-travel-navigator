@@ -13,6 +13,98 @@ function handleCorsRequest(req: Request) {
   }
 }
 
+Deno.serve(async (req) => {
+  // Handle CORS
+  const corsResponse = handleCorsRequest(req);
+  if (corsResponse) return corsResponse;
+
+  try {
+    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
+    if (!perplexityKey) {
+      throw new Error('PERPLEXITY_API_KEY is not set');
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set');
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    if (req.method === 'POST') {
+      const { resume } = await req.json();
+      console.log('Received sync request, resume:', resume);
+
+      const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
+      await syncManager.initialize(resume);
+
+      try {
+        const { data: airlines, error: airlinesError } = await supabase
+          .from('airlines')
+          .select('*')
+          .eq('active', true)
+          .order('name');
+
+        if (airlinesError) {
+          throw airlinesError;
+        }
+
+        console.log(`Processing ${airlines.length} airlines`);
+
+        for (const airline of airlines) {
+          try {
+            if (await syncManager.shouldProcessItem(airline.name)) {
+              console.log(`Processing airline: ${airline.name}`);
+              
+              const petPolicy = await analyzePetPolicy(airline, perplexityKey);
+              
+              const { error: upsertError } = await supabase
+                .from('pet_policies')
+                .upsert({
+                  airline_id: airline.id,
+                  ...petPolicy
+                });
+
+              if (upsertError) {
+                throw upsertError;
+              }
+
+              await syncManager.markItemProcessed(airline.name);
+              console.log(`Successfully processed ${airline.name}`);
+            }
+          } catch (error) {
+            console.error(`Error processing ${airline.name}:`, error);
+            await syncManager.markItemError(airline.name, error.message);
+          }
+        }
+
+        await syncManager.complete();
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('Error in sync process:', error);
+        throw error;
+      }
+    }
+
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
+
 async function analyzePetPolicy(airline: any, perplexityKey: string): Promise<any> {
   console.log(`Analyzing pet policy for airline: ${airline.name}`);
   
@@ -137,91 +229,3 @@ async function analyzePetPolicy(airline: any, perplexityKey: string): Promise<an
     throw error;
   }
 }
-
-Deno.serve(async (req) => {
-  // Handle CORS
-  const corsResponse = handleCorsRequest(req);
-  if (corsResponse) return corsResponse;
-
-  try {
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) {
-      throw new Error('PERPLEXITY_API_KEY is not set');
-    }
-
-    // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    if (req.method === 'POST') {
-      const { resume } = await req.json();
-      console.log('Received sync request, resume:', resume);
-
-      const syncManager = new SyncManager(supabase, 'petPolicies');
-      await syncManager.initialize(resume);
-
-      try {
-        const { data: airlines, error: airlinesError } = await supabase
-          .from('airlines')
-          .select('*')
-          .eq('active', true)
-          .order('name');
-
-        if (airlinesError) {
-          throw airlinesError;
-        }
-
-        console.log(`Processing ${airlines.length} airlines`);
-
-        for (const airline of airlines) {
-          try {
-            if (await syncManager.shouldProcessItem(airline.name)) {
-              console.log(`Processing airline: ${airline.name}`);
-              
-              const petPolicy = await analyzePetPolicy(airline, perplexityKey);
-              
-              const { error: upsertError } = await supabase
-                .from('pet_policies')
-                .upsert({
-                  airline_id: airline.id,
-                  ...petPolicy
-                });
-
-              if (upsertError) {
-                throw upsertError;
-              }
-
-              await syncManager.markItemProcessed(airline.name);
-              console.log(`Successfully processed ${airline.name}`);
-            }
-          } catch (error) {
-            console.error(`Error processing ${airline.name}:`, error);
-            await syncManager.markItemError(airline.name, error.message);
-          }
-        }
-
-        await syncManager.complete();
-        
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } catch (error) {
-        console.error('Error in sync process:', error);
-        throw error;
-      }
-    }
-
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
