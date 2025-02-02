@@ -12,7 +12,7 @@ export const HeroSection = () => {
         <div className="w-full max-w-[600px] text-center space-y-8">
           <div className="flex flex-col items-center justify-center gap-4">
             <img 
-              src="/lovable-uploads/d9c1da0e-88b6-43d4-b6b4-5d79f681c06b.png" 
+              src="/lovable-uploads/399508ba-b0c4-4f26-b40a-210fb735a14c.png" 
               alt="PawPort Logo" 
               className="h-32 w-32 object-contain"
             />
