@@ -52,7 +52,19 @@ async function fetchPolicyWithAI(country: string, apiKey: string) {
 
   const data = await response.json();
   const content = data.choices[0].message.content.trim();
-  return JSON.parse(content);
+  
+  // Clean up markdown formatting if present
+  const cleanContent = content.replace(/```json\n|\n```|```/g, '').trim();
+  console.log('Cleaned AI response:', cleanContent);
+  
+  try {
+    return JSON.parse(cleanContent);
+  } catch (error) {
+    console.error('Failed to parse AI response:', error);
+    console.error('Raw content:', content);
+    console.error('Cleaned content:', cleanContent);
+    throw new Error('Failed to parse policy data from AI response');
+  }
 }
 
 Deno.serve(async (req) => {
