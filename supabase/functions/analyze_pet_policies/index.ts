@@ -187,8 +187,12 @@ async function analyzePetPolicy(airline: any, perplexityKey: string): Promise<an
         const rawContent = responseData.choices[0].message.content;
         console.log('Raw API response content:', rawContent);
         
-        // Parse the response directly
-        const content = JSON.parse(rawContent);
+        // Strip markdown formatting
+        const cleanContent = rawContent.replace(/```json\n?|\n?```/g, '').trim();
+        console.log('Cleaned content:', cleanContent);
+        
+        // Parse the cleaned response
+        const content = JSON.parse(cleanContent);
         console.log('Parsed content:', content);
 
         // Update airline website if we got a valid one
