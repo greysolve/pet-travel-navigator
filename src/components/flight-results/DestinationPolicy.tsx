@@ -5,16 +5,16 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
   if (!policy) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Switzerland Pet Policy</h2>
+        <h2 className="text-xl font-semibold mb-4">Destination Pet Policy</h2>
         <p className="text-gray-500 italic">No pet policy information available for this destination.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">{policy.title}</h2>
+    <div className="bg-white p-8 rounded-lg shadow-md">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold">{policy.title}</h2>
         {policy.policy_url && (
           <a 
             href={policy.policy_url}
@@ -28,16 +28,27 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
       </div>
       
       {policy.description && (
-        <p className="text-gray-700 mb-4">{policy.description}</p>
+        <p className="text-gray-700 mb-6 text-lg">{policy.description}</p>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {policy.vaccination_requirements?.length > 0 && (
+          <div>
+            <h3 className="text-xl font-semibold mb-3">Vaccination Requirements:</h3>
+            <ul className="list-disc list-inside space-y-2">
+              {policy.vaccination_requirements.map((vac, index) => (
+                <li key={index} className="text-gray-700 text-lg">{vac}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {policy.requirements?.length > 0 && (
           <div>
-            <h3 className="font-medium mb-2">Requirements:</h3>
-            <ul className="list-disc list-inside space-y-1">
+            <h3 className="text-xl font-semibold mb-3">Requirements:</h3>
+            <ul className="list-disc list-inside space-y-2">
               {policy.requirements.map((req, index) => (
-                <li key={index} className="text-gray-700">{req}</li>
+                <li key={index} className="text-gray-700 text-lg">{req}</li>
               ))}
             </ul>
           </div>
@@ -45,21 +56,10 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
         {policy.documentation_needed?.length > 0 && (
           <div>
-            <h3 className="font-medium mb-2">Required Documentation:</h3>
-            <ul className="list-disc list-inside space-y-1">
+            <h3 className="text-xl font-semibold mb-3">Required Documentation:</h3>
+            <ul className="list-disc list-inside space-y-2">
               {policy.documentation_needed.map((doc, index) => (
-                <li key={index} className="text-gray-700">{doc}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {policy.vaccination_requirements?.length > 0 && (
-          <div>
-            <h3 className="font-medium mb-2">Vaccination Requirements:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              {policy.vaccination_requirements.map((vac, index) => (
-                <li key={index} className="text-gray-700">{vac}</li>
+                <li key={index} className="text-gray-700 text-lg">{doc}</li>
               ))}
             </ul>
           </div>
@@ -67,14 +67,14 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
         {policy.quarantine_requirements && (
           <div>
-            <h3 className="font-medium mb-2">Quarantine Requirements:</h3>
-            <p className="text-gray-700">{policy.quarantine_requirements}</p>
+            <h3 className="text-xl font-semibold mb-3">Quarantine Requirements:</h3>
+            <p className="text-gray-700 text-lg">{policy.quarantine_requirements}</p>
           </div>
         )}
 
         {policy.additional_notes && typeof policy.additional_notes === 'string' && !policy.additional_notes.startsWith('{') && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-md">
-            <p className="text-sm text-gray-600">{policy.additional_notes}</p>
+          <div className="mt-6 p-4 bg-gray-50 rounded-md">
+            <p className="text-gray-600 text-lg">{policy.additional_notes}</p>
           </div>
         )}
       </div>
