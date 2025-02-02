@@ -19,22 +19,31 @@ const Profile = () => {
   const [lastName, setLastName] = useState("");
   
   // Address fields
-  const [addressLine1, setAddressLine1] = useState(profile?.address_line1 || "");
-  const [addressLine2, setAddressLine2] = useState(profile?.address_line2 || "");
-  const [addressLine3, setAddressLine3] = useState(profile?.address_line3 || "");
-  const [locality, setLocality] = useState(profile?.locality || "");
-  const [administrativeArea, setAdministrativeArea] = useState(profile?.administrative_area || "");
-  const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
-  const [selectedCountryId, setSelectedCountryId] = useState(profile?.country_id || "");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [addressLine3, setAddressLine3] = useState("");
+  const [locality, setLocality] = useState("");
+  const [administrativeArea, setAdministrativeArea] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [selectedCountryId, setSelectedCountryId] = useState("");
 
-  // Split full name on component mount
+  // Initialize form data from profile
   useEffect(() => {
-    if (profile?.full_name) {
-      const nameParts = profile.full_name.split(" ");
-      setFirstName(nameParts[0] || "");
-      setLastName(nameParts.slice(1).join(" ") || "");
+    if (profile) {
+      if (profile.full_name) {
+        const nameParts = profile.full_name.split(" ");
+        setFirstName(nameParts[0] || "");
+        setLastName(nameParts.slice(1).join(" ") || "");
+      }
+      setAddressLine1(profile.address_line1 || "");
+      setAddressLine2(profile.address_line2 || "");
+      setAddressLine3(profile.address_line3 || "");
+      setLocality(profile.locality || "");
+      setAdministrativeArea(profile.administrative_area || "");
+      setPostalCode(profile.postal_code || "");
+      setSelectedCountryId(profile.country_id || "");
     }
-  }, [profile?.full_name]);
+  }, [profile]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -44,6 +53,8 @@ const Profile = () => {
 
   const handleUpdateProfile = async () => {
     try {
+      if (!user) return;
+
       const fullName = `${firstName} ${lastName}`.trim();
       const { error } = await supabase
         .from("profiles")
@@ -57,9 +68,15 @@ const Profile = () => {
           postal_code: postalCode,
           country_id: selectedCountryId || null,
         })
-        .eq("id", user?.id);
+        .eq("id", user.id);
 
       if (error) throw error;
+      
+      // Refresh profile data
+      if (user) {
+        await fetchOrCreateProfile(user.id);
+      }
+
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
@@ -77,13 +94,17 @@ const Profile = () => {
   const refreshProfile = async () => {
     if (user) {
       await fetchOrCreateProfile(user.id);
-      // Force a re-render by updating the URL
-      const currentPath = window.location.pathname;
-      navigate(currentPath + '?refresh=' + new Date().getTime());
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
   if (!user) return null;
 
   return (

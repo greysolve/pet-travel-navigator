@@ -43,10 +43,9 @@ export const AddressInformation = ({
   onPostalCodeChange,
   onCountryChange,
 }: AddressInformationProps) => {
-  const { data: countries = [] } = useQuery<Country[]>({
+  const { data: countries = [], isLoading } = useQuery({
     queryKey: ['countries'],
     queryFn: async () => {
-      console.log('Fetching countries...');
       const { data, error } = await supabase
         .from('countries')
         .select('id, name, code')
@@ -56,8 +55,7 @@ export const AddressInformation = ({
         console.error('Error fetching countries:', error);
         throw error;
       }
-      console.log('Countries fetched:', data);
-      return data;
+      return data || [];
     },
   });
 
@@ -123,11 +121,15 @@ export const AddressInformation = ({
                 <SelectValue placeholder="Select a country" />
               </SelectTrigger>
               <SelectContent>
-                {countries.map((country) => (
-                  <SelectItem key={country.id} value={country.id}>
-                    {country.name}
-                  </SelectItem>
-                ))}
+                {isLoading ? (
+                  <SelectItem value="loading">Loading...</SelectItem>
+                ) : (
+                  countries.map((country) => (
+                    <SelectItem key={country.id} value={country.id}>
+                      {country.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
