@@ -45,6 +45,29 @@ export const ResultsSection = ({
     },
   });
 
+  // Get destination country from the first flight (assuming all flights go to same destination)
+  const destinationCountry = flights[0]?.arrivalCountry;
+
+  // Fetch destination country's pet policy
+  const { data: countryPolicy } = useQuery({
+    queryKey: ['countryPolicy', destinationCountry],
+    queryFn: async () => {
+      if (!destinationCountry) return null;
+      console.log("Fetching pet policy for country:", destinationCountry);
+      
+      const { data: policy } = await supabase
+        .from('country_policies')
+        .select('*')
+        .eq('country_code', destinationCountry)
+        .eq('policy_type', 'pet')
+        .single();
+
+      console.log("Found country policy:", policy);
+      return policy;
+    },
+    enabled: !!destinationCountry,
+  });
+
   if (!searchPerformed) return null;
 
   return (
@@ -59,7 +82,7 @@ export const ResultsSection = ({
             />
           ))}
         </div>
-        <DestinationPolicy />
+        <DestinationPolicy policy={countryPolicy} />
       </div>
     </div>
   );
