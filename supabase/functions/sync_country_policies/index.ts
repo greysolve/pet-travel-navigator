@@ -143,7 +143,6 @@ Deno.serve(async (req) => {
     
     const { lastProcessedItem, batchSize = BATCH_SIZE } = requestBody
 
-    // Get current sync progress
     const currentProgress = await syncManager.getCurrentProgress()
 
     const { data: countries, error: countriesError } = await supabase
@@ -189,15 +188,13 @@ Deno.serve(async (req) => {
       ? uniqueCountries.findIndex(c => c === lastProcessedItem) + 1
       : 0;
 
-    // Initialize arrays from database or create new ones
     const processedItems = currentProgress?.processed_items || [];
     const errorItems = currentProgress?.error_items || [];
     const processed = currentProgress?.processed || 0;
 
-    // If we've processed all countries or starting index is beyond array length, mark as complete
     if (startIndex >= uniqueCountries.length || processed >= total) {
       console.log('Sync complete, cleaning up...');
-      await syncManager.completeSync();
+      await syncManager.complete();
 
       return new Response(
         JSON.stringify({
@@ -214,7 +211,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Initialize sync if not resuming
     if (!currentProgress) {
       await syncManager.initialize(total);
     }
@@ -225,7 +221,6 @@ Deno.serve(async (req) => {
     
     for (const country of batchCountries) {
       try {
-        // Skip if country is already processed
         if (processedItems.includes(country)) {
           console.log(`Skipping already processed country: ${country}`);
           continue;
@@ -251,7 +246,6 @@ Deno.serve(async (req) => {
         } else {
           processedItems.push(country);
           
-          // Update progress
           await syncManager.updateProgress({
             processed: processedItems.length,
             last_processed: country,
@@ -284,10 +278,9 @@ Deno.serve(async (req) => {
     const hasMoreCountries = endIndex < uniqueCountries.length;
     const continuationToken = hasMoreCountries ? uniqueCountries[endIndex - 1] : null;
 
-    // If this is the last batch, clean up
     if (!hasMoreCountries) {
       console.log('Last batch completed, cleaning up...');
-      await syncManager.completeSync();
+      await syncManager.complete();
     }
 
     return new Response(
@@ -307,7 +300,6 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in sync_country_policies:', error);
     
-    // Clean up on error
     const syncManager = new SyncManager(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,

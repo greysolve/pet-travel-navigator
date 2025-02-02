@@ -53,7 +53,6 @@ export const SyncSection = () => {
   };
 
   useEffect(() => {
-    // Create a single channel for all sync types
     const channel = supabase
       .channel('sync_progress_changes')
       .on(
@@ -63,12 +62,18 @@ export const SyncSection = () => {
           schema: 'public',
           table: 'sync_progress'
         },
-        (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
+        async (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log(`Received sync progress update:`, payload);
           const newRecord = payload.new as SyncProgressDB;
           
           if (newRecord) {
             console.log(`Updating sync progress for ${newRecord.type}:`, newRecord);
+            
+            // If we receive a continuation token, automatically continue the sync
+            if (!newRecord.is_complete && newRecord.last_processed && newRecord.processed < newRecord.total) {
+              console.log(`Automatically continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
+              await handleSync(newRecord.type as keyof typeof SyncType, true);
+            }
             
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
@@ -138,7 +143,6 @@ export const SyncSection = () => {
     setIsLoading(prev => ({ ...prev, [type]: true }));
     
     try {
-      // If not resuming, reset the progress first
       if (!resume) {
         console.log(`Resetting progress for ${type}`);
         await resetSyncProgress(type);
@@ -201,7 +205,6 @@ export const SyncSection = () => {
 
       console.log(`Received response from ${functionName}:`, data);
 
-      // If the response indicates we should reset, do so
       if (data?.shouldReset) {
         console.log('Response indicates sync completion, resetting state...');
         await resetSyncProgress(type);
@@ -222,7 +225,6 @@ export const SyncSection = () => {
         description: error.message || `Failed to sync ${type} data.`,
       });
 
-      // Reset progress on error
       await resetSyncProgress(type);
       await resetSyncProgressCache(type);
     } finally {
