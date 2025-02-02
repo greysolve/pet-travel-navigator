@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { FlightCard } from "./flight-results/FlightCard";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
 import type { FlightData, PetPolicy } from "./flight-results/types";
+import { toast } from "@/hooks/use-toast";
 
 export const ResultsSection = ({ 
   searchPerformed,
@@ -63,6 +64,37 @@ export const ResultsSection = ({
         .single();
 
       console.log("Found country policy:", policy);
+
+      if (!policy) {
+        console.log("No policy found, triggering sync...");
+        try {
+          const { error } = await supabase.functions.invoke('sync_country_policies', {
+            body: { 
+              lastProcessedItem: null,
+              currentProcessed: 0,
+              currentTotal: 0,
+              processedItems: [],
+              errorItems: [],
+              startTime: new Date().toISOString(),
+            }
+          });
+          
+          if (error) throw error;
+          
+          toast({
+            title: "Syncing Country Policies",
+            description: "We're fetching the latest country policies. Please try your search again in a few moments.",
+          });
+        } catch (error) {
+          console.error("Error triggering sync:", error);
+          toast({
+            variant: "destructive",
+            title: "Sync Error",
+            description: "Failed to sync country policies. Please try again later.",
+          });
+        }
+      }
+
       return policy;
     },
     enabled: !!destinationCountry,
