@@ -540,6 +540,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      search_airports_insensitive: {
+        Args: {
+          search_term: string
+        }
+        Returns: {
+          iata_code: string
+          name: string
+          city: string
+          country: string
+        }[]
+      }
+      unaccent: {
+        Args: {
+          "": string
+        }
+        Returns: string
+      }
+      unaccent_init: {
+        Args: {
+          "": unknown
+        }
+        Returns: unknown
+      }
     }
     Enums: {
       app_role: "site_manager" | "pet_lover"

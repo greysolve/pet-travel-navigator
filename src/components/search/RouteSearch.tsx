@@ -45,12 +45,9 @@ export const RouteSearch = ({
       
       console.log('Fetching airports for search term:', cleanSearchTerm);
       const { data, error } = await supabase
-        .from('airports')
-        .select('iata_code, name, city, country')
-        .or(`iata_code.ilike.%${cleanSearchTerm}%,city.ilike.%${cleanSearchTerm}%`)
-        .not('name', 'ilike', '%railway%')
-        .not('name', 'ilike', '%station%')
-        .limit(10);
+        .rpc('search_airports_insensitive', {
+          search_term: cleanSearchTerm
+        });
 
       if (error) {
         console.error('Error fetching airports:', error);
