@@ -106,7 +106,7 @@ export const RouteSearch = ({
                       setShowOriginSuggestions(false);
                     }}
                   >
-                    {airport.city} ({airport.iata_code})
+                    {airport.city}, {airport.country} ({airport.iata_code})
                   </li>
                 ))}
               </ul>
@@ -147,7 +147,7 @@ export const RouteSearch = ({
                       setShowDestinationSuggestions(false);
                     }}
                   >
-                    {airport.city} ({airport.iata_code})
+                    {airport.city}, {airport.country} ({airport.iata_code})
                   </li>
                 ))}
               </ul>
