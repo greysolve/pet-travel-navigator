@@ -60,7 +60,6 @@ export const ResultsSection = ({
         .from('country_policies')
         .select('*')
         .eq('country_code', destinationCountry)
-        .eq('policy_type', 'pet')
         .maybeSingle();
 
       if (error) {
