@@ -4,8 +4,7 @@ import { SyncManager } from '../_shared/SyncManager.ts'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
 const BATCH_SIZE = 10;
@@ -112,17 +111,19 @@ Deno.serve(async (req) => {
         }), 
         { 
           status: 405,
-          headers: corsHeaders
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         }
       )
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY')
-
-    if (!supabaseUrl || !supabaseKey || !perplexityKey) {
-      console.error('Missing required environment variables')
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing environment variables')
       return new Response(
         JSON.stringify({ 
           error: 'Server configuration error',
@@ -130,22 +131,20 @@ Deno.serve(async (req) => {
         }), 
         { 
           status: 500,
-          headers: corsHeaders
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         }
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies')
+    const currentProgress = await syncManager.getCurrentProgress()
     
-    const requestBody = await req.json()
-    console.log('Received request with body:', requestBody)
-    
-    const { lastProcessedItem, currentProcessed, currentTotal, processedItems = [], errorItems = [], startTime } = requestBody
-
-    // Get all countries
-    const { data: countries, error: countriesError } = await supabase
-      .rpc('get_distinct_countries')
+    // Get all countries from the database
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    const { data: countries, error: countriesError } = await supabase.rpc('get_distinct_countries')
     
     if (countriesError) {
       console.error('Error fetching countries:', countriesError)
@@ -156,7 +155,10 @@ Deno.serve(async (req) => {
         }), 
         { 
           status: 500,
-          headers: corsHeaders
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         }
       )
     }
@@ -170,7 +172,10 @@ Deno.serve(async (req) => {
         }), 
         { 
           status: 404,
-          headers: corsHeaders
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         }
       )
     }
@@ -180,61 +185,57 @@ Deno.serve(async (req) => {
         .map(row => row.country?.trim() || '')
         .filter(country => country !== '')
         .map(country => country.normalize('NFKC').trim())
-    )].sort();
+    )].sort()
 
-    const total = uniqueCountries.length;
+    const total = uniqueCountries.length
     
-    // Find the starting index based on the last processed item
-    const startIndex = lastProcessedItem
-      ? uniqueCountries.findIndex(c => c === lastProcessedItem) + 1
-      : 0;
+    // If no progress exists, initialize it
+    if (!currentProgress) {
+      await syncManager.initialize(total)
+    }
+    
+    // Get the current progress again (in case we just initialized it)
+    const progress = await syncManager.getCurrentProgress()
+    if (!progress) {
+      throw new Error('Failed to initialize or retrieve sync progress')
+    }
 
-    console.log(`Starting from index ${startIndex}, last processed: ${lastProcessedItem}`);
+    // Find starting point
+    const startIndex = progress.last_processed
+      ? uniqueCountries.findIndex(c => c === progress.last_processed) + 1
+      : 0
 
-    // If we've processed everything or the start index is invalid, complete the sync
-    if (startIndex >= uniqueCountries.length || currentProcessed >= total) {
-      console.log('Sync complete, cleaning up...');
+    // If we've processed everything, complete the sync
+    if (startIndex >= uniqueCountries.length) {
       await syncManager.updateProgress({
-        total,
-        processed: total,
-        last_processed: uniqueCountries[uniqueCountries.length - 1],
-        processed_items: processedItems,
-        error_items: errorItems,
-        start_time: startTime,
         is_complete: true,
         needs_continuation: false
-      });
-
+      })
+      
       return new Response(
-        JSON.stringify({
+        JSON.stringify({ 
           success: true,
-          total,
-          processed: total,
-          processed_items: processedItems,
-          error_items: errorItems,
-          continuation_token: null,
-          is_complete: true,
-          shouldReset: true,
-          needs_continuation: false
-        }),
-        { headers: corsHeaders }
+          message: 'Sync completed successfully'
+        }), 
+        { 
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       )
     }
 
-    // Process the next batch
-    console.log(`Processing batch of ${BATCH_SIZE} countries starting from index ${startIndex}`);
-    const endIndex = Math.min(startIndex + BATCH_SIZE, uniqueCountries.length);
-    const batchCountries = uniqueCountries.slice(startIndex, endIndex);
+    // Process next batch
+    const endIndex = Math.min(startIndex + BATCH_SIZE, uniqueCountries.length)
+    const batchCountries = uniqueCountries.slice(startIndex, endIndex)
+    
+    console.log(`Processing countries ${startIndex} to ${endIndex} of ${uniqueCountries.length}`)
     
     for (const country of batchCountries) {
       try {
-        if (processedItems.includes(country)) {
-          console.log(`Skipping already processed country: ${country}`);
-          continue;
-        }
-
-        console.log(`Processing country: ${country}`);
-        const policy = await fetchPolicyWithAI(country, 'pet');
+        console.log(`Fetching policy for ${country}`)
+        const policy = await fetchPolicyWithAI(country, 'pet')
         
         const { error: upsertError } = await supabase
           .from('country_policies')
@@ -245,95 +246,42 @@ Deno.serve(async (req) => {
             last_updated: new Date().toISOString()
           }, {
             onConflict: 'country_code,policy_type'
-          });
+          })
 
         if (upsertError) {
-          console.error(`Error upserting policy for ${country}:`, upsertError);
-          errorItems.push(country);
+          console.error(`Error upserting policy for ${country}:`, upsertError)
+          await syncManager.addErrorItem(country, upsertError.message)
         } else {
-          processedItems.push(country);
+          await syncManager.addProcessedItem(country)
         }
       } catch (error) {
-        console.error(`Error processing country ${country}:`, error);
-        errorItems.push(country);
-        
-        if (error.message?.includes('rate limit') || error.message?.includes('quota exceeded')) {
-          console.log('Rate limit or quota reached, stopping batch');
-          
-          // Update progress before stopping
-          await syncManager.updateProgress({
-            total,
-            processed: processedItems.length,
-            last_processed: country,
-            processed_items: processedItems,
-            error_items: errorItems,
-            start_time: startTime,
-            is_complete: false,
-            needs_continuation: true
-          });
-
-          return new Response(
-            JSON.stringify({
-              success: true,
-              total,
-              processed: processedItems.length,
-              processed_items: processedItems,
-              error_items: errorItems,
-              continuation_token: country,
-              is_complete: false,
-              needs_continuation: true
-            }),
-            { headers: corsHeaders }
-          )
-        }
+        console.error(`Error processing ${country}:`, error)
+        await syncManager.addErrorItem(country, error.message)
       }
     }
 
-    const hasMoreCountries = endIndex < uniqueCountries.length;
-    const lastProcessed = batchCountries[batchCountries.length - 1];
-
-    // Update progress after batch
+    // Update progress to indicate more work needed
     await syncManager.updateProgress({
-      total,
-      processed: processedItems.length,
-      last_processed: lastProcessed,
-      processed_items: processedItems,
-      error_items: errorItems,
-      start_time: startTime,
-      is_complete: !hasMoreCountries,
-      needs_continuation: hasMoreCountries
-    });
+      needs_continuation: endIndex < uniqueCountries.length
+    })
 
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         success: true,
-        total,
-        processed: processedItems.length,
-        processed_items: processedItems,
-        error_items: errorItems,
-        continuation_token: hasMoreCountries ? lastProcessed : null,
-        is_complete: !hasMoreCountries,
-        shouldReset: !hasMoreCountries,
-        needs_continuation: hasMoreCountries
-      }),
-      { headers: corsHeaders }
+        message: 'Batch processed successfully',
+        needs_continuation: endIndex < uniqueCountries.length
+      }), 
+      { 
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     )
 
   } catch (error) {
-    console.error('Error in sync_country_policies:', error);
+    console.error('Error in sync_country_policies:', error)
     
-    const syncManager = new SyncManager(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      'countryPolicies'
-    );
-
-    // Update progress to indicate error
-    await syncManager.updateProgress({
-      is_complete: false,
-      needs_continuation: false
-    });
-
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -344,8 +292,11 @@ Deno.serve(async (req) => {
       }),
       {
         status: 500,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     )
   }
-});
+})
