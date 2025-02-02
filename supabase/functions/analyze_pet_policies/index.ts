@@ -103,11 +103,26 @@ Deno.serve(async (req) => {
             messages: [
               {
                 role: 'system',
-                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
+                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations, no text, no markdown formatting, no code blocks. The response must start with { and end with }.'
               },
               {
                 role: 'user',
-                content: prompt
+                content: `Analyze this airline: ${airline.name}
+                
+Return a JSON object with these fields (use null if data is not found):
+{
+  "airline_info": {
+    "official_website": "string (the airline's official website URL, must be complete with https:// and from their own domain)"
+  },
+  "pet_policy": {
+    "pet_types_allowed": ["string"],
+    "carrier_requirements": "string",
+    "documentation_needed": ["string"],
+    "temperature_restrictions": "string",
+    "breed_restrictions": ["string"],
+    "policy_url": "string (must be from the airline's own website domain)"
+  }
+}`
               }
             ],
             temperature: 0.1,
@@ -126,13 +141,7 @@ Deno.serve(async (req) => {
           throw new Error('Invalid API response structure');
         }
 
-        // Extract JSON from potential markdown code block
-        const rawContent = responseData.choices[0].message.content;
-        const jsonMatch = rawContent.match(/```json\n([\s\S]*?)\n```/) || [null, rawContent];
-        const jsonContent = jsonMatch[1].trim();
-        
-        console.log('Extracted JSON content:', jsonContent);
-        const content = JSON.parse(jsonContent);
+        const content = JSON.parse(responseData.choices[0].message.content);
         console.log('Parsed content:', content);
 
         // Update airline website if we got a valid one
