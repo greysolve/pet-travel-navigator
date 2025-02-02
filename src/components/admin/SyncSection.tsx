@@ -50,6 +50,7 @@ export const SyncSection = () => {
   };
 
   useEffect(() => {
+    console.log('Setting up sync progress subscription');
     const channel = supabase
       .channel('sync_progress_changes')
       .on(
@@ -60,26 +61,13 @@ export const SyncSection = () => {
           table: 'sync_progress'
         },
         async (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
-          console.log(`Received sync progress update:`, payload);
+          console.log('Received sync progress update:', payload);
           const newRecord = payload.new as SyncProgressDB;
           
           if (newRecord) {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
             
-            if (newRecord.needs_continuation) {
-              console.log(`Continuing sync for ${newRecord.type}`);
-              try {
-                await handleSync(newRecord.type as keyof typeof SyncType, true);
-              } catch (error) {
-                console.error(`Error during continuation for ${newRecord.type}:`, error);
-                toast({
-                  variant: "destructive",
-                  title: "Sync Continuation Failed",
-                  description: `Failed to continue sync for ${newRecord.type}. Please try resuming manually.`,
-                });
-              }
-            }
-            
+            // Update the query cache with the new progress
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (oldData) => ({
@@ -95,6 +83,24 @@ export const SyncSection = () => {
                 }
               })
             );
+
+            // If sync failed, show error toast
+            if (newRecord.error_items?.length > 0) {
+              const lastError = newRecord.error_items[newRecord.error_items.length - 1];
+              toast({
+                variant: "destructive",
+                title: "Sync Error",
+                description: `Error during ${newRecord.type} sync: ${lastError}`,
+              });
+            }
+
+            // If sync completed successfully, show success toast
+            if (!newRecord.needs_continuation && payload.eventType === 'UPDATE') {
+              toast({
+                title: "Sync Complete",
+                description: `Successfully synchronized ${newRecord.type} data.`,
+              });
+            }
           }
         }
       )
