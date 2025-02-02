@@ -62,6 +62,7 @@ export const SyncSection = () => {
         async (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
           console.log(`Received sync progress update:`, payload);
           const newRecord = payload.new as SyncProgressDB;
+          const oldRecord = payload.old as SyncProgressDB;
           
           if (newRecord) {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
@@ -69,6 +70,11 @@ export const SyncSection = () => {
             // Get the latest progress data directly from the query client
             const currentData = queryClient.getQueryData<SyncProgressRecord>(["syncProgress"]);
             const currentProgress = currentData?.[newRecord.type];
+            
+            // Preserve existing processed items when continuing
+            const preservedProcessedItems = oldRecord?.processed_items || [];
+            const newProcessedItems = newRecord.processed_items || [];
+            const combinedProcessedItems = [...new Set([...preservedProcessedItems, ...newProcessedItems])];
             
             if (newRecord.needs_continuation) {
               console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
@@ -79,9 +85,9 @@ export const SyncSection = () => {
                   true,
                   {
                     lastProcessed: newRecord.last_processed,
-                    processed: newRecord.processed,
+                    processed: combinedProcessedItems.length,
                     total: newRecord.total,
-                    processedItems: newRecord.processed_items,
+                    processedItems: combinedProcessedItems,
                     errorItems: newRecord.error_items,
                     startTime: newRecord.start_time
                   }
@@ -103,9 +109,9 @@ export const SyncSection = () => {
                   ...(oldData || {}),
                   [newRecord.type]: {
                     total: newRecord.total,
-                    processed: newRecord.processed,
+                    processed: combinedProcessedItems.length,
                     lastProcessed: newRecord.last_processed,
-                    processedItems: newRecord.processed_items || [],
+                    processedItems: combinedProcessedItems,
                     errorItems: newRecord.error_items || [],
                     startTime: newRecord.start_time,
                     isComplete: !newRecord.needs_continuation
@@ -171,7 +177,7 @@ export const SyncSection = () => {
       startTime: string | null;
     }
   ) => {
-    console.log(`Starting sync for ${type}, resume: ${resume}`);
+    console.log(`Starting sync for ${type}, resume: ${resume}, progress:`, progressData);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
     
     try {
