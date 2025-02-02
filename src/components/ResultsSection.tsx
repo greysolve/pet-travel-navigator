@@ -61,7 +61,7 @@ export const ResultsSection = ({
         .select('*')
         .eq('country_code', destinationCountry)
         .eq('policy_type', 'pet')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching country policy:", error);
