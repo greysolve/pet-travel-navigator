@@ -87,45 +87,51 @@ const Profile = () => {
   if (!user) return null;
 
   return (
-    <div className="container max-w-3xl mx-auto py-8 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile</CardTitle>
+    <div className="container max-w-2xl mx-auto py-8 px-4">
+      <Card className="shadow-md">
+        <CardHeader className="pb-6 border-b">
+          <CardTitle className="text-2xl font-semibold text-primary">Profile</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <ProfileAvatar 
-            userId={user.id}
-            avatarUrl={profile?.avatar_url}
-            onAvatarUpdate={refreshProfile}
-          />
+        <CardContent className="space-y-8 pt-6">
+          <div className="flex justify-center">
+            <ProfileAvatar 
+              userId={user.id}
+              avatarUrl={profile?.avatar_url}
+              onAvatarUpdate={refreshProfile}
+            />
+          </div>
 
-          <ContactInformation
-            firstName={firstName}
-            lastName={lastName}
-            email={user.email}
-            onFirstNameChange={setFirstName}
-            onLastNameChange={setLastName}
-          />
+          <div className="space-y-8">
+            <ContactInformation
+              firstName={firstName}
+              lastName={lastName}
+              email={user.email}
+              onFirstNameChange={setFirstName}
+              onLastNameChange={setLastName}
+            />
 
-          <AddressInformation
-            addressLine1={addressLine1}
-            addressLine2={addressLine2}
-            addressLine3={addressLine3}
-            locality={locality}
-            administrativeArea={administrativeArea}
-            postalCode={postalCode}
-            selectedCountryId={selectedCountryId}
-            onAddressLine1Change={setAddressLine1}
-            onAddressLine2Change={setAddressLine2}
-            onAddressLine3Change={setAddressLine3}
-            onLocalityChange={setLocality}
-            onAdministrativeAreaChange={setAdministrativeArea}
-            onPostalCodeChange={setPostalCode}
-            onCountryChange={setSelectedCountryId}
-          />
+            <AddressInformation
+              addressLine1={addressLine1}
+              addressLine2={addressLine2}
+              addressLine3={addressLine3}
+              locality={locality}
+              administrativeArea={administrativeArea}
+              postalCode={postalCode}
+              selectedCountryId={selectedCountryId}
+              onAddressLine1Change={setAddressLine1}
+              onAddressLine2Change={setAddressLine2}
+              onAddressLine3Change={setAddressLine3}
+              onLocalityChange={setLocality}
+              onAdministrativeAreaChange={setAdministrativeArea}
+              onPostalCodeChange={setPostalCode}
+              onCountryChange={setSelectedCountryId}
+            />
+          </div>
           
-          <div className="flex justify-end">
-            <Button onClick={handleUpdateProfile}>Update Profile</Button>
+          <div className="flex justify-end pt-4 border-t">
+            <Button onClick={handleUpdateProfile} className="px-6">
+              Update Profile
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -62,44 +62,44 @@ export const AddressInformation = ({
   });
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold mb-4">Address</h3>
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-primary">Address</h3>
       <div className="space-y-4">
-        <div>
-          <Label className="block text-sm font-medium mb-1">Address Line 1</Label>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-gray-700">Address Line 1</Label>
           <Input
             value={addressLine1}
             onChange={(e) => onAddressLine1Change(e.target.value)}
             placeholder="Street address"
           />
         </div>
-        <div>
-          <Label className="block text-sm font-medium mb-1">Address Line 2</Label>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-gray-700">Address Line 2</Label>
           <Input
             value={addressLine2}
             onChange={(e) => onAddressLine2Change(e.target.value)}
             placeholder="Apartment, suite, etc."
           />
         </div>
-        <div>
-          <Label className="block text-sm font-medium mb-1">Address Line 3</Label>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-gray-700">Address Line 3</Label>
           <Input
             value={addressLine3}
             onChange={(e) => onAddressLine3Change(e.target.value)}
             placeholder="Additional address information"
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="block text-sm font-medium mb-1">City</Label>
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">City</Label>
             <Input
               value={locality}
               onChange={(e) => onLocalityChange(e.target.value)}
               placeholder="City"
             />
           </div>
-          <div>
-            <Label className="block text-sm font-medium mb-1">State/Province</Label>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">State/Province</Label>
             <Input
               value={administrativeArea}
               onChange={(e) => onAdministrativeAreaChange(e.target.value)}
@@ -107,17 +107,17 @@ export const AddressInformation = ({
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="block text-sm font-medium mb-1">Postal Code</Label>
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Postal Code</Label>
             <Input
               value={postalCode}
               onChange={(e) => onPostalCodeChange(e.target.value)}
               placeholder="Postal code"
             />
           </div>
-          <div>
-            <Label className="block text-sm font-medium mb-1">Country</Label>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Country</Label>
             <Select value={selectedCountryId} onValueChange={onCountryChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a country" />

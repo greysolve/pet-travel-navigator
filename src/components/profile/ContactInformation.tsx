@@ -17,30 +17,32 @@ export const ContactInformation = ({
   onLastNameChange,
 }: ContactInformationProps) => {
   return (
-    <div>
-      <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-primary">Contact Information</h3>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="block text-sm font-medium mb-1">First Name</Label>
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">First Name</Label>
             <Input
               value={firstName}
               onChange={(e) => onFirstNameChange(e.target.value)}
               placeholder="Enter your first name"
+              className="max-w-full"
             />
           </div>
-          <div>
-            <Label className="block text-sm font-medium mb-1">Last Name</Label>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Last Name</Label>
             <Input
               value={lastName}
               onChange={(e) => onLastNameChange(e.target.value)}
               placeholder="Enter your last name"
+              className="max-w-full"
             />
           </div>
         </div>
-        <div>
-          <Label className="block text-sm font-medium mb-1">Email</Label>
-          <Input value={email} disabled />
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-gray-700">Email</Label>
+          <Input value={email} disabled className="bg-gray-50" />
         </div>
       </div>
     </div>
