@@ -112,7 +112,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="container max-w-[80%] mx-auto py-8 space-y-8">
+    <div className="container max-w-[70%] mx-auto py-8 space-y-8">
       <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">
