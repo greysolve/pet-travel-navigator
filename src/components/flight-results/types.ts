@@ -4,6 +4,7 @@ export type FlightData = {
   departureTime: string;
   arrivalTime: string;
   arrivalCountry?: string;
+  airlineName?: string;
 };
 
 export type PetPolicy = {

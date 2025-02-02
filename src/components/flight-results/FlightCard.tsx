@@ -6,6 +6,7 @@ import type { PetPolicy } from "./types";
 
 type FlightCardProps = {
   carrierFsCode: string;
+  airlineName?: string;
   flightNumber: string;
   departureTime: string;
   arrivalTime: string;
@@ -14,6 +15,7 @@ type FlightCardProps = {
 
 export const FlightCard = ({
   carrierFsCode,
+  airlineName,
   flightNumber,
   departureTime,
   arrivalTime,
@@ -25,6 +27,7 @@ export const FlightCard = ({
         <div className="flex items-center justify-between">
           <FlightHeader
             carrierFsCode={carrierFsCode}
+            airlineName={airlineName}
             flightNumber={flightNumber}
             departureTime={departureTime}
             arrivalTime={arrivalTime}
