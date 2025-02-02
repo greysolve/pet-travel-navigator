@@ -148,13 +148,11 @@ export const SyncSection = () => {
       console.log('Processed sync progress data:', progressRecord);
       return progressRecord;
     },
-    refetchInterval: 0, // Disable polling since we're using real-time updates
   });
 
   const handleSync = async (type: keyof typeof SyncType, resume: boolean = false) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
-    const newLoadingState = { ...isLoading, [type]: true };
-    setIsLoading(newLoadingState);
+    setIsLoading(prev => ({ ...prev, [type]: true }));
     
     try {
       // If not resuming, reset the progress first
@@ -209,7 +207,6 @@ export const SyncSection = () => {
         processedItems: resume ? currentProgress?.processedItems || [] : [],
         errorItems: resume ? currentProgress?.errorItems || [] : [],
         startTime: resume ? currentProgress?.startTime : new Date().toISOString(),
-        batchSize: type === 'petPolicies' ? 3 : type === 'countryPolicies' ? 10 : undefined
       };
 
       console.log(`Invoking edge function ${functionName} with payload:`, payload);
@@ -220,6 +217,13 @@ export const SyncSection = () => {
       if (error) throw error;
 
       console.log(`Received response from ${functionName}:`, data);
+
+      // If the response indicates we should reset, do so
+      if (data.shouldReset) {
+        console.log('Response indicates sync completion, resetting state...');
+        await resetSyncProgress(type);
+        await resetSyncProgressCache(type);
+      }
 
       if (!resume) {
         toast({
@@ -239,8 +243,7 @@ export const SyncSection = () => {
       await resetSyncProgress(type);
       await resetSyncProgressCache(type);
     } finally {
-      const finalLoadingState = { ...isLoading, [type]: false };
-      setIsLoading(finalLoadingState);
+      setIsLoading(prev => ({ ...prev, [type]: false }));
     }
   };
 
