@@ -38,6 +38,30 @@ export const SyncSection = () => {
     setIsLoading(prev => ({ ...prev, [type]: false }));
   };
 
+  // Function to reset sync progress in the database
+  const resetSyncProgress = async (type: keyof typeof SyncType) => {
+    console.log(`Resetting sync progress for ${type} in database`);
+    const { error } = await supabase
+      .from('sync_progress')
+      .upsert({
+        type,
+        total: 0,
+        processed: 0,
+        last_processed: null,
+        processed_items: [],
+        error_items: [],
+        start_time: null,
+        is_complete: false
+      }, {
+        onConflict: 'type'
+      });
+
+    if (error) {
+      console.error(`Error resetting sync progress for ${type}:`, error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const channels = Object.values(SyncType).map(syncType => {
       console.log(`Setting up real-time subscription for ${syncType}`);
@@ -143,34 +167,11 @@ export const SyncSection = () => {
     setIsLoading(newLoadingState);
     
     try {
-      const currentProgress = syncProgress?.[type];
-      console.log(`Current progress for ${type}:`, currentProgress);
-      
-      // Always reset progress for country policies if not resuming
-      if (type === 'countryPolicies' && !resume) {
-        console.log('Forcing complete reset of country policies sync progress');
-        await resetSyncProgressCache(type);
-      }
-      
-      // Only reset progress if not resuming and not country policies (handled above)
-      if (!resume && type !== 'countryPolicies') {
+      // If not resuming, reset the progress first
+      if (!resume) {
         console.log(`Resetting progress for ${type}`);
-        const { error: resetError } = await supabase
-          .from('sync_progress')
-          .upsert({
-            type,
-            total: 0,
-            processed: 0,
-            last_processed: null,
-            processed_items: [],
-            error_items: [],
-            start_time: new Date().toISOString(),
-            is_complete: false
-          }, {
-            onConflict: 'type'
-          });
-
-        if (resetError) throw resetError;
+        await resetSyncProgress(type);
+        await resetSyncProgressCache(type);
 
         if (clearData[type]) {
           console.log(`Clearing existing data for ${type}`);
@@ -210,6 +211,7 @@ export const SyncSection = () => {
         throw new Error(`Unknown sync type: ${type}`);
       }
 
+      const currentProgress = syncProgress?.[type];
       const payload = {
         lastProcessedItem: resume ? currentProgress?.lastProcessed : null,
         currentProcessed: resume ? currentProgress?.processed || 0 : 0,
@@ -229,45 +231,6 @@ export const SyncSection = () => {
 
       console.log(`Received response from ${functionName}:`, data);
 
-      if (data) {
-        const updatedProgress: SyncProgress = {
-          total: data.total || currentProgress?.total || 0,
-          processed: data.processed || 0,
-          lastProcessed: data.continuation_token || null,
-          processedItems: data.processed_items || [],
-          errorItems: data.error_items || [],
-          startTime: resume ? currentProgress?.startTime || new Date().toISOString() : new Date().toISOString(),
-          isComplete: !data.continuation_token && data.processed === data.total
-        };
-
-        console.log(`Updating progress for ${type}:`, updatedProgress);
-        
-        const { error: updateError } = await supabase
-          .from('sync_progress')
-          .upsert({
-            type,
-            total: updatedProgress.total,
-            processed: updatedProgress.processed,
-            last_processed: updatedProgress.lastProcessed,
-            processed_items: updatedProgress.processedItems,
-            error_items: updatedProgress.errorItems,
-            start_time: updatedProgress.startTime,
-            is_complete: updatedProgress.isComplete
-          }, {
-            onConflict: 'type'
-          });
-
-        if (updateError) throw updateError;
-
-        // Continue processing if there's more data and we haven't hit any limits
-        if (data.continuation_token && !data.error && updatedProgress.processed < updatedProgress.total) {
-          console.log(`Continuing batch processing for ${type} from ${data.continuation_token}`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          await handleSync(type, true);
-          return;
-        }
-      }
-
       if (!resume) {
         toast({
           title: "Sync Started",
@@ -282,14 +245,9 @@ export const SyncSection = () => {
         description: error.message || `Failed to sync ${type} data.`,
       });
 
-      const { error: updateError } = await supabase
-        .from('sync_progress')
-        .update({ is_complete: true })
-        .eq('type', type);
-
-      if (updateError) {
-        console.error('Error updating sync progress after failure:', updateError);
-      }
+      // Reset progress on error
+      await resetSyncProgress(type);
+      await resetSyncProgressCache(type);
     } finally {
       const finalLoadingState = { ...isLoading, [type]: false };
       setIsLoading(finalLoadingState);
