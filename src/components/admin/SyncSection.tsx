@@ -43,18 +43,8 @@ export const SyncSection = () => {
     console.log(`Resetting sync progress for ${type} in database`);
     const { error } = await supabase
       .from('sync_progress')
-      .upsert({
-        type,
-        total: 0,
-        processed: 0,
-        last_processed: null,
-        processed_items: [],
-        error_items: [],
-        start_time: null,
-        is_complete: false
-      }, {
-        onConflict: 'type'
-      });
+      .delete()
+      .eq('type', type);
 
     if (error) {
       console.error(`Error resetting sync progress for ${type}:`, error);
