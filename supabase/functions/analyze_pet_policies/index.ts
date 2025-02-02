@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function stripMarkdown(content: string): string {
+  // Remove markdown code block indicators and any leading/trailing whitespace
+  const cleaned = content
+    .replace(/^```[a-z]*\n/, '') // Remove opening code block
+    .replace(/\n```$/, '')       // Remove closing code block
+    .trim();
+  
+  console.log('Cleaned content:', cleaned);
+  return cleaned;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -121,7 +132,12 @@ Deno.serve(async (req) => {
         }
 
         const responseData = await perplexityResponse.json();
-        const content = JSON.parse(responseData.choices[0].message.content.trim());
+        const rawContent = responseData.choices[0].message.content;
+        console.log('Raw API response content:', rawContent);
+        
+        // Clean the content before parsing
+        const cleanedContent = stripMarkdown(rawContent);
+        const content = JSON.parse(cleanedContent);
 
         // Update airline website if we got a valid one
         if (content.airline_info?.official_website) {
