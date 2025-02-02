@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     "documentation_needed": ["string"],
     "temperature_restrictions": "string",
     "breed_restrictions": ["string"],
-    "policy_url": "string (must be from the airline's own website domain)"
+    "policy_url": "string (must be from the airline's own website domain) or null if no information is found -- no explanation of not found data"
   }
 }`;
 
