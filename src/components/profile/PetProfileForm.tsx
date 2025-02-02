@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { PetPhotoUpload } from "./PetPhotoUpload";
+import { PetDocumentUpload } from "./PetDocumentUpload";
+import { PetBasicInfo } from "./PetBasicInfo";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 
@@ -48,29 +47,6 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newPhotos = Array.from(e.target.files);
-      if (photos.length + newPhotos.length > 4) {
-        toast({
-          title: "Maximum photos reached",
-          description: "You can only upload up to 4 photos",
-          variant: "destructive",
-        });
-        return;
-      }
-      setPhotos([...photos, ...newPhotos]);
-    }
-  };
-
-  const removePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index));
-  };
-
-  const removeExistingPhoto = (index: number) => {
-    setPhotoUrls(photoUrls.filter((_, i) => i !== index));
-  };
-
   const uploadPhotos = async (petId: string) => {
     const uploadedUrls: string[] = [...photoUrls];
 
@@ -104,9 +80,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
       .from('pet-documents')
       .upload(filePath, file);
 
-    if (uploadError) {
-      throw uploadError;
-    }
+    if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabase.storage
       .from('pet-documents')
@@ -121,9 +95,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
       .update(updateData)
       .eq('id', petId);
 
-    if (updateError) {
-      throw updateError;
-    }
+    if (updateError) throw updateError;
   };
 
   const mutation = useMutation({
@@ -200,157 +172,32 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Pet Photos (up to 4)</Label>
-            <div className="grid grid-cols-2 gap-4">
-              {photoUrls.map((url, index) => (
-                <div key={url} className="relative">
-                  <img 
-                    src={url} 
-                    alt={`Pet photo ${index + 1}`} 
-                    className="w-full h-32 object-cover rounded-md"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 h-6 w-6"
-                    onClick={() => removeExistingPhoto(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              {photos.map((photo, index) => (
-                <div key={index} className="relative">
-                  <img 
-                    src={URL.createObjectURL(photo)} 
-                    alt={`New pet photo ${index + 1}`} 
-                    className="w-full h-32 object-cover rounded-md"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 h-6 w-6"
-                    onClick={() => removePhoto(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              {photoUrls.length + photos.length < 4 && (
-                <div className="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-md h-32">
-                  <Input
-                    type="file"
-                    onChange={handlePhotoUpload}
-                    accept="image/*"
-                    className="hidden"
-                    id="photo-upload"
-                    multiple
-                  />
-                  <Label htmlFor="photo-upload" className="cursor-pointer text-sm text-gray-600">
-                    + Add Photo
-                  </Label>
-                </div>
-              )}
-            </div>
-          </div>
+          <PetPhotoUpload
+            photoUrls={photoUrls}
+            onPhotoUrlsChange={setPhotoUrls}
+            photos={photos}
+            onPhotosChange={setPhotos}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Pet's name"
-              required
-              className="border-gray-400"
-            />
-          </div>
+          <PetBasicInfo
+            name={name}
+            type={type}
+            breed={breed}
+            age={age}
+            weight={weight}
+            onNameChange={setName}
+            onTypeChange={setType}
+            onBreedChange={setBreed}
+            onAgeChange={setAge}
+            onWeightChange={setWeight}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="type">Type *</Label>
-            <Select value={type} onValueChange={setType} required>
-              <SelectTrigger className="border-gray-400">
-                <SelectValue placeholder="Select pet type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dog">Dog</SelectItem>
-                <SelectItem value="cat">Cat</SelectItem>
-                <SelectItem value="bird">Bird</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="breed">Breed</Label>
-            <Input
-              id="breed"
-              value={breed}
-              onChange={(e) => setBreed(e.target.value)}
-              placeholder="Pet's breed"
-              className="border-gray-400"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="age">Age (years)</Label>
-              <Input
-                id="age"
-                type="number"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                placeholder="Age in years"
-                min="0"
-                step="0.1"
-                className="border-gray-400"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="weight">Weight (kg)</Label>
-              <Input
-                id="weight"
-                type="number"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                placeholder="Weight in kg"
-                min="0"
-                step="0.1"
-                className="border-gray-400"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="documentType">Document Type</Label>
-            <Select value={selectedDocumentType} onValueChange={setSelectedDocumentType}>
-              <SelectTrigger className="border-gray-400">
-                <SelectValue placeholder="Select document type" />
-              </SelectTrigger>
-              <SelectContent>
-                {documentTypes.map((docType) => (
-                  <SelectItem key={docType.value} value={docType.value}>
-                    {docType.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="file">Upload Document</Label>
-            <Input
-              id="file"
-              type="file"
-              onChange={handleFileChange}
-              className="border-gray-400"
-              accept=".pdf,.jpg,.jpeg,.png"
-            />
-          </div>
+          <PetDocumentUpload
+            documentTypes={documentTypes}
+            selectedDocumentType={selectedDocumentType}
+            onDocumentTypeChange={setSelectedDocumentType}
+            onFileChange={handleFileChange}
+          />
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
