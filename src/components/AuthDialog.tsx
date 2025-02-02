@@ -30,6 +30,14 @@ export const AuthDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Extract first name from full name
+  const getFirstName = () => {
+    if (profile?.full_name) {
+      return profile.full_name.split(' ')[0];
+    }
+    return user?.email?.split('@')[0] || 'Profile';
+  };
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -80,7 +88,7 @@ export const AuthDialog = () => {
                 <User className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
-            <span>{profile?.full_name || user.email}</span>
+            <span>{getFirstName()}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
