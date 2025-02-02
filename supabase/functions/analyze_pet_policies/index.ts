@@ -10,11 +10,20 @@ const corsHeaders = {
 function cleanAndParseJSON(content: string): string {
   console.log('Original content:', content);
   
+  // Log before marked parsing
+  console.log('Before marked parsing:', content);
+  
   // Use marked to convert markdown to plain text
   const plainText = marked.parse(content, { mangle: false, headerIds: false });
   
+  // Log after marked parsing
+  console.log('After marked parsing:', plainText);
+  
   // Convert HTML to plain text
   let cleaned = plainText.replace(/<[^>]*>/g, '');
+  
+  // Log after HTML cleanup
+  console.log('After HTML cleanup:', cleaned);
   
   // Find the first occurrence of a JSON object
   const jsonStart = cleaned.indexOf('{');
@@ -28,7 +37,7 @@ function cleanAndParseJSON(content: string): string {
   // Extract just the JSON portion
   cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
   
-  console.log('Cleaned content:', cleaned);
+  console.log('Final cleaned content:', cleaned);
   
   // Validate JSON structure
   try {
