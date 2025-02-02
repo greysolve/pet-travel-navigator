@@ -132,7 +132,7 @@ const Profile = () => {
   if (!user) return null;
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
@@ -164,85 +164,103 @@ const Profile = () => {
               {uploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
             </div>
           </div>
-          
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="block text-sm font-medium mb-1">Email</Label>
-              <Input value={user.email} disabled />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">First Name</Label>
-              <Input
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Enter your first name"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Last Name</Label>
-              <Input
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Enter your last name"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Address Line 1</Label>
-              <Input
-                value={addressLine1}
-                onChange={(e) => setAddressLine1(e.target.value)}
-                placeholder="Street address"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Address Line 2</Label>
-              <Input
-                value={addressLine2}
-                onChange={(e) => setAddressLine2(e.target.value)}
-                placeholder="Apartment, suite, etc."
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Address Line 3</Label>
-              <Input
-                value={addressLine3}
-                onChange={(e) => setAddressLine3(e.target.value)}
-                placeholder="Additional address information"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">City</Label>
-              <Input
-                value={locality}
-                onChange={(e) => setLocality(e.target.value)}
-                placeholder="City"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">State/Province</Label>
-              <Input
-                value={administrativeArea}
-                onChange={(e) => setAdministrativeArea(e.target.value)}
-                placeholder="State or province"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Postal Code</Label>
-              <Input
-                value={postalCode}
-                onChange={(e) => setPostalCode(e.target.value)}
-                placeholder="Postal code"
-              />
-            </div>
-            <div>
-              <Label className="block text-sm font-medium mb-1">Country Code</Label>
-              <Input
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
-                placeholder="Country code (e.g., US)"
-              />
+
+          {/* Contact Information Section */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="block text-sm font-medium mb-1">First Name</Label>
+                  <Input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Enter your first name"
+                  />
+                </div>
+                <div>
+                  <Label className="block text-sm font-medium mb-1">Last Name</Label>
+                  <Input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter your last name"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="block text-sm font-medium mb-1">Email</Label>
+                <Input value={user?.email} disabled />
+              </div>
             </div>
           </div>
+
+          {/* Address Section */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Address</h3>
+            <div className="space-y-4">
+              <div>
+                <Label className="block text-sm font-medium mb-1">Address Line 1</Label>
+                <Input
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                  placeholder="Street address"
+                />
+              </div>
+              <div>
+                <Label className="block text-sm font-medium mb-1">Address Line 2</Label>
+                <Input
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                  placeholder="Apartment, suite, etc."
+                />
+              </div>
+              <div>
+                <Label className="block text-sm font-medium mb-1">Address Line 3</Label>
+                <Input
+                  value={addressLine3}
+                  onChange={(e) => setAddressLine3(e.target.value)}
+                  placeholder="Additional address information"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="block text-sm font-medium mb-1">City</Label>
+                  <Input
+                    value={locality}
+                    onChange={(e) => setLocality(e.target.value)}
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <Label className="block text-sm font-medium mb-1">State/Province</Label>
+                  <Input
+                    value={administrativeArea}
+                    onChange={(e) => setAdministrativeArea(e.target.value)}
+                    placeholder="State or province"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="block text-sm font-medium mb-1">Postal Code</Label>
+                  <Input
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    placeholder="Postal code"
+                  />
+                </div>
+                <div>
+                  <Label className="block text-sm font-medium mb-1">Country Code</Label>
+                  <Input
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    placeholder="Country code (e.g., US)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div className="flex justify-end">
             <Button onClick={handleUpdateProfile}>Update Profile</Button>
           </div>
