@@ -17,6 +17,17 @@ interface PetProfileFormProps {
   initialData?: PetProfile;
 }
 
+const documentTypes = [
+  { value: "health_certificate", label: "Health Certificate" },
+  { value: "international_health_certificate", label: "International Health Certificate" },
+  { value: "microchip_documentation", label: "Microchip Documentation" },
+  { value: "pet_passport", label: "Pet Passport" },
+  { value: "rabies_vaccination", label: "Rabies Vaccination" },
+  { value: "vaccinations", label: "Vaccinations" },
+  { value: "usda_endorsement", label: "USDA Endorsement" },
+  { value: "veterinary_certificate", label: "Veterinary Certificate" }
+];
+
 export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -25,6 +36,46 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
   const [breed, setBreed] = useState(initialData?.breed || "");
   const [age, setAge] = useState(initialData?.age?.toString() || "");
   const [weight, setWeight] = useState(initialData?.weight?.toString() || "");
+  const [selectedDocumentType, setSelectedDocumentType] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const uploadFile = async (petId: string) => {
+    if (!file || !selectedDocumentType) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${petId}/${selectedDocumentType}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('pet-documents')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('pet-documents')
+      .getPublicUrl(filePath);
+
+    const updateData = {
+      [`${selectedDocumentType}_url`]: publicUrl
+    };
+
+    const { error: updateError } = await supabase
+      .from('pet_profiles')
+      .update(updateData)
+      .eq('id', petId);
+
+    if (updateError) {
+      throw updateError;
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<PetProfile>) => {
@@ -42,6 +93,11 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
             .single();
 
       if (error) throw error;
+
+      if (file && selectedDocumentType) {
+        await uploadFile(result.id);
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -150,6 +206,33 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
                 className="border-gray-400"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="documentType">Document Type</Label>
+            <Select value={selectedDocumentType} onValueChange={setSelectedDocumentType}>
+              <SelectTrigger className="border-gray-400">
+                <SelectValue placeholder="Select document type" />
+              </SelectTrigger>
+              <SelectContent>
+                {documentTypes.map((docType) => (
+                  <SelectItem key={docType.value} value={docType.value}>
+                    {docType.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="file">Upload Document</Label>
+            <Input
+              id="file"
+              type="file"
+              onChange={handleFileChange}
+              className="border-gray-400"
+              accept=".pdf,.jpg,.jpeg,.png"
+            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
