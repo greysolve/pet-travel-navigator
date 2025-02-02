@@ -9,22 +9,30 @@ const corsHeaders = {
 function stripMarkdown(content: string): string {
   console.log('Original content:', content);
   
-  // First, find the first occurrence of a valid JSON object
-  const jsonMatch = content.match(/({[\s\S]*})/);
-  if (!jsonMatch) {
+  // Remove markdown code blocks and backticks
+  let cleaned = content
+    .replace(/```[a-z]*\n/g, '') // Remove opening code block markers
+    .replace(/```/g, '')         // Remove closing code block markers
+    .replace(/`/g, '')           // Remove any remaining backticks
+    .trim();
+    
+  // Find the first occurrence of a JSON object
+  const jsonStart = cleaned.indexOf('{');
+  const jsonEnd = cleaned.lastIndexOf('}');
+  
+  if (jsonStart === -1 || jsonEnd === -1) {
     console.error('No JSON object found in content');
     throw new Error('No valid JSON object found in response');
   }
-
-  // Extract the potential JSON string
-  let cleaned = jsonMatch[1].trim();
   
-  // Remove any remaining markdown artifacts
+  // Extract just the JSON portion
+  cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+  
+  // Clean up any remaining artifacts and normalize whitespace
   cleaned = cleaned
-    .replace(/^[\s\S]*?{/, '{') // Ensure we start with {
-    .replace(/}[\s\S]*$/, '}')  // Ensure we end with }
-    .replace(/\\n/g, ' ')       // Replace newlines with spaces
-    .replace(/\s+/g, ' ');      // Normalize whitespace
+    .replace(/\\n/g, ' ')  // Replace newlines with spaces
+    .replace(/\s+/g, ' ')  // Normalize whitespace
+    .trim();
   
   console.log('Cleaned content:', cleaned);
   
