@@ -189,24 +189,16 @@ export const SyncSection = () => {
         countryPolicies: 'sync_country_policies'
       };
 
-      const functionName = functionMap[type];
-      if (!functionName) {
-        throw new Error(`Unknown sync type: ${type}`);
-      }
-
-      console.log(`Invoking edge function ${functionName}`);
-      const { error } = await supabase.functions.invoke(functionName, {
-        body: testCountry && type === 'countryPolicies' ? { testCountry } : undefined
+      const { error } = await supabase.functions.invoke(functionMap[type], {
+        body: type === 'countryPolicies' && testCountry ? { country: testCountry } : undefined
       });
 
       if (error) throw error;
 
-      if (!resume) {
-        toast({
-          title: "Sync Started",
-          description: `Started synchronizing ${type} data${testCountry ? ` for ${testCountry}` : ''}.`,
-        });
-      }
+      toast({
+        title: "Sync Started",
+        description: `Started synchronizing ${type} data${testCountry ? ` for ${testCountry}` : ''}.`,
+      });
     } catch (error: any) {
       console.error(`Error syncing ${type}:`, error);
       toast({
@@ -224,6 +216,7 @@ export const SyncSection = () => {
 
   return (
     <div className="space-y-8">
+      {/* Active syncs section */}
       {Object.entries(syncProgress || {}).some(([_, progress]: [string, SyncProgress]) => 
         progress && !progress.isComplete && progress.processed < progress.total
       ) && (
@@ -241,28 +234,15 @@ export const SyncSection = () => {
         </div>
       )}
 
-      {/* Add test country input for country policies */}
+      {/* Test country input for country policies */}
       <div className="mb-8">
-        <div className="flex gap-4 items-center">
-          <input
-            type="text"
-            placeholder="Test country (e.g., Switzerland)"
-            value={testCountry}
-            onChange={(e) => setTestCountry(e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          {testCountry && (
-            <button
-              onClick={() => setTestCountry("")}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          Optional: Enter a country name to test country policies sync for a single country
-        </p>
+        <input
+          type="text"
+          placeholder="Test country (optional)"
+          value={testCountry}
+          onChange={(e) => setTestCountry(e.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
