@@ -18,7 +18,7 @@ export const ContactInformation = ({
 }: ContactInformationProps) => {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-primary">Contact Information</h3>
+      <h3 className="text-lg font-semibold text-primary text-center">Contact Information</h3>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">

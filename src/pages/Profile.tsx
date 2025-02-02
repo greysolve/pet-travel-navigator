@@ -58,13 +58,10 @@ const Profile = () => {
   // Update state when profile data is loaded
   useEffect(() => {
     if (profile) {
-      // Update contact information
       const fullName = profile.full_name || "";
       const [firstName = "", lastName = ""] = fullName.split(" ");
       setFirstName(firstName);
       setLastName(lastName);
-
-      // Update address information
       setAddressLine1(profile.address_line1 || "");
       setAddressLine2(profile.address_line2 || "");
       setAddressLine3(profile.address_line3 || "");
@@ -115,8 +112,8 @@ const Profile = () => {
   };
 
   return (
-    <div className="container py-8 space-y-8">
-      <h1 className="text-3xl font-bold">Profile</h1>
+    <div className="container max-w-[80%] mx-auto py-8 space-y-8">
+      <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">
         <ProfileAvatar 
@@ -125,7 +122,7 @@ const Profile = () => {
           onAvatarUpdate={handleAvatarUpdate}
         />
         
-        <div className="grid gap-8 md:grid-cols-2">
+        <div className="space-y-8">
           <ContactInformation
             firstName={firstName}
             lastName={lastName}
