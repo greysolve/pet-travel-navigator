@@ -15,14 +15,12 @@ interface SyncProgressDB {
   processed_items: string[];
   error_items: string[];
   start_time: string | null;
-  is_complete: boolean;
+  needs_continuation: boolean;
   created_at: string | null;
   updated_at: string | null;
-  needs_continuation: boolean;
 }
 
 export const SyncSection = () => {
-  // This now only tracks initial component loading, not sync state
   const [isInitializing, setIsInitializing] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key in keyof typeof SyncType]: boolean}>({
     airlines: false,
@@ -68,8 +66,7 @@ export const SyncSection = () => {
           if (newRecord) {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
             
-            // Only continue if the record explicitly needs continuation and is not complete
-            if (newRecord.needs_continuation && !newRecord.is_complete) {
+            if (newRecord.needs_continuation) {
               console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
               
               try {
@@ -96,7 +93,7 @@ export const SyncSection = () => {
                     processedItems: newRecord.processed_items || [],
                     errorItems: newRecord.error_items || [],
                     startTime: newRecord.start_time,
-                    isComplete: newRecord.is_complete,
+                    isComplete: !newRecord.needs_continuation
                   }
                 };
                 console.log('Updated sync progress data:', updatedData);
@@ -137,7 +134,7 @@ export const SyncSection = () => {
           processedItems: curr.processed_items || [],
           errorItems: curr.error_items || [],
           startTime: curr.start_time,
-          isComplete: curr.is_complete,
+          isComplete: !curr.needs_continuation
         };
         return acc;
       }, {});
@@ -214,13 +211,6 @@ export const SyncSection = () => {
 
       console.log(`Received response from ${functionName}:`, data);
 
-      // Only reset if explicitly told to by the edge function
-      if (data?.shouldReset) {
-        console.log('Response indicates sync completion, resetting state...');
-        await resetSyncProgress(type);
-        await resetSyncProgressCache(type);
-      }
-
       if (!resume) {
         toast({
           title: "Sync Started",
@@ -238,7 +228,6 @@ export const SyncSection = () => {
       await resetSyncProgress(type);
       await resetSyncProgressCache(type);
     } finally {
-      // Only reset initializing state, not sync state
       setIsInitializing(prev => ({ ...prev, [type]: false }));
     }
   };
