@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { fetchOrCreateProfile } from "@/utils/profileManagement";
 
 const Profile = () => {
   const { user, profile, loading } = useAuth();
@@ -76,6 +77,15 @@ const Profile = () => {
     }
   };
 
+  const refreshProfile = async () => {
+    if (user) {
+      const updatedProfile = await fetchOrCreateProfile(user.id);
+      // Force a re-render by updating the URL
+      const currentPath = window.location.pathname;
+      navigate(currentPath + '?refresh=' + new Date().getTime());
+    }
+  };
+
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploading(true);
@@ -112,6 +122,9 @@ const Profile = () => {
         title: "Avatar updated",
         description: "Your profile picture has been updated successfully.",
       });
+
+      // Refresh the profile data to show the new avatar
+      await refreshProfile();
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
       toast({
