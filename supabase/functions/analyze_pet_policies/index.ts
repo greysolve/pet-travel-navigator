@@ -7,103 +7,121 @@ const corsHeaders = {
 }
 
 // Handle CORS preflight requests
-function handleCorsRequest(req: Request) {
+async function handleCorsRequest(req: Request) {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400',
+      },
+    })
   }
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS
-  const corsResponse = handleCorsRequest(req);
-  if (corsResponse) return corsResponse;
-
   try {
+    // Handle CORS
+    const corsResponse = await handleCorsRequest(req);
+    if (corsResponse) return corsResponse;
+
+    // Validate request method
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate API key
     const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
     if (!perplexityKey) {
-      throw new Error('PERPLEXITY_API_KEY is not set');
+      console.error('PERPLEXITY_API_KEY is not set');
+      return new Response(JSON.stringify({ error: 'API key configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
+    // Validate Supabase configuration
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set');
+      console.error('Supabase configuration missing');
+      return new Response(JSON.stringify({ error: 'Database configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    // Parse request body
+    const { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime } = await req.json();
+    console.log('Received sync request with params:', { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime });
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
 
-    if (req.method === 'POST') {
-      const { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime } = await req.json();
-      console.log('Received sync request with params:', { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime });
+    try {
+      const { data: airlines, error: airlinesError } = await supabase
+        .from('airlines')
+        .select('*')
+        .eq('active', true)
+        .order('name');
 
-      const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
-
-      try {
-        const { data: airlines, error: airlinesError } = await supabase
-          .from('airlines')
-          .select('*')
-          .eq('active', true)
-          .order('name');
-
-        if (airlinesError) {
-          throw airlinesError;
-        }
-
-        console.log(`Processing ${airlines.length} airlines`);
-        await syncManager.initialize(airlines.length, false);
-
-        for (const airline of airlines) {
-          try {
-            if (await syncManager.shouldProcessItem(airline.name)) {
-              console.log(`Processing airline: ${airline.name}`);
-              
-              const petPolicy = await analyzePetPolicy(airline, perplexityKey);
-              
-              const { error: upsertError } = await supabase
-                .from('pet_policies')
-                .upsert({
-                  airline_id: airline.id,
-                  ...petPolicy
-                });
-
-              if (upsertError) {
-                throw upsertError;
-              }
-
-              await syncManager.updateProgress({
-                processed: (await syncManager.getCurrentProgress())?.processed + 1 || 1,
-                last_processed: airline.name,
-                processed_items: [...((await syncManager.getCurrentProgress())?.processed_items || []), airline.name]
-              });
-              console.log(`Successfully processed ${airline.name}`);
-            }
-          } catch (error) {
-            console.error(`Error processing ${airline.name}:`, error);
-            await syncManager.updateProgress({
-              error_items: [...((await syncManager.getCurrentProgress())?.error_items || []), `${airline.name}: ${error.message}`]
-            });
-          }
-        }
-
-        await syncManager.completeSync();
-        
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } catch (error) {
-        console.error('Error in sync process:', error);
-        throw error;
+      if (airlinesError) {
+        throw airlinesError;
       }
-    }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      console.log(`Processing ${airlines.length} airlines`);
+      await syncManager.initialize(airlines.length, false);
+
+      for (const airline of airlines) {
+        try {
+          if (await syncManager.shouldProcessItem(airline.name)) {
+            console.log(`Processing airline: ${airline.name}`);
+            
+            const petPolicy = await analyzePetPolicy(airline, perplexityKey);
+            
+            const { error: upsertError } = await supabase
+              .from('pet_policies')
+              .upsert({
+                airline_id: airline.id,
+                ...petPolicy
+              });
+
+            if (upsertError) {
+              throw upsertError;
+            }
+
+            await syncManager.updateProgress({
+              processed: (await syncManager.getCurrentProgress())?.processed + 1 || 1,
+              last_processed: airline.name,
+              processed_items: [...((await syncManager.getCurrentProgress())?.processed_items || []), airline.name]
+            });
+            console.log(`Successfully processed ${airline.name}`);
+          }
+        } catch (error) {
+          console.error(`Error processing ${airline.name}:`, error);
+          await syncManager.updateProgress({
+            error_items: [...((await syncManager.getCurrentProgress())?.error_items || []), `${airline.name}: ${error.message}`]
+          });
+        }
+      }
+
+      await syncManager.completeSync();
+      
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      console.error('Error in sync process:', error);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Fatal error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
