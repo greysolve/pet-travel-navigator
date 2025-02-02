@@ -40,13 +40,16 @@ export const RouteSearch = ({
     
     setIsSearching(true);
     try {
-      // Clean the search term by removing commas and extra spaces
-      const cleanSearchTerm = searchTerm.replace(/,/g, '').trim();
+      // Split the search term by comma and get the parts
+      const parts = searchTerm.split(',').map(part => part.trim());
+      const cityTerm = parts[0];
+      const countryTerm = parts[1] || '';
       
-      console.log('Fetching airports for search term:', cleanSearchTerm);
+      console.log('Fetching airports with:', { cityTerm, countryTerm });
+      
       const { data, error } = await supabase
         .rpc('search_airports_insensitive', {
-          search_term: cleanSearchTerm
+          search_term: cityTerm
         });
 
       if (error) {
@@ -59,8 +62,16 @@ export const RouteSearch = ({
         return;
       }
 
-      console.log('Fetched airports:', data);
-      setAirports(data || []);
+      // Filter results client-side if a country term is provided
+      let filteredData = data;
+      if (countryTerm) {
+        filteredData = data.filter((airport: Airport) => 
+          airport.country.toLowerCase().startsWith(countryTerm.toLowerCase())
+        );
+      }
+
+      console.log('Filtered airports:', filteredData);
+      setAirports(filteredData || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
       toast({
@@ -88,6 +99,10 @@ export const RouteSearch = ({
             setShowOriginSuggestions(true);
           }}
           onFocus={() => setShowOriginSuggestions(true)}
+          onBlur={() => {
+            // Delay hiding suggestions to allow for click events
+            setTimeout(() => setShowOriginSuggestions(false), 200);
+          }}
         />
         {showOriginSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -128,6 +143,10 @@ export const RouteSearch = ({
             setShowDestinationSuggestions(true);
           }}
           onFocus={() => setShowDestinationSuggestions(true)}
+          onBlur={() => {
+            // Delay hiding suggestions to allow for click events
+            setTimeout(() => setShowDestinationSuggestions(false), 200);
+          }}
         />
         {showDestinationSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
