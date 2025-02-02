@@ -40,11 +40,14 @@ export const RouteSearch = ({
     
     setIsSearching(true);
     try {
-      console.log('Fetching airports for search term:', searchTerm);
+      // Clean the search term by removing commas and extra spaces
+      const cleanSearchTerm = searchTerm.replace(/,/g, '').trim();
+      
+      console.log('Fetching airports for search term:', cleanSearchTerm);
       const { data, error } = await supabase
         .from('airports')
         .select('iata_code, name, city, country')
-        .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
+        .or(`iata_code.ilike.%${cleanSearchTerm}%,city.ilike.%${cleanSearchTerm}%`)
         .not('name', 'ilike', '%railway%')
         .not('name', 'ilike', '%station%')
         .limit(10);
