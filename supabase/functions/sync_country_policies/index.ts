@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Initialize sync manager and get current progress
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies')
     const currentProgress = await syncManager.getCurrentProgress()
     
@@ -200,7 +201,7 @@ Deno.serve(async (req) => {
       throw new Error('Failed to initialize or retrieve sync progress')
     }
 
-    // Find starting point
+    // Find starting point - use last_processed from database
     const startIndex = progress.last_processed
       ? uniqueCountries.findIndex(c => c === progress.last_processed) + 1
       : 0
