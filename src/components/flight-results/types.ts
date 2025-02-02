@@ -23,4 +23,5 @@ export type CountryPolicy = {
   vaccination_requirements?: string[];
   quarantine_requirements?: string;
   additional_notes?: string;
+  policy_url?: string;
 };

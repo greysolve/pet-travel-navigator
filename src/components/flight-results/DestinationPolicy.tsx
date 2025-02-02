@@ -14,15 +14,17 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Switzerland Pet Policy</h2>
-        <a 
-          href="https://www.aphis.usda.gov/aphis/pet-travel" 
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center text-primary hover:text-primary/80"
-        >
-          Official requirements <ExternalLink className="h-4 w-4 ml-1" />
-        </a>
+        <h2 className="text-xl font-semibold">{policy.title}</h2>
+        {policy.policy_url && (
+          <a 
+            href={policy.policy_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-primary hover:text-primary/80"
+          >
+            Official requirements <ExternalLink className="h-4 w-4 ml-1" />
+          </a>
+        )}
       </div>
       
       {policy.description && (
