@@ -1,6 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { stripMarkdown } from 'https://deno.land/x/strip_markdown@1.0.0/mod.ts'
-import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,8 +8,20 @@ const corsHeaders = {
 function cleanAndParseJSON(content: string): string {
   console.log('Original content:', content);
   
-  // Strip markdown and clean the content
-  let cleaned = stripMarkdown(content).trim();
+  // Remove markdown code blocks
+  let cleaned = content.replace(/```[^`]*```/g, '');
+  
+  // Remove any remaining backticks
+  cleaned = cleaned.replace(/`/g, '');
+  
+  // Remove markdown headers
+  cleaned = cleaned.replace(/#{1,6}\s/g, '');
+  
+  // Remove markdown links
+  cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+  
+  // Remove markdown emphasis
+  cleaned = cleaned.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');
   
   // Find the first occurrence of a JSON object
   const jsonStart = cleaned.indexOf('{');
@@ -156,9 +166,8 @@ Deno.serve(async (req) => {
         const rawContent = responseData.choices[0].message.content;
         console.log('Raw API response content:', rawContent);
         
-        // Clean the content before parsing
-        const cleanedContent = stripMarkdown(rawContent);
-        const content = JSON.parse(cleanedContent);
+        // Clean and parse the content
+        const content = JSON.parse(cleanAndParseJSON(rawContent));
 
         // Update airline website if we got a valid one
         if (content.airline_info?.official_website) {
@@ -256,4 +265,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
