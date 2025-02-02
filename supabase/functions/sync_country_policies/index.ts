@@ -12,21 +12,23 @@ async function fetchPolicyWithAI(country: string, apiKey: string) {
 Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   
   const userPrompt = `For ${country}'s pet import requirements:
-  1. Find the official government website for animal imports
-  2. Extract the complete policy details
+  1. Search specifically for the official government website or department responsible for animal imports
+  2. If an official government source exists, use it as the primary reference and store its URL
+  3. If no official source is found, use the most authoritative alternative (e.g., embassy websites, recognized veterinary organizations)
+  4. Extract the complete policy details
   
   Format as a JSON object with this structure:
   {
-    "title": "string",
-    "description": "string",
-    "requirements": ["string"],
-    "documentation_needed": ["string"],
-    "fees": {"description": "string"},
-    "restrictions": {"description": "string"},
-    "quarantine_requirements": "string",
-    "vaccination_requirements": ["string"],
-    "additional_notes": "string",
-    "policy_url": "URL of official source"
+    "title": "string - official name of the policy/requirements",
+    "description": "string - comprehensive overview",
+    "requirements": ["string - list each main requirement"],
+    "documentation_needed": ["string - list each required document"],
+    "fees": {"description": "string - include all fee details if available"},
+    "restrictions": {"description": "string - any limitations or special conditions"},
+    "quarantine_requirements": "string - detailed quarantine information",
+    "vaccination_requirements": ["string - list each required vaccination"],
+    "additional_notes": "string - include source authority and last verified date",
+    "policy_url": "string - MUST be the direct URL to the policy. If using non-government source, explain why in additional_notes"
   }`;
 
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
