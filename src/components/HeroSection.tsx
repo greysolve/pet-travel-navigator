@@ -11,7 +11,7 @@ export const HeroSection = () => {
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center gap-8 max-w-2xl mx-auto">
           <div className="flex items-center gap-8 relative w-full">
-            <div className="absolute left-[5%]">
+            <div className="absolute left-[20%]">
               <img 
                 src="/lovable-uploads/399508ba-b0c4-4f26-b40a-210fb735a14c.png" 
                 alt="Petjumper.com Logo" 
