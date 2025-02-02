@@ -37,15 +37,16 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error("Error fetching user role from DB:", error);
+        navigate("/");
         return null;
       }
 
       console.log("Role from database:", data?.role);
-      return data?.role || null;
+      return data?.role;
     },
     enabled: !!user && !!requiredRole,
   });
@@ -65,7 +66,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      if (userRole !== requiredRole) {
+      // If no role is found or role doesn't match required role, redirect
+      if (!userRole || userRole !== requiredRole) {
         console.log("Access denied, redirecting to home");
         navigate("/");
       }
@@ -76,7 +78,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  if (!user || (requiredRole && userRole !== requiredRole)) {
+  // Only render children if user has the required role
+  if (!user || !userRole || (requiredRole && userRole !== requiredRole)) {
     return null;
   }
 
