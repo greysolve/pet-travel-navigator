@@ -87,7 +87,7 @@ const Profile = () => {
   if (!user) return null;
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="container max-w-3xl mx-auto py-8 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
