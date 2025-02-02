@@ -29,6 +29,7 @@ export const SyncSection = () => {
     routes: false,
     countryPolicies: false
   });
+  const [continuationInProgress, setContinuationInProgress] = useState<{[key: string]: boolean}>({});
   const queryClient = useQueryClient();
 
   // Function to reset sync progress cache
@@ -69,10 +70,25 @@ export const SyncSection = () => {
           if (newRecord) {
             console.log(`Updating sync progress for ${newRecord.type}:`, newRecord);
             
-            // If we receive a continuation token, automatically continue the sync
-            if (!newRecord.is_complete && newRecord.last_processed && newRecord.processed < newRecord.total) {
-              console.log(`Automatically continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
-              await handleSync(newRecord.type as keyof typeof SyncType, true);
+            // Only continue if we're not already processing a continuation for this type
+            if (!newRecord.is_complete && 
+                newRecord.last_processed && 
+                newRecord.processed < newRecord.total && 
+                !continuationInProgress[newRecord.type]) {
+              console.log(`Scheduling continuation for ${newRecord.type} from ${newRecord.last_processed}`);
+              
+              // Set continuation flag
+              setContinuationInProgress(prev => ({ ...prev, [newRecord.type]: true }));
+              
+              // Add a small delay to ensure database state is settled
+              setTimeout(async () => {
+                try {
+                  await handleSync(newRecord.type as keyof typeof SyncType, true);
+                } finally {
+                  // Clear continuation flag regardless of success/failure
+                  setContinuationInProgress(prev => ({ ...prev, [newRecord.type]: false }));
+                }
+              }, 1000);
             }
             
             queryClient.setQueryData<SyncProgressRecord>(
