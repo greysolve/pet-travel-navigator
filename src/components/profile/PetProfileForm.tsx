@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X } from "lucide-react";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 
@@ -38,11 +39,59 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
   const [weight, setWeight] = useState(initialData?.weight?.toString() || "");
   const [selectedDocumentType, setSelectedDocumentType] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
     }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newPhotos = Array.from(e.target.files);
+      if (photos.length + newPhotos.length > 4) {
+        toast({
+          title: "Maximum photos reached",
+          description: "You can only upload up to 4 photos",
+          variant: "destructive",
+        });
+        return;
+      }
+      setPhotos([...photos, ...newPhotos]);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const removeExistingPhoto = (index: number) => {
+    setPhotoUrls(photoUrls.filter((_, i) => i !== index));
+  };
+
+  const uploadPhotos = async (petId: string) => {
+    const uploadedUrls: string[] = [...photoUrls];
+
+    for (const photo of photos) {
+      const fileExt = photo.name.split('.').pop();
+      const filePath = `${petId}/${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('pet-documents')
+        .upload(filePath, photo);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('pet-documents')
+        .getPublicUrl(filePath);
+
+      uploadedUrls.push(publicUrl);
+    }
+
+    return uploadedUrls;
   };
 
   const uploadFile = async (petId: string) => {
@@ -94,6 +143,16 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
 
       if (error) throw error;
 
+      if (photos.length > 0) {
+        const uploadedUrls = await uploadPhotos(result.id);
+        const { error: updateError } = await supabase
+          .from('pet_profiles')
+          .update({ images: uploadedUrls })
+          .eq('id', result.id);
+
+        if (updateError) throw updateError;
+      }
+
       if (file && selectedDocumentType) {
         await uploadFile(result.id);
       }
@@ -127,6 +186,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
       breed: breed || null,
       age: age ? parseFloat(age) : null,
       weight: weight ? parseFloat(weight) : null,
+      images: photoUrls,
     };
 
     mutation.mutate(data);
@@ -140,6 +200,63 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Pet Photos (up to 4)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              {photoUrls.map((url, index) => (
+                <div key={url} className="relative">
+                  <img 
+                    src={url} 
+                    alt={`Pet photo ${index + 1}`} 
+                    className="w-full h-32 object-cover rounded-md"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => removeExistingPhoto(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {photos.map((photo, index) => (
+                <div key={index} className="relative">
+                  <img 
+                    src={URL.createObjectURL(photo)} 
+                    alt={`New pet photo ${index + 1}`} 
+                    className="w-full h-32 object-cover rounded-md"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => removePhoto(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {photoUrls.length + photos.length < 4 && (
+                <div className="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-md h-32">
+                  <Input
+                    type="file"
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    className="hidden"
+                    id="photo-upload"
+                    multiple
+                  />
+                  <Label htmlFor="photo-upload" className="cursor-pointer text-sm text-gray-600">
+                    + Add Photo
+                  </Label>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input
