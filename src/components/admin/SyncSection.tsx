@@ -66,11 +66,26 @@ export const SyncSection = () => {
           if (newRecord) {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
             
+            // Get the latest progress data directly from the query client
+            const currentData = queryClient.getQueryData<SyncProgressRecord>(["syncProgress"]);
+            const currentProgress = currentData?.[newRecord.type];
+            
             if (newRecord.needs_continuation) {
               console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
               
               try {
-                await handleSync(newRecord.type as keyof typeof SyncType, true);
+                await handleSync(
+                  newRecord.type as keyof typeof SyncType, 
+                  true,
+                  {
+                    lastProcessed: newRecord.last_processed,
+                    processed: newRecord.processed,
+                    total: newRecord.total,
+                    processedItems: newRecord.processed_items,
+                    errorItems: newRecord.error_items,
+                    startTime: newRecord.start_time
+                  }
+                );
               } catch (error) {
                 console.error(`Error during continuation for ${newRecord.type}:`, error);
                 toast({
@@ -144,7 +159,18 @@ export const SyncSection = () => {
     },
   });
 
-  const handleSync = async (type: keyof typeof SyncType, resume: boolean = false) => {
+  const handleSync = async (
+    type: keyof typeof SyncType, 
+    resume: boolean = false,
+    progressData?: {
+      lastProcessed: string | null;
+      processed: number;
+      total: number;
+      processedItems: string[];
+      errorItems: string[];
+      startTime: string | null;
+    }
+  ) => {
     console.log(`Starting sync for ${type}, resume: ${resume}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
     
@@ -192,14 +218,20 @@ export const SyncSection = () => {
         throw new Error(`Unknown sync type: ${type}`);
       }
 
-      const currentProgress = syncProgress?.[type];
-      const payload = {
-        lastProcessedItem: resume ? currentProgress?.lastProcessed : null,
-        currentProcessed: resume ? currentProgress?.processed || 0 : 0,
-        currentTotal: resume ? currentProgress?.total || 0 : 0,
-        processedItems: resume ? currentProgress?.processedItems || [] : [],
-        errorItems: resume ? currentProgress?.errorItems || [] : [],
-        startTime: resume ? currentProgress?.startTime : new Date().toISOString(),
+      const payload = resume && progressData ? {
+        lastProcessedItem: progressData.lastProcessed,
+        currentProcessed: progressData.processed,
+        currentTotal: progressData.total,
+        processedItems: progressData.processedItems,
+        errorItems: progressData.errorItems,
+        startTime: progressData.startTime,
+      } : {
+        lastProcessedItem: null,
+        currentProcessed: 0,
+        currentTotal: 0,
+        processedItems: [],
+        errorItems: [],
+        startTime: new Date().toISOString(),
       };
 
       console.log(`Invoking edge function ${functionName} with payload:`, payload);
