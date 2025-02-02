@@ -21,6 +21,7 @@ export const FlightCard = ({
   arrivalTime,
   policy,
 }: FlightCardProps) => {
+  console.log("Airline name in card:", airlineName); // Debug log
   return (
     <Card>
       <CardContent className="p-6 space-y-4">

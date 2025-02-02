@@ -15,15 +15,13 @@ export const FlightHeader = ({
   departureTime,
   arrivalTime,
 }: FlightHeaderProps) => {
+  console.log("Airline name in header:", airlineName); // Debug log
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center space-x-6">
         <div>
           <p className="font-bold text-lg">
-            {airlineName || carrierFsCode}{" "}
-            <span className="text-sm font-normal text-gray-500">
-              ({carrierFsCode})
-            </span>
+            {airlineName || carrierFsCode} <span className="text-sm font-normal text-gray-500">({carrierFsCode})</span>
           </p>
           <Badge variant="secondary" className="font-normal">
             {flightNumber}

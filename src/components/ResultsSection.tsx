@@ -20,6 +20,9 @@ export const ResultsSection = ({
   // Fetch destination country's pet policy
   const { data: countryPolicy } = useCountryPolicy(destinationCountry);
 
+  // Debug log to check flights data
+  console.log("Flights data in ResultsSection:", flights);
+
   if (!searchPerformed) return null;
 
   return (
