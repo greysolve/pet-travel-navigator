@@ -13,6 +13,7 @@ type Airport = {
   iata_code: string;
   name: string;
   city: string;
+  country: string;
 };
 
 type FlightData = {
@@ -20,6 +21,7 @@ type FlightData = {
   flightNumber: string;
   departureTime: string;
   arrivalTime: string;
+  arrivalCountry?: string;
 };
 
 export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: FlightData[]) => void }) => {
@@ -32,6 +34,7 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
   const [airports, setAirports] = useState<Airport[]>([]);
   const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
   const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
+  const [destinationCountry, setDestinationCountry] = useState<string>();
   const { toast } = useToast();
 
   const fetchAirports = useCallback(async (searchTerm: string) => {
@@ -45,10 +48,10 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
       console.log('Fetching airports for search term:', searchTerm);
       const { data, error } = await supabase
         .from('airports')
-        .select('iata_code, name, city')
+        .select('iata_code, name, city, country')
         .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
-        .not('name', 'ilike', '%railway%')  // Exclude railway stations
-        .not('name', 'ilike', '%station%')  // Exclude other types of stations
+        .not('name', 'ilike', '%railway%')
+        .not('name', 'ilike', '%station%')
         .limit(10);
 
       if (error) {
@@ -112,6 +115,7 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
             flightNumber: flight.flightNumber,
             departureTime: flight.departureTime,
             arrivalTime: flight.arrivalTime,
+            arrivalCountry: destinationCountry,
           }));
           onSearchResults(flights);
         }
@@ -220,6 +224,7 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
                         className="px-4 py-2 hover:bg-accent cursor-pointer"
                         onClick={() => {
                           setDestination(airport.iata_code);
+                          setDestinationCountry(airport.country);
                           setShowDestinationSuggestions(false);
                         }}
                       >
