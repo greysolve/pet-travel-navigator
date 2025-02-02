@@ -56,13 +56,6 @@ export const ResultsSection = ({
     queryFn: async () => {
       if (!destinationCountry) return null;
       
-      // First, let's log all country policies to see what we have
-      const { data: allPolicies } = await supabase
-        .from('country_policies')
-        .select('country_code, policy_type');
-      
-      console.log("Available country policies:", allPolicies);
-      
       const { data: policy, error } = await supabase
         .from('country_policies')
         .select('*')
