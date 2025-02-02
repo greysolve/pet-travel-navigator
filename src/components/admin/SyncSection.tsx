@@ -73,22 +73,8 @@ export const SyncSection = () => {
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (oldData) => {
-                if (!oldData) {
-                  return {
-                    [newRecord.type]: {
-                      total: newRecord.total,
-                      processed: newRecord.processed,
-                      lastProcessed: newRecord.last_processed,
-                      processedItems: newRecord.processed_items || [],
-                      errorItems: newRecord.error_items || [],
-                      startTime: newRecord.start_time,
-                      isComplete: newRecord.is_complete,
-                    }
-                  };
-                }
-
-                return {
-                  ...oldData,
+                const updatedData = {
+                  ...(oldData || {}),
                   [newRecord.type]: {
                     total: newRecord.total,
                     processed: newRecord.processed,
@@ -99,6 +85,8 @@ export const SyncSection = () => {
                     isComplete: newRecord.is_complete,
                   }
                 };
+                console.log('Updated sync progress data:', updatedData);
+                return updatedData;
               }
             );
           }
