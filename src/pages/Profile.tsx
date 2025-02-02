@@ -44,16 +44,21 @@ const Profile = () => {
   const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
   const [selectedCountryId, setSelectedCountryId] = useState(profile?.country_id || "");
 
-  // Fetch countries
+  // Optimized countries query using Supabase's SQL-to-REST features
   const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ['countries'],
     queryFn: async () => {
+      console.log('Fetching countries...');
       const { data, error } = await supabase
         .from('countries')
-        .select('*')
+        .select('id, name, code')
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching countries:', error);
+        throw error;
+      }
+      console.log('Countries fetched:', data);
       return data;
     },
   });
