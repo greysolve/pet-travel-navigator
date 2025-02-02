@@ -50,7 +50,7 @@ const Profile = () => {
         .single();
 
       if (error) throw error;
-      return data;
+      return data as UserProfile;
     },
     enabled: !!userId,
     onSuccess: (data) => {
