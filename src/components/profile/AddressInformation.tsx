@@ -71,6 +71,7 @@ export const AddressInformation = ({
             value={addressLine1}
             onChange={(e) => onAddressLine1Change(e.target.value)}
             placeholder="Street address"
+            className="border-gray-400"
           />
         </div>
         <div className="space-y-2">
@@ -79,6 +80,7 @@ export const AddressInformation = ({
             value={addressLine2}
             onChange={(e) => onAddressLine2Change(e.target.value)}
             placeholder="Apartment, suite, etc."
+            className="border-gray-400"
           />
         </div>
         <div className="space-y-2">
@@ -87,6 +89,7 @@ export const AddressInformation = ({
             value={addressLine3}
             onChange={(e) => onAddressLine3Change(e.target.value)}
             placeholder="Additional address information"
+            className="border-gray-400"
           />
         </div>
         <div className="grid grid-cols-2 gap-6">
@@ -96,6 +99,7 @@ export const AddressInformation = ({
               value={locality}
               onChange={(e) => onLocalityChange(e.target.value)}
               placeholder="City"
+              className="border-gray-400"
             />
           </div>
           <div className="space-y-2">
@@ -104,6 +108,7 @@ export const AddressInformation = ({
               value={administrativeArea}
               onChange={(e) => onAdministrativeAreaChange(e.target.value)}
               placeholder="State or province"
+              className="border-gray-400"
             />
           </div>
         </div>
@@ -114,12 +119,13 @@ export const AddressInformation = ({
               value={postalCode}
               onChange={(e) => onPostalCodeChange(e.target.value)}
               placeholder="Postal code"
+              className="border-gray-400"
             />
           </div>
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">Country</Label>
             <Select value={selectedCountryId} onValueChange={onCountryChange}>
-              <SelectTrigger>
+              <SelectTrigger className="border-gray-400">
                 <SelectValue placeholder="Select a country" />
               </SelectTrigger>
               <SelectContent>

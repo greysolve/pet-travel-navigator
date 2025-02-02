@@ -27,7 +27,7 @@ export const ContactInformation = ({
               value={firstName}
               onChange={(e) => onFirstNameChange(e.target.value)}
               placeholder="Enter your first name"
-              className="max-w-full"
+              className="max-w-full border-gray-400"
             />
           </div>
           <div className="space-y-2">
@@ -36,13 +36,13 @@ export const ContactInformation = ({
               value={lastName}
               onChange={(e) => onLastNameChange(e.target.value)}
               placeholder="Enter your last name"
-              className="max-w-full"
+              className="max-w-full border-gray-400"
             />
           </div>
         </div>
         <div className="space-y-2">
           <Label className="text-sm font-medium text-gray-700">Email</Label>
-          <Input value={email} disabled className="bg-gray-50" />
+          <Input value={email} disabled className="bg-gray-50 border-gray-400" />
         </div>
       </div>
     </div>
