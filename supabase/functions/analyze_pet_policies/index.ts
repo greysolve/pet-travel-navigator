@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { stripMarkdown } from 'https://deno.land/x/strip_markdown/mod.ts'
 import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
@@ -6,16 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function stripMarkdown(content: string): string {
+function cleanAndParseJSON(content: string): string {
   console.log('Original content:', content);
   
-  // Remove markdown code blocks and backticks
-  let cleaned = content
-    .replace(/```[a-z]*\n/g, '') // Remove opening code block markers
-    .replace(/```/g, '')         // Remove closing code block markers
-    .replace(/`/g, '')           // Remove any remaining backticks
-    .trim();
-    
+  // Strip markdown and clean the content
+  let cleaned = stripMarkdown(content).trim();
+  
   // Find the first occurrence of a JSON object
   const jsonStart = cleaned.indexOf('{');
   const jsonEnd = cleaned.lastIndexOf('}');
@@ -27,12 +24,6 @@ function stripMarkdown(content: string): string {
   
   // Extract just the JSON portion
   cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
-  
-  // Clean up any remaining artifacts and normalize whitespace
-  cleaned = cleaned
-    .replace(/\\n/g, ' ')  // Replace newlines with spaces
-    .replace(/\s+/g, ' ')  // Normalize whitespace
-    .trim();
   
   console.log('Cleaned content:', cleaned);
   
@@ -265,3 +256,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
