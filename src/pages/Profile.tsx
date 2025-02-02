@@ -4,7 +4,7 @@ import { AddressInformation } from "@/components/profile/AddressInformation";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { UserProfile } from "@/types/auth";
 
@@ -53,25 +53,27 @@ const Profile = () => {
       return data as UserProfile;
     },
     enabled: !!userId,
-    onSuccess: (data) => {
-      if (data) {
-        // Update contact information
-        const fullName = data.full_name || "";
-        const [firstName = "", lastName = ""] = fullName.split(" ");
-        setFirstName(firstName);
-        setLastName(lastName);
-
-        // Update address information
-        setAddressLine1(data.address_line1 || "");
-        setAddressLine2(data.address_line2 || "");
-        setAddressLine3(data.address_line3 || "");
-        setLocality(data.locality || "");
-        setAdministrativeArea(data.administrative_area || "");
-        setPostalCode(data.postal_code || "");
-        setSelectedCountryId(data.country_id || "");
-      }
-    }
   });
+
+  // Update state when profile data is loaded
+  useEffect(() => {
+    if (profile) {
+      // Update contact information
+      const fullName = profile.full_name || "";
+      const [firstName = "", lastName = ""] = fullName.split(" ");
+      setFirstName(firstName);
+      setLastName(lastName);
+
+      // Update address information
+      setAddressLine1(profile.address_line1 || "");
+      setAddressLine2(profile.address_line2 || "");
+      setAddressLine3(profile.address_line3 || "");
+      setLocality(profile.locality || "");
+      setAdministrativeArea(profile.administrative_area || "");
+      setPostalCode(profile.postal_code || "");
+      setSelectedCountryId(profile.country_id || "");
+    }
+  }, [profile]);
 
   const handleAvatarUpdate = async () => {
     toast({
