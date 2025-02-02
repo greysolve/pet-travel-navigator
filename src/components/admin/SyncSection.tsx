@@ -53,45 +53,29 @@ export const SyncSection = () => {
   };
 
   useEffect(() => {
-    const channels = Object.values(SyncType).map(syncType => {
-      console.log(`Setting up real-time subscription for ${syncType}`);
-      return supabase
-        .channel(`sync_progress_${syncType}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'sync_progress',
-            filter: `type=eq.${syncType}`
-          },
-          (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
-            console.log(`Received sync progress update for ${syncType}:`, payload);
-            const newRecord = payload.new as SyncProgressDB;
+    // Create a single channel for all sync types
+    const channel = supabase
+      .channel('sync_progress_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sync_progress'
+        },
+        (payload: RealtimePostgresChangesPayload<SyncProgressDB>) => {
+          console.log(`Received sync progress update:`, payload);
+          const newRecord = payload.new as SyncProgressDB;
+          
+          if (newRecord) {
+            console.log(`Updating sync progress for ${newRecord.type}:`, newRecord);
             
-            if (newRecord) {
-              console.log(`Updating sync progress for ${syncType}:`, newRecord);
-              
-              queryClient.setQueryData<SyncProgressRecord>(
-                ["syncProgress"],
-                (oldData) => {
-                  if (!oldData) {
-                    return {
-                      [syncType]: {
-                        total: newRecord.total,
-                        processed: newRecord.processed,
-                        lastProcessed: newRecord.last_processed,
-                        processedItems: newRecord.processed_items || [],
-                        errorItems: newRecord.error_items || [],
-                        startTime: newRecord.start_time,
-                        isComplete: newRecord.is_complete,
-                      }
-                    };
-                  }
-
+            queryClient.setQueryData<SyncProgressRecord>(
+              ["syncProgress"],
+              (oldData) => {
+                if (!oldData) {
                   return {
-                    ...oldData,
-                    [syncType]: {
+                    [newRecord.type]: {
                       total: newRecord.total,
                       processed: newRecord.processed,
                       lastProcessed: newRecord.last_processed,
@@ -102,18 +86,29 @@ export const SyncSection = () => {
                     }
                   };
                 }
-              );
-            }
+
+                return {
+                  ...oldData,
+                  [newRecord.type]: {
+                    total: newRecord.total,
+                    processed: newRecord.processed,
+                    lastProcessed: newRecord.last_processed,
+                    processedItems: newRecord.processed_items || [],
+                    errorItems: newRecord.error_items || [],
+                    startTime: newRecord.start_time,
+                    isComplete: newRecord.is_complete,
+                  }
+                };
+              }
+            );
           }
-        )
-        .subscribe();
-    });
+        }
+      )
+      .subscribe();
 
     return () => {
-      console.log('Cleaning up sync progress subscriptions');
-      channels.forEach(channel => {
-        supabase.removeChannel(channel);
-      });
+      console.log('Cleaning up sync progress subscription');
+      supabase.removeChannel(channel);
     };
   }, [queryClient]);
 
@@ -186,7 +181,7 @@ export const SyncSection = () => {
         }
       }
 
-      const functionMap: Record<SyncType, string> = {
+      const functionMap: Record<keyof typeof SyncType, string> = {
         airlines: 'sync_airline_data',
         airports: 'sync_airport_data',
         routes: 'sync_route_data',
@@ -219,7 +214,7 @@ export const SyncSection = () => {
       console.log(`Received response from ${functionName}:`, data);
 
       // If the response indicates we should reset, do so
-      if (data.shouldReset) {
+      if (data?.shouldReset) {
         console.log('Response indicates sync completion, resetting state...');
         await resetSyncProgress(type);
         await resetSyncProgressCache(type);
