@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -91,6 +92,10 @@ const Profile = () => {
     }
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   if (loading) return <div>Loading...</div>;
   if (!user) return null;
 
@@ -109,17 +114,21 @@ const Profile = () => {
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col items-center space-y-2">
-              <label htmlFor="avatar-upload" className="text-sm font-medium">
-                Upload Photo
-              </label>
               <Input
-                id="avatar-upload"
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleAvatarUpload}
+                className="hidden"
                 disabled={uploading}
-                className="w-auto"
               />
+              <Button 
+                onClick={triggerFileInput}
+                disabled={uploading}
+                variant="outline"
+              >
+                Upload Photo
+              </Button>
               {uploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
             </div>
           </div>
