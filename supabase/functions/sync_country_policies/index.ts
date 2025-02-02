@@ -13,9 +13,8 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   
   const userPrompt = `For ${country}'s pet import requirements:
   1. Search specifically for the official government website or department responsible for animal imports
-  2. If an official government source exists, use it as the primary reference and store its URL
-  3. If no official source is found, use the most authoritative alternative (e.g., embassy websites, recognized veterinary organizations)
-  4. Extract the complete policy details
+  2. Use the url from the results citations that is the most authoritative for the results that you can find with a strong strong bias towards government web pages
+  3. Extract the complete policy details
   
   Format as a JSON object with this structure:
   {
