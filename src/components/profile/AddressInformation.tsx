@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Country {
   id: string;
@@ -43,7 +43,7 @@ export const AddressInformation = ({
   onPostalCodeChange,
   onCountryChange,
 }: AddressInformationProps) => {
-  const { data: countries = [], isLoading } = useQuery({
+  const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ['countries'],
     queryFn: async () => {
       console.log('Fetching countries...');
@@ -57,7 +57,7 @@ export const AddressInformation = ({
         throw error;
       }
       console.log('Countries fetched:', data);
-      return data || [];
+      return data;
     },
   });
 
@@ -123,15 +123,11 @@ export const AddressInformation = ({
                 <SelectValue placeholder="Select a country" />
               </SelectTrigger>
               <SelectContent>
-                {isLoading ? (
-                  <SelectItem value="loading">Loading...</SelectItem>
-                ) : (
-                  countries.map((country) => (
-                    <SelectItem key={country.id} value={country.id}>
-                      {country.name}
-                    </SelectItem>
-                  ))
-                )}
+                {countries.map((country) => (
+                  <SelectItem key={country.id} value={country.id}>
+                    {country.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

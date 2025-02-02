@@ -1,50 +1,40 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/use-toast";
+import { fetchOrCreateProfile } from "@/utils/profileManagement";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ContactInformation } from "@/components/profile/ContactInformation";
 import { AddressInformation } from "@/components/profile/AddressInformation";
-import { useProfileData } from "@/hooks/useProfileData";
-import { useQueryClient } from "@tanstack/react-query";
 
 const Profile = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   
-  const { profile, isLoading, updateProfile } = useProfileData(user?.id || "");
-  
-  // Form state
+  // Split name fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [addressLine1, setAddressLine1] = useState("");
-  const [addressLine2, setAddressLine2] = useState("");
-  const [addressLine3, setAddressLine3] = useState("");
-  const [locality, setLocality] = useState("");
-  const [administrativeArea, setAdministrativeArea] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [selectedCountryId, setSelectedCountryId] = useState("");
+  
+  // Address fields
+  const [addressLine1, setAddressLine1] = useState(profile?.address_line1 || "");
+  const [addressLine2, setAddressLine2] = useState(profile?.address_line2 || "");
+  const [addressLine3, setAddressLine3] = useState(profile?.address_line3 || "");
+  const [locality, setLocality] = useState(profile?.locality || "");
+  const [administrativeArea, setAdministrativeArea] = useState(profile?.administrative_area || "");
+  const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
+  const [selectedCountryId, setSelectedCountryId] = useState(profile?.country_id || "");
 
-  // Initialize form data from profile
+  // Split full name on component mount
   useEffect(() => {
-    if (profile) {
-      console.log("Initializing form with profile data:", profile);
-      if (profile.full_name) {
-        const nameParts = profile.full_name.split(" ");
-        setFirstName(nameParts[0] || "");
-        setLastName(nameParts.slice(1).join(" ") || "");
-      }
-      setAddressLine1(profile.address_line1 || "");
-      setAddressLine2(profile.address_line2 || "");
-      setAddressLine3(profile.address_line3 || "");
-      setLocality(profile.locality || "");
-      setAdministrativeArea(profile.administrative_area || "");
-      setPostalCode(profile.postal_code || "");
-      setSelectedCountryId(profile.country_id || "");
+    if (profile?.full_name) {
+      const nameParts = profile.full_name.split(" ");
+      setFirstName(nameParts[0] || "");
+      setLastName(nameParts.slice(1).join(" ") || "");
     }
-  }, [profile]);
+  }, [profile?.full_name]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -53,29 +43,47 @@ const Profile = () => {
   }, [user, loading, navigate]);
 
   const handleUpdateProfile = async () => {
-    if (!user) return;
+    try {
+      const fullName = `${firstName} ${lastName}`.trim();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: fullName,
+          address_line1: addressLine1,
+          address_line2: addressLine2,
+          address_line3: addressLine3,
+          locality: locality,
+          administrative_area: administrativeArea,
+          postal_code: postalCode,
+          country_id: selectedCountryId || null,
+        })
+        .eq("id", user?.id);
 
-    const fullName = `${firstName} ${lastName}`.trim();
-    await updateProfile.mutateAsync({
-      full_name: fullName,
-      address_line1: addressLine1,
-      address_line2: addressLine2,
-      address_line3: addressLine3,
-      locality: locality,
-      administrative_area: administrativeArea,
-      postal_code: postalCode,
-      country_id: selectedCountryId || null,
-    });
+      if (error) throw error;
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (loading || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div>Loading...</div>
-      </div>
-    );
-  }
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchOrCreateProfile(user.id);
+      // Force a re-render by updating the URL
+      const currentPath = window.location.pathname;
+      navigate(currentPath + '?refresh=' + new Date().getTime());
+    }
+  };
 
+  if (loading) return <div>Loading...</div>;
   if (!user) return null;
 
   return (
@@ -89,9 +97,7 @@ const Profile = () => {
             <ProfileAvatar 
               userId={user.id}
               avatarUrl={profile?.avatar_url}
-              onAvatarUpdate={async () => {
-                await queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
-              }}
+              onAvatarUpdate={refreshProfile}
             />
           </div>
 
@@ -123,12 +129,8 @@ const Profile = () => {
           </div>
           
           <div className="flex justify-end pt-4 border-t">
-            <Button 
-              onClick={handleUpdateProfile}
-              disabled={updateProfile.isPending}
-              className="px-6"
-            >
-              {updateProfile.isPending ? "Updating..." : "Update Profile"}
+            <Button onClick={handleUpdateProfile} className="px-6">
+              Update Profile
             </Button>
           </div>
         </CardContent>
