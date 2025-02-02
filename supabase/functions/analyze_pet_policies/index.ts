@@ -1,4 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { marked } from 'https://esm.sh/marked@9.1.6'
+import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,20 +10,11 @@ const corsHeaders = {
 function cleanAndParseJSON(content: string): string {
   console.log('Original content:', content);
   
-  // Remove markdown code blocks
-  let cleaned = content.replace(/```[^`]*```/g, '');
+  // Use marked to convert markdown to plain text
+  const plainText = marked.parse(content, { mangle: false, headerIds: false });
   
-  // Remove any remaining backticks
-  cleaned = cleaned.replace(/`/g, '');
-  
-  // Remove markdown headers
-  cleaned = cleaned.replace(/#{1,6}\s/g, '');
-  
-  // Remove markdown links
-  cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
-  
-  // Remove markdown emphasis
-  cleaned = cleaned.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');
+  // Convert HTML to plain text
+  let cleaned = plainText.replace(/<[^>]*>/g, '');
   
   // Find the first occurrence of a JSON object
   const jsonStart = cleaned.indexOf('{');
