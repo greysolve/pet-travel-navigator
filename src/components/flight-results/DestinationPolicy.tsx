@@ -72,7 +72,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           </div>
         )}
 
-        {policy.additional_notes && (
+        {policy.additional_notes && typeof policy.additional_notes === 'string' && !policy.additional_notes.startsWith('{') && (
           <div className="mt-4 p-4 bg-gray-50 rounded-md">
             <p className="text-sm text-gray-600">{policy.additional_notes}</p>
           </div>
