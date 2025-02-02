@@ -1,4 +1,3 @@
-import { PawPrint } from "lucide-react";
 import { AuthDialog } from "./AuthDialog";
 
 export const HeroSection = () => {
@@ -11,9 +10,13 @@ export const HeroSection = () => {
       
       <div className="flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-[600px] text-center space-y-8">
-          <div className="flex items-center justify-center gap-4 text-primary-foreground">
-            <PawPrint className="h-16 w-16" />
-            <h1 className="text-6xl font-bold">PawPort</h1>
+          <div className="flex flex-col items-center justify-center gap-4">
+            <img 
+              src="/lovable-uploads/d9c1da0e-88b6-43d4-b6b4-5d79f681c06b.png" 
+              alt="PawPort Logo" 
+              className="h-32 w-32 object-contain"
+            />
+            <h1 className="text-6xl font-bold text-primary-foreground">PawPort</h1>
           </div>
           
           <p className="text-2xl text-primary-foreground/90">
