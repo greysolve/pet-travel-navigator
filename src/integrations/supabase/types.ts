@@ -253,27 +253,51 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address_format: string | null
+          address_line1: string | null
+          address_line2: string | null
+          address_line3: string | null
+          administrative_area: string | null
           avatar_url: string | null
+          country_code: string | null
           created_at: string | null
           full_name: string | null
           id: string
+          locality: string | null
           notification_preferences: Json | null
+          postal_code: string | null
           updated_at: string | null
         }
         Insert: {
+          address_format?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_line3?: string | null
+          administrative_area?: string | null
           avatar_url?: string | null
+          country_code?: string | null
           created_at?: string | null
           full_name?: string | null
           id: string
+          locality?: string | null
           notification_preferences?: Json | null
+          postal_code?: string | null
           updated_at?: string | null
         }
         Update: {
+          address_format?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_line3?: string | null
+          administrative_area?: string | null
           avatar_url?: string | null
+          country_code?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
+          locality?: string | null
           notification_preferences?: Json | null
+          postal_code?: string | null
           updated_at?: string | null
         }
         Relationships: []
