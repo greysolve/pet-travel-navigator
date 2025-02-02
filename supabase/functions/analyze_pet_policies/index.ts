@@ -7,14 +7,26 @@ const corsHeaders = {
 }
 
 function stripMarkdown(content: string): string {
-  // Remove markdown code block indicators and any leading/trailing whitespace
+  console.log('Original content:', content);
+  
+  // More robust markdown cleaning
   const cleaned = content
-    .replace(/^```[a-z]*\n/, '') // Remove opening code block
-    .replace(/\n```$/, '')       // Remove closing code block
+    .replace(/^[\s\S]*?```[a-z]*\s*/, '') // Remove everything before and including opening code block
+    .replace(/```[\s\S]*$/, '')           // Remove closing code block and everything after
+    .replace(/^\s*{\s*/, '{')             // Clean up leading whitespace before opening brace
+    .replace(/\s*}\s*$/, '}')             // Clean up trailing whitespace after closing brace
     .trim();
   
   console.log('Cleaned content:', cleaned);
-  return cleaned;
+  
+  // Validate JSON structure
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch (error) {
+    console.error('JSON validation failed:', error);
+    throw new Error(`Failed to clean markdown: ${error.message}`);
+  }
 }
 
 Deno.serve(async (req) => {
