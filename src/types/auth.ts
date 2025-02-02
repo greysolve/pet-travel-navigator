@@ -14,7 +14,7 @@ export interface UserProfile {
   locality?: string;
   administrative_area?: string;
   postal_code?: string;
-  country_code?: string;
+  country_id?: string;
   address_format?: string;
   notification_preferences?: {
     travel_alerts: boolean;

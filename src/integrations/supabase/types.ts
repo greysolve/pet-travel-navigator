@@ -102,6 +102,30 @@ export type Database = {
         }
         Relationships: []
       }
+      countries: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       country_policies: {
         Row: {
           additional_notes: string | null
@@ -259,7 +283,7 @@ export type Database = {
           address_line3: string | null
           administrative_area: string | null
           avatar_url: string | null
-          country_code: string | null
+          country_id: string | null
           created_at: string | null
           full_name: string | null
           id: string
@@ -275,7 +299,7 @@ export type Database = {
           address_line3?: string | null
           administrative_area?: string | null
           avatar_url?: string | null
-          country_code?: string | null
+          country_id?: string | null
           created_at?: string | null
           full_name?: string | null
           id: string
@@ -291,7 +315,7 @@ export type Database = {
           address_line3?: string | null
           administrative_area?: string | null
           avatar_url?: string | null
-          country_code?: string | null
+          country_id?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
@@ -300,7 +324,15 @@ export type Database = {
           postal_code?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       routes: {
         Row: {

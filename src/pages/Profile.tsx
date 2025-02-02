@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { fetchOrCreateProfile } from "@/utils/profileManagement";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+
+interface Country {
+  id: string;
+  name: string;
+  code: string;
+}
 
 const Profile = () => {
   const { user, profile, loading } = useAuth();
@@ -28,7 +42,21 @@ const Profile = () => {
   const [locality, setLocality] = useState(profile?.locality || "");
   const [administrativeArea, setAdministrativeArea] = useState(profile?.administrative_area || "");
   const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
-  const [countryCode, setCountryCode] = useState(profile?.country_code || "");
+  const [selectedCountryId, setSelectedCountryId] = useState(profile?.country_id || "");
+
+  // Fetch countries
+  const { data: countries = [] } = useQuery<Country[]>({
+    queryKey: ['countries'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('countries')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Split full name on component mount
   useEffect(() => {
@@ -58,7 +86,7 @@ const Profile = () => {
           locality: locality,
           administrative_area: administrativeArea,
           postal_code: postalCode,
-          country_code: countryCode,
+          country_id: selectedCountryId || null,
         })
         .eq("id", user?.id);
 
@@ -263,12 +291,19 @@ const Profile = () => {
                   />
                 </div>
                 <div>
-                  <Label className="block text-sm font-medium mb-1">Country Code</Label>
-                  <Input
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    placeholder="Country code (e.g., US)"
-                  />
+                  <Label className="block text-sm font-medium mb-1">Country</Label>
+                  <Select value={selectedCountryId} onValueChange={setSelectedCountryId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country.id} value={country.id}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
