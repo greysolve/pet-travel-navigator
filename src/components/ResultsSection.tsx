@@ -16,6 +16,8 @@ export const ResultsSection = ({
   const { data: petPolicies } = useQuery({
     queryKey: ['petPolicies', flights.map(f => f.carrierFsCode)],
     queryFn: async () => {
+      if (!flights.length) return {};
+      
       console.log("Fetching pet policies for airlines:", flights.map(f => f.carrierFsCode));
       const { data: airlines } = await supabase
         .from('airlines')
@@ -44,6 +46,7 @@ export const ResultsSection = ({
         return acc;
       }, {}) || {};
     },
+    enabled: searchPerformed && flights.length > 0,
   });
 
   // Get destination country from the first flight
@@ -101,7 +104,7 @@ export const ResultsSection = ({
 
       return policy;
     },
-    enabled: !!destinationCountry,
+    enabled: searchPerformed && !!destinationCountry,
   });
 
   if (!searchPerformed) return null;
@@ -109,16 +112,22 @@ export const ResultsSection = ({
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="space-y-8">
-        <div className="space-y-4">
-          {flights.map((flight, index) => (
-            <FlightCard
-              key={`${flight.carrierFsCode}-${flight.flightNumber}-${index}`}
-              {...flight}
-              policy={petPolicies?.[flight.carrierFsCode]}
-            />
-          ))}
-        </div>
-        <DestinationPolicy policy={countryPolicy} />
+        {flights.length > 0 ? (
+          <div className="space-y-4">
+            {flights.map((flight, index) => (
+              <FlightCard
+                key={`${flight.carrierFsCode}-${flight.flightNumber}-${index}`}
+                {...flight}
+                policy={petPolicies?.[flight.carrierFsCode]}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
+            <p className="text-center text-gray-600">No flights found for the selected route and date.</p>
+          </div>
+        )}
+        {destinationCountry && <DestinationPolicy policy={countryPolicy} />}
       </div>
     </div>
   );
