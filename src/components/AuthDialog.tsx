@@ -87,27 +87,25 @@ const AuthDialog = () => {
               Manage
             </Button>
           )}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/profile")}
-              className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
-            >
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={user.user_metadata?.avatar_url} />
-                <AvatarFallback>{getInitials()}</AvatarFallback>
-              </Avatar>
-              <span>{getFirstName()}</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSignOut}
-              disabled={isLoading}
-              className="bg-sky-100 hover:bg-sky-200"
-            >
-              Sign Out
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/profile")}
+            className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
+          >
+            <Avatar className="h-6 w-6">
+              <AvatarImage src={user.user_metadata?.avatar_url} />
+              <AvatarFallback>{getInitials()}</AvatarFallback>
+            </Avatar>
+            {getFirstName()}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            disabled={isLoading}
+            className="bg-sky-100 hover:bg-sky-200"
+          >
+            Sign Out
+          </Button>
         </>
       ) : (
         <Button
