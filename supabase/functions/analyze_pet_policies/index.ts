@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
             messages: [
               {
                 role: 'system',
-                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations or text.'
+                content: 'You are a specialized AI focused on finding official airline websites and their pet travel policies. Only return URLs from airlines\' official websites. Return ONLY valid JSON, no explanations, no markdown formatting, no code blocks.'
               },
               {
                 role: 'user',
@@ -111,7 +111,21 @@ Deno.serve(async (req) => {
           throw new Error('Invalid API response structure');
         }
 
-        const content = JSON.parse(responseData.choices[0].message.content);
+        let content;
+        try {
+          // Try to parse the content directly
+          content = JSON.parse(responseData.choices[0].message.content.trim());
+        } catch (parseError) {
+          console.error('Failed to parse JSON directly:', parseError);
+          
+          // Try to extract JSON if it's wrapped in markdown code blocks
+          const jsonMatch = responseData.choices[0].message.content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+          if (jsonMatch) {
+            content = JSON.parse(jsonMatch[1].trim());
+          } else {
+            throw new Error('Could not parse valid JSON from response');
+          }
+        }
 
         // Update airline website if we got a valid one
         if (content.airline_info?.official_website) {
