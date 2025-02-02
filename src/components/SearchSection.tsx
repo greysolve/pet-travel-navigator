@@ -1,25 +1,10 @@
-import { useState, useCallback } from "react";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-
-type Airport = {
-  iata_code: string;
-  name: string;
-  city: string;
-  country: string;
-};
-
-type Airline = {
-  name: string;
-  iata_code: string | null;
-};
+import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
+import { RouteSearch } from "./search/RouteSearch";
+import { DateSelector } from "./search/DateSelector";
 
 type FlightData = {
   carrierFsCode: string;
@@ -35,94 +20,8 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState<Date>();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [airports, setAirports] = useState<Airport[]>([]);
-  const [airlines, setAirlines] = useState<Airline[]>([]);
-  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
-  const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
-  const [showAirlineSuggestions, setShowAirlineSuggestions] = useState(false);
   const [destinationCountry, setDestinationCountry] = useState<string>();
   const { toast } = useToast();
-
-  const fetchAirlines = useCallback(async (searchTerm: string) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setAirlines([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      console.log('Fetching airlines for search term:', searchTerm);
-      const { data, error } = await supabase
-        .from('airlines')
-        .select('name, iata_code')
-        .or(`name.ilike.%${searchTerm}%,iata_code.ilike.%${searchTerm}%`)
-        .limit(10);
-
-      if (error) {
-        console.error('Error fetching airlines:', error);
-        toast({
-          title: "Error fetching airlines",
-          description: "Please try again",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Fetched airlines:', data);
-      setAirlines(data || []);
-    } catch (error) {
-      console.error('Error fetching airlines:', error);
-      toast({
-        title: "Error fetching airlines",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  }, [toast]);
-
-  const fetchAirports = useCallback(async (searchTerm: string) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setAirports([]);
-      return;
-    }
-    
-    setIsSearching(true);
-    try {
-      console.log('Fetching airports for search term:', searchTerm);
-      const { data, error } = await supabase
-        .from('airports')
-        .select('iata_code, name, city, country')
-        .or(`iata_code.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%`)
-        .not('name', 'ilike', '%railway%')
-        .not('name', 'ilike', '%station%')
-        .limit(10);
-
-      if (error) {
-        console.error('Error fetching airports:', error);
-        toast({
-          title: "Error fetching airports",
-          description: "Please try again",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Fetched airports:', data);
-      setAirports(data || []);
-    } catch (error) {
-      console.error('Error fetching airports:', error);
-      toast({
-        title: "Error fetching airports",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  }, [toast]);
 
   const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
@@ -181,45 +80,10 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
   return (
     <div className="max-w-4xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Search for airline pet policies..."
-            className="h-12 text-lg bg-white/90 border-0 shadow-sm"
-            value={policySearch}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPolicySearch(value);
-              fetchAirlines(value);
-              setShowAirlineSuggestions(true);
-            }}
-            onFocus={() => setShowAirlineSuggestions(true)}
-          />
-          {showAirlineSuggestions && airlines.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
-              {isSearching ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              ) : (
-                <ul className="max-h-60 overflow-auto py-1">
-                  {airlines.map((airline) => (
-                    <li
-                      key={airline.iata_code || airline.name}
-                      className="px-4 py-2 hover:bg-accent cursor-pointer"
-                      onClick={() => {
-                        setPolicySearch(airline.name);
-                        setShowAirlineSuggestions(false);
-                      }}
-                    >
-                      {airline.name} {airline.iata_code ? `(${airline.iata_code})` : ''}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
+        <AirlinePolicySearch 
+          policySearch={policySearch}
+          setPolicySearch={setPolicySearch}
+        />
         
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -232,112 +96,15 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Origin (city or airport code)"
-              className="h-12 text-base bg-white/90 border-0 shadow-sm"
-              value={origin}
-              onChange={(e) => {
-                const value = e.target.value;
-                setOrigin(value);
-                fetchAirports(value);
-                setShowOriginSuggestions(true);
-              }}
-              onFocus={() => setShowOriginSuggestions(true)}
-            />
-            {showOriginSuggestions && airports.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
-                {isSearching ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  <ul className="max-h-60 overflow-auto py-1">
-                    {airports.map((airport) => (
-                      <li
-                        key={airport.iata_code}
-                        className="px-4 py-2 hover:bg-accent cursor-pointer"
-                        onClick={() => {
-                          setOrigin(airport.iata_code);
-                          setShowOriginSuggestions(false);
-                        }}
-                      >
-                        {airport.city} ({airport.iata_code})
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
+        <RouteSearch
+          origin={origin}
+          destination={destination}
+          setOrigin={setOrigin}
+          setDestination={setDestination}
+          setDestinationCountry={setDestinationCountry}
+        />
 
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Destination (city or airport code)"
-              className="h-12 text-base bg-white/90 border-0 shadow-sm"
-              value={destination}
-              onChange={(e) => {
-                const value = e.target.value;
-                setDestination(value);
-                fetchAirports(value);
-                setShowDestinationSuggestions(true);
-              }}
-              onFocus={() => setShowDestinationSuggestions(true)}
-            />
-            {showDestinationSuggestions && airports.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
-                {isSearching ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  <ul className="max-h-60 overflow-auto py-1">
-                    {airports.map((airport) => (
-                      <li
-                        key={airport.iata_code}
-                        className="px-4 py-2 hover:bg-accent cursor-pointer"
-                        onClick={() => {
-                          setDestination(airport.iata_code);
-                          setDestinationCountry(airport.country);
-                          setShowDestinationSuggestions(false);
-                        }}
-                      >
-                        {airport.city} ({airport.iata_code})
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full h-12 text-base bg-white/90 border-0 shadow-sm justify-start text-left font-normal",
-                !date && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : <span>Pick a departure date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              initialFocus
-              disabled={(date) => date < new Date()}
-            />
-          </PopoverContent>
-        </Popover>
+        <DateSelector date={date} setDate={setDate} />
 
         <Button 
           className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
