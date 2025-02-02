@@ -7,11 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
-// Reduced batch size to avoid rate limits
-const BATCH_SIZE = 3;
-const MAX_RETRIES = 5;
-// Increased base delay and using exponential backoff
-const BASE_RETRY_DELAY = 10000; // 10 seconds base delay
+const BATCH_SIZE = 10;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000;
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal', retryCount = 0) {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')
@@ -60,10 +58,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
       console.error(`Perplexity API error for ${country}:`, errorText)
       
       if (retryCount < MAX_RETRIES && (response.status === 429 || response.status >= 500)) {
-        // Exponential backoff with jitter
-        const delay = BASE_RETRY_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
-        console.log(`Rate limited for ${country}. Retrying after ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`)
-        await new Promise(resolve => setTimeout(resolve, delay))
+        console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`)
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
         return fetchPolicyWithAI(country, policyType, retryCount + 1)
       }
       
@@ -92,9 +88,8 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     console.error(`Error in fetchPolicyWithAI for ${country}:`, error)
     
     if (retryCount < MAX_RETRIES) {
-      const delay = BASE_RETRY_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
-      console.log(`Error processing ${country}. Retrying after ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`)
-      await new Promise(resolve => setTimeout(resolve, delay))
+      console.log(`Retrying ${country} after ${RETRY_DELAY}ms...`)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
       return fetchPolicyWithAI(country, policyType, retryCount + 1)
     }
     
