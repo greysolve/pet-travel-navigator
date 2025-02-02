@@ -1,6 +1,6 @@
-import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
@@ -14,7 +14,6 @@ const Profile = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  // Use the profile hook
   const { profile, isLoading, updateProfile } = useProfileData(user?.id || "");
   
   // Form state
@@ -57,7 +56,7 @@ const Profile = () => {
     if (!user) return;
 
     const fullName = `${firstName} ${lastName}`.trim();
-    updateProfile.mutate({
+    await updateProfile.mutateAsync({
       full_name: fullName,
       address_line1: addressLine1,
       address_line2: addressLine2,
@@ -91,7 +90,6 @@ const Profile = () => {
               userId={user.id}
               avatarUrl={profile?.avatar_url}
               onAvatarUpdate={async () => {
-                // Refresh profile data after avatar update
                 await queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
               }}
             />
