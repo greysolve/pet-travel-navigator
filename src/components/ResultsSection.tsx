@@ -46,15 +46,15 @@ export const ResultsSection = ({
     },
   });
 
-  // Get destination country from the first flight (assuming all flights go to same destination)
+  // Get destination country from the first flight
   const destinationCountry = flights[0]?.arrivalCountry;
+  console.log("Destination country for policy lookup:", destinationCountry);
 
   // Fetch destination country's pet policy
   const { data: countryPolicy } = useQuery({
     queryKey: ['countryPolicy', destinationCountry],
     queryFn: async () => {
       if (!destinationCountry) return null;
-      console.log("Fetching pet policy for country:", destinationCountry);
       
       const { data: policy, error } = await supabase
         .from('country_policies')
