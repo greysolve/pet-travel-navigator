@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
@@ -35,11 +35,10 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     if (req.method === 'POST') {
-      const { resume } = await req.json();
-      console.log('Received sync request, resume:', resume);
+      const { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime } = await req.json();
+      console.log('Received sync request with params:', { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime });
 
       const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
-      await syncManager.initialize(resume);
 
       try {
         const { data: airlines, error: airlinesError } = await supabase
