@@ -11,11 +11,11 @@ export const HeroSection = () => {
       <div className="relative">
         <div className="flex flex-col items-center gap-8 max-w-2xl mx-auto">
           <div className="flex items-center gap-8 relative w-full">
-            <div className="absolute -left-4">
+            <div className="absolute -left-32">
               <img 
                 src="/lovable-uploads/399508ba-b0c4-4f26-b40a-210fb735a14c.png" 
                 alt="Petjumper.com Logo" 
-                className="h-48 w-48 object-contain"
+                className="h-64 w-64 object-contain" // Increased size by ~35% from h-48/w-48
               />
             </div>
             <h1 className="text-5xl font-bold text-primary-foreground mx-auto">Petjumper.com</h1>
