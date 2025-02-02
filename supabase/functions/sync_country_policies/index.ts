@@ -24,7 +24,7 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     const systemPrompt = `You are a helpful assistant specializing in finding official government pet and live animal import policies. 
     Your primary focus is on identifying and extracting information from official government sources only.
     Always verify the authority responsible for animal imports and use their official documentation.
-    Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. 
+    Return ONLY a raw JSON object, with no markdown formatting, no backticks, and no explanations.
     The response must start with { and end with }.`
     
     const userPrompt = `For ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements:
@@ -84,19 +84,29 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     const content = data.choices[0].message.content.trim();
     console.log('Raw AI response:', content);
     
-    const policyData = JSON.parse(content);
-    return {
-      title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
-      description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
-      requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
-      documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
-      fees: typeof policyData.fees === 'object' ? policyData.fees : {},
-      restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
-      quarantine_requirements: policyData.quarantine_requirements || '',
-      vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
-      additional_notes: policyData.additional_notes || '',
-      policy_url: policyData.policy_url || null,
-      authority: policyData.authority || null
+    // Strip any markdown formatting if present
+    const cleanContent = content.replace(/^```json\s*|\s*```$/g, '').trim();
+    console.log('Cleaned content:', cleanContent);
+    
+    try {
+      const policyData = JSON.parse(cleanContent);
+      console.log('Parsed policy data:', policyData);
+      return {
+        title: policyData.title || `${country} ${policyType === 'pet' ? 'Pet' : 'Live Animal'} Import Requirements`,
+        description: policyData.description || `Official ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements and regulations for ${country}.`,
+        requirements: Array.isArray(policyData.requirements) ? policyData.requirements : [],
+        documentation_needed: Array.isArray(policyData.documentation_needed) ? policyData.documentation_needed : [],
+        fees: typeof policyData.fees === 'object' ? policyData.fees : {},
+        restrictions: typeof policyData.restrictions === 'object' ? policyData.restrictions : {},
+        quarantine_requirements: policyData.quarantine_requirements || '',
+        vaccination_requirements: Array.isArray(policyData.vaccination_requirements) ? policyData.vaccination_requirements : [],
+        additional_notes: policyData.additional_notes || '',
+        policy_url: policyData.policy_url || null,
+        authority: policyData.authority || null
+      };
+    } catch (parseError) {
+      console.error(`Error parsing JSON for ${country}:`, parseError);
+      throw new Error(`Failed to parse policy data: ${parseError.message}`);
     }
   } catch (error) {
     console.error(`Error in fetchPolicyWithAI for ${country}:`, error);
@@ -153,37 +163,41 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Parse request body to get testCountry if provided
+    const { testCountry } = await req.json();
+    console.log('Test country provided:', testCountry);
+
     // Initialize sync manager and get current progress
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
     const currentProgress = await syncManager.getCurrentProgress();
     
-    // Get all countries from the database
+    // Get countries - either all or just the test country
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data: countries, error: countriesError } = await supabase.rpc('get_distinct_countries');
+    let countries: string[] = [];
     
-    if (countriesError) {
-      console.error('Error fetching countries:', countriesError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Database error',
-          details: countriesError.message 
-        }), 
-        { 
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+    if (testCountry) {
+      console.log(`Processing single country: ${testCountry}`);
+      countries = [testCountry];
+    } else {
+      const { data: allCountries, error: countriesError } = await supabase.rpc('get_distinct_countries');
+      if (countriesError) {
+        console.error('Error fetching countries:', countriesError);
+        throw countriesError;
+      }
+      countries = [...new Set(
+        allCountries
+          .map(row => row.country?.trim() || '')
+          .filter(country => country !== '')
+          .map(country => country.normalize('NFKC').trim())
+      )].sort();
     }
-    
-    if (!countries?.length) {
-      console.error('No countries found');
+
+    if (!countries.length) {
+      console.error('No countries found to process');
       return new Response(
         JSON.stringify({ 
           error: 'No data',
-          details: 'No countries found in the database' 
+          details: 'No countries found to process' 
         }), 
         { 
           status: 404,
@@ -195,14 +209,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const uniqueCountries = [...new Set(
-      countries
-        .map(row => row.country?.trim() || '')
-        .filter(country => country !== '')
-        .map(country => country.normalize('NFKC').trim())
-    )].sort();
-
-    const total = uniqueCountries.length;
+    const total = countries.length;
+    console.log(`Total countries to process: ${total}`);
     
     // If no progress exists, initialize it
     if (!currentProgress) {
@@ -217,11 +225,11 @@ Deno.serve(async (req) => {
 
     // Find starting point - use last_processed from database
     const startIndex = progress.last_processed
-      ? uniqueCountries.findIndex(c => c === progress.last_processed) + 1
+      ? countries.findIndex(c => c === progress.last_processed) + 1
       : 0;
 
     // If we've processed everything, complete the sync
-    if (startIndex >= uniqueCountries.length) {
+    if (startIndex >= countries.length) {
       await syncManager.updateProgress({
         is_complete: true,
         needs_continuation: false
@@ -242,10 +250,10 @@ Deno.serve(async (req) => {
     }
 
     // Process next batch
-    const endIndex = Math.min(startIndex + BATCH_SIZE, uniqueCountries.length);
-    const batchCountries = uniqueCountries.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
+    const batchCountries = countries.slice(startIndex, endIndex);
     
-    console.log(`Processing countries ${startIndex} to ${endIndex} of ${uniqueCountries.length}`);
+    console.log(`Processing countries ${startIndex} to ${endIndex} of ${countries.length}`);
     
     for (const country of batchCountries) {
       try {
@@ -277,14 +285,14 @@ Deno.serve(async (req) => {
 
     // Update progress to indicate more work needed
     await syncManager.updateProgress({
-      needs_continuation: endIndex < uniqueCountries.length
+      needs_continuation: endIndex < countries.length
     });
 
     return new Response(
       JSON.stringify({ 
         success: true,
         message: 'Batch processed successfully',
-        needs_continuation: endIndex < uniqueCountries.length
+        needs_continuation: endIndex < countries.length
       }), 
       { 
         headers: {
@@ -314,4 +322,4 @@ Deno.serve(async (req) => {
       }
     );
   }
-})
+});
