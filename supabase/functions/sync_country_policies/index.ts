@@ -1,26 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
-
-// Helper to return error responses with CORS headers
-const errorResponse = (message: string, status = 500) => {
-  return new Response(
-    JSON.stringify({
-      error: message
-    }),
-    {
-      status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
-    }
-  )
 }
 
 async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_animal', retryCount = 0) {
@@ -96,8 +78,16 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
     const content = data.choices[0].message.content.trim();
     console.log('Raw AI response:', content);
     
+    // Clean the response by removing any markdown formatting
+    const cleanedContent = content
+      .replace(/```json\s*/, '') // Remove opening ```json
+      .replace(/```\s*$/, '')    // Remove closing ```
+      .trim();                   // Remove any extra whitespace
+    
+    console.log('Cleaned content:', cleanedContent);
+    
     try {
-      return JSON.parse(content);
+      return JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error(`Error parsing JSON for ${country}:`, parseError);
       throw new Error(`Failed to parse policy data: ${parseError.message}`);
@@ -123,14 +113,20 @@ Deno.serve(async (req) => {
     }
 
     if (req.method !== 'POST') {
-      return errorResponse('Method not allowed', 405)
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }), 
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
     if (!supabaseUrl || !supabaseKey) {
-      return errorResponse('Server configuration error: Missing environment variables')
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: Missing environment variables' }), 
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Parse request body to get testCountry if provided
@@ -138,11 +134,9 @@ Deno.serve(async (req) => {
     console.log('Test country provided:', testCountry);
 
     // Initialize sync manager and get current progress
-    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
-    const currentProgress = await syncManager.getCurrentProgress();
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Get countries - either all or just the test country
-    const supabase = createClient(supabaseUrl, supabaseKey);
     let countries: string[] = [];
     
     if (testCountry) {
@@ -152,7 +146,7 @@ Deno.serve(async (req) => {
       const { data: allCountries, error: countriesError } = await supabase.rpc('get_distinct_countries');
       if (countriesError) {
         console.error('Error fetching countries:', countriesError);
-        return errorResponse(`Error fetching countries: ${countriesError.message}`);
+        throw new Error(`Error fetching countries: ${countriesError.message}`);
       }
       countries = [...new Set(
         allCountries
@@ -163,32 +157,38 @@ Deno.serve(async (req) => {
     }
 
     if (!countries.length) {
-      return errorResponse('No countries found to process', 404);
+      return new Response(
+        JSON.stringify({ error: 'No countries found to process' }), 
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const total = countries.length;
     console.log(`Total countries to process: ${total}`);
     
-    // If no progress exists, initialize it
-    if (!currentProgress) {
-      await syncManager.initialize(total);
-    }
-    
-    // Get the current progress again (in case we just initialized it)
-    const progress = await syncManager.getCurrentProgress();
-    if (!progress) {
-      return errorResponse('Failed to initialize or retrieve sync progress');
+    // Initialize or update sync progress
+    const { error: progressError } = await supabase
+      .from('sync_progress')
+      .upsert({
+        type: 'countryPolicies',
+        total,
+        processed: 0,
+        last_processed: null,
+        processed_items: [],
+        error_items: [],
+        start_time: new Date().toISOString(),
+        needs_continuation: false
+      }, {
+        onConflict: 'type'
+      });
+
+    if (progressError) {
+      console.error('Error initializing sync progress:', progressError);
+      throw progressError;
     }
 
-    // Process next batch
-    const batchSize = 10;
-    const startIndex = 0;
-    const endIndex = Math.min(startIndex + batchSize, countries.length);
-    const batchCountries = countries.slice(startIndex, endIndex);
-    
-    console.log(`Processing countries ${startIndex} to ${endIndex} of ${countries.length}`);
-    
-    for (const country of batchCountries) {
+    // Process countries
+    for (const country of countries) {
       try {
         console.log(`Fetching policy for ${country}`);
         const policy = await fetchPolicyWithAI(country, 'pet');
@@ -206,26 +206,45 @@ Deno.serve(async (req) => {
 
         if (upsertError) {
           console.error(`Error upserting policy for ${country}:`, upsertError);
-          await syncManager.addErrorItem(country, upsertError.message);
+          await supabase
+            .from('sync_progress')
+            .update({
+              error_items: supabase.sql`array_append(error_items, ${`${country}: ${upsertError.message}`})`
+            })
+            .eq('type', 'countryPolicies');
         } else {
-          await syncManager.addProcessedItem(country);
+          await supabase
+            .from('sync_progress')
+            .update({
+              processed: supabase.sql`processed + 1`,
+              last_processed: country,
+              processed_items: supabase.sql`array_append(processed_items, ${country})`
+            })
+            .eq('type', 'countryPolicies');
         }
       } catch (error) {
         console.error(`Error processing ${country}:`, error);
-        await syncManager.addErrorItem(country, error.message);
+        await supabase
+          .from('sync_progress')
+          .update({
+            error_items: supabase.sql`array_append(error_items, ${`${country}: ${error.message}`})`
+          })
+          .eq('type', 'countryPolicies');
       }
     }
 
-    // Update progress
-    await syncManager.updateProgress({
-      needs_continuation: endIndex < countries.length
-    });
+    // Mark sync as complete
+    await supabase
+      .from('sync_progress')
+      .update({
+        needs_continuation: false
+      })
+      .eq('type', 'countryPolicies');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Batch processed successfully',
-        needs_continuation: endIndex < countries.length
+        message: 'Sync completed successfully'
       }), 
       { 
         headers: {
@@ -237,6 +256,15 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in sync_country_policies:', error);
-    return errorResponse(error.message || 'An unexpected error occurred');
+    return new Response(
+      JSON.stringify({ error: error.message || 'An unexpected error occurred' }), 
+      { 
+        status: 500, 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        } 
+      }
+    );
   }
 });
