@@ -78,7 +78,7 @@ export const SearchSection = ({ onSearchResults }: { onSearchResults: (flights: 
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 -mt-8">
+    <div className="max-w-3xl mx-auto px-4 -mt-8"> {/* Changed from max-w-4xl to max-w-3xl */}
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
         <AirlinePolicySearch 
           policySearch={policySearch}
