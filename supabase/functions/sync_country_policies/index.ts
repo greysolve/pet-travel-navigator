@@ -21,30 +21,31 @@ async function fetchPolicyWithAI(country: string, policyType: 'pet' | 'live_anim
   console.log(`Starting AI policy fetch for ${country} (${policyType}) - Attempt ${retryCount + 1}`)
 
   try {
-    const systemPrompt = `You are a helpful assistant that finds official pet and live animal import policies for different countries. 
-    Always prioritize official government sources over third-party websites. 
+    const systemPrompt = `You are a helpful assistant specializing in finding official government pet and live animal import policies. 
+    Your primary focus is on identifying and extracting information from official government sources only.
+    Always verify the authority responsible for animal imports and use their official documentation.
     Return only a raw JSON object. No markdown, no formatting, no backticks, no explanations. 
     The response must start with { and end with }.`
     
     const userPrompt = `For ${country}'s ${policyType === 'pet' ? 'pet' : 'live animal'} import requirements:
-    1. First identify the official government authority responsible for pet/animal imports
-    2. Find their official website and policy page
-    3. Extract the policy details from this authoritative source
-    4. Include the official policy URL in your response
+    1. First identify the official government authority responsible for animal imports (e.g. Department of Agriculture, Customs and Border Protection)
+    2. Find their official website and locate the specific policy page for pet/animal imports
+    3. Extract the complete policy details from this authoritative source only
+    4. Include both the authority name and official policy URL in your response
     
     Format as a JSON object with this structure:
     {
-      "title": "string or null if unknown",
-      "description": "string or null if unknown",
-      "requirements": ["string"] or [] if none,
-      "documentation_needed": ["string"] or [] if none,
-      "fees": {"description": "string"} or {} if none,
-      "restrictions": {"description": "string"} or {} if none,
-      "quarantine_requirements": "string or null if none",
-      "vaccination_requirements": ["string"] or [] if none,
-      "additional_notes": "string or null if none",
-      "policy_url": "URL of the official government source",
-      "authority": "Name of the official government authority"
+      "title": "string (required)",
+      "description": "string (required)",
+      "requirements": ["string"] or [],
+      "documentation_needed": ["string"] or [],
+      "fees": {"description": "string"} or {},
+      "restrictions": {"description": "string"} or {},
+      "quarantine_requirements": "string or null",
+      "vaccination_requirements": ["string"] or [],
+      "additional_notes": "string or null",
+      "policy_url": "URL of the official government source (required)",
+      "authority": "Name of the official government authority (required)"
     }`
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {

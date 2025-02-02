@@ -113,6 +113,7 @@ export type Database = {
           id: string
           last_updated: string | null
           policy_type: Database["public"]["Enums"]["policy_type"]
+          policy_url: string | null
           quarantine_requirements: string | null
           requirements: string[] | null
           restrictions: Json | null
@@ -130,6 +131,7 @@ export type Database = {
           id?: string
           last_updated?: string | null
           policy_type: Database["public"]["Enums"]["policy_type"]
+          policy_url?: string | null
           quarantine_requirements?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
@@ -147,6 +149,7 @@ export type Database = {
           id?: string
           last_updated?: string | null
           policy_type?: Database["public"]["Enums"]["policy_type"]
+          policy_url?: string | null
           quarantine_requirements?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
