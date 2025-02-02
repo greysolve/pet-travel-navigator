@@ -13,7 +13,7 @@ export const HeroSection = () => {
           <div className="flex items-center gap-8 relative w-full">
             <div className="absolute -left-44 -top-8">
               <img 
-                src="/lovable-uploads/399508ba-b0c4-4f26-b40a-210fb735a14c.png" 
+                src="/lovable-uploads/4fa0e6bf-3de6-410b-923b-207269a120a1.png" 
                 alt="Petjumper.com Logo" 
                 className="h-56 w-56 object-contain"
               />
