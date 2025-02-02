@@ -68,7 +68,7 @@ export const SyncSection = () => {
           if (newRecord) {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
             
-            // Only continue if the record explicitly needs continuation
+            // Only continue if the record explicitly needs continuation and is not complete
             if (newRecord.needs_continuation && !newRecord.is_complete) {
               console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
               

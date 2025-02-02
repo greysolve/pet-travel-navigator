@@ -367,6 +367,7 @@ export type Database = {
           id: string
           is_complete: boolean | null
           last_processed: string | null
+          needs_continuation: boolean | null
           processed: number
           processed_items: string[] | null
           start_time: string | null
@@ -380,6 +381,7 @@ export type Database = {
           id?: string
           is_complete?: boolean | null
           last_processed?: string | null
+          needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
           start_time?: string | null
@@ -393,6 +395,7 @@ export type Database = {
           id?: string
           is_complete?: boolean | null
           last_processed?: string | null
+          needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
           start_time?: string | null
