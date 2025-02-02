@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { UserProfile } from "@/types/auth";
+import { Card, CardContent } from "@/components/ui/card";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -116,39 +117,56 @@ const Profile = () => {
       <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">
-        <ProfileAvatar 
-          userId={userId}
-          avatarUrl={profile?.avatar_url}
-          onAvatarUpdate={handleAvatarUpdate}
-        />
+        <Card>
+          <CardContent className="pt-6">
+            <ProfileAvatar 
+              userId={userId}
+              avatarUrl={profile?.avatar_url}
+              onAvatarUpdate={handleAvatarUpdate}
+            />
+          </CardContent>
+        </Card>
         
         <div className="space-y-8">
-          <ContactInformation
-            firstName={firstName}
-            lastName={lastName}
-            email={email}
-            onFirstNameChange={setFirstName}
-            onLastNameChange={setLastName}
-          />
-          <AddressInformation
-            addressLine1={addressLine1}
-            addressLine2={addressLine2}
-            addressLine3={addressLine3}
-            locality={locality}
-            administrativeArea={administrativeArea}
-            postalCode={postalCode}
-            selectedCountryId={selectedCountryId}
-            onAddressLine1Change={setAddressLine1}
-            onAddressLine2Change={setAddressLine2}
-            onAddressLine3Change={setAddressLine3}
-            onLocalityChange={setLocality}
-            onAdministrativeAreaChange={setAdministrativeArea}
-            onPostalCodeChange={setPostalCode}
-            onCountryChange={setSelectedCountryId}
-          />
+          <Card>
+            <CardContent className="pt-6">
+              <ContactInformation
+                firstName={firstName}
+                lastName={lastName}
+                email={email}
+                onFirstNameChange={setFirstName}
+                onLastNameChange={setLastName}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <AddressInformation
+                addressLine1={addressLine1}
+                addressLine2={addressLine2}
+                addressLine3={addressLine3}
+                locality={locality}
+                administrativeArea={administrativeArea}
+                postalCode={postalCode}
+                selectedCountryId={selectedCountryId}
+                onAddressLine1Change={setAddressLine1}
+                onAddressLine2Change={setAddressLine2}
+                onAddressLine3Change={setAddressLine3}
+                onLocalityChange={setLocality}
+                onAdministrativeAreaChange={setAdministrativeArea}
+                onPostalCodeChange={setPostalCode}
+                onCountryChange={setSelectedCountryId}
+              />
+            </CardContent>
+          </Card>
         </div>
 
-        <PetTravelWallet />
+        <Card>
+          <CardContent className="pt-6">
+            <PetTravelWallet />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
