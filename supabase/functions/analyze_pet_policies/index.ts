@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js'
-import { marked } from 'https://esm.sh/marked'
 import { SyncManager } from '../_shared/SyncManager.ts'
 
 const corsHeaders = {
@@ -7,45 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function cleanAndParseJSON(content: string): string {
-  console.log('Original content:', content);
+function parsePerplexityResponse(content: string): any {
+  console.log('Raw Perplexity response:', content);
   
-  // Log before marked parsing
-  console.log('Before marked parsing:', content);
-  
-  // Use marked to convert markdown to plain text
-  const plainText = marked.parse(content, { mangle: false, headerIds: false });
-  
-  // Log after marked parsing
-  console.log('After marked parsing:', plainText);
-  
-  // Convert HTML to plain text
-  let cleaned = plainText.replace(/<[^>]*>/g, '');
-  
-  // Log after HTML cleanup
-  console.log('After HTML cleanup:', cleaned);
-  
-  // Find the first occurrence of a JSON object
-  const jsonStart = cleaned.indexOf('{');
-  const jsonEnd = cleaned.lastIndexOf('}');
-  
-  if (jsonStart === -1 || jsonEnd === -1) {
-    console.error('No JSON object found in content');
-    throw new Error('No valid JSON object found in response');
-  }
-  
-  // Extract just the JSON portion
-  cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
-  
-  console.log('Final cleaned content:', cleaned);
-  
-  // Validate JSON structure
   try {
-    JSON.parse(cleaned);
-    return cleaned;
+    // Since we asked for raw JSON, just parse it directly
+    return JSON.parse(content);
   } catch (error) {
-    console.error('JSON validation failed:', error);
-    console.error('Failed content:', cleaned);
+    console.error('JSON parsing failed:', error);
+    console.error('Failed content:', content);
     throw new Error(`Failed to parse JSON: ${error.message}`);
   }
 }
@@ -168,8 +137,8 @@ Deno.serve(async (req) => {
         const rawContent = responseData.choices[0].message.content;
         console.log('Raw API response content:', rawContent);
         
-        // Clean and parse the content
-        const content = JSON.parse(cleanAndParseJSON(rawContent));
+        // Parse the response directly since we asked for raw JSON
+        const content = parsePerplexityResponse(rawContent);
 
         // Update airline website if we got a valid one
         if (content.airline_info?.official_website) {
