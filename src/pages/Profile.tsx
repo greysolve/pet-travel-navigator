@@ -108,8 +108,12 @@ const Profile = () => {
                 <User className="h-12 w-12" />
               </AvatarFallback>
             </Avatar>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col items-center space-y-2">
+              <label htmlFor="avatar-upload" className="text-sm font-medium">
+                Upload Photo
+              </label>
               <Input
+                id="avatar-upload"
                 type="file"
                 accept="image/*"
                 onChange={handleAvatarUpload}
