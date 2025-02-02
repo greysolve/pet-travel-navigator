@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
         }
 
         console.log(`Processing ${airlines.length} airlines`);
+        await syncManager.initialize(airlines.length);
 
         for (const airline of airlines) {
           try {
@@ -71,12 +72,12 @@ Deno.serve(async (req) => {
                 throw upsertError;
               }
 
-              await syncManager.markItemProcessed(airline.name);
+              await syncManager.addProcessedItem(airline.name);
               console.log(`Successfully processed ${airline.name}`);
             }
           } catch (error) {
             console.error(`Error processing ${airline.name}:`, error);
-            await syncManager.markItemError(airline.name, error.message);
+            await syncManager.addErrorItem(airline.name, error.message);
           }
         }
 

@@ -46,74 +46,81 @@ export class SyncManager {
     };
   }
 
-  async initialize(total: number, resume: boolean = false): Promise<void> {
-    console.log(`Initializing sync progress for ${this.type}, resume: ${resume}`);
+  async initialize(total: number): Promise<void> {
+    console.log(`Initializing sync progress for ${this.type} with total: ${total}`);
     
-    if (!resume) {
-      const { error } = await this.supabase
-        .from('sync_progress')
-        .upsert({
-          type: this.type,
-          total,
-          processed: 0,
-          last_processed: null,
-          processed_items: [],
-          error_items: [],
-          start_time: new Date().toISOString(),
-          is_complete: false
-        }, {
-          onConflict: 'type'
-        });
+    const { error } = await this.supabase
+      .from('sync_progress')
+      .upsert({
+        type: this.type,
+        total,
+        processed: 0,
+        last_processed: null,
+        processed_items: [],
+        error_items: [],
+        start_time: new Date().toISOString(),
+        is_complete: false
+      }, {
+        onConflict: 'type'
+      });
 
-      if (error) {
-        console.error(`Error initializing sync progress for ${this.type}:`, error);
-        throw error;
-      }
+    if (error) {
+      console.error(`Error initializing sync progress for ${this.type}:`, error);
+      throw error;
     }
   }
 
   async updateProgress(updates: Partial<SyncState>): Promise<void> {
-    console.log(`Updating progress for ${this.type}:`, updates);
+    console.log(`Updating sync progress for ${this.type}:`, updates);
     
     const { error } = await this.supabase
       .from('sync_progress')
-      .update({
+      .upsert({
+        type: this.type,
         ...updates,
         updated_at: new Date().toISOString()
-      })
-      .eq('type', this.type);
+      }, {
+        onConflict: 'type'
+      });
 
     if (error) {
-      console.error(`Error updating progress for ${this.type}:`, error);
+      console.error(`Error updating sync progress for ${this.type}:`, error);
       throw error;
     }
   }
 
-  async completeSync(): Promise<void> {
+  async addProcessedItem(item: string): Promise<void> {
+    console.log(`Adding processed item for ${this.type}:`, item);
+    const current = await this.getCurrentProgress();
+    if (!current) throw new Error('No sync progress found');
+
+    await this.updateProgress({
+      processed: current.processed + 1,
+      last_processed: item,
+      processed_items: [...current.processed_items, item]
+    });
+  }
+
+  async addErrorItem(item: string, error: string): Promise<void> {
+    console.log(`Adding error item for ${this.type}:`, { item, error });
+    const current = await this.getCurrentProgress();
+    if (!current) throw new Error('No sync progress found');
+
+    await this.updateProgress({
+      error_items: [...current.error_items, `${item}: ${error}`]
+    });
+  }
+
+  async complete(): Promise<void> {
     console.log(`Completing sync for ${this.type}`);
-    
-    const { error } = await this.supabase
-      .from('sync_progress')
-      .delete()
-      .eq('type', this.type);
-
-    if (error) {
-      console.error(`Error completing sync for ${this.type}:`, error);
-      throw error;
-    }
+    await this.updateProgress({
+      is_complete: true
+    });
   }
 
-  async cleanup(): Promise<void> {
-    console.log(`Cleaning up sync progress for ${this.type}`);
-    
-    const { error } = await this.supabase
-      .from('sync_progress')
-      .delete()
-      .eq('type', this.type);
-
-    if (error) {
-      console.error(`Error cleaning up sync progress for ${this.type}:`, error);
-      throw error;
-    }
+  async shouldProcessItem(item: string): Promise<boolean> {
+    const current = await this.getCurrentProgress();
+    if (!current) return true;
+    return !current.processed_items.includes(item);
   }
 }
