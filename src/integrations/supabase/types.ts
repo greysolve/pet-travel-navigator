@@ -240,37 +240,70 @@ export type Database = {
         Row: {
           age: number | null
           breed: string | null
+          chip_authority: string | null
+          chip_number: string | null
           created_at: string | null
           documents: Json | null
+          health_certificate_url: string | null
           id: string
+          images: string[] | null
+          international_health_certificate_url: string | null
+          microchip_documentation_url: string | null
           name: string
+          pet_passport_url: string | null
+          rabies_vaccination_url: string | null
           type: string
           updated_at: string | null
+          usda_endorsement_url: string | null
           user_id: string | null
+          vaccinations_url: string | null
+          veterinary_certificate_url: string | null
           weight: number | null
         }
         Insert: {
           age?: number | null
           breed?: string | null
+          chip_authority?: string | null
+          chip_number?: string | null
           created_at?: string | null
           documents?: Json | null
+          health_certificate_url?: string | null
           id?: string
+          images?: string[] | null
+          international_health_certificate_url?: string | null
+          microchip_documentation_url?: string | null
           name: string
+          pet_passport_url?: string | null
+          rabies_vaccination_url?: string | null
           type: string
           updated_at?: string | null
+          usda_endorsement_url?: string | null
           user_id?: string | null
+          vaccinations_url?: string | null
+          veterinary_certificate_url?: string | null
           weight?: number | null
         }
         Update: {
           age?: number | null
           breed?: string | null
+          chip_authority?: string | null
+          chip_number?: string | null
           created_at?: string | null
           documents?: Json | null
+          health_certificate_url?: string | null
           id?: string
+          images?: string[] | null
+          international_health_certificate_url?: string | null
+          microchip_documentation_url?: string | null
           name?: string
+          pet_passport_url?: string | null
+          rabies_vaccination_url?: string | null
           type?: string
           updated_at?: string | null
+          usda_endorsement_url?: string | null
           user_id?: string | null
+          vaccinations_url?: string | null
+          veterinary_certificate_url?: string | null
           weight?: number | null
         }
         Relationships: []
