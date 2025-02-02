@@ -8,8 +8,8 @@ const corsHeaders = {
 async function fetchPolicyWithAI(country: string, apiKey: string) {
   console.log(`Fetching policy for ${country}`);
   
-  const systemPrompt = `You are a helpful assistant specializing in finding official government pet import policies. 
-  Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
+  const systemPrompt = `You are a helpful assistant specializing in finding official government pet and/or live animal import policies.  You prioritize citations you discover from the results that belong to the government of the country you're asked about or the most authoritative citation you can find.
+Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   
   const userPrompt = `For ${country}'s pet import requirements:
   1. Find the official government website for animal imports
