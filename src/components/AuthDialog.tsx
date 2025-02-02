@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PawPrint } from "lucide-react";
+import { PawPrint, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,12 +12,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const AuthDialog = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithEmail, signUp, user } = useAuth();
+  const { signInWithEmail, signUp, signOut, user, profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -39,9 +47,8 @@ export const AuthDialog = () => {
           description: "Successfully signed in",
         });
         
-        setIsOpen(false); // Close the dialog after successful sign in
+        setIsOpen(false);
         
-        // Check if user is a site manager and redirect to admin
         if (user?.user_metadata?.role === 'site_manager') {
           console.log("Site manager logged in, redirecting to admin");
           navigate('/admin');
@@ -61,6 +68,45 @@ export const AuthDialog = () => {
       setIsLoading(false);
     }
   };
+
+  if (user) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-12 flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback>
+                <User className="h-4 w-4" />
+              </AvatarFallback>
+            </Avatar>
+            <span>{profile?.full_name || user.email}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={() => navigate('/profile')}>
+            Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/settings')}>
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/pets')}>
+            Pets
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={() => {
+              signOut();
+              navigate('/');
+            }}
+            className="text-red-600"
+          >
+            Sign Out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
