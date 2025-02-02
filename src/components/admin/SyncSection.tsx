@@ -67,21 +67,9 @@ export const SyncSection = () => {
             console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
             
             if (newRecord.needs_continuation) {
-              console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
-              
+              console.log(`Continuing sync for ${newRecord.type}`);
               try {
-                await handleSync(
-                  newRecord.type as keyof typeof SyncType, 
-                  true,
-                  {
-                    lastProcessed: newRecord.last_processed,
-                    processed: newRecord.processed,
-                    total: newRecord.total,
-                    processedItems: newRecord.processed_items,
-                    errorItems: newRecord.error_items,
-                    startTime: newRecord.start_time
-                  }
-                );
+                await handleSync(newRecord.type as keyof typeof SyncType, true);
               } catch (error) {
                 console.error(`Error during continuation for ${newRecord.type}:`, error);
                 toast({
@@ -92,7 +80,6 @@ export const SyncSection = () => {
               }
             }
             
-            // Simply update the cache with what's in the database
             queryClient.setQueryData<SyncProgressRecord>(
               ["syncProgress"],
               (oldData) => ({
@@ -152,19 +139,8 @@ export const SyncSection = () => {
     },
   });
 
-  const handleSync = async (
-    type: keyof typeof SyncType, 
-    resume: boolean = false,
-    progressData?: {
-      lastProcessed: string | null;
-      processed: number;
-      total: number;
-      processedItems: string[];
-      errorItems: string[];
-      startTime: string | null;
-    }
-  ) => {
-    console.log(`Starting sync for ${type}, resume: ${resume}, progress:`, progressData);
+  const handleSync = async (type: keyof typeof SyncType, resume: boolean = false) => {
+    console.log(`Starting sync for ${type}, resume: ${resume}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
     
     try {
@@ -211,30 +187,10 @@ export const SyncSection = () => {
         throw new Error(`Unknown sync type: ${type}`);
       }
 
-      const payload = resume && progressData ? {
-        lastProcessedItem: progressData.lastProcessed,
-        currentProcessed: progressData.processed,
-        currentTotal: progressData.total,
-        processedItems: progressData.processedItems,
-        errorItems: progressData.errorItems,
-        startTime: progressData.startTime,
-      } : {
-        lastProcessedItem: null,
-        currentProcessed: 0,
-        currentTotal: 0,
-        processedItems: [],
-        errorItems: [],
-        startTime: new Date().toISOString(),
-      };
-
-      console.log(`Invoking edge function ${functionName} with payload:`, payload);
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: payload
-      });
+      console.log(`Invoking edge function ${functionName}`);
+      const { error } = await supabase.functions.invoke(functionName);
 
       if (error) throw error;
-
-      console.log(`Received response from ${functionName}:`, data);
 
       if (!resume) {
         toast({
