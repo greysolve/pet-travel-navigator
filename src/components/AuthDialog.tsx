@@ -14,7 +14,7 @@ import {
 import { ChevronDown } from "lucide-react";
 
 const AuthDialog = () => {
-  const { user, signIn, signOut } = useAuth();
+  const { user, profile, signIn, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,16 +46,14 @@ const AuthDialog = () => {
   });
 
   const getFirstName = () => {
-    if (!user) return "";
-    if (user.user_metadata?.full_name) {
-      return user.user_metadata.full_name.split(" ")[0];
-    }
-    return user.email?.split("@")[0] || "";
+    if (!profile?.full_name) return "";
+    return profile.full_name.split(" ")[0];
   };
 
   const getInitials = () => {
-    const name = getFirstName();
-    return name.substring(0, 2).toUpperCase();
+    if (!profile?.full_name) return "";
+    const names = profile.full_name.split(" ");
+    return names.map(name => name[0]).join("").toUpperCase();
   };
 
   const handleSignIn = async () => {
@@ -91,7 +89,7 @@ const AuthDialog = () => {
               className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
             >
               <Avatar className="h-6 w-6">
-                <AvatarImage src={user.user_metadata?.avatar_url} />
+                <AvatarImage src={profile?.avatar_url} />
                 <AvatarFallback>{getInitials()}</AvatarFallback>
               </Avatar>
               {getFirstName()}
