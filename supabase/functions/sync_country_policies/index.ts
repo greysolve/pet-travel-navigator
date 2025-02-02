@@ -205,7 +205,8 @@ Deno.serve(async (req) => {
           error_items: [],
           continuation_token: null,
           is_complete: true,
-          shouldReset: true
+          shouldReset: true,
+          needs_continuation: false
         }),
         { headers: corsHeaders }
       )
@@ -246,11 +247,14 @@ Deno.serve(async (req) => {
         } else {
           processedItems.push(country);
           
+          const hasMoreCountries = endIndex < uniqueCountries.length;
+          
           await syncManager.updateProgress({
             processed: processedItems.length,
             last_processed: country,
             processed_items: [...new Set(processedItems)],
-            error_items: [...new Set(errorItems)]
+            error_items: [...new Set(errorItems)],
+            needs_continuation: hasMoreCountries
           });
         }
       } catch (error) {
@@ -267,7 +271,8 @@ Deno.serve(async (req) => {
               processed_items: [...new Set(processedItems)],
               error_items: [...new Set(errorItems)],
               continuation_token: country,
-              is_complete: false
+              is_complete: false,
+              needs_continuation: false
             }),
             { headers: corsHeaders }
           )
@@ -276,7 +281,6 @@ Deno.serve(async (req) => {
     }
 
     const hasMoreCountries = endIndex < uniqueCountries.length;
-    const continuationToken = hasMoreCountries ? uniqueCountries[endIndex - 1] : null;
 
     if (!hasMoreCountries) {
       console.log('Last batch completed, cleaning up...');
@@ -290,9 +294,10 @@ Deno.serve(async (req) => {
         processed: processedItems.length,
         processed_items: [...new Set(processedItems)],
         error_items: [...new Set(errorItems)],
-        continuation_token: continuationToken,
+        continuation_token: hasMoreCountries ? uniqueCountries[endIndex - 1] : null,
         is_complete: !hasMoreCountries,
-        shouldReset: !hasMoreCountries
+        shouldReset: !hasMoreCountries,
+        needs_continuation: hasMoreCountries
       }),
       { headers: corsHeaders }
     )
@@ -312,7 +317,8 @@ Deno.serve(async (req) => {
         success: false, 
         error: error.message || 'An unexpected error occurred',
         details: error.stack,
-        shouldReset: true
+        shouldReset: true,
+        needs_continuation: false
       }),
       {
         status: 500,

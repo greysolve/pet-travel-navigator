@@ -18,6 +18,7 @@ interface SyncProgressDB {
   is_complete: boolean;
   created_at: string | null;
   updated_at: string | null;
+  needs_continuation: boolean;
 }
 
 export const SyncSection = () => {
@@ -29,17 +30,14 @@ export const SyncSection = () => {
     routes: false,
     countryPolicies: false
   });
-  const [continuationInProgress, setContinuationInProgress] = useState<{[key: string]: boolean}>({});
   const queryClient = useQueryClient();
 
-  // Function to reset sync progress cache
   const resetSyncProgressCache = async (type: keyof typeof SyncType) => {
     console.log(`Resetting sync progress cache for ${type}`);
     await queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
     setIsLoading(prev => ({ ...prev, [type]: false }));
   };
 
-  // Function to reset sync progress in the database
   const resetSyncProgress = async (type: keyof typeof SyncType) => {
     console.log(`Resetting sync progress for ${type} in database`);
     const { error } = await supabase
@@ -68,27 +66,22 @@ export const SyncSection = () => {
           const newRecord = payload.new as SyncProgressDB;
           
           if (newRecord) {
-            console.log(`Updating sync progress for ${newRecord.type}:`, newRecord);
+            console.log(`Processing sync progress update for ${newRecord.type}:`, newRecord);
             
-            // Only continue if we're not already processing a continuation for this type
-            if (!newRecord.is_complete && 
-                newRecord.last_processed && 
-                newRecord.processed < newRecord.total && 
-                !continuationInProgress[newRecord.type]) {
-              console.log(`Scheduling continuation for ${newRecord.type} from ${newRecord.last_processed}`);
+            // Only continue if the record explicitly needs continuation
+            if (newRecord.needs_continuation && !newRecord.is_complete) {
+              console.log(`Continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
               
-              // Set continuation flag
-              setContinuationInProgress(prev => ({ ...prev, [newRecord.type]: true }));
-              
-              // Add a small delay to ensure database state is settled
-              setTimeout(async () => {
-                try {
-                  await handleSync(newRecord.type as keyof typeof SyncType, true);
-                } finally {
-                  // Clear continuation flag regardless of success/failure
-                  setContinuationInProgress(prev => ({ ...prev, [newRecord.type]: false }));
-                }
-              }, 1000);
+              try {
+                await handleSync(newRecord.type as keyof typeof SyncType, true);
+              } catch (error) {
+                console.error(`Error during continuation for ${newRecord.type}:`, error);
+                toast({
+                  variant: "destructive",
+                  title: "Sync Continuation Failed",
+                  description: `Failed to continue sync for ${newRecord.type}. Please try resuming manually.`,
+                });
+              }
             }
             
             queryClient.setQueryData<SyncProgressRecord>(
