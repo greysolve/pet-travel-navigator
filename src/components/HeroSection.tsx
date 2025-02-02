@@ -14,7 +14,7 @@ export const HeroSection = () => {
             <img 
               src="/lovable-uploads/399508ba-b0c4-4f26-b40a-210fb735a14c.png" 
               alt="Petjumper.com Logo" 
-              className="h-32 w-32 object-contain"
+              className="h-48 w-48 object-contain"
             />
             <h1 className="text-5xl font-bold text-primary-foreground">Petjumper.com</h1>
           </div>
