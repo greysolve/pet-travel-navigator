@@ -56,19 +56,24 @@ export const ResultsSection = ({
       if (!destinationCountry) return null;
       console.log("Fetching pet policy for country:", destinationCountry);
       
-      const { data: policy } = await supabase
+      const { data: policy, error } = await supabase
         .from('country_policies')
         .select('*')
         .eq('country_code', destinationCountry)
         .eq('policy_type', 'pet')
         .single();
 
+      if (error) {
+        console.error("Error fetching country policy:", error);
+        return null;
+      }
+
       console.log("Found country policy:", policy);
 
       if (!policy) {
         console.log("No policy found, triggering sync...");
         try {
-          const { error } = await supabase.functions.invoke('sync_country_policies', {
+          const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
             body: { 
               lastProcessedItem: null,
               currentProcessed: 0,
@@ -79,7 +84,7 @@ export const ResultsSection = ({
             }
           });
           
-          if (error) throw error;
+          if (syncError) throw syncError;
           
           toast({
             title: "Syncing Country Policies",
