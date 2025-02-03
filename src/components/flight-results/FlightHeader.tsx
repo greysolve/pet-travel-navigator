@@ -6,6 +6,10 @@ type FlightHeaderProps = {
   flightNumber: string;
   departureTime: string;
   arrivalTime: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  departureTerminal?: string;
+  arrivalTerminal?: string;
 };
 
 export const FlightHeader = ({
@@ -14,6 +18,10 @@ export const FlightHeader = ({
   flightNumber,
   departureTime,
   arrivalTime,
+  departureAirport,
+  arrivalAirport,
+  departureTerminal,
+  arrivalTerminal,
 }: FlightHeaderProps) => {
   console.log("Airline name in header:", airlineName); // Debug log
   return (
@@ -32,12 +40,22 @@ export const FlightHeader = ({
           <p className="font-medium">
             {new Date(departureTime).toLocaleTimeString()}
           </p>
+          {departureAirport && (
+            <p className="text-sm text-gray-500">
+              {departureAirport} {departureTerminal && `Terminal ${departureTerminal}`}
+            </p>
+          )}
         </div>
         <div>
           <p className="text-sm text-gray-500">Arrival</p>
           <p className="font-medium">
             {new Date(arrivalTime).toLocaleTimeString()}
           </p>
+          {arrivalAirport && (
+            <p className="text-sm text-gray-500">
+              {arrivalAirport} {arrivalTerminal && `Terminal ${arrivalTerminal}`}
+            </p>
+          )}
         </div>
       </div>
     </div>
