@@ -49,11 +49,10 @@ export const useFlightSearch = () => {
           return acc;
         }, {}) || {};
 
-        // Group flights by connections
-        const flights = data.scheduledFlights.reduce((acc: FlightData[], flight: any) => {
-          // Check if this is a connecting flight
+        // Process flights and their connections
+        const processedFlights = data.scheduledFlights.reduce((acc: FlightData[], flight: any) => {
           if (flight.codeshares) {
-            // This is a main flight with connections
+            // Create a main flight with its connections
             const mainFlight: FlightData = {
               carrierFsCode: flight.carrierFsCode,
               flightNumber: flight.flightNumber,
@@ -61,18 +60,23 @@ export const useFlightSearch = () => {
               arrivalTime: flight.arrivalTime,
               arrivalCountry: destinationCountry,
               airlineName: airlineMap[flight.carrierFsCode],
-              connections: flight.codeshares.map((connection: any) => ({
-                carrierFsCode: connection.carrierFsCode,
-                flightNumber: connection.flightNumber,
-                departureTime: connection.departureTime,
-                arrivalTime: connection.arrivalTime,
+              departureAirport: flight.departureAirportFsCode,
+              arrivalAirport: flight.arrivalAirportFsCode,
+              connections: flight.codeshares.map((codeshare: any) => ({
+                carrierFsCode: codeshare.carrierFsCode,
+                flightNumber: codeshare.flightNumber,
+                departureTime: codeshare.departureTime,
+                arrivalTime: codeshare.arrivalTime,
                 arrivalCountry: destinationCountry,
-                airlineName: airlineMap[connection.carrierFsCode],
+                airlineName: airlineMap[codeshare.carrierFsCode],
+                departureAirport: codeshare.departureAirportFsCode,
+                arrivalAirport: codeshare.arrivalAirportFsCode,
+                isConnection: true
               }))
             };
             acc.push(mainFlight);
           } else if (!flight.isCodeshare) {
-            // This is a direct flight
+            // Add direct flights
             acc.push({
               carrierFsCode: flight.carrierFsCode,
               flightNumber: flight.flightNumber,
@@ -80,12 +84,14 @@ export const useFlightSearch = () => {
               arrivalTime: flight.arrivalTime,
               arrivalCountry: destinationCountry,
               airlineName: airlineMap[flight.carrierFsCode],
+              departureAirport: flight.departureAirportFsCode,
+              arrivalAirport: flight.arrivalAirportFsCode
             });
           }
           return acc;
         }, []);
 
-        onSearchResults(flights);
+        onSearchResults(processedFlights);
       }
     } catch (error) {
       console.error('Error searching flights:', error);

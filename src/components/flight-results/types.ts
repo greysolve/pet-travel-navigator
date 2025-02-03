@@ -12,6 +12,7 @@ export type FlightData = {
   arrivalAirport?: string;
   departureTerminal?: string;
   arrivalTerminal?: string;
+  isConnection?: boolean;
 };
 
 export type PetPolicy = {

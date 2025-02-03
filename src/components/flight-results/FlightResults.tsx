@@ -1,5 +1,4 @@
 import { FlightCard } from "./FlightCard";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { FlightData, PetPolicy } from "./types";
 
 interface FlightResultsProps {
@@ -16,37 +15,20 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
     );
   }
 
-  // Group flights by journey
-  const journeys = flights.reduce((acc: FlightData[][], flight) => {
-    if (flight.connections) {
-      // This is already a journey with connections
-      acc.push([flight]);
-    } else {
-      // Check if this flight is part of a journey
-      const existingJourney = acc.find(journey => 
-        journey.some(f => f.flightNumber === flight.flightNumber)
-      );
-      
-      if (!existingJourney) {
-        // Start a new journey
-        acc.push([flight]);
-      }
-    }
-    return acc;
-  }, []);
+  // Filter out flights that are connections (they will be shown within their main flight card)
+  const mainFlights = flights.filter(flight => !flight.isConnection);
 
   return (
     <div className="space-y-6">
-      {journeys.map((journey, journeyIndex) => {
-        const mainFlight = journey[0];
-        const connectingFlights = mainFlight.connections || [];
+      {mainFlights.map((flight, index) => {
+        const connectingFlights = flight.connections || [];
         const hasConnections = connectingFlights.length > 0;
 
         return (
-          <div key={`journey-${journeyIndex}`} className="bg-white rounded-lg shadow-sm">
+          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-sm">
             <FlightCard
-              {...mainFlight}
-              policy={petPolicies?.[mainFlight.carrierFsCode]}
+              {...flight}
+              policy={petPolicies?.[flight.carrierFsCode]}
             />
             
             {hasConnections && (
@@ -56,22 +38,18 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                     {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
                   </h3>
                   <div className="space-y-4">
-                    {connectingFlights.map((flight, flightIndex) => {
-                      // Only show policy if it's different from the main flight
-                      const showPolicy = flight.carrierFsCode !== mainFlight.carrierFsCode;
-                      return (
-                        <div 
-                          key={`${flight.flightNumber}-${flightIndex}`} 
-                          className="border-l-2 border-primary pl-4"
-                        >
-                          <FlightCard
-                            {...flight}
-                            policy={showPolicy ? petPolicies?.[flight.carrierFsCode] : undefined}
-                            isConnection={true}
-                          />
-                        </div>
-                      );
-                    })}
+                    {connectingFlights.map((connection, connectionIndex) => (
+                      <div 
+                        key={`${connection.flightNumber}-${connectionIndex}`} 
+                        className="border-l-2 border-primary pl-4"
+                      >
+                        <FlightCard
+                          {...connection}
+                          policy={connection.carrierFsCode !== flight.carrierFsCode ? petPolicies?.[connection.carrierFsCode] : undefined}
+                          isConnection={true}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
