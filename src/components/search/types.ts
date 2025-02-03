@@ -1,12 +1,8 @@
-export type FlightData = {
-  carrierFsCode: string;
-  flightNumber: string;
-  departureTime: string;
-  arrivalTime: string;
-  arrivalCountry?: string;
-  airlineName?: string;
-};
+import type { FlightData, PetPolicy } from "../flight-results/types";
 
-export type SearchSectionProps = {
-  onSearchResults: (flights: FlightData[]) => void;
-};
+export interface SearchSectionProps {
+  onSearchResults: (
+    flights: FlightData[], 
+    petPolicies?: Record<string, PetPolicy>
+  ) => void;
+}

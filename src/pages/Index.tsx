@@ -2,20 +2,19 @@ import { useState } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
-
-type FlightData = {
-  carrierFsCode: string;
-  flightNumber: string;
-  departureTime: string;
-  arrivalTime: string;
-};
+import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [flights, setFlights] = useState<FlightData[]>([]);
+  const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
 
-  const handleSearchResults = (results: FlightData[]) => {
+  const handleSearchResults = (
+    results: FlightData[], 
+    policies?: Record<string, PetPolicy>
+  ) => {
     setFlights(results);
+    setPetPolicies(policies);
     setSearchPerformed(true);
   };
 
@@ -23,7 +22,11 @@ const Index = () => {
     <div className="min-h-screen bg-[#F1F0FB]">
       <HeroSection />
       <SearchSection onSearchResults={handleSearchResults} />
-      <ResultsSection searchPerformed={searchPerformed} flights={flights} />
+      <ResultsSection 
+        searchPerformed={searchPerformed} 
+        flights={flights}
+        petPolicies={petPolicies} 
+      />
     </div>
   );
 };
