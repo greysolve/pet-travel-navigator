@@ -579,7 +579,7 @@ export type Database = {
     }
     Enums: {
       app_role: "site_manager" | "pet_lover"
-      policy_type: "pet" | "live_animal" | "pet_transit"
+      policy_type: "pet_arrival" | "pet_transit"
     }
     CompositeTypes: {
       [_ in never]: never
