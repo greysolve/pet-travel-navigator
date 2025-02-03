@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { PawPrint, ArrowRight, Plane } from "lucide-react";
+import { PawPrint } from "lucide-react";
 import { FlightHeader } from "./FlightHeader";
 import { PolicyDetails } from "./PolicyDetails";
 import type { PetPolicy } from "./types";
@@ -34,14 +34,9 @@ export const FlightCard = ({
   isConnection,
 }: FlightCardProps) => {
   return (
-    <Card className={isConnection ? "ml-8 border-l-4 border-l-primary" : ""}>
+    <Card className={`${isConnection ? 'border-0 shadow-none' : ''}`}>
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          {isConnection && (
-            <div className="absolute -left-6 top-1/2 -translate-y-1/2">
-              <ArrowRight className="h-5 w-5 text-primary" />
-            </div>
-          )}
           <FlightHeader
             carrierFsCode={carrierFsCode}
             airlineName={airlineName}
@@ -62,7 +57,7 @@ export const FlightCard = ({
             <PawPrint className="h-5 w-5 text-primary" />
           </div>
         </div>
-        <PolicyDetails policy={policy} />
+        {policy && <PolicyDetails policy={policy} />}
       </CardContent>
     </Card>
   );

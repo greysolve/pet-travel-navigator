@@ -1,4 +1,5 @@
 import { FlightCard } from "./FlightCard";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { FlightData, PetPolicy } from "./types";
 
 interface FlightResultsProps {
@@ -36,25 +37,47 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   return (
     <div className="space-y-6">
-      {journeys.map((journey, journeyIndex) => (
-        <div key={`journey-${journeyIndex}`} className="space-y-2">
-          {journey.length > 1 && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-gray-500">
-                {journey.length}-Flight Journey
-              </span>
-            </div>
-          )}
-          {journey.map((flight, flightIndex) => (
+      {journeys.map((journey, journeyIndex) => {
+        const mainFlight = journey[0];
+        const connectingFlights = journey.slice(1);
+        const hasConnections = connectingFlights.length > 0;
+
+        return (
+          <div key={`journey-${journeyIndex}`} className="bg-white rounded-lg shadow-sm">
             <FlightCard
-              key={`${flight.carrierFsCode}-${flight.flightNumber}-${flightIndex}`}
-              {...flight}
-              policy={petPolicies?.[flight.carrierFsCode]}
-              isConnection={flightIndex > 0}
+              {...mainFlight}
+              policy={petPolicies?.[mainFlight.carrierFsCode]}
             />
-          ))}
-        </div>
-      ))}
+            
+            {hasConnections && (
+              <Accordion type="single" collapsible className="border-t">
+                <AccordionItem value="connections">
+                  <AccordionTrigger className="px-6">
+                    <span className="text-sm font-medium text-gray-500">
+                      {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 px-6 pb-4">
+                    {connectingFlights.map((flight, flightIndex) => {
+                      // Only show policy if it's different from the main flight
+                      const showPolicy = flight.carrierFsCode !== mainFlight.carrierFsCode;
+                      return (
+                        <div key={`${flight.flightNumber}-${flightIndex}`} className="border-l-2 border-primary pl-4">
+                          <FlightCard
+                            {...flight}
+                            policy={showPolicy ? petPolicies?.[flight.carrierFsCode] : undefined}
+                            isConnection={true}
+                          />
+                        </div>
+                      );
+                    })}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
