@@ -38,13 +38,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     
     if (policySearch) {
       console.log("Searching for airline policy:", policySearch);
-      const { data: airlines, error: airlineError } = await supabase
+      const { data: airline, error: airlineError } = await supabase
         .from('airlines')
-        .select('id, iata_code')
+        .select('id')
         .eq('name', policySearch)
         .maybeSingle();
 
-      if (airlineError || !airlines?.iata_code) {
+      if (airlineError || !airline?.id) {
         console.error("Error finding airline:", airlineError);
         toast({
           title: "Error finding airline",
@@ -54,24 +54,34 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         return;
       }
 
-      console.log("Found airline:", airlines);
-      const { data: flights, error: flightError } = await supabase
-        .rpc('get_airline_flights', {
-          airline_iata: airlines.iata_code
-        });
+      console.log("Found airline:", airline);
+      const { data: petPolicy, error: policyError } = await supabase
+        .from('pet_policies')
+        .select('*')
+        .eq('airline_id', airline.id)
+        .maybeSingle();
 
-      if (flightError) {
-        console.error("Error fetching flights:", flightError);
+      if (policyError) {
+        console.error("Error fetching pet policy:", policyError);
         toast({
-          title: "Error fetching flights",
-          description: "Could not fetch flights for the selected airline.",
+          title: "Error fetching pet policy",
+          description: "Could not fetch the pet policy for the selected airline.",
           variant: "destructive",
         });
         return;
       }
 
-      console.log("Found flights:", flights);
-      onSearchResults(flights || []);
+      console.log("Found pet policy:", petPolicy);
+      // Create a mock flight entry to display the airline's policy
+      const mockFlight = [{
+        carrierFsCode: policySearch,
+        flightNumber: "N/A",
+        departureTime: new Date().toISOString(),
+        arrivalTime: new Date().toISOString(),
+        airlineName: policySearch
+      }];
+      
+      onSearchResults(mockFlight);
     } else if (origin && destination && date) {
       handleFlightSearch({
         origin,
