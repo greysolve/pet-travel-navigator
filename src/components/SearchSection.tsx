@@ -7,6 +7,7 @@ import { DateSelector } from "./search/DateSelector";
 import { useFlightSearch } from "./search/FlightSearchHandler";
 import type { SearchSectionProps } from "./search/types";
 import { supabase } from "@/integrations/supabase/client";
+import type { PetPolicy } from "./flight-results/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -72,16 +73,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       }
 
       console.log("Found pet policy:", petPolicy);
-      // Create a mock flight entry to display the airline's policy
-      const mockFlight = [{
-        carrierFsCode: policySearch,
-        flightNumber: "N/A",
-        departureTime: new Date().toISOString(),
-        arrivalTime: new Date().toISOString(),
-        airlineName: policySearch
-      }];
-      
-      onSearchResults(mockFlight);
+      // Just pass an empty flights array and the pet policy
+      onSearchResults([], { [policySearch]: petPolicy as PetPolicy });
     } else if (origin && destination && date) {
       handleFlightSearch({
         origin,
