@@ -34,8 +34,8 @@ export const FlightCard = ({
   isConnection,
 }: FlightCardProps) => {
   return (
-    <Card className={`${isConnection ? 'border-0 shadow-none' : ''}`}>
-      <CardContent className="p-6 space-y-4">
+    <Card className={`${isConnection ? 'border-0 shadow-none bg-transparent' : ''}`}>
+      <CardContent className={`${isConnection ? 'px-4 py-3' : 'p-6'} space-y-4`}>
         <div className="flex items-center justify-between">
           <FlightHeader
             carrierFsCode={carrierFsCode}

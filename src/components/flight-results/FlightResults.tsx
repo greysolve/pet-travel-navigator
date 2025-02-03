@@ -25,14 +25,18 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
         const hasConnections = connectingFlights.length > 0;
 
         return (
-          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-sm">
-            <FlightCard
-              {...flight}
-              policy={petPolicies?.[flight.carrierFsCode]}
-            />
-            
+          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg">
+            {/* Main Flight Card */}
+            <div className="p-6">
+              <FlightCard
+                {...flight}
+                policy={petPolicies?.[flight.carrierFsCode]}
+              />
+            </div>
+
+            {/* Connecting Flights Section */}
             {hasConnections && (
-              <div className="border-t">
+              <div className="border-t bg-accent/20">
                 <div className="px-6 py-4">
                   <h3 className="text-sm font-medium text-gray-500 mb-4">
                     {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
@@ -40,8 +44,8 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                   <div className="space-y-4">
                     {connectingFlights.map((connection, connectionIndex) => (
                       <div 
-                        key={`${connection.flightNumber}-${connectionIndex}`} 
-                        className="border-l-2 border-primary pl-4"
+                        key={`${connection.flightNumber}-${connectionIndex}`}
+                        className="relative pl-6 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-primary"
                       >
                         <FlightCard
                           {...connection}
