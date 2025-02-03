@@ -6,6 +6,7 @@ import { RouteSearch } from "./search/RouteSearch";
 import { DateSelector } from "./search/DateSelector";
 import { useFlightSearch } from "./search/FlightSearchHandler";
 import type { SearchSectionProps } from "./search/types";
+import { supabase } from "@/integrations/supabase/client";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -35,7 +36,32 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       return;
     }
     
-    if (origin && destination && date) {
+    if (policySearch) {
+      console.log("Searching for airline policy:", policySearch);
+      const { data: airlines, error: airlineError } = await supabase
+        .from('airlines')
+        .select('id, iata_code')
+        .eq('name', policySearch)
+        .single();
+
+      if (airlineError) {
+        console.error("Error finding airline:", airlineError);
+        toast({
+          title: "Error finding airline",
+          description: "Could not find the selected airline.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("Found airline:", airlines);
+      const { data: flights } = await supabase.rpc('get_airline_flights', {
+        airline_iata: airlines.iata_code
+      });
+
+      console.log("Found flights:", flights);
+      onSearchResults(flights || []);
+    } else if (origin && destination && date) {
       handleFlightSearch({
         origin,
         destination,
