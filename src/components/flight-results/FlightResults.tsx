@@ -20,7 +20,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
   const journeys = flights.reduce((acc: FlightData[][], flight) => {
     if (flight.connections) {
       // This is already a journey with connections
-      acc.push([flight, ...flight.connections]);
+      acc.push([flight]);
     } else {
       // Check if this flight is part of a journey
       const existingJourney = acc.find(journey => 
@@ -39,7 +39,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
     <div className="space-y-6">
       {journeys.map((journey, journeyIndex) => {
         const mainFlight = journey[0];
-        const connectingFlights = journey.slice(1);
+        const connectingFlights = mainFlight.connections || [];
         const hasConnections = connectingFlights.length > 0;
 
         return (
@@ -50,19 +50,20 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
             />
             
             {hasConnections && (
-              <Accordion type="single" collapsible className="border-t">
-                <AccordionItem value="connections">
-                  <AccordionTrigger className="px-6">
-                    <span className="text-sm font-medium text-gray-500">
-                      {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 px-6 pb-4">
+              <div className="border-t">
+                <div className="px-6 py-4">
+                  <h3 className="text-sm font-medium text-gray-500 mb-4">
+                    {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
+                  </h3>
+                  <div className="space-y-4">
                     {connectingFlights.map((flight, flightIndex) => {
                       // Only show policy if it's different from the main flight
                       const showPolicy = flight.carrierFsCode !== mainFlight.carrierFsCode;
                       return (
-                        <div key={`${flight.flightNumber}-${flightIndex}`} className="border-l-2 border-primary pl-4">
+                        <div 
+                          key={`${flight.flightNumber}-${flightIndex}`} 
+                          className="border-l-2 border-primary pl-4"
+                        >
                           <FlightCard
                             {...flight}
                             policy={showPolicy ? petPolicies?.[flight.carrierFsCode] : undefined}
@@ -71,9 +72,9 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                         </div>
                       );
                     })}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         );
