@@ -21,11 +21,12 @@ export const ResultsSection = ({
   console.log("Destination country for policy lookup:", destinationCountry);
 
   // Fetch destination country's pet policy
-  const { data: countryPolicy } = useCountryPolicy(destinationCountry);
+  const { data: countryPolicies } = useCountryPolicy(destinationCountry);
 
   // Debug log to check flights data
   console.log("Flights data in ResultsSection:", flights);
   console.log("Pet policies in ResultsSection:", petPolicies);
+  console.log("Country policies:", countryPolicies);
 
   if (!searchPerformed) return null;
 
@@ -49,7 +50,9 @@ export const ResultsSection = ({
     <div className="container mx-auto px-4 py-12">
       <div className="space-y-8">
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
-        {destinationCountry && <DestinationPolicy policy={countryPolicy} />}
+        {countryPolicies?.map((policy, index) => (
+          <DestinationPolicy key={policy.id || index} policy={policy} />
+        ))}
       </div>
     </div>
   );
