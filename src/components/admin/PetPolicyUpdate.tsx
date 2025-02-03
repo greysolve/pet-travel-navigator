@@ -27,7 +27,7 @@ const PetPolicyUpdate = () => {
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
 
-  const { data: airlines, isLoading } = useQuery({
+  const { data: airlines = [], isLoading } = useQuery({
     queryKey: ["airlines"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -43,7 +43,7 @@ const PetPolicyUpdate = () => {
         });
         throw error;
       }
-      return data || [];
+      return data;
     },
   });
 
@@ -122,8 +122,10 @@ const PetPolicyUpdate = () => {
             >
               {isLoading ? (
                 "Loading airlines..."
+              ) : selectedAirline ? (
+                selectedAirline.name
               ) : (
-                selectedAirline ? selectedAirline.name : "Select airline..."
+                "Select airline..."
               )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
@@ -132,8 +134,8 @@ const PetPolicyUpdate = () => {
             <Command>
               <CommandInput placeholder="Search airlines..." />
               <CommandEmpty>No airline found.</CommandEmpty>
-              <CommandGroup className="max-h-[300px] overflow-y-auto">
-                {(airlines || []).map((airline) => (
+              <CommandGroup>
+                {airlines.map((airline) => (
                   <CommandItem
                     key={airline.id}
                     onSelect={() => {
