@@ -27,7 +27,7 @@ const PetPolicyUpdate = () => {
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
 
-  const { data: airlines = [], isLoading } = useQuery({
+  const { data: airlines, isLoading } = useQuery({
     queryKey: ["airlines"],
     queryFn: async () => {
       console.log("Fetching airlines...");
@@ -143,7 +143,7 @@ const PetPolicyUpdate = () => {
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Loading...
               </div>
-            ) : (
+            ) : airlines && airlines.length > 0 ? (
               <Command>
                 <CommandInput placeholder="Search airlines..." />
                 <CommandEmpty>No airline found.</CommandEmpty>
@@ -169,6 +169,10 @@ const PetPolicyUpdate = () => {
                   ))}
                 </CommandGroup>
               </Command>
+            ) : (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No airlines available
+              </div>
             )}
           </PopoverContent>
         </Popover>
