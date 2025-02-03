@@ -25,18 +25,19 @@ Deno.serve(async (req) => {
     // Format the date as YYYY/MM/DD for Cirium API
     const formattedDate = new Date(date).toISOString().split('T')[0].replace(/-/g, '/')
 
-    // Construct Cirium API URL - now including maxConnections parameter
-    const url = `https://api.flightstats.com/flex/schedules/rest/v1/json/from/${origin}/to/${destination}/departing/${formattedDate}?appId=${appId}&appKey=${appKey}&maxConnections=2`
+    // Construct Cirium API URL with extended parameters
+    const url = `https://api.flightstats.com/flex/schedules/rest/v1/json/from/${origin}/to/${destination}/departing/${formattedDate}?appId=${appId}&appKey=${appKey}&maxConnections=2&extendedOptions=includeCodeshares,useInlinedReferences`
 
-    console.log('Fetching from Cirium API...');
+    console.log('Fetching from Cirium API with URL:', url);
     const response = await fetch(url)
     const data = await response.json()
-
-    console.log('Processing flight connections...');
     
+    console.log('Raw Cirium API response:', JSON.stringify(data));
+
     // Process the response to include connection information
     if (data.scheduledFlights) {
       data.scheduledFlights = data.scheduledFlights.map((flight: any) => {
+        // Process codeshares
         if (flight.codeshares) {
           flight.codeshares = flight.codeshares.map((codeshare: any) => ({
             ...codeshare,
@@ -44,24 +45,40 @@ Deno.serve(async (req) => {
           }));
         }
         
-        // Add connection details if present
+        // Process connections with more detail
         if (flight.connections) {
-          flight.connections = flight.connections.map((connection: any) => ({
-            ...connection,
-            airlineName: data.appendix?.airlines?.find((a: any) => a.fs === connection.carrierFsCode)?.name,
-            arrivalCountry: data.appendix?.airports?.find((a: any) => a.fs === connection.arrivalAirportFsCode)?.countryCode
-          }));
+          flight.connections = flight.connections.map((connection: any) => {
+            const airline = data.appendix?.airlines?.find((a: any) => a.fs === connection.carrierFsCode);
+            const arrivalAirport = data.appendix?.airports?.find((a: any) => a.fs === connection.arrivalAirportFsCode);
+            const departureAirport = data.appendix?.airports?.find((a: any) => a.fs === connection.departureAirportFsCode);
+            
+            return {
+              ...connection,
+              airlineName: airline?.name,
+              arrivalCountry: arrivalAirport?.countryCode,
+              departureCountry: departureAirport?.countryCode,
+              connectionAirport: connection.departureAirportFsCode, // Add connection airport code
+              connectionDuration: connection.elapsedTime // Add connection duration if available
+            };
+          });
         }
+
+        // Add main flight details
+        const airline = data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode);
+        const arrivalAirport = data.appendix?.airports?.find((a: any) => a.fs === flight.arrivalAirportFsCode);
+        const departureAirport = data.appendix?.airports?.find((a: any) => a.fs === flight.departureAirportFsCode);
 
         return {
           ...flight,
-          airlineName: data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode)?.name,
-          arrivalCountry: data.appendix?.airports?.find((a: any) => a.fs === flight.arrivalAirportFsCode)?.countryCode
+          airlineName: airline?.name,
+          arrivalCountry: arrivalAirport?.countryCode,
+          departureCountry: departureAirport?.countryCode,
+          totalDuration: flight.elapsedTime // Add total flight duration
         };
       });
     }
 
-    console.log('Received and processed response from Cirium API');
+    console.log('Processed flight data:', JSON.stringify(data.scheduledFlights));
 
     return new Response(
       JSON.stringify(data),
