@@ -109,6 +109,53 @@ const PetPolicyUpdate = () => {
     }
   };
 
+  const renderCommandContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center p-4">
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          Loading...
+        </div>
+      );
+    }
+
+    if (!airlines || airlines.length === 0) {
+      return (
+        <div className="p-4 text-center text-sm text-muted-foreground">
+          No airlines available
+        </div>
+      );
+    }
+
+    return (
+      <Command>
+        <CommandInput placeholder="Search airlines..." />
+        <CommandEmpty>No airline found.</CommandEmpty>
+        <CommandGroup>
+          {airlines.map((airline) => (
+            <CommandItem
+              key={airline.id}
+              onSelect={() => {
+                setSelectedAirline(airline);
+                setOpen(false);
+              }}
+            >
+              <Check
+                className={cn(
+                  "mr-2 h-4 w-4",
+                  selectedAirline?.id === airline.id
+                    ? "opacity-100"
+                    : "opacity-0"
+                )}
+              />
+              {airline.name}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </Command>
+    );
+  };
+
   return (
     <div className="space-y-4 p-4">
       <h2 className="text-2xl font-bold mb-4">Update Pet Policy</h2>
@@ -138,42 +185,7 @@ const PetPolicyUpdate = () => {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[400px] p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Loading...
-              </div>
-            ) : airlines && airlines.length > 0 ? (
-              <Command>
-                <CommandInput placeholder="Search airlines..." />
-                <CommandEmpty>No airline found.</CommandEmpty>
-                <CommandGroup>
-                  {airlines.map((airline) => (
-                    <CommandItem
-                      key={airline.id}
-                      onSelect={() => {
-                        setSelectedAirline(airline);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedAirline?.id === airline.id
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {airline.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            ) : (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                No airlines available
-              </div>
-            )}
+            {renderCommandContent()}
           </PopoverContent>
         </Popover>
       </div>
