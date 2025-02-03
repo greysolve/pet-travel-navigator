@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData } from "./types";
+import type { FlightData } from "../flight-results/types";
 
 interface FlightSearchHandlerProps {
   origin: string;
