@@ -15,45 +15,46 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
     );
   }
 
+  // Group flights by journey
+  const journeys = flights.reduce((acc: FlightData[][], flight) => {
+    if (flight.connections) {
+      // This is already a journey with connections
+      acc.push([flight, ...flight.connections]);
+    } else {
+      // Check if this flight is part of a journey
+      const existingJourney = acc.find(journey => 
+        journey.some(f => f.flightNumber === flight.flightNumber)
+      );
+      
+      if (!existingJourney) {
+        // Start a new journey
+        acc.push([flight]);
+      }
+    }
+    return acc;
+  }, []);
+
   return (
-    <div className="space-y-4">
-      {flights.map((flight, index) => {
-        // If flight has connections, create a group of cards
-        if (flight.connections && flight.connections.length > 0) {
-          return (
-            <div key={`${flight.carrierFsCode}-${flight.flightNumber}-${index}`} className="space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-medium text-gray-500">
-                  {flight.connections.length + 1} Leg Journey
-                </span>
-              </div>
-              <FlightCard
-                {...flight}
-                policy={petPolicies?.[flight.carrierFsCode]}
-                isConnection={false}
-              />
-              {flight.connections.map((connection, connIndex) => (
-                <FlightCard
-                  key={`${connection.carrierFsCode}-${connection.flightNumber}-${connIndex}`}
-                  {...connection}
-                  policy={petPolicies?.[connection.carrierFsCode]}
-                  isConnection={true}
-                />
-              ))}
+    <div className="space-y-6">
+      {journeys.map((journey, journeyIndex) => (
+        <div key={`journey-${journeyIndex}`} className="space-y-2">
+          {journey.length > 1 && (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-gray-500">
+                {journey.length} Leg Journey - Total Duration: {journey[0].totalDuration || 'N/A'} minutes
+              </span>
             </div>
-          );
-        }
-        
-        // For direct flights, show single card
-        return (
-          <FlightCard
-            key={`${flight.carrierFsCode}-${flight.flightNumber}-${index}`}
-            {...flight}
-            policy={petPolicies?.[flight.carrierFsCode]}
-            isConnection={false}
-          />
-        );
-      })}
+          )}
+          {journey.map((flight, flightIndex) => (
+            <FlightCard
+              key={`${flight.carrierFsCode}-${flight.flightNumber}-${flightIndex}`}
+              {...flight}
+              policy={petPolicies?.[flight.carrierFsCode]}
+              isConnection={flightIndex > 0}
+            />
+          ))}
+        </div>
+      ))}
     </div>
   );
 };

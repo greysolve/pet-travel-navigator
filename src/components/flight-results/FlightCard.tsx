@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { PawPrint, ArrowRight } from "lucide-react";
+import { PawPrint, ArrowRight, Plane } from "lucide-react";
 import { FlightHeader } from "./FlightHeader";
 import { PolicyDetails } from "./PolicyDetails";
 import type { PetPolicy } from "./types";
@@ -10,6 +10,11 @@ type FlightCardProps = {
   flightNumber: string;
   departureTime: string;
   arrivalTime: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  departureTerminal?: string;
+  arrivalTerminal?: string;
+  stops?: number;
   policy?: PetPolicy;
   isConnection?: boolean;
 };
@@ -20,6 +25,11 @@ export const FlightCard = ({
   flightNumber,
   departureTime,
   arrivalTime,
+  departureAirport,
+  arrivalAirport,
+  departureTerminal,
+  arrivalTerminal,
+  stops,
   policy,
   isConnection,
 }: FlightCardProps) => {
@@ -38,8 +48,17 @@ export const FlightCard = ({
             flightNumber={flightNumber}
             departureTime={departureTime}
             arrivalTime={arrivalTime}
+            departureAirport={departureAirport}
+            arrivalAirport={arrivalAirport}
+            departureTerminal={departureTerminal}
+            arrivalTerminal={arrivalTerminal}
           />
           <div className="flex items-center gap-2">
+            {stops && stops > 0 && (
+              <span className="text-sm text-gray-500">
+                {stops} stop{stops > 1 ? 's' : ''}
+              </span>
+            )}
             <PawPrint className="h-5 w-5 text-primary" />
           </div>
         </div>

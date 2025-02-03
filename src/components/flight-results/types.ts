@@ -6,6 +6,12 @@ export type FlightData = {
   arrivalCountry?: string;
   airlineName?: string;
   connections?: FlightData[];
+  totalDuration?: number;
+  stops?: number;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  departureTerminal?: string;
+  arrivalTerminal?: string;
 };
 
 export type PetPolicy = {
