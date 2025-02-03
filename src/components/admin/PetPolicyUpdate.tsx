@@ -27,7 +27,7 @@ const PetPolicyUpdate = () => {
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
 
-  const { data: airlines } = useQuery({
+  const { data: airlines, isLoading } = useQuery({
     queryKey: ["airlines"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -35,8 +35,15 @@ const PetPolicyUpdate = () => {
         .select("id, name")
         .order("name");
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        toast({
+          title: "Error fetching airlines",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
+      return data || [];
     },
   });
 
@@ -111,8 +118,13 @@ const PetPolicyUpdate = () => {
               role="combobox"
               aria-expanded={open}
               className="justify-between"
+              disabled={isLoading}
             >
-              {selectedAirline ? selectedAirline.name : "Select airline..."}
+              {isLoading ? (
+                "Loading airlines..."
+              ) : (
+                selectedAirline ? selectedAirline.name : "Select airline..."
+              )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
@@ -121,7 +133,7 @@ const PetPolicyUpdate = () => {
               <CommandInput placeholder="Search airlines..." />
               <CommandEmpty>No airline found.</CommandEmpty>
               <CommandGroup className="max-h-[300px] overflow-y-auto">
-                {airlines?.map((airline) => (
+                {(airlines || []).map((airline) => (
                   <CommandItem
                     key={airline.id}
                     onSelect={() => {
