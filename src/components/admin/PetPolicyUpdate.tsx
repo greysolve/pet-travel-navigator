@@ -3,60 +3,45 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 const PetPolicyUpdate = () => {
-  const [open, setOpen] = useState(false);
   const [selectedAirline, setSelectedAirline] = useState<{
     id: string;
     name: string;
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
+  const [showAirlineSuggestions, setShowAirlineSuggestions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: airlines = [], isLoading } = useQuery({
-    queryKey: ["airlines"],
+  const { data: airlines, isLoading } = useQuery({
+    queryKey: ["airlines", searchTerm],
     queryFn: async () => {
-      console.log("Fetching airlines...");
+      if (!searchTerm || searchTerm.length < 2) return [];
+      
+      console.log('Fetching airlines for search term:', searchTerm);
       const { data, error } = await supabase
-        .from("airlines")
-        .select("id, name")
-        .order("name");
+        .from('airlines')
+        .select('id, name')
+        .or(`name.ilike.%${searchTerm}%,iata_code.ilike.%${searchTerm}%`)
+        .limit(10);
 
       if (error) {
-        console.error("Error fetching airlines:", error);
+        console.error('Error fetching airlines:', error);
         toast({
           title: "Error fetching airlines",
-          description: error.message,
+          description: "Please try again",
           variant: "destructive",
         });
         return [];
       }
 
-      console.log("Fetched airlines:", data);
+      console.log('Fetched airlines:', data);
       return data || [];
     },
-    // Ensure we have a stable data structure
-    select: (data) => {
-      if (!Array.isArray(data)) return [];
-      return data.map(airline => ({
-        id: airline.id,
-        name: airline.name
-      }));
-    },
+    enabled: searchTerm.length >= 2,
   });
 
   const handleUpdate = async () => {
@@ -117,81 +102,55 @@ const PetPolicyUpdate = () => {
     }
   };
 
-  // Only render Command when we have data and the popover is open
-  const commandContent = (
-    <>
-      {isLoading ? (
-        <div className="flex items-center justify-center p-4">
-          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          Loading...
-        </div>
-      ) : !airlines?.length ? (
-        <div className="p-4 text-center text-sm text-muted-foreground">
-          No airlines available
-        </div>
-      ) : (
-        <Command>
-          <CommandInput placeholder="Search airlines..." />
-          <CommandEmpty>No airline found.</CommandEmpty>
-          <CommandGroup>
-            {airlines.map((airline) => (
-              <CommandItem
-                key={airline.id}
-                value={airline.id}
-                onSelect={() => {
-                  setSelectedAirline(airline);
-                  setOpen(false);
-                }}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    selectedAirline?.id === airline.id
-                      ? "opacity-100"
-                      : "opacity-0"
-                  )}
-                />
-                {airline.name}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </Command>
-      )}
-    </>
-  );
-
   return (
     <div className="space-y-4 p-4">
       <h2 className="text-2xl font-bold mb-4">Update Pet Policy</h2>
       
       <div className="flex flex-col space-y-2">
         <label className="text-sm font-medium">Select Airline</label>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="justify-between"
-              disabled={isLoading}
-            >
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Search for an airline..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setShowAirlineSuggestions(true);
+            }}
+            onFocus={() => setShowAirlineSuggestions(true)}
+            className="w-full"
+          />
+          
+          {showAirlineSuggestions && (searchTerm.length >= 2) && (
+            <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
               {isLoading ? (
-                <div className="flex items-center">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading airlines...
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-              ) : selectedAirline ? (
-                selectedAirline.name
+              ) : airlines && airlines.length > 0 ? (
+                <ul className="max-h-60 overflow-auto py-1">
+                  {airlines.map((airline) => (
+                    <li
+                      key={airline.id}
+                      className="px-4 py-2 hover:bg-accent cursor-pointer"
+                      onClick={() => {
+                        setSelectedAirline(airline);
+                        setSearchTerm(airline.name);
+                        setShowAirlineSuggestions(false);
+                      }}
+                    >
+                      {airline.name}
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                "Select airline..."
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No airlines found
+                </div>
               )}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[400px] p-0" align="start">
-            {commandContent}
-          </PopoverContent>
-        </Popover>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col space-y-2">
