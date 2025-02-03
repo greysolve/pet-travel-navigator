@@ -23,40 +23,37 @@ export const FlightHeader = ({
   departureTerminal,
   arrivalTerminal,
 }: FlightHeaderProps) => {
-  console.log("Airline name in header:", airlineName); // Debug log
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-6">
-        <div>
-          <p className="font-bold text-lg">
-            {airlineName || carrierFsCode} <span className="text-sm font-normal text-gray-500">({carrierFsCode})</span>
+    <div className="flex items-center space-x-6">
+      <div>
+        <p className="font-bold text-lg">
+          {airlineName || carrierFsCode} <span className="text-sm font-normal text-gray-500">({carrierFsCode})</span>
+        </p>
+        <Badge variant="secondary" className="font-normal">
+          {flightNumber}
+        </Badge>
+      </div>
+      <div>
+        <p className="text-sm text-gray-500">Departure</p>
+        <p className="font-medium">
+          {new Date(departureTime).toLocaleTimeString()}
+        </p>
+        {departureAirport && (
+          <p className="text-sm text-gray-500">
+            {departureAirport} {departureTerminal && `Terminal ${departureTerminal}`}
           </p>
-          <Badge variant="secondary" className="font-normal">
-            {flightNumber}
-          </Badge>
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Departure</p>
-          <p className="font-medium">
-            {new Date(departureTime).toLocaleTimeString()}
+        )}
+      </div>
+      <div>
+        <p className="text-sm text-gray-500">Arrival</p>
+        <p className="font-medium">
+          {new Date(arrivalTime).toLocaleTimeString()}
+        </p>
+        {arrivalAirport && (
+          <p className="text-sm text-gray-500">
+            {arrivalAirport} {arrivalTerminal && `Terminal ${arrivalTerminal}`}
           </p>
-          {departureAirport && (
-            <p className="text-sm text-gray-500">
-              {departureAirport} {departureTerminal && `Terminal ${departureTerminal}`}
-            </p>
-          )}
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Arrival</p>
-          <p className="font-medium">
-            {new Date(arrivalTime).toLocaleTimeString()}
-          </p>
-          {arrivalAirport && (
-            <p className="text-sm text-gray-500">
-              {arrivalAirport} {arrivalTerminal && `Terminal ${arrivalTerminal}`}
-            </p>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

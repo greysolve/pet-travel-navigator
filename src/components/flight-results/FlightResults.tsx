@@ -1,4 +1,7 @@
 import { FlightCard } from "./FlightCard";
+import { FlightHeader } from "./FlightHeader";
+import { PolicyDetails } from "./PolicyDetails";
+import { PawPrint } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
 
 interface FlightResultsProps {
