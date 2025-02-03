@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AirlineDataManager } from "@/components/admin/AirlineDataManager";
 import { SyncSection } from "@/components/admin/SyncSection";
+import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
 
 const Admin = () => {
   return (
@@ -11,6 +12,7 @@ const Admin = () => {
         <TabsList>
           <TabsTrigger value="sync">Data Sync</TabsTrigger>
           <TabsTrigger value="airlines">Airline Data</TabsTrigger>
+          <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sync">
@@ -19,6 +21,10 @@ const Admin = () => {
 
         <TabsContent value="airlines">
           <AirlineDataManager />
+        </TabsContent>
+
+        <TabsContent value="pet-policies">
+          <PetPolicyUpdate />
         </TabsContent>
       </Tabs>
     </div>
