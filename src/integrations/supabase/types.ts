@@ -527,6 +527,19 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_airline_flights: {
+        Args: {
+          airline_iata: string
+        }
+        Returns: {
+          carrierFsCode: string
+          flightNumber: string
+          departureTime: string
+          arrivalTime: string
+          arrivalCountry: string
+          airlineName: string
+        }[]
+      }
       get_distinct_countries: {
         Args: Record<PropertyKey, never>
         Returns: {

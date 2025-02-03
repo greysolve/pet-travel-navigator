@@ -42,9 +42,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         .from('airlines')
         .select('id, iata_code')
         .eq('name', policySearch)
-        .single();
+        .maybeSingle();
 
-      if (airlineError) {
+      if (airlineError || !airlines?.iata_code) {
         console.error("Error finding airline:", airlineError);
         toast({
           title: "Error finding airline",
@@ -55,9 +55,20 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       }
 
       console.log("Found airline:", airlines);
-      const { data: flights } = await supabase.rpc('get_airline_flights', {
-        airline_iata: airlines.iata_code
-      });
+      const { data: flights, error: flightError } = await supabase
+        .rpc('get_airline_flights', {
+          airline_iata: airlines.iata_code
+        });
+
+      if (flightError) {
+        console.error("Error fetching flights:", flightError);
+        toast({
+          title: "Error fetching flights",
+          description: "Could not fetch flights for the selected airline.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       console.log("Found flights:", flights);
       onSearchResults(flights || []);
