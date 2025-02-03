@@ -46,20 +46,41 @@ export const useCountryPolicy = (destinationCountry?: string) => {
     queryFn: async () => {
       if (!destinationCountry) return null;
       
-      const { data: policy, error } = await supabase
+      // First try to get arrival policy
+      const { data: arrivalPolicy, error: arrivalError } = await supabase
         .from('country_policies')
         .select('*')
         .eq('country_code', destinationCountry)
+        .eq('policy_type', 'pet_arrival')
         .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching country policy:", error);
+      if (arrivalError) {
+        console.error("Error fetching arrival policy:", arrivalError);
         return null;
       }
 
-      console.log("Found country policy:", policy);
+      // If we found an arrival policy, return it
+      if (arrivalPolicy) {
+        console.log("Found arrival policy:", arrivalPolicy);
+        return arrivalPolicy;
+      }
 
-      if (!policy) {
+      // If no arrival policy, try transit policy
+      const { data: transitPolicy, error: transitError } = await supabase
+        .from('country_policies')
+        .select('*')
+        .eq('country_code', destinationCountry)
+        .eq('policy_type', 'pet_transit')
+        .maybeSingle();
+
+      if (transitError) {
+        console.error("Error fetching transit policy:", transitError);
+        return null;
+      }
+
+      console.log("Found transit policy:", transitPolicy);
+
+      if (!arrivalPolicy && !transitPolicy) {
         console.log("No policy found, triggering sync...");
         try {
           const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
@@ -89,7 +110,7 @@ export const useCountryPolicy = (destinationCountry?: string) => {
         }
       }
 
-      return policy;
+      return transitPolicy || null;
     },
     enabled: !!destinationCountry,
   });

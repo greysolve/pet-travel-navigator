@@ -16,6 +16,8 @@ export type PetPolicy = {
   policy_url?: string;
 };
 
+export type PolicyType = 'pet_arrival' | 'pet_transit';
+
 export type CountryPolicy = {
   title: string;
   description?: string;
@@ -25,4 +27,5 @@ export type CountryPolicy = {
   quarantine_requirements?: string;
   additional_notes?: string;
   policy_url?: string;
+  policy_type: PolicyType;
 };

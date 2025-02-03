@@ -1,5 +1,14 @@
 import { ExternalLink } from "lucide-react";
-import type { CountryPolicy } from "./types";
+import { Badge } from "@/components/ui/badge";
+import type { CountryPolicy, PolicyType } from "./types";
+
+const getPolicyTypeLabel = (type: PolicyType) => {
+  return type === 'pet_arrival' ? 'Arrival Policy' : 'Transit Policy';
+};
+
+const getPolicyTypeBadgeColor = (type: PolicyType) => {
+  return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
+};
 
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
   if (!policy) {
@@ -14,7 +23,12 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
   return (
     <div className="bg-white p-8 rounded-lg shadow-md">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold">{policy.title}</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-semibold">{policy.title}</h2>
+          <Badge className={`${getPolicyTypeBadgeColor(policy.policy_type)}`}>
+            {getPolicyTypeLabel(policy.policy_type)}
+          </Badge>
+        </div>
         {policy.policy_url && (
           <a 
             href={policy.policy_url}
