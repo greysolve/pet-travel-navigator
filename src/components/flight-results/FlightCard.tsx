@@ -34,8 +34,8 @@ export const FlightCard = ({
   isConnection,
 }: FlightCardProps) => {
   return (
-    <Card className={`${isConnection ? 'border-0 shadow-none bg-transparent' : ''}`}>
-      <CardContent className={`${isConnection ? 'px-4 py-3' : 'p-6'} space-y-4`}>
+    <div className={`${isConnection ? 'bg-accent/20 rounded-lg' : ''}`}>
+      <div className={`${isConnection ? 'p-4' : 'p-6'} space-y-4`}>
         <div className="flex items-center justify-between">
           <FlightHeader
             carrierFsCode={carrierFsCode}
@@ -58,7 +58,7 @@ export const FlightCard = ({
           </div>
         </div>
         {policy && <PolicyDetails policy={policy} />}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

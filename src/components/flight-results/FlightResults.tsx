@@ -1,7 +1,12 @@
 import { FlightCard } from "./FlightCard";
-import { FlightHeader } from "./FlightHeader";
 import { PolicyDetails } from "./PolicyDetails";
 import { PawPrint } from "lucide-react";
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from "@/components/ui/accordion";
 import type { FlightData, PetPolicy } from "./types";
 
 interface FlightResultsProps {
@@ -30,35 +35,38 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
         return (
           <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg">
             {/* Main Flight Card */}
-            <div className="p-6">
-              <FlightCard
-                {...flight}
-                policy={petPolicies?.[flight.carrierFsCode]}
-              />
-            </div>
+            <FlightCard
+              {...flight}
+              policy={petPolicies?.[flight.carrierFsCode]}
+            />
 
             {/* Connecting Flights Section */}
             {hasConnections && (
-              <div className="border-t bg-accent/20">
-                <div className="px-6 py-4">
-                  <h3 className="text-sm font-medium text-gray-500 mb-4">
-                    {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
-                  </h3>
-                  <div className="space-y-4">
-                    {connectingFlights.map((connection, connectionIndex) => (
-                      <div 
-                        key={`${connection.flightNumber}-${connectionIndex}`}
-                        className="relative pl-6 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-primary"
-                      >
-                        <FlightCard
-                          {...connection}
-                          policy={connection.carrierFsCode !== flight.carrierFsCode ? petPolicies?.[connection.carrierFsCode] : undefined}
-                          isConnection={true}
-                        />
+              <div className="border-t">
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="connections" className="border-0">
+                    <AccordionTrigger className="px-6 py-2 text-sm font-medium text-gray-500">
+                      {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 px-6 pb-4">
+                        {connectingFlights.map((connection, connectionIndex) => (
+                          <div 
+                            key={`${connection.flightNumber}-${connectionIndex}`}
+                            className="relative pl-6 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-primary/30"
+                          >
+                            <FlightCard
+                              {...connection}
+                              policy={connection.carrierFsCode !== flight.carrierFsCode ? 
+                                petPolicies?.[connection.carrierFsCode] : undefined}
+                              isConnection={true}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             )}
           </div>
