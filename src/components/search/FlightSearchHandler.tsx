@@ -49,14 +49,42 @@ export const useFlightSearch = () => {
           return acc;
         }, {}) || {};
 
-        const flights = data.scheduledFlights.map((flight: any) => ({
-          carrierFsCode: flight.carrierFsCode,
-          flightNumber: flight.flightNumber,
-          departureTime: flight.departureTime,
-          arrivalTime: flight.arrivalTime,
-          arrivalCountry: destinationCountry,
-          airlineName: airlineMap[flight.carrierFsCode],
-        }));
+        // Group flights by connections
+        const flights = data.scheduledFlights.reduce((acc: FlightData[], flight: any) => {
+          // Check if this is a connecting flight
+          if (flight.codeshares) {
+            // This is a main flight with connections
+            const mainFlight: FlightData = {
+              carrierFsCode: flight.carrierFsCode,
+              flightNumber: flight.flightNumber,
+              departureTime: flight.departureTime,
+              arrivalTime: flight.arrivalTime,
+              arrivalCountry: destinationCountry,
+              airlineName: airlineMap[flight.carrierFsCode],
+              connections: flight.codeshares.map((connection: any) => ({
+                carrierFsCode: connection.carrierFsCode,
+                flightNumber: connection.flightNumber,
+                departureTime: connection.departureTime,
+                arrivalTime: connection.arrivalTime,
+                arrivalCountry: destinationCountry,
+                airlineName: airlineMap[connection.carrierFsCode],
+              }))
+            };
+            acc.push(mainFlight);
+          } else if (!flight.isCodeshare) {
+            // This is a direct flight
+            acc.push({
+              carrierFsCode: flight.carrierFsCode,
+              flightNumber: flight.flightNumber,
+              departureTime: flight.departureTime,
+              arrivalTime: flight.arrivalTime,
+              arrivalCountry: destinationCountry,
+              airlineName: airlineMap[flight.carrierFsCode],
+            });
+          }
+          return acc;
+        }, []);
+
         onSearchResults(flights);
       }
     } catch (error) {
