@@ -41,7 +41,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
           {journey.length > 1 && (
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-medium text-gray-500">
-                {journey.length} Leg Journey - Total Duration: {journey[0].totalDuration || 'N/A'} minutes
+                {journey.length}-Flight Journey
               </span>
             </div>
           )}
