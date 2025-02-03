@@ -1,0 +1,177 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
+const CountryPolicyUpdate = () => {
+  const [selectedCountry, setSelectedCountry] = useState<{
+    code: string;
+    name: string;
+  } | null>(null);
+  const [jsonInput, setJsonInput] = useState("");
+  const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const { data: countries, isLoading } = useQuery({
+    queryKey: ["countries", searchTerm],
+    queryFn: async () => {
+      if (!searchTerm || searchTerm.length < 2) return [];
+      
+      console.log('Fetching countries for search term:', searchTerm);
+      const { data, error } = await supabase
+        .from('countries')
+        .select('code, name')
+        .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching countries:', error);
+        toast({
+          title: "Error fetching countries",
+          description: "Please try again",
+          variant: "destructive",
+        });
+        return [];
+      }
+
+      console.log('Fetched countries:', data);
+      return data || [];
+    },
+    enabled: searchTerm.length >= 2,
+  });
+
+  const handleUpdate = async () => {
+    if (!selectedCountry) {
+      toast({
+        title: "Error",
+        description: "Please select a country first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Parse and validate JSON
+      const policiesData = JSON.parse(jsonInput);
+      
+      if (!Array.isArray(policiesData)) {
+        throw new Error("Input must be an array of policies");
+      }
+
+      // Delete existing policies for this country
+      const { error: deleteError } = await supabase
+        .from("country_policies")
+        .delete()
+        .eq("country_code", selectedCountry.code);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new policies
+      for (const policy of policiesData) {
+        const { error: insertError } = await supabase
+          .from("country_policies")
+          .insert({
+            country_code: selectedCountry.code,
+            policy_type: policy.policy_type,
+            title: policy.title,
+            description: policy.description,
+            requirements: policy.requirements,
+            documentation_needed: policy.documentation_needed,
+            fees: policy.fees,
+            restrictions: policy.restrictions,
+            quarantine_requirements: policy.quarantine_requirements,
+            vaccination_requirements: policy.vaccination_requirements,
+            additional_notes: policy.additional_notes,
+            policy_url: policy.policy_url,
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Country policies updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating country policies:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update country policies",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4 p-4">
+      <h2 className="text-2xl font-bold mb-4">Update Country Policies</h2>
+      
+      <div className="flex flex-col space-y-2">
+        <label className="text-sm font-medium">Select Country</label>
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Search for a country..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setShowCountrySuggestions(true);
+            }}
+            onFocus={() => setShowCountrySuggestions(true)}
+            className="w-full"
+          />
+          
+          {showCountrySuggestions && (searchTerm.length >= 2) && (
+            <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              ) : countries && countries.length > 0 ? (
+                <ul className="max-h-60 overflow-auto py-1">
+                  {countries.map((country) => (
+                    <li
+                      key={country.code}
+                      className="px-4 py-2 hover:bg-accent cursor-pointer"
+                      onClick={() => {
+                        setSelectedCountry(country);
+                        setSearchTerm(country.name);
+                        setShowCountrySuggestions(false);
+                      }}
+                    >
+                      {country.name} ({country.code})
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No countries found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col space-y-2">
+        <label className="text-sm font-medium">Country Policies JSON</label>
+        <Textarea
+          value={jsonInput}
+          onChange={(e) => setJsonInput(e.target.value)}
+          placeholder="Paste the country policies JSON here..."
+          className="min-h-[400px] font-mono"
+        />
+      </div>
+
+      <Button onClick={handleUpdate} className="w-full">
+        Update Country Policies
+      </Button>
+    </div>
+  );
+};
+
+export default CountryPolicyUpdate;
