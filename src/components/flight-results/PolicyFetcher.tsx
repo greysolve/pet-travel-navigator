@@ -5,15 +5,27 @@ import type { FlightData, PetPolicy } from "./types";
 
 export const usePetPolicies = (flights: FlightData[]) => {
   return useQuery({
-    queryKey: ['petPolicies', flights.map(f => f.carrierFsCode)],
+    queryKey: ['petPolicies', flights.map(f => {
+      const carriers = [f.carrierFsCode];
+      f.connections?.forEach(conn => carriers.push(conn.carrierFsCode));
+      return carriers;
+    }).flat()],
     queryFn: async () => {
       if (!flights.length) return {};
       
-      console.log("Fetching pet policies for airlines:", flights.map(f => f.carrierFsCode));
+      // Get all unique carrier codes including connections
+      const carrierCodes = [...new Set(flights.flatMap(f => {
+        const codes = [f.carrierFsCode];
+        f.connections?.forEach(conn => codes.push(conn.carrierFsCode));
+        return codes;
+      }))];
+      
+      console.log("Fetching pet policies for airlines:", carrierCodes);
+      
       const { data: airlines } = await supabase
         .from('airlines')
         .select('id, iata_code')
-        .in('iata_code', flights.map(f => f.carrierFsCode));
+        .in('iata_code', carrierCodes);
 
       if (!airlines?.length) return {};
 
@@ -46,71 +58,52 @@ export const useCountryPolicy = (destinationCountry?: string) => {
     queryFn: async () => {
       if (!destinationCountry) return null;
       
-      // First try to get arrival policy
-      const { data: arrivalPolicy, error: arrivalError } = await supabase
+      // Get both arrival and transit policies
+      const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')
         .eq('country_code', destinationCountry)
-        .eq('policy_type', 'pet_arrival')
-        .maybeSingle();
+        .in('policy_type', ['pet_arrival', 'pet_transit']);
 
-      if (arrivalError) {
-        console.error("Error fetching arrival policy:", arrivalError);
+      if (error) {
+        console.error("Error fetching country policies:", error);
         return null;
       }
 
-      // If we found an arrival policy, return it
-      if (arrivalPolicy) {
-        console.log("Found arrival policy:", arrivalPolicy);
-        return arrivalPolicy;
+      if (policies && policies.length > 0) {
+        console.log("Found country policies:", policies);
+        return policies;
       }
 
-      // If no arrival policy, try transit policy
-      const { data: transitPolicy, error: transitError } = await supabase
-        .from('country_policies')
-        .select('*')
-        .eq('country_code', destinationCountry)
-        .eq('policy_type', 'pet_transit')
-        .maybeSingle();
-
-      if (transitError) {
-        console.error("Error fetching transit policy:", transitError);
-        return null;
+      console.log("No policy found, triggering sync...");
+      try {
+        const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
+          body: { 
+            lastProcessedItem: null,
+            currentProcessed: 0,
+            currentTotal: 0,
+            processedItems: [],
+            errorItems: [],
+            startTime: new Date().toISOString(),
+          }
+        });
+        
+        if (syncError) throw syncError;
+        
+        toast({
+          title: "Syncing Country Policies",
+          description: "We're fetching the latest country policies. Please try your search again in a few moments.",
+        });
+      } catch (error) {
+        console.error("Error triggering sync:", error);
+        toast({
+          variant: "destructive",
+          title: "Sync Error",
+          description: "Failed to sync country policies. Please try again later.",
+        });
       }
 
-      console.log("Found transit policy:", transitPolicy);
-
-      if (!arrivalPolicy && !transitPolicy) {
-        console.log("No policy found, triggering sync...");
-        try {
-          const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
-            body: { 
-              lastProcessedItem: null,
-              currentProcessed: 0,
-              currentTotal: 0,
-              processedItems: [],
-              errorItems: [],
-              startTime: new Date().toISOString(),
-            }
-          });
-          
-          if (syncError) throw syncError;
-          
-          toast({
-            title: "Syncing Country Policies",
-            description: "We're fetching the latest country policies. Please try your search again in a few moments.",
-          });
-        } catch (error) {
-          console.error("Error triggering sync:", error);
-          toast({
-            variant: "destructive",
-            title: "Sync Error",
-            description: "Failed to sync country policies. Please try again later.",
-          });
-        }
-      }
-
-      return transitPolicy || null;
+      return null;
     },
     enabled: !!destinationCountry,
   });
