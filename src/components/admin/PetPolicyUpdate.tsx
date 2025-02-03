@@ -27,7 +27,7 @@ const PetPolicyUpdate = () => {
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
 
-  const { data: airlines, isLoading } = useQuery({
+  const { data: airlines = [], isLoading } = useQuery({
     queryKey: ["airlines"],
     queryFn: async () => {
       console.log("Fetching airlines...");
@@ -48,6 +48,14 @@ const PetPolicyUpdate = () => {
 
       console.log("Fetched airlines:", data);
       return data || [];
+    },
+    // Ensure we have a stable data structure
+    select: (data) => {
+      if (!Array.isArray(data)) return [];
+      return data.map(airline => ({
+        id: airline.id,
+        name: airline.name
+      }));
     },
   });
 
@@ -109,52 +117,48 @@ const PetPolicyUpdate = () => {
     }
   };
 
-  const renderCommandContent = () => {
-    if (isLoading) {
-      return (
+  // Only render Command when we have data and the popover is open
+  const commandContent = (
+    <>
+      {isLoading ? (
         <div className="flex items-center justify-center p-4">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
           Loading...
         </div>
-      );
-    }
-
-    if (!airlines || airlines.length === 0) {
-      return (
+      ) : !airlines?.length ? (
         <div className="p-4 text-center text-sm text-muted-foreground">
           No airlines available
         </div>
-      );
-    }
-
-    return (
-      <Command>
-        <CommandInput placeholder="Search airlines..." />
-        <CommandEmpty>No airline found.</CommandEmpty>
-        <CommandGroup>
-          {airlines.map((airline) => (
-            <CommandItem
-              key={airline.id}
-              onSelect={() => {
-                setSelectedAirline(airline);
-                setOpen(false);
-              }}
-            >
-              <Check
-                className={cn(
-                  "mr-2 h-4 w-4",
-                  selectedAirline?.id === airline.id
-                    ? "opacity-100"
-                    : "opacity-0"
-                )}
-              />
-              {airline.name}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </Command>
-    );
-  };
+      ) : (
+        <Command>
+          <CommandInput placeholder="Search airlines..." />
+          <CommandEmpty>No airline found.</CommandEmpty>
+          <CommandGroup>
+            {airlines.map((airline) => (
+              <CommandItem
+                key={airline.id}
+                value={airline.id}
+                onSelect={() => {
+                  setSelectedAirline(airline);
+                  setOpen(false);
+                }}
+              >
+                <Check
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    selectedAirline?.id === airline.id
+                      ? "opacity-100"
+                      : "opacity-0"
+                  )}
+                />
+                {airline.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      )}
+    </>
+  );
 
   return (
     <div className="space-y-4 p-4">
@@ -184,8 +188,8 @@ const PetPolicyUpdate = () => {
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[400px] p-0">
-            {renderCommandContent()}
+          <PopoverContent className="w-[400px] p-0" align="start">
+            {commandContent}
           </PopoverContent>
         </Popover>
       </div>
