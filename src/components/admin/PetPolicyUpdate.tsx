@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PetPolicyUpdate = () => {
@@ -30,20 +30,24 @@ const PetPolicyUpdate = () => {
   const { data: airlines = [], isLoading } = useQuery({
     queryKey: ["airlines"],
     queryFn: async () => {
+      console.log("Fetching airlines...");
       const { data, error } = await supabase
         .from("airlines")
         .select("id, name")
         .order("name");
 
       if (error) {
+        console.error("Error fetching airlines:", error);
         toast({
           title: "Error fetching airlines",
           description: error.message,
           variant: "destructive",
         });
-        throw error;
+        return [];
       }
-      return data;
+
+      console.log("Fetched airlines:", data);
+      return data || [];
     },
   });
 
@@ -121,7 +125,10 @@ const PetPolicyUpdate = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                "Loading airlines..."
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading airlines...
+                </div>
               ) : selectedAirline ? (
                 selectedAirline.name
               ) : (
@@ -131,31 +138,38 @@ const PetPolicyUpdate = () => {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[400px] p-0">
-            <Command>
-              <CommandInput placeholder="Search airlines..." />
-              <CommandEmpty>No airline found.</CommandEmpty>
-              <CommandGroup>
-                {airlines.map((airline) => (
-                  <CommandItem
-                    key={airline.id}
-                    onSelect={() => {
-                      setSelectedAirline(airline);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedAirline?.id === airline.id
-                          ? "opacity-100"
-                          : "opacity-0"
-                      )}
-                    />
-                    {airline.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Loading...
+              </div>
+            ) : (
+              <Command>
+                <CommandInput placeholder="Search airlines..." />
+                <CommandEmpty>No airline found.</CommandEmpty>
+                <CommandGroup>
+                  {airlines.map((airline) => (
+                    <CommandItem
+                      key={airline.id}
+                      onSelect={() => {
+                        setSelectedAirline(airline);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedAirline?.id === airline.id
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      {airline.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            )}
           </PopoverContent>
         </Popover>
       </div>
