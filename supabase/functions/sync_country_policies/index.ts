@@ -8,18 +8,21 @@ const corsHeaders = {
 async function fetchPolicyWithAI(country: string, apiKey: string) {
   console.log(`Fetching policy for ${country}`);
   
-  const systemPrompt = `You are a helpful assistant specializing in finding official government pet and/or live animal import policies.  You prioritize citations you discover from the results that belong to the government of the country you're asked about or the most authoritative citation you can find.
+  const systemPrompt = `You are a helpful assistant specializing in finding official government pet and/or live animal import policies. You understand the distinction between arrival policies (for pets entering the country) and transit policies (for pets passing through the country). You prioritize citations you discover from the results that belong to the government of the country you're asked about or the most authoritative citation you can find.
 Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   
-  const userPrompt = `For ${country}'s pet import requirements:
-  1. Search specifically for the official government website or department responsible for animal imports
-  2. Use the url from the results citations that is the most authoritative for the results that you can find with a strong strong bias towards government web pages
-  3. Extract the complete policy details
+  const userPrompt = `For ${country}'s pet import and transit requirements:
+  1. Search specifically for both:
+     - Official requirements for pets ENTERING ${country} (arrival policy)
+     - Official requirements for pets TRANSITING THROUGH ${country} (transit policy)
+  2. Use the most authoritative URLs from the results, with strong preference for government websites
+  3. Extract complete policy details for both scenarios
   
-  Format as a JSON object with this structure:
+  Format as TWO separate JSON objects with this structure, one for each policy type:
   {
+    "policy_type": "pet_arrival", // or "pet_transit" for the transit policy
     "title": "string - official name of the policy/requirements",
-    "description": "string - comprehensive overview",
+    "description": "string - comprehensive overview specific to arrival or transit",
     "requirements": ["string - list each main requirement"],
     "documentation_needed": ["string - list each required document"],
     "fees": {"description": "string - include all fee details if available"},
@@ -28,9 +31,11 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
     "vaccination_requirements": ["string - list each required vaccination"],
     "additional_notes": "string - include source authority and last verified date",
     "policy_url": "string - MUST be the direct URL to the policy. If using non-government source, explain why in additional_notes"
-  }`;
+  }
 
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+  Return both policies in an array, even if one type has no specific requirements (in which case, indicate "No specific policy found for this type" in the description).`;
+
+  const response = await fetch('https://perplexity.ai/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -59,7 +64,8 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   console.log('Cleaned AI response:', cleanContent);
   
   try {
-    return JSON.parse(cleanContent);
+    const policies = JSON.parse(cleanContent);
+    return Array.isArray(policies) ? policies : [policies];
   } catch (error) {
     console.error('Failed to parse AI response:', error);
     console.error('Raw content:', content);
@@ -112,22 +118,25 @@ Deno.serve(async (req) => {
         onConflict: 'type'
       });
 
-    // Fetch and store policy
-    const policy = await fetchPolicyWithAI(country, apiKey);
+    // Fetch and store policies
+    const policies = await fetchPolicyWithAI(country, apiKey);
     
-    const { error: upsertError } = await supabase
-      .from('country_policies')
-      .upsert({
-        country_code: country,
-        policy_type: 'pet',
-        ...policy,
-        last_updated: new Date().toISOString()
-      }, {
-        onConflict: 'country_code,policy_type'
-      });
+    // Store each policy separately
+    for (const policy of policies) {
+      const { error: upsertError } = await supabase
+        .from('country_policies')
+        .upsert({
+          country_code: country,
+          policy_type: policy.policy_type,
+          ...policy,
+          last_updated: new Date().toISOString()
+        }, {
+          onConflict: 'country_code,policy_type'
+        });
 
-    if (upsertError) {
-      throw upsertError;
+      if (upsertError) {
+        throw upsertError;
+      }
     }
 
     // Update progress
