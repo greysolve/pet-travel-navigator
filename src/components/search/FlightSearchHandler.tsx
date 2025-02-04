@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightJourney, FlightSegment } from "../flight-results/types";
+import type { FlightJourney } from "../flight-results/types";
 
-interface FlightSearchHandlerProps {
+interface FlightSearchProps {
   origin: string;
   destination: string;
-  date: Date | undefined;
+  date: Date;
   destinationCountry: string | undefined;
   onSearchResults: (flights: FlightJourney[]) => void;
   onSearchComplete: () => void;
@@ -23,7 +23,7 @@ export const useFlightSearch = () => {
     destinationCountry,
     onSearchResults,
     onSearchComplete,
-  }: FlightSearchHandlerProps) => {
+  }: FlightSearchProps) => {
     if (!origin || !destination || !date) {
       toast({
         title: "Missing search criteria",
@@ -46,12 +46,12 @@ export const useFlightSearch = () => {
       console.log('Full API response:', data);
       console.log('Response structure:', {
         hasConnections: !!data?.connections,
-        hasScheduledFlights: !!data?.connections?.scheduledFlights,
-        scheduledFlightsLength: data?.connections?.scheduledFlights?.length
+        hasScheduledFlight: !!data?.connections?.scheduledFlight,
+        scheduledFlightLength: data?.connections?.scheduledFlight?.length
       });
       
-      if (data?.connections?.scheduledFlights) {
-        const journeys = data.connections.scheduledFlights;
+      if (data?.connections?.scheduledFlight) {
+        const journeys = data.connections.scheduledFlight;
         console.log('Processed journeys:', journeys);
         onSearchResults(journeys);
       } else {
