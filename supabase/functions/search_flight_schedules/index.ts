@@ -44,10 +44,45 @@ Deno.serve(async (req) => {
     const data = await response.json()
     console.log('Raw Cirium API response:', JSON.stringify(data));
 
+    // Initialize Supabase client to fetch airport data
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration')
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
     // Transform the connections data into our expected format
     if (data.connections) {
       console.log('Processing connections data. Total connections:', data.connections.length);
       
+      // Get all unique airport codes from the connections
+      const airportCodes = new Set<string>();
+      data.connections.forEach((connection: any) => {
+        connection.scheduledFlight?.forEach((flight: any) => {
+          if (flight.departureAirportFsCode) airportCodes.add(flight.departureAirportFsCode);
+          if (flight.arrivalAirportFsCode) airportCodes.add(flight.arrivalAirportFsCode);
+        });
+      });
+
+      // Fetch airport data for all airports in one query
+      const { data: airports, error: airportsError } = await supabase
+        .from('airports')
+        .select('iata_code, country')
+        .in('iata_code', Array.from(airportCodes));
+
+      if (airportsError) {
+        console.error('Error fetching airport data:', airportsError);
+        throw new Error('Failed to fetch airport data');
+      }
+
+      // Create a map for quick airport lookups
+      const airportMap = new Map(
+        airports?.map(airport => [airport.iata_code, airport]) || []
+      );
+
       // Each connection represents a complete journey
       const journeys = data.connections.map((connection: any) => {
         const segments = connection.scheduledFlight;
@@ -58,21 +93,20 @@ Deno.serve(async (req) => {
           return null;
         }
 
-        // Get the final destination from the last segment
-        const finalSegment = segments[segments.length - 1];
-        const arrivalCountry = data.appendix?.airports?.find(
-          (a: any) => a.fs === finalSegment.arrivalAirportFsCode
-        )?.countryCode;
-
         // Process all segments in the journey
         const processedSegments = segments.map((segment: any) => {
           const airline = data.appendix?.airlines?.find((a: any) => a.fs === segment.carrierFsCode);
+          const departureAirport = airportMap.get(segment.departureAirportFsCode);
+          const arrivalAirport = airportMap.get(segment.arrivalAirportFsCode);
+
           console.log('Processing segment:', {
             carrier: segment.carrierFsCode,
             flightNumber: segment.flightNumber,
             airlineName: airline?.name,
             departure: segment.departureAirportFsCode,
-            arrival: segment.arrivalAirportFsCode
+            arrival: segment.arrivalAirportFsCode,
+            departureCountry: departureAirport?.country,
+            arrivalCountry: arrivalAirport?.country
           });
 
           return {
@@ -80,13 +114,22 @@ Deno.serve(async (req) => {
             flightNumber: segment.flightNumber,
             departureTime: segment.departureTime,
             arrivalTime: segment.arrivalTime,
-            airlineName: airline?.name,
-            departureAirport: segment.departureAirportFsCode,
-            arrivalAirport: segment.arrivalAirportFsCode,
+            departureAirportFsCode: segment.departureAirportFsCode,
+            arrivalAirportFsCode: segment.arrivalAirportFsCode,
             departureTerminal: segment.departureTerminal,
             arrivalTerminal: segment.arrivalTerminal,
+            departureCountry: departureAirport?.country,
+            arrivalCountry: arrivalAirport?.country,
+            elapsedTime: segment.elapsedTime,
+            stops: segment.stops || 0,
+            isCodeshare: segment.isCodeshare || false,
+            codeshares: segment.codeshares
           };
         });
+
+        // Get the final destination from the last segment
+        const finalSegment = processedSegments[processedSegments.length - 1];
+        const arrivalCountry = finalSegment?.arrivalCountry;
 
         // Return the complete journey with all its segments
         return {
