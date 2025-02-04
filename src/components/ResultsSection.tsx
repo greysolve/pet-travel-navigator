@@ -1,4 +1,4 @@
-import { usePetPolicies, useCountryPolicy } from "./flight-results/PolicyFetcher";
+import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { FlightResults } from "./flight-results/FlightResults";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
 import { PolicyDetails } from "./flight-results/PolicyDetails";
@@ -54,30 +54,8 @@ export const ResultsSection = ({
   const uniqueCountries = Array.from(allCountries);
   console.log("Unique countries found:", uniqueCountries);
 
-  // Fetch policies for all unique countries
-  const countryPoliciesResults = uniqueCountries.map(country => 
-    useCountryPolicy(country)
-  );
-
-  // Log the results of each country policy query
-  countryPoliciesResults.forEach((result, index) => {
-    console.log(`Policy result for ${uniqueCountries[index]}:`, {
-      data: result.data,
-      error: result.error,
-      isLoading: result.isLoading
-    });
-  });
-
-  // Combine all policies and filter out nulls
-  const allPolicies = countryPoliciesResults.reduce((acc: any[], result) => {
-    if (result.data) {
-      console.log("Found policies for country:", result.data);
-      acc.push(...result.data);
-    }
-    return acc;
-  }, []);
-
-  console.log("All country policies:", allPolicies);
+  // Fetch policies for all unique countries at once
+  const { data: countryPolicies, isLoading: isPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
   if (!searchPerformed) return null;
 
@@ -105,8 +83,8 @@ export const ResultsSection = ({
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
           {flights.length > 0 ? (
             uniqueCountries.length > 0 ? (
-              allPolicies && allPolicies.length > 0 ? (
-                allPolicies.map((policy, index) => (
+              countryPolicies && countryPolicies.length > 0 ? (
+                countryPolicies.map((policy, index) => (
                   <DestinationPolicy 
                     key={`${policy.country_code}-${policy.policy_type}-${index}`} 
                     policy={policy} 
@@ -115,7 +93,11 @@ export const ResultsSection = ({
               ) : (
                 <div className="bg-white p-6 rounded-lg shadow-md">
                   <p className="text-gray-500">
-                    Fetching policies for {uniqueCountries.join(', ')}...
+                    {isPoliciesLoading ? (
+                      `Fetching policies for ${uniqueCountries.join(', ')}...`
+                    ) : (
+                      'No pet policies found for the selected countries.'
+                    )}
                   </p>
                 </div>
               )

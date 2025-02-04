@@ -53,59 +53,58 @@ export const usePetPolicies = (flights: FlightJourney[]) => {
   });
 };
 
-export const useCountryPolicy = (countryName?: string) => {
+export const useCountryPolicies = (countries: string[]) => {
   return useQuery({
-    queryKey: ['countryPolicy', countryName],
+    queryKey: ['countryPolicies', countries],
     queryFn: async () => {
-      if (!countryName) {
-        console.log("No country name provided");
-        return null;
+      if (!countries.length) {
+        console.log("No countries provided");
+        return [];
       }
       
-      console.log(`Looking up policies for country: ${countryName}`);
+      console.log(`Looking up policies for countries:`, countries);
       
       // Map common country codes to full names
-      const mappedCountry = COUNTRY_MAPPINGS[countryName] || countryName;
-      console.log(`Using mapped country name: ${mappedCountry}`);
+      const mappedCountries = countries.map(country => COUNTRY_MAPPINGS[country] || country);
+      console.log(`Using mapped country names:`, mappedCountries);
       
-      // First try to get the country code from the countries table
+      // First try to get the country codes from the countries table
       const { data: countryData, error: countryError } = await supabase
         .from('countries')
         .select('code')
-        .ilike('name', mappedCountry)
-        .maybeSingle();
+        .in('name', mappedCountries);
 
       if (countryError) {
-        console.error("Error fetching country code:", countryError);
-        return null;
+        console.error("Error fetching country codes:", countryError);
+        return [];
       }
 
-      const countryCode = countryData?.code || mappedCountry;
-      console.log(`Using country code: ${countryCode} for ${mappedCountry}`);
+      const countryCodes = countryData?.map(c => c.code) || mappedCountries;
+      console.log(`Using country codes:`, countryCodes);
 
       // Get both arrival and transit policies
       const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')
-        .eq('country_code', countryCode)
+        .in('country_code', countryCodes)
         .in('policy_type', ['pet_arrival', 'pet_transit']);
 
       if (error) {
         console.error("Error fetching country policies:", error);
-        return null;
+        return [];
       }
 
       if (policies && policies.length > 0) {
-        console.log(`Found ${policies.length} policies for ${mappedCountry}:`, policies);
+        console.log(`Found ${policies.length} policies:`, policies);
         return policies;
       }
 
-      console.log(`No policies found for ${mappedCountry}, triggering sync...`);
+      console.log(`No policies found for countries, triggering sync...`);
       
       try {
         const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
           body: { 
-            country: mappedCountry,
+            countries: mappedCountries,
             lastProcessedItem: null,
             currentProcessed: 0,
             currentTotal: 0,
@@ -130,9 +129,9 @@ export const useCountryPolicy = (countryName?: string) => {
         });
       }
 
-      return null;
+      return [];
     },
-    enabled: !!countryName,
+    enabled: countries.length > 0,
     retry: 3,
     retryDelay: 2000,
   });
