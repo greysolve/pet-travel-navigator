@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { AuthDialog } from "@/components/AuthDialog";
+import AuthDialog from "@/components/AuthDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 
