@@ -22,50 +22,57 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   return (
     <div className="space-y-6">
-      {mainFlights.map((flight, index) => {
-        const connectingFlights = flight.connections || [];
-        const totalStops = connectingFlights.length;
-
+      {mainFlights.map((mainFlight, index) => {
+        const connectingFlights = mainFlight.connections || [];
+        const mainAirline = mainFlight.carrierFsCode;
+        
         return (
-          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg">
-            {/* Main Flight Section */}
+          <div 
+            key={`${mainFlight.flightNumber}-${index}`} 
+            className="bg-white rounded-lg shadow-lg overflow-hidden"
+          >
+            {/* Main Flight */}
             <div className="p-6">
               <FlightCard
-                carrierFsCode={flight.carrierFsCode}
-                airlineName={flight.airlineName}
-                flightNumber={flight.flightNumber}
-                departureTime={flight.departureTime}
-                arrivalTime={flight.arrivalTime}
-                departureAirport={flight.departureAirport}
-                arrivalAirport={flight.arrivalAirport}
-                departureTerminal={flight.departureTerminal}
-                arrivalTerminal={flight.arrivalTerminal}
-                stops={totalStops}
-                policy={petPolicies?.[flight.carrierFsCode]}
+                carrierFsCode={mainFlight.carrierFsCode}
+                airlineName={mainFlight.airlineName}
+                flightNumber={mainFlight.flightNumber}
+                departureTime={mainFlight.departureTime}
+                arrivalTime={mainFlight.arrivalTime}
+                departureAirport={mainFlight.departureAirport}
+                arrivalAirport={mainFlight.arrivalAirport}
+                departureTerminal={mainFlight.departureTerminal}
+                arrivalTerminal={mainFlight.arrivalTerminal}
               />
+              {petPolicies?.[mainAirline] && (
+                <div className="mt-4">
+                  <PolicyDetails policy={petPolicies[mainAirline]} />
+                </div>
+              )}
             </div>
 
-            {/* Connecting Flights Section */}
-            {connectingFlights.length > 0 && (
-              <div className="border-t divide-y divide-gray-100">
-                {connectingFlights.map((connection, connectionIndex) => (
-                  <div 
-                    key={`${connection.flightNumber}-${connectionIndex}`}
-                    className="bg-gray-50"
-                  >
-                    {/* Layover Information */}
-                    <div className="px-6 py-2 bg-gray-100/80">
-                      <p className="text-sm text-gray-600">
-                        {connectionIndex === 0 ? (
-                          `${calculateLayoverDuration(flight.arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
-                        ) : (
-                          `${calculateLayoverDuration(connectingFlights[connectionIndex - 1].arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
-                        )}
-                      </p>
-                    </div>
+            {/* Connecting Flights */}
+            {connectingFlights.map((connection, connectionIndex) => {
+              const showPolicy = connection.carrierFsCode !== mainAirline;
+              const layoverDuration = connectionIndex === 0
+                ? calculateLayoverDuration(mainFlight.arrivalTime, connection.departureTime)
+                : calculateLayoverDuration(connectingFlights[connectionIndex - 1].arrivalTime, connection.departureTime);
 
-                    {/* Connection Flight Card */}
-                    <div className="p-6">
+              return (
+                <div 
+                  key={`${connection.flightNumber}-${connectionIndex}`}
+                  className="border-t border-gray-100"
+                >
+                  {/* Layover Info */}
+                  <div className="bg-gray-50 px-4 py-2">
+                    <p className="text-sm text-gray-600">
+                      {`${layoverDuration} layover in ${connection.departureAirport}`}
+                    </p>
+                  </div>
+                  
+                  {/* Connection Flight */}
+                  <div className="p-6 bg-gray-50/50">
+                    <div className="pl-6 border-l-2 border-gray-200">
                       <FlightCard
                         carrierFsCode={connection.carrierFsCode}
                         airlineName={connection.airlineName}
@@ -76,14 +83,18 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                         arrivalAirport={connection.arrivalAirport}
                         departureTerminal={connection.departureTerminal}
                         arrivalTerminal={connection.arrivalTerminal}
-                        policy={connection.carrierFsCode !== flight.carrierFsCode ? petPolicies?.[connection.carrierFsCode] : undefined}
                         isConnection={true}
                       />
+                      {showPolicy && petPolicies?.[connection.carrierFsCode] && (
+                        <div className="mt-4">
+                          <PolicyDetails policy={petPolicies[connection.carrierFsCode]} />
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              );
+            })}
           </div>
         );
       })}
