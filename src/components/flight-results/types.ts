@@ -1,18 +1,20 @@
-export type FlightData = {
+export type FlightSegment = {
   carrierFsCode: string;
   flightNumber: string;
   departureTime: string;
   arrivalTime: string;
-  arrivalCountry?: string;
   airlineName?: string;
-  connections?: FlightData[];
-  totalDuration?: number;
-  stops?: number;
   departureAirport?: string;
   arrivalAirport?: string;
   departureTerminal?: string;
   arrivalTerminal?: string;
-  isConnection?: boolean;
+};
+
+export type FlightData = {
+  segments: FlightSegment[];
+  arrivalCountry?: string;
+  totalDuration?: number;
+  stops?: number;
 };
 
 export type PetPolicy = {
