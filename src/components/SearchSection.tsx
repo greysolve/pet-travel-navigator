@@ -118,13 +118,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
   const { data: flightPetPolicies } = usePetPolicies(flights);
   const { data: countryPolicies } = useCountryPolicies(
-    flights.reduce((countries: Set<string>, journey) => {
+    Array.from(flights.reduce((countries: Set<string>, journey) => {
       journey.segments?.forEach(segment => {
         if (segment.departureCountry) countries.add(segment.departureCountry);
         if (segment.arrivalCountry) countries.add(segment.arrivalCountry);
       });
       return countries;
-    }, new Set<string>())
+    }, new Set<string>()))
   );
 
   return (
