@@ -34,6 +34,7 @@ export const useFlightSearch = () => {
       return null;
     }
 
+    console.log('Cache check result:', cachedSearch);
     return cachedSearch;
   };
 
@@ -42,22 +43,32 @@ export const useFlightSearch = () => {
     const cacheExpiration = new Date();
     cacheExpiration.setMinutes(cacheExpiration.getMinutes() + 5); // 5-minute cache
 
-    console.log('Updating cache for:', { origin, destination, searchDate });
+    console.log('Updating cache for:', { 
+      origin, 
+      destination, 
+      searchDate,
+      cacheExpiration: cacheExpiration.toISOString() 
+    });
 
-    const { error } = await supabase
-      .from('route_searches')
-      .upsert({
-        origin,
-        destination,
-        search_date: searchDate,
-        last_searched_at: new Date().toISOString(),
-        cached_until: cacheExpiration.toISOString()
-      }, {
-        onConflict: 'origin,destination,search_date'
-      });
+    try {
+      const { error } = await supabase
+        .from('route_searches')
+        .upsert({
+          origin,
+          destination,
+          search_date: searchDate,
+          last_searched_at: new Date().toISOString(),
+          cached_until: cacheExpiration.toISOString()
+        });
 
-    if (error) {
-      console.error('Error updating cache:', error);
+      if (error) {
+        console.error('Error updating cache:', error);
+        throw error;
+      }
+
+      console.log('Cache updated successfully');
+    } catch (error) {
+      console.error('Failed to update cache:', error);
     }
   };
 
