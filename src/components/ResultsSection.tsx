@@ -18,12 +18,26 @@ export const ResultsSection = ({
 
   // Get all unique countries from the journey
   const allCountries = flights.reduce((countries: string[], journey) => {
-    journey.segments?.forEach(segment => {
-      if (segment.arrivalCountry && !countries.includes(segment.arrivalCountry)) {
-        countries.push(segment.arrivalCountry);
-      }
+    console.log("Processing journey for countries:", journey);
+    
+    if (!journey.segments) {
+      console.log("No segments found in journey");
+      return countries;
+    }
+
+    journey.segments.forEach(segment => {
+      console.log("Processing segment:", {
+        departure: segment.departureCountry,
+        arrival: segment.arrivalCountry
+      });
+
       if (segment.departureCountry && !countries.includes(segment.departureCountry)) {
+        console.log("Adding departure country:", segment.departureCountry);
         countries.push(segment.departureCountry);
+      }
+      if (segment.arrivalCountry && !countries.includes(segment.arrivalCountry)) {
+        console.log("Adding arrival country:", segment.arrivalCountry);
+        countries.push(segment.arrivalCountry);
       }
     });
     return countries;
@@ -70,19 +84,25 @@ export const ResultsSection = ({
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
         <div id="country-policies" className="space-y-6">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
-          {allCountries.length > 0 ? (
-            allPolicies && allPolicies.length > 0 ? (
-              allPolicies.map((policy, index) => (
-                <DestinationPolicy key={policy.id || index} policy={policy} />
-              ))
+          {flights.length > 0 ? (
+            allCountries.length > 0 ? (
+              allPolicies && allPolicies.length > 0 ? (
+                allPolicies.map((policy, index) => (
+                  <DestinationPolicy key={policy.id || index} policy={policy} />
+                ))
+              ) : (
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <p className="text-gray-500">Fetching policies for {allCountries.join(', ')}...</p>
+                </div>
+              )
             ) : (
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <p className="text-gray-500">Fetching policies for {allCountries.join(', ')}...</p>
+                <p className="text-gray-500">No countries found in flight segments. This might be due to missing country data.</p>
               </div>
             )
           ) : (
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <p className="text-gray-500">No countries found in the journey.</p>
+              <p className="text-gray-500">No flights selected.</p>
             </div>
           )}
         </div>
