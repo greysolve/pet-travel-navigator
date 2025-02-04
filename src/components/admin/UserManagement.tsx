@@ -59,6 +59,7 @@ const UserManagement = () => {
         throw profilesError;
       }
 
+      // Fetch user roles
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
@@ -68,11 +69,21 @@ const UserManagement = () => {
         throw rolesError;
       }
 
-      // Combine profile and role data
+      // Fetch auth users for email addresses
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+
+      if (authError) {
+        console.error("Error fetching auth users:", authError);
+        throw authError;
+      }
+
+      // Combine profile, role, and auth user data
       const userProfiles = profiles.map((profile) => {
         const userRole = roles.find((r) => r.user_id === profile.id);
+        const authUser = authUsers.users.find((u) => u.id === profile.id);
         return {
           id: profile.id,
+          email: authUser?.email || "",
           full_name: profile.full_name,
           role: userRole?.role || "pet_lover",
         };
@@ -158,6 +169,7 @@ const UserManagement = () => {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -166,6 +178,7 @@ const UserManagement = () => {
           {users?.map((user) => (
             <TableRow key={user.id}>
               <TableCell>{user.full_name || "No name"}</TableCell>
+              <TableCell>{user.email}</TableCell>
               <TableCell>{user.role}</TableCell>
               <TableCell className="space-x-2">
                 <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
