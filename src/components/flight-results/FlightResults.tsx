@@ -22,11 +22,10 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
   return (
     <div className="space-y-6">
       {flights.map((flight, index) => {
-        // Get all connections for this flight
         const connections = flight.connections || [];
         const mainAirline = flight.carrierFsCode;
         
-        console.log("Processing flight:", {
+        console.log("Processing flight itinerary:", {
           mainFlight: flight,
           connections: connections,
           mainAirline: mainAirline

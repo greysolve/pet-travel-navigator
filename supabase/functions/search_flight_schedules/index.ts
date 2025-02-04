@@ -44,19 +44,13 @@ Deno.serve(async (req) => {
     
     const data = await response.json()
     console.log('Raw Cirium API response:', JSON.stringify(data));
-    console.log('Number of connections found:', data.connections?.length || 0);
 
     // Transform the connections data into our expected format
     if (data.connections) {
-      console.log('Processing connections data');
+      console.log('Processing connections data. Total connections:', data.connections.length);
       const flights = data.connections.map((connection: any) => {
         const legs = connection.scheduledFlight;
-        console.log('Processing connection:', {
-          totalLegs: legs?.length || 0,
-          elapsedTime: connection.elapsedTime,
-          firstLegCarrier: legs?.[0]?.carrierFsCode,
-          lastLegCarrier: legs?.[legs?.length - 1]?.carrierFsCode
-        });
+        console.log('Processing connection with legs:', legs?.length || 0);
 
         if (!legs || legs.length === 0) {
           console.log('No legs found for this connection, skipping');
@@ -75,7 +69,30 @@ Deno.serve(async (req) => {
           arrival: mainFlight.arrivalAirportFsCode
         });
 
-        // Process the main flight with its connections
+        // Process connecting flights if they exist
+        const connections = legs.slice(1).map((leg: any) => {
+          const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
+          console.log('Connection leg details:', {
+            carrier: leg.carrierFsCode,
+            flightNumber: leg.flightNumber,
+            airlineName: connectionAirline?.name,
+            departure: leg.departureAirportFsCode,
+            arrival: leg.arrivalAirportFsCode
+          });
+          
+          return {
+            carrierFsCode: leg.carrierFsCode,
+            flightNumber: leg.flightNumber,
+            departureTime: leg.departureTime,
+            arrivalTime: leg.arrivalTime,
+            airlineName: connectionAirline?.name,
+            departureAirport: leg.departureAirportFsCode,
+            arrivalAirport: leg.arrivalAirportFsCode,
+            isConnection: true
+          };
+        });
+
+        // Return the complete flight itinerary
         const processedFlight = {
           carrierFsCode: mainFlight.carrierFsCode,
           flightNumber: mainFlight.flightNumber,
@@ -87,27 +104,7 @@ Deno.serve(async (req) => {
           airlineName: mainAirline?.name,
           departureAirport: mainFlight.departureAirportFsCode,
           arrivalAirport: mainFlight.arrivalAirportFsCode,
-          connections: legs.slice(1).map((leg: any) => {
-            const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
-            console.log('Connection leg details:', {
-              carrier: leg.carrierFsCode,
-              flightNumber: leg.flightNumber,
-              airlineName: connectionAirline?.name,
-              departure: leg.departureAirportFsCode,
-              arrival: leg.arrivalAirportFsCode
-            });
-            
-            return {
-              carrierFsCode: leg.carrierFsCode,
-              flightNumber: leg.flightNumber,
-              departureTime: leg.departureTime,
-              arrivalTime: leg.arrivalTime,
-              airlineName: connectionAirline?.name,
-              departureAirport: leg.departureAirportFsCode,
-              arrivalAirport: leg.arrivalAirportFsCode,
-              isConnection: true
-            };
-          })
+          connections: connections
         };
 
         console.log('Processed flight with connections:', processedFlight);
