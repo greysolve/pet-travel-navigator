@@ -5,10 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Routes, Route } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { Home } from "@/pages/Home";
-import { Profile } from "@/pages/Profile";
-import { Admin } from "@/pages/Admin";
-import { AuthCallback } from "@/pages/AuthCallback";
+import Home from "@/pages/Home";
+import Profile from "@/pages/Profile";
+import Admin from "@/pages/Admin";
+import AuthCallback from "@/pages/AuthCallback";
 import "./App.css";
 
 const queryClient = new QueryClient();
