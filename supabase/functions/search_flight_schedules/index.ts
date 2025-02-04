@@ -123,9 +123,13 @@ Deno.serve(async (req) => {
         arrivalCountry: flight.arrivalCountry
       }));
 
-      // Return the response with the correct structure
+      // Return the response with the correct structure maintaining the connections parent
       return new Response(
-        JSON.stringify({ scheduledFlights: journeys }),
+        JSON.stringify({ 
+          connections: {
+            scheduledFlights: journeys
+          }
+        }),
         { 
           headers: { 
             ...corsHeaders,
@@ -137,7 +141,11 @@ Deno.serve(async (req) => {
 
     // If no flights found, return empty array with correct structure
     return new Response(
-      JSON.stringify({ scheduledFlights: [] }),
+      JSON.stringify({ 
+        connections: {
+          scheduledFlights: []
+        }
+      }),
       { 
         headers: { 
           ...corsHeaders,
