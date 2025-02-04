@@ -22,7 +22,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
     );
   }
 
-  // Filter out flights that are connections
+  // Filter to get only main flights (not connections)
   const mainFlights = flights.filter(flight => !flight.isConnection);
 
   return (
@@ -30,7 +30,11 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
       <Accordion type="single" collapsible className="w-full">
         {mainFlights.map((flight, index) => {
           const connectingFlights = flight.connections || [];
-          const hasConnections = connectingFlights.length > 0;
+          const totalStops = connectingFlights.length;
+          const firstFlight = flight;
+          const lastFlight = connectingFlights.length > 0 
+            ? connectingFlights[connectingFlights.length - 1] 
+            : flight;
 
           return (
             <AccordionItem 
@@ -40,110 +44,99 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
             >
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
                 <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold">
-                          {flight.airlineName || flight.carrierFsCode}
-                        </h3>
-                        <span className="text-sm text-gray-500">({flight.carrierFsCode})</span>
-                      </div>
-                      <p className="text-sm text-gray-600">{flight.flightNumber}</p>
+                  <div className="flex items-center gap-8">
+                    <div className="flex flex-col items-start">
+                      <p className="font-medium">
+                        {new Date(firstFlight.departureTime).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-sm text-gray-500">{firstFlight.departureAirport}</p>
                     </div>
-                    <div className="flex items-center gap-12">
-                      <div>
-                        <p className="text-sm text-gray-500">Departure</p>
-                        <p className="font-medium">
-                          {new Date(flight.departureTime).toLocaleTimeString()}
-                        </p>
-                        {flight.departureAirport && (
-                          <p className="text-sm text-gray-500">{flight.departureAirport}</p>
-                        )}
+                    <div className="flex flex-col items-center">
+                      <div className="text-sm text-gray-500">
+                        {totalStops === 0 ? 'Nonstop' : `${totalStops} stop${totalStops > 1 ? 's' : ''}`}
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Arrival</p>
-                        <p className="font-medium">
-                          {new Date(flight.arrivalTime).toLocaleTimeString()}
-                        </p>
-                        {flight.arrivalAirport && (
-                          <p className="text-sm text-gray-500">{flight.arrivalAirport}</p>
-                        )}
-                      </div>
+                      <div className="w-24 h-px bg-gray-300 my-1" />
+                      <PawPrint className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <p className="font-medium">
+                        {new Date(lastFlight.arrivalTime).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-sm text-gray-500">{lastFlight.arrivalAirport}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    {hasConnections && (
-                      <span className="text-sm text-gray-500">
-                        {connectingFlights.length} stop{connectingFlights.length > 1 ? 's' : ''}
-                      </span>
-                    )}
-                    <PawPrint className="h-5 w-5 text-primary" />
+                    <div className="text-sm font-medium">
+                      {firstFlight.airlineName || firstFlight.carrierFsCode}
+                    </div>
                   </div>
                 </div>
               </AccordionTrigger>
 
               <AccordionContent>
                 <div className="px-6 pb-6 space-y-6">
-                  {/* Main Flight Policy */}
-                  {petPolicies?.[flight.carrierFsCode] && (
-                    <div className="border-t pt-4">
-                      <PolicyDetails policy={petPolicies[flight.carrierFsCode]} />
+                  {/* First Flight */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-medium">
+                          {firstFlight.airlineName || firstFlight.carrierFsCode} {firstFlight.flightNumber}
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          {firstFlight.departureAirport} → {firstFlight.arrivalAirport}
+                        </p>
+                      </div>
+                      {petPolicies?.[firstFlight.carrierFsCode] && (
+                        <PawPrint className="h-5 w-5 text-primary" />
+                      )}
                     </div>
-                  )}
+                    {petPolicies?.[firstFlight.carrierFsCode] && (
+                      <PolicyDetails policy={petPolicies[firstFlight.carrierFsCode]} />
+                    )}
+                  </div>
 
                   {/* Connecting Flights */}
-                  {hasConnections && (
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-gray-700">Connecting Flights</h4>
-                      {connectingFlights.map((connection, connectionIndex) => (
-                        <div 
-                          key={`${connection.flightNumber}-${connectionIndex}`}
-                          className="bg-accent/20 rounded-lg p-4 space-y-4"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-semibold">
-                                  {connection.airlineName || connection.carrierFsCode}
-                                </h4>
-                                <span className="text-sm text-gray-500">({connection.carrierFsCode})</span>
-                              </div>
-                              <p className="text-sm text-gray-600">{connection.flightNumber}</p>
-                            </div>
+                  {connectingFlights.map((connection, connectionIndex) => (
+                    <div key={`${connection.flightNumber}-${connectionIndex}`} className="space-y-4">
+                      {/* Layover Information */}
+                      <div className="py-2 px-4 bg-accent/20 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          {connectionIndex === 0 ? (
+                            `${calculateLayoverDuration(firstFlight.arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
+                          ) : (
+                            `${calculateLayoverDuration(connectingFlights[connectionIndex - 1].arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Connection Flight Details */}
+                      <div className="border-t pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h4 className="font-medium">
+                              {connection.airlineName || connection.carrierFsCode} {connection.flightNumber}
+                            </h4>
+                            <p className="text-sm text-gray-500">
+                              {connection.departureAirport} → {connection.arrivalAirport}
+                            </p>
+                          </div>
+                          {petPolicies?.[connection.carrierFsCode] && (
                             <PawPrint className="h-5 w-5 text-primary" />
-                          </div>
-
-                          <div className="flex items-center gap-12">
-                            <div>
-                              <p className="text-sm text-gray-500">Departure</p>
-                              <p className="font-medium">
-                                {new Date(connection.departureTime).toLocaleTimeString()}
-                              </p>
-                              {connection.departureAirport && (
-                                <p className="text-sm text-gray-500">{connection.departureAirport}</p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Arrival</p>
-                              <p className="font-medium">
-                                {new Date(connection.arrivalTime).toLocaleTimeString()}
-                              </p>
-                              {connection.arrivalAirport && (
-                                <p className="text-sm text-gray-500">{connection.arrivalAirport}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          {connection.carrierFsCode !== flight.carrierFsCode && 
-                            petPolicies?.[connection.carrierFsCode] && (
-                              <div className="border-t pt-4">
-                                <PolicyDetails policy={petPolicies[connection.carrierFsCode]} />
-                              </div>
                           )}
                         </div>
-                      ))}
+                        {connection.carrierFsCode !== firstFlight.carrierFsCode && 
+                          petPolicies?.[connection.carrierFsCode] && (
+                            <PolicyDetails policy={petPolicies[connection.carrierFsCode]} />
+                        )}
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -152,4 +145,14 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
       </Accordion>
     </div>
   );
+};
+
+// Helper function to calculate layover duration
+const calculateLayoverDuration = (arrivalTime: string, departureTime: string) => {
+  const arrival = new Date(arrivalTime);
+  const departure = new Date(departureTime);
+  const durationMs = departure.getTime() - arrival.getTime();
+  const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours} hr ${minutes} min`;
 };
