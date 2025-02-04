@@ -37,18 +37,23 @@ Deno.serve(async (req) => {
       console.log('Deleting user:', userId);
 
       try {
-        // Delete the auth user (this will trigger the handle_deleted_user function)
+        // First delete from user_roles table
+        const { error: rolesError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+
+        if (rolesError) {
+          console.error('Error deleting user roles:', rolesError);
+          throw rolesError;
+        }
+
+        // Then delete the auth user
         const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
         
         if (deleteError) {
           console.error('Error deleting auth user:', deleteError);
-          return new Response(
-            JSON.stringify({ error: deleteError.message }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 400,
-            },
-          );
+          throw deleteError;
         }
 
         return new Response(
@@ -61,10 +66,10 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error('Error in delete operation:', error);
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Database error deleting user', details: error.message }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
+            status: 400,
           },
         );
       }
@@ -103,8 +108,8 @@ Deno.serve(async (req) => {
 
     // Start with auth users and enrich with profile and role data
     const userProfiles: UserProfile[] = users.map((user) => {
-      const profile = profiles.find((p) => p.id === user.id);
-      const userRole = roles.find((r) => r.user_id === user.id);
+      const profile = profiles?.find((p) => p.id === user.id);
+      const userRole = roles?.find((r) => r.user_id === user.id);
       const userProfile = {
         id: user.id,
         full_name: profile?.full_name || null,
