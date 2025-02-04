@@ -158,24 +158,7 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
     if (!element) return;
 
     try {
-      // Save original styles
-      const originalMaxWidth = element.style.maxWidth;
-      const originalWidth = element.style.width;
-
-      // Remove width constraints temporarily
-      element.style.maxWidth = 'none';
-      element.style.width = 'auto';
-
-      const canvas = await html2canvas(element, {
-        logging: false,
-        useCORS: true,
-        scale: 2, // Increase quality
-      });
-
-      // Restore original styles
-      element.style.maxWidth = originalMaxWidth;
-      element.style.width = originalWidth;
-
+      const canvas = await html2canvas(element);
       const link = document.createElement('a');
       link.download = 'search-results.png';
       link.href = canvas.toDataURL('image/png');
@@ -186,7 +169,6 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
         description: "Your search results have been saved as a PNG.",
       });
     } catch (error) {
-      console.error('PNG Export error:', error);
       toast({
         title: "Error exporting PNG",
         description: "Failed to generate PNG. Please try again.",
