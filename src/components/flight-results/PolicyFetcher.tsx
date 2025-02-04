@@ -3,11 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { FlightJourney, PetPolicy } from "./types";
 
-const COUNTRY_MAPPINGS: Record<string, string> = {
-  'USA': 'United States',
-  'UK': 'United Kingdom'
-};
-
 export const usePetPolicies = (flights: FlightJourney[]) => {
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
@@ -64,30 +59,11 @@ export const useCountryPolicy = (countryName?: string) => {
       
       console.log(`Looking up policies for country: ${countryName}`);
       
-      // Map common country codes to full names
-      const mappedCountry = COUNTRY_MAPPINGS[countryName] || countryName;
-      console.log(`Using mapped country name: ${mappedCountry}`);
-      
-      // First try to get the country code from the countries table
-      const { data: countryData, error: countryError } = await supabase
-        .from('countries')
-        .select('code')
-        .ilike('name', mappedCountry)
-        .maybeSingle();
-
-      if (countryError) {
-        console.error("Error fetching country code:", countryError);
-        return null;
-      }
-
-      const countryCode = countryData?.code || mappedCountry;
-      console.log(`Using country code: ${countryCode} for ${mappedCountry}`);
-
       // Get both arrival and transit policies
       const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')
-        .eq('country_code', countryCode)
+        .eq('country_code', countryName)
         .in('policy_type', ['pet_arrival', 'pet_transit']);
 
       if (error) {
@@ -96,16 +72,16 @@ export const useCountryPolicy = (countryName?: string) => {
       }
 
       if (policies && policies.length > 0) {
-        console.log(`Found ${policies.length} policies for ${mappedCountry}:`, policies);
+        console.log(`Found ${policies.length} policies for ${countryName}:`, policies);
         return policies;
       }
 
-      console.log(`No policies found for ${mappedCountry}, triggering sync...`);
+      console.log(`No policies found for ${countryName}, triggering sync...`);
       
       try {
         const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
           body: { 
-            country: mappedCountry,
+            country: countryName,
             lastProcessedItem: null,
             currentProcessed: 0,
             currentTotal: 0,
