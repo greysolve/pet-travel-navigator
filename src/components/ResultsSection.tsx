@@ -65,7 +65,7 @@ export const ResultsSection = ({
     const policy = petPolicies[airlineName];
     
     return (
-      <div className="container mx-auto px-4 py-12">
+      <div id="search-results" className="container mx-auto px-4 py-12">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Pet Policy for {airlineName}</h2>
           <PolicyDetails policy={policy} />
@@ -76,7 +76,7 @@ export const ResultsSection = ({
 
   // Otherwise show flight results with their policies
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div id="search-results" className="container mx-auto px-4 py-12">
       <div className="space-y-8">
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
         <div id="country-policies" className="space-y-6">

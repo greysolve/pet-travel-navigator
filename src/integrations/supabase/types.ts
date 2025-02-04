@@ -367,6 +367,39 @@ export type Database = {
           },
         ]
       }
+      route_searches: {
+        Row: {
+          cached_until: string | null
+          created_at: string | null
+          destination: string
+          id: string
+          last_searched_at: string | null
+          origin: string
+          search_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          cached_until?: string | null
+          created_at?: string | null
+          destination: string
+          id?: string
+          last_searched_at?: string | null
+          origin: string
+          search_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          cached_until?: string | null
+          created_at?: string | null
+          destination?: string
+          id?: string
+          last_searched_at?: string | null
+          origin?: string
+          search_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       routes: {
         Row: {
           airline_id: string | null

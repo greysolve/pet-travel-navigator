@@ -1,3 +1,5 @@
+import type { Json } from "@/integrations/supabase/types";
+
 export type FlightSegment = {
   carrierFsCode: string;
   flightNumber: string;
@@ -41,13 +43,20 @@ export type PetPolicy = {
 export type PolicyType = 'pet_arrival' | 'pet_transit';
 
 export type CountryPolicy = {
+  id: string;
+  country_code: string;
+  policy_type: PolicyType;
   title: string;
   description?: string;
   requirements?: string[];
   documentation_needed?: string[];
-  vaccination_requirements?: string[];
+  fees?: Json;
+  restrictions?: Json;
   quarantine_requirements?: string;
+  vaccination_requirements?: string[];
   additional_notes?: string;
+  last_updated?: string;
   policy_url?: string;
-  policy_type: PolicyType;
+  created_at?: string;
+  updated_at?: string;
 };
