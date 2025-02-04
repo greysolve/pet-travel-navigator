@@ -23,11 +23,13 @@ export const FlightHeader = ({
   departureTerminal,
   arrivalTerminal,
 }: FlightHeaderProps) => {
+  console.log("FlightHeader props:", { carrierFsCode, airlineName, flightNumber });
+  
   return (
     <div className="flex items-center space-x-6">
       <div>
         <p className="font-bold text-lg">
-          {airlineName} {carrierFsCode && `(${carrierFsCode})`}
+          {carrierFsCode} {airlineName && `(${airlineName})`}
         </p>
         <Badge variant="secondary" className="font-normal">
           {flightNumber}

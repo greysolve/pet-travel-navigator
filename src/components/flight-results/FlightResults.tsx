@@ -2,6 +2,7 @@ import { PawPrint } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
 import { PolicyDetails } from "./PolicyDetails";
 import { FlightCard } from "./FlightCard";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FlightResultsProps {
   flights: FlightData[];
@@ -18,6 +19,20 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
       </div>
     );
   }
+
+  const getAirlineName = async (carrierCode: string) => {
+    const { data, error } = await supabase
+      .from('airlines')
+      .select('name')
+      .eq('iata_code', carrierCode)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching airline name:', error);
+      return null;
+    }
+    return data?.name;
+  };
 
   return (
     <div className="space-y-6">
@@ -80,7 +95,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                   {isNotLastSegment && nextSegment && (
                     <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">
                       <p className="text-sm text-gray-600">
-                        {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.airlineName} ({segment.arrivalAirportFsCode})
+                        {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
                       </p>
                     </div>
                   )}
