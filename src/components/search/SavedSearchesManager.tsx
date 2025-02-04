@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, BookmarkPlus, RefreshCw, FileDownload } from "lucide-react";
+import { Save, BookmarkPlus, RefreshCw, Download } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
@@ -30,6 +30,9 @@ interface SavedSearch {
     date?: string;
     policySearch?: string;
   };
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
 }
 
 interface SavedSearchesManagerProps {
@@ -72,7 +75,19 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
       return;
     }
 
-    setSavedSearches(data || []);
+    // Transform the data to match our SavedSearch type
+    const transformedData: SavedSearch[] = (data || []).map(item => ({
+      id: item.id,
+      name: item.name || '',
+      search_criteria: typeof item.search_criteria === 'string' 
+        ? JSON.parse(item.search_criteria)
+        : item.search_criteria,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      user_id: item.user_id
+    }));
+
+    setSavedSearches(transformedData);
   };
 
   const handleSaveSearch = async () => {
@@ -198,7 +213,7 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
         onClick={exportAsPDF}
         className="flex items-center gap-2"
       >
-        <FileDownload className="h-4 w-4" />
+        <Download className="h-4 w-4" />
         Export PDF
       </Button>
 
@@ -207,7 +222,7 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
         onClick={exportAsPNG}
         className="flex items-center gap-2"
       >
-        <FileDownload className="h-4 w-4" />
+        <Download className="h-4 w-4" />
         Export PNG
       </Button>
 
