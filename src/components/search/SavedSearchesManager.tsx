@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, BookmarkPlus, RefreshCw, Download } from "lucide-react";
+import { Save, BookmarkPlus, Download } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ExportView } from "./ExportView"; // New import
+import { ExportView } from "./ExportView";
 
 interface SavedSearch {
   id: string;
@@ -76,7 +76,6 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
       return;
     }
 
-    // Transform the data to match our SavedSearch type
     const transformedData: SavedSearch[] = (data || []).map(item => ({
       id: item.id,
       name: item.name || '',
@@ -127,43 +126,32 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
     }
   };
 
-  const exportAsPDF = async () => {
-    const element = document.getElementById('search-results');
-    if (!element) return;
-
-    try {
-      const canvas = await html2canvas(element);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgData = canvas.toDataURL('image/png');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save('search-results.pdf');
-
-      toast({
-        title: "PDF exported successfully",
-        description: "Your search results have been saved as a PDF.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error exporting PDF",
-        description: "Failed to generate PDF. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const exportAsPNG = async () => {
     const element = document.getElementById('export-view-content');
-    if (!element) return;
+    if (!element) {
+      console.error('Export view element not found');
+      toast({
+        title: "Export failed",
+        description: "Could not generate the export view. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const canvas = await html2canvas(element, {
-        scale: 3, // Higher scale for better quality
-        useCORS: true,
+        scale: 3,
         logging: true,
         backgroundColor: '#ffffff',
+        useCORS: true,
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.getElementById('export-view-content');
+          if (clonedElement) {
+            clonedElement.style.display = 'block';
+            clonedElement.style.width = '800px';
+            clonedElement.style.height = 'auto';
+          }
+        }
       });
       
       const link = document.createElement('a');
@@ -172,13 +160,13 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
       link.click();
 
       toast({
-        title: "PNG exported successfully",
-        description: "Your search results have been saved as a PNG.",
+        title: "Export successful",
+        description: "Your flight results have been saved as a PNG.",
       });
     } catch (error) {
       console.error('PNG export error:', error);
       toast({
-        title: "Error exporting PNG",
+        title: "Export failed",
         description: "Failed to generate PNG. Please try again.",
         variant: "destructive",
       });
@@ -219,15 +207,6 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
 
         <Button
           variant="outline"
-          onClick={exportAsPDF}
-          className="flex items-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          Export PDF
-        </Button>
-
-        <Button
-          variant="outline"
           onClick={exportAsPNG}
           className="flex items-center gap-2"
         >
@@ -236,10 +215,9 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
         </Button>
       </div>
 
-      {/* Hidden export view that will be used for PNG generation */}
-      <div className="hidden">
-        <div id="export-view-content" className="bg-white p-8 max-w-[800px]">
-          <ExportView />
+      <div className="fixed left-0 top-0 -z-50 opacity-0">
+        <div id="export-view-content" className="bg-white w-[800px]">
+          <ExportView flights={currentSearch.flights || []} />
         </div>
       </div>
 
