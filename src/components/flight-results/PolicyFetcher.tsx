@@ -54,11 +54,21 @@ export const useCountryPolicy = (destinationCountry?: string) => {
     queryFn: async () => {
       if (!destinationCountry) return null;
       
+      // First try to get the country code from the countries table
+      const { data: countryData } = await supabase
+        .from('countries')
+        .select('code')
+        .ilike('name', destinationCountry)
+        .single();
+
+      const countryCode = countryData?.code || destinationCountry;
+      console.log(`Looking up policies for country: ${destinationCountry}, code: ${countryCode}`);
+
       // Get both arrival and transit policies
       const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')
-        .eq('country_code', destinationCountry)
+        .eq('country_code', countryCode)
         .in('policy_type', ['pet_arrival', 'pet_transit']);
 
       if (error) {
@@ -67,7 +77,7 @@ export const useCountryPolicy = (destinationCountry?: string) => {
       }
 
       if (policies && policies.length > 0) {
-        console.log("Found country policies:", policies);
+        console.log(`Found ${policies.length} policies for ${destinationCountry}:`, policies);
         return policies;
       }
 
