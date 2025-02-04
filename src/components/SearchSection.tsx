@@ -8,7 +8,7 @@ import { SavedSearchesManager } from "./search/SavedSearchesManager";
 import { useFlightSearch } from "./search/FlightSearchHandler";
 import type { SearchSectionProps } from "./search/types";
 import { supabase } from "@/integrations/supabase/client";
-import type { PetPolicy } from "./flight-results/types";
+import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
@@ -17,6 +17,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState<Date>();
   const [destinationCountry, setDestinationCountry] = useState<string>();
+  const [flights, setFlights] = useState<FlightData[]>([]);
   const { toast } = useToast();
   const { handleFlightSearch, isLoading } = useFlightSearch();
   const { user } = useAuth();
@@ -76,15 +77,19 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       }
 
       console.log("Found pet policy:", petPolicy);
-      // Just pass an empty flights array and the pet policy
-      onSearchResults([], { [policySearch]: petPolicy as PetPolicy });
+      const results: FlightData[] = [];
+      onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
+      setFlights(results);
     } else if (origin && destination && date) {
       handleFlightSearch({
         origin,
         destination,
         date,
         destinationCountry,
-        onSearchResults,
+        onSearchResults: (results, policies) => {
+          onSearchResults(results, policies);
+          setFlights(results);
+        },
         onSearchComplete: () => {}
       });
     }
@@ -116,6 +121,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         {user && (
           <SavedSearchesManager
             currentSearch={{ origin, destination, date, policySearch }}
+            flights={flights}
             onLoadSearch={handleLoadSavedSearch}
           />
         )}

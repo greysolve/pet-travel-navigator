@@ -42,12 +42,12 @@ interface SavedSearchesManagerProps {
     destination?: string;
     date?: Date;
     policySearch?: string;
-    flights?: FlightData[];
   };
+  flights?: FlightData[];
   onLoadSearch: (search: SavedSearch['search_criteria']) => void;
 }
 
-export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearchesManagerProps) => {
+export const SavedSearchesManager = ({ currentSearch, flights = [], onLoadSearch }: SavedSearchesManagerProps) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -236,7 +236,7 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div id="export-view-content" className="bg-white p-8">
-              <ExportView flights={currentSearch.flights || []} />
+              <ExportView flights={flights} />
             </div>
             <Button onClick={exportAsPNG} className="w-full">
               <Download className="h-4 w-4 mr-2" />
