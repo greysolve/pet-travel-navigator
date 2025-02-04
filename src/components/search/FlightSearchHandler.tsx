@@ -41,37 +41,12 @@ export const useFlightSearch = () => {
 
       if (error) throw error;
 
-      console.log('Flight schedules:', data);
+      console.log('Flight schedules response:', data);
       
-      if (data && data.connections) {
-        const processedJourneys = data.connections.map((connection: any) => {
-          const segments = connection.scheduledFlight.map((flight: any) => ({
-            carrierFsCode: flight.carrierFsCode,
-            flightNumber: flight.flightNumber,
-            departureTime: flight.departureTime,
-            arrivalTime: flight.arrivalTime,
-            departureAirportFsCode: flight.departureAirportFsCode,
-            arrivalAirportFsCode: flight.arrivalAirportFsCode,
-            departureTerminal: flight.departureTerminal,
-            arrivalTerminal: flight.arrivalTerminal,
-            stops: flight.stops,
-            elapsedTime: flight.elapsedTime,
-            isCodeshare: flight.isCodeshare,
-            codeshares: flight.codeshares,
-          }));
-
-          const totalDuration = segments.reduce((total: number, segment: FlightSegment) => 
-            total + segment.elapsedTime, 0);
-
-          return {
-            segments,
-            totalDuration,
-            stops: segments.length - 1,
-            arrivalCountry: destinationCountry,
-          };
-        });
-
-        onSearchResults(processedJourneys);
+      if (data && data.scheduledFlights) {
+        const journeys = data.scheduledFlights;
+        console.log('Processed journeys:', journeys);
+        onSearchResults(journeys);
       } else {
         onSearchResults([]);
       }
