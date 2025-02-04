@@ -72,7 +72,7 @@ const AuthDialog = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const { error, data } = await signInWithEmail(email, password);
+      const { data, error } = await signInWithEmail(email, password);
       
       if (error) throw error;
       

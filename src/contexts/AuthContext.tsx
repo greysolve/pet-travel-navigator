@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthResponse } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/auth';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
@@ -10,8 +10,8 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   signIn: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<AuthResponse>;
+  signUp: (email: string, password: string) => Promise<AuthResponse>;
   signOut: () => Promise<void>;
   loading: boolean;
 }

@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
-import { sendVerificationEmail } from "@/utils/emailVerification";
+import { AuthResponse } from "@supabase/supabase-js";
 
 export function useAuthOperations() {
   const signIn = async () => {
@@ -12,27 +12,27 @@ export function useAuthOperations() {
     });
   };
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const response = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
-      return { data, error: null };
+      if (response.error) throw response.error;
+      return response;
     } catch (error: any) {
       toast({
         title: "Error signing in",
         description: error.message,
         variant: "destructive",
       });
-      return { data: null, error };
+      throw error;
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const response = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -40,24 +40,23 @@ export function useAuthOperations() {
         },
       });
       
-      if (error) throw error;
+      if (response.error) throw response.error;
       
-      if (data?.user?.confirmation_sent_at) {
-        await sendVerificationEmail(email, data.user.confirmation_token || '');
+      if (response.data?.user) {
         toast({
           title: "Success",
           description: "Please check your email to verify your account.",
         });
       }
       
-      return { data, error: null };
+      return response;
     } catch (error: any) {
       toast({
         title: "Error signing up",
         description: error.message,
         variant: "destructive",
       });
-      return { data: null, error };
+      throw error;
     }
   };
 
