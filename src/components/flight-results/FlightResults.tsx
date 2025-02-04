@@ -24,13 +24,15 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
           .from('airlines')
           .select('name')
           .eq('iata_code', code)
-          .single();
+          .maybeSingle();
         
         if (data?.name) {
           setAirlineNames(prev => ({
             ...prev,
             [code]: data.name
           }));
+        } else {
+          console.log(`No airline found for code: ${code}`);
         }
       }
     };
