@@ -80,7 +80,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                   {isNotLastSegment && nextSegment && (
                     <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">
                       <p className="text-sm text-gray-600">
-                        {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
+                        {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.airlineName} ({segment.arrivalAirportFsCode})
                       </p>
                     </div>
                   )}
