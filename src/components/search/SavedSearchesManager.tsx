@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ExportView } from "./ExportView"; // New import
 
 interface SavedSearch {
   id: string;
@@ -154,22 +155,19 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
   };
 
   const exportAsPNG = async () => {
-    const element = document.getElementById('search-results');
+    const element = document.getElementById('export-view-content');
     if (!element) return;
 
     try {
       const canvas = await html2canvas(element, {
-        scale: 2, // Keep high quality
+        scale: 3, // Higher scale for better quality
         useCORS: true,
         logging: true,
-        width: 1920, // Set fixed width
-        height: element.scrollHeight,
-        windowWidth: 1920,
-        backgroundColor: '#ffffff', // Ensure white background
+        backgroundColor: '#ffffff',
       });
       
       const link = document.createElement('a');
-      link.download = 'search-results.png';
+      link.download = 'flight-results.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
 
@@ -188,53 +186,62 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
   };
 
   return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <Button
-        variant="outline"
-        onClick={() => setShowSaveDialog(true)}
-        className="flex items-center gap-2"
-      >
-        <BookmarkPlus className="h-4 w-4" />
-        Save Search
-      </Button>
+    <>
+      <div className="flex flex-wrap gap-2 items-center">
+        <Button
+          variant="outline"
+          onClick={() => setShowSaveDialog(true)}
+          className="flex items-center gap-2"
+        >
+          <BookmarkPlus className="h-4 w-4" />
+          Save Search
+        </Button>
 
-      <Select
-        onValueChange={(value) => {
-          const search = savedSearches.find(s => s.id === value);
-          if (search) {
-            onLoadSearch(search.search_criteria);
-          }
-        }}
-      >
-        <SelectTrigger className="w-[200px]">
-          <SelectValue placeholder="Saved Searches" />
-        </SelectTrigger>
-        <SelectContent>
-          {savedSearches.map((search) => (
-            <SelectItem key={search.id} value={search.id}>
-              {search.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select
+          onValueChange={(value) => {
+            const search = savedSearches.find(s => s.id === value);
+            if (search) {
+              onLoadSearch(search.search_criteria);
+            }
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Saved Searches" />
+          </SelectTrigger>
+          <SelectContent>
+            {savedSearches.map((search) => (
+              <SelectItem key={search.id} value={search.id}>
+                {search.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Button
-        variant="outline"
-        onClick={exportAsPDF}
-        className="flex items-center gap-2"
-      >
-        <Download className="h-4 w-4" />
-        Export PDF
-      </Button>
+        <Button
+          variant="outline"
+          onClick={exportAsPDF}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export PDF
+        </Button>
 
-      <Button
-        variant="outline"
-        onClick={exportAsPNG}
-        className="flex items-center gap-2"
-      >
-        <Download className="h-4 w-4" />
-        Export PNG
-      </Button>
+        <Button
+          variant="outline"
+          onClick={exportAsPNG}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export PNG
+        </Button>
+      </div>
+
+      {/* Hidden export view that will be used for PNG generation */}
+      <div className="hidden">
+        <div id="export-view-content" className="bg-white p-8 max-w-[800px]">
+          <ExportView />
+        </div>
+      </div>
 
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
         <DialogContent>
@@ -254,6 +261,6 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
