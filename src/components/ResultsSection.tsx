@@ -50,9 +50,11 @@ export const ResultsSection = ({
     <div className="container mx-auto px-4 py-12">
       <div className="space-y-8">
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
-        {countryPolicies?.map((policy, index) => (
-          <DestinationPolicy key={policy.id || index} policy={policy} />
-        ))}
+        <div id="country-policies">
+          {countryPolicies?.map((policy, index) => (
+            <DestinationPolicy key={policy.id || index} policy={policy} />
+          ))}
+        </div>
       </div>
     </div>
   );

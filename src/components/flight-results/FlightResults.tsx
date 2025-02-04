@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { PawPrint } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
 import { PolicyDetails } from "./PolicyDetails";
 import { FlightCard } from "./FlightCard";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface FlightResultsProps {
   flights: FlightData[];
@@ -53,6 +54,13 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
     );
   }
 
+  const scrollToCountryPolicies = () => {
+    const policySection = document.getElementById('country-policies');
+    if (policySection) {
+      policySection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {flights.map((journey, index) => {
@@ -69,11 +77,19 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
             className="bg-white rounded-lg shadow-lg overflow-hidden"
           >
             {/* Journey Summary */}
-            <div className="bg-accent p-4">
+            <div className="bg-accent p-4 flex justify-between items-center">
               <p className="text-sm font-medium text-accent-foreground">
                 {journey.stops === 0 ? 'Direct Flight' : `${journey.stops} Stop${journey.stops > 1 ? 's' : ''}`}
                 {journey.totalDuration && ` • ${Math.floor(journey.totalDuration / 60)}h ${journey.totalDuration % 60}m`}
               </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-accent-foreground hover:text-accent-foreground/80"
+                onClick={scrollToCountryPolicies}
+              >
+                View Country Policies <ArrowDown className="ml-1 h-4 w-4" />
+              </Button>
             </div>
 
             {/* Flight Segments */}
