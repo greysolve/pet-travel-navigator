@@ -20,7 +20,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
+    // Initialize Supabase client with service role key for admin operations
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
@@ -34,17 +35,21 @@ Deno.serve(async (req) => {
     // Handle DELETE request for user deletion
     if (req.method === 'DELETE') {
       const { userId } = await req.json();
-      console.log('Deleting user:', userId);
+      console.log('Starting deletion process for user:', userId);
 
       try {
-        // Delete the auth user - this will trigger cascading deletions
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+        // Delete the auth user using admin client
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
+          userId,
+          true // Set soft delete to true to ensure clean deletion
+        );
         
         if (deleteError) {
           console.error('Error deleting auth user:', deleteError);
           throw deleteError;
         }
 
+        console.log('User deleted successfully:', userId);
         return new Response(
           JSON.stringify({ message: 'User deleted successfully' }),
           {
@@ -55,10 +60,14 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error('Error in delete operation:', error);
         return new Response(
-          JSON.stringify({ error: 'Error deleting user', details: error.message }),
+          JSON.stringify({ 
+            error: 'Error deleting user', 
+            details: error.message,
+            status: error.status || 500
+          }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
+            status: error.status || 500,
           },
         );
       }
@@ -66,7 +75,7 @@ Deno.serve(async (req) => {
 
     // Handle GET request for fetching users
     console.log('Fetching auth users...');
-    const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     if (authError) {
       console.error('Error fetching auth users:', authError);
       throw authError;
@@ -75,7 +84,7 @@ Deno.serve(async (req) => {
 
     // Get all profiles
     console.log('Fetching profiles...');
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select('*');
     if (profilesError) {
@@ -86,7 +95,7 @@ Deno.serve(async (req) => {
 
     // Get all roles
     console.log('Fetching user roles...');
-    const { data: roles, error: rolesError } = await supabase
+    const { data: roles, error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .select('*');
     if (rolesError) {
@@ -95,7 +104,7 @@ Deno.serve(async (req) => {
     }
     console.log('Roles fetched:', roles?.length);
 
-    // Start with auth users and enrich with profile and role data
+    // Map users with their profile and role data
     const userProfiles: UserProfile[] = users.map((user) => {
       const profile = profiles?.find((p) => p.id === user.id);
       const userRole = roles?.find((r) => r.user_id === user.id);
@@ -121,10 +130,13 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in manage_users function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        status: error.status || 500
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: error.status || 500,
       },
     );
   }
