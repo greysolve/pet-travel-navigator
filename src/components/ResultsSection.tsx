@@ -16,17 +16,32 @@ export const ResultsSection = ({
   // Only fetch policies for flights if we're doing a flight search
   const { data: flightPetPolicies } = usePetPolicies(flights);
 
-  // Get destination country from the first flight (only for flight searches)
-  const destinationCountry = flights[0]?.arrivalCountry;
-  console.log("Destination country for policy lookup:", destinationCountry);
+  // Get all unique countries from the journey
+  const allCountries = flights.reduce((countries: string[], journey) => {
+    journey.segments?.forEach(segment => {
+      if (segment.arrivalCountry && !countries.includes(segment.arrivalCountry)) {
+        countries.push(segment.arrivalCountry);
+      }
+    });
+    return countries;
+  }, []);
 
-  // Fetch destination country's pet policy
-  const { data: countryPolicies } = useCountryPolicy(destinationCountry);
+  console.log("All countries in journey for policy lookup:", allCountries);
 
-  // Debug log to check flights data
-  console.log("Flights data in ResultsSection:", flights);
-  console.log("Pet policies in ResultsSection:", petPolicies);
-  console.log("Country policies:", countryPolicies);
+  // Fetch policies for all countries in the journey
+  const countryPoliciesResults = allCountries.map(country => 
+    useCountryPolicy(country)
+  );
+
+  // Combine all policies
+  const allPolicies = countryPoliciesResults.reduce((acc: any[], result) => {
+    if (result.data) {
+      acc.push(...result.data);
+    }
+    return acc;
+  }, []);
+
+  console.log("All country policies:", allPolicies);
 
   if (!searchPerformed) return null;
 
@@ -51,7 +66,7 @@ export const ResultsSection = ({
       <div className="space-y-8">
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
         <div id="country-policies">
-          {countryPolicies?.map((policy, index) => (
+          {allPolicies?.map((policy, index) => (
             <DestinationPolicy key={policy.id || index} policy={policy} />
           ))}
         </div>
