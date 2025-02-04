@@ -1,12 +1,7 @@
 import { PawPrint } from "lucide-react";
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
-} from "@/components/ui/accordion";
 import type { FlightData, PetPolicy } from "./types";
 import { PolicyDetails } from "./PolicyDetails";
+import { FlightCard } from "./FlightCard";
 
 interface FlightResultsProps {
   flights: FlightData[];
@@ -26,123 +21,69 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
   const mainFlights = flights.filter(flight => !flight.isConnection);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <Accordion type="single" collapsible className="w-full">
-        {mainFlights.map((flight, index) => {
-          const connectingFlights = flight.connections || [];
-          const totalStops = connectingFlights.length;
-          const firstFlight = flight;
-          const lastFlight = connectingFlights.length > 0 
-            ? connectingFlights[connectingFlights.length - 1] 
-            : flight;
+    <div className="space-y-6">
+      {mainFlights.map((flight, index) => {
+        const connectingFlights = flight.connections || [];
+        const totalStops = connectingFlights.length;
 
-          return (
-            <AccordionItem 
-              key={`${flight.flightNumber}-${index}`} 
-              value={`flight-${index}`}
-              className={index !== mainFlights.length - 1 ? "border-b" : ""}
-            >
-              <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-8">
-                    <div className="flex flex-col items-start">
-                      <p className="font-medium">
-                        {new Date(firstFlight.departureTime).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-500">{firstFlight.departureAirport}</p>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className="text-sm text-gray-500">
-                        {totalStops === 0 ? 'Nonstop' : `${totalStops} stop${totalStops > 1 ? 's' : ''}`}
-                      </div>
-                      <div className="w-24 h-px bg-gray-300 my-1" />
-                      <PawPrint className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <p className="font-medium">
-                        {new Date(lastFlight.arrivalTime).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-500">{lastFlight.arrivalAirport}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-medium">
-                      {firstFlight.airlineName || firstFlight.carrierFsCode}
-                    </div>
-                  </div>
-                </div>
-              </AccordionTrigger>
+        return (
+          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg overflow-hidden">
+            {/* Main Flight Card */}
+            <div className="p-6">
+              <FlightCard
+                carrierFsCode={flight.carrierFsCode}
+                airlineName={flight.airlineName}
+                flightNumber={flight.flightNumber}
+                departureTime={flight.departureTime}
+                arrivalTime={flight.arrivalTime}
+                departureAirport={flight.departureAirport}
+                arrivalAirport={flight.arrivalAirport}
+                departureTerminal={flight.departureTerminal}
+                arrivalTerminal={flight.arrivalTerminal}
+                stops={totalStops}
+                policy={petPolicies?.[flight.carrierFsCode]}
+              />
+            </div>
 
-              <AccordionContent>
-                <div className="px-6 pb-6 space-y-6">
-                  {/* First Flight */}
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h4 className="font-medium">
-                          {firstFlight.airlineName || firstFlight.carrierFsCode} {firstFlight.flightNumber}
-                        </h4>
-                        <p className="text-sm text-gray-500">
-                          {firstFlight.departureAirport} → {firstFlight.arrivalAirport}
-                        </p>
-                      </div>
-                      {petPolicies?.[firstFlight.carrierFsCode] && (
-                        <PawPrint className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                    {petPolicies?.[firstFlight.carrierFsCode] && (
-                      <PolicyDetails policy={petPolicies[firstFlight.carrierFsCode]} />
-                    )}
-                  </div>
-
-                  {/* Connecting Flights */}
-                  {connectingFlights.map((connection, connectionIndex) => (
-                    <div key={`${connection.flightNumber}-${connectionIndex}`} className="space-y-4">
-                      {/* Layover Information */}
-                      <div className="py-2 px-4 bg-accent/20 rounded-lg">
-                        <p className="text-sm text-gray-600">
-                          {connectionIndex === 0 ? (
-                            `${calculateLayoverDuration(firstFlight.arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
-                          ) : (
-                            `${calculateLayoverDuration(connectingFlights[connectionIndex - 1].arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
-                          )}
-                        </p>
-                      </div>
-
-                      {/* Connection Flight Details */}
-                      <div className="border-t pt-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h4 className="font-medium">
-                              {connection.airlineName || connection.carrierFsCode} {connection.flightNumber}
-                            </h4>
-                            <p className="text-sm text-gray-500">
-                              {connection.departureAirport} → {connection.arrivalAirport}
-                            </p>
-                          </div>
-                          {petPolicies?.[connection.carrierFsCode] && (
-                            <PawPrint className="h-5 w-5 text-primary" />
-                          )}
-                        </div>
-                        {connection.carrierFsCode !== firstFlight.carrierFsCode && 
-                          petPolicies?.[connection.carrierFsCode] && (
-                            <PolicyDetails policy={petPolicies[connection.carrierFsCode]} />
+            {/* Connecting Flights Section */}
+            {connectingFlights.length > 0 && (
+              <div className="border-t">
+                {connectingFlights.map((connection, connectionIndex) => (
+                  <div key={`${connection.flightNumber}-${connectionIndex}`}>
+                    {/* Layover Information */}
+                    <div className="bg-accent/20 px-6 py-3">
+                      <p className="text-sm text-gray-600">
+                        {connectionIndex === 0 ? (
+                          `${calculateLayoverDuration(flight.arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
+                        ) : (
+                          `${calculateLayoverDuration(connectingFlights[connectionIndex - 1].arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
                         )}
-                      </div>
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
-      </Accordion>
+
+                    {/* Connection Flight Card */}
+                    <div className="p-6 bg-accent/10">
+                      <FlightCard
+                        carrierFsCode={connection.carrierFsCode}
+                        airlineName={connection.airlineName}
+                        flightNumber={connection.flightNumber}
+                        departureTime={connection.departureTime}
+                        arrivalTime={connection.arrivalTime}
+                        departureAirport={connection.departureAirport}
+                        arrivalAirport={connection.arrivalAirport}
+                        departureTerminal={connection.departureTerminal}
+                        arrivalTerminal={connection.arrivalTerminal}
+                        policy={connection.carrierFsCode !== flight.carrierFsCode ? petPolicies?.[connection.carrierFsCode] : undefined}
+                        isConnection={true}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
