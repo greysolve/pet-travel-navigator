@@ -115,35 +115,36 @@ Deno.serve(async (req) => {
         };
       });
 
-      // Group flights into journeys based on connections
-      const journeys = processedFlights.reduce((acc: any[], flight: any) => {
-        // For now, treat each flight as a separate journey
-        // Later we can enhance this to group connected flights
-        acc.push({
-          segments: [flight],
-          totalDuration: flight.elapsedTime,
-          stops: flight.stops,
-          arrivalCountry: flight.arrivalCountry
-        });
-        return acc;
-      }, []);
+      // Create journeys with the correct structure
+      const journeys = processedFlights.map(flight => ({
+        segments: [flight],
+        totalDuration: flight.elapsedTime,
+        stops: flight.stops,
+        arrivalCountry: flight.arrivalCountry
+      }));
 
-      console.log('Final processed journeys:', JSON.stringify(journeys));
-      data.scheduledFlights = journeys;
-    } else {
-      console.log('No scheduled flights found in response');
-      data.scheduledFlights = [];
+      // Return the response with the correct structure
+      return new Response(
+        JSON.stringify({ scheduledFlights: journeys }),
+        { 
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
     }
 
+    // If no flights found, return empty array with correct structure
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({ scheduledFlights: [] }),
       { 
         headers: { 
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
       },
-    )
+    );
 
   } catch (error) {
     console.error('Detailed error in flight schedule search:', {
