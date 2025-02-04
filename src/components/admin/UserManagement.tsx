@@ -46,32 +46,43 @@ const UserManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Fetch users using the Edge Function
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, error } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      console.log("Fetching users...");
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage_users`,
-        {
+      console.log("Starting user fetch request...");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage_users`;
+      console.log("Fetching from URL:", url);
+      
+      try {
+        const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
+        });
+
+        console.log("Response status:", response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error("Error response:", errorData);
+          throw new Error(`Failed to fetch users: ${errorData}`);
         }
-      );
 
-      if (!response.ok) {
-        const error = await response.json();
-        console.error("Error fetching users:", error);
-        throw new Error(error.message);
+        const data = await response.json();
+        console.log("Users data received:", data);
+        return data;
+      } catch (error) {
+        console.error("Error in fetch:", error);
+        throw error;
       }
-
-      const data = await response.json();
-      console.log("Users fetched:", data);
-      return data;
     },
   });
 
-  // Update user mutation
+  // Log error if present
+  if (error) {
+    console.error("Query error:", error);
+  }
+
   const updateUser = useMutation({
     mutationFn: async (userData: { id: string; full_name: string }) => {
       console.log("Updating user:", userData);
@@ -136,6 +147,10 @@ const UserManagement = () => {
 
   if (isLoading) {
     return <div>Loading users...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading users: {error.message}</div>;
   }
 
   return (
