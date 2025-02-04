@@ -11,14 +11,25 @@ interface UserProfile {
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+      }
+    });
   }
 
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
     // Handle DELETE request for user deletion
     if (req.method === 'DELETE') {
@@ -31,7 +42,13 @@ Deno.serve(async (req) => {
         
         if (deleteError) {
           console.error('Error deleting auth user:', deleteError);
-          throw deleteError;
+          return new Response(
+            JSON.stringify({ error: deleteError.message }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400,
+            },
+          );
         }
 
         return new Response(
@@ -40,7 +57,7 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
           },
-        )
+        );
       } catch (error) {
         console.error('Error in delete operation:', error);
         return new Response(
@@ -49,13 +66,13 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 500,
           },
-        )
+        );
       }
     }
 
     // Handle GET request for fetching users
     console.log('Fetching auth users...');
-    const { data: { users }, error: authError } = await supabase.auth.admin.listUsers()
+    const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
     if (authError) {
       console.error('Error fetching auth users:', authError);
       throw authError;
@@ -66,7 +83,7 @@ Deno.serve(async (req) => {
     console.log('Fetching profiles...');
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*');
     if (profilesError) {
       console.error('Error fetching profiles:', profilesError);
       throw profilesError;
@@ -77,7 +94,7 @@ Deno.serve(async (req) => {
     console.log('Fetching user roles...');
     const { data: roles, error: rolesError } = await supabase
       .from('user_roles')
-      .select('*')
+      .select('*');
     if (rolesError) {
       console.error('Error fetching roles:', rolesError);
       throw rolesError;
@@ -86,8 +103,8 @@ Deno.serve(async (req) => {
 
     // Start with auth users and enrich with profile and role data
     const userProfiles: UserProfile[] = users.map((user) => {
-      const profile = profiles.find((p) => p.id === user.id)
-      const userRole = roles.find((r) => r.user_id === user.id)
+      const profile = profiles.find((p) => p.id === user.id);
+      const userRole = roles.find((r) => r.user_id === user.id);
       const userProfile = {
         id: user.id,
         full_name: profile?.full_name || null,
@@ -96,7 +113,7 @@ Deno.serve(async (req) => {
       };
       console.log('Mapped user profile:', userProfile);
       return userProfile;
-    })
+    });
 
     console.log('Total user profiles mapped:', userProfiles.length);
 
@@ -106,15 +123,15 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       },
-    )
+    );
   } catch (error) {
     console.error('Error in manage_users function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
       },
-    )
+    );
   }
-})
+});
