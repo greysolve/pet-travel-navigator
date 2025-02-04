@@ -25,8 +25,10 @@ Deno.serve(async (req) => {
     const year = searchDate.getUTCFullYear()
     const month = searchDate.getUTCMonth() + 1
     const day = searchDate.getUTCDate()
+    const hour = 14
+    const minute = 0
 
-    console.log('Parsed search date components:', { year, month, day });
+    console.log('Parsed search date components:', { year, month, day, hour, minute });
 
     const url = `https://api.flightstats.com/flex/schedules/rest/v2/json/from/${origin}/to/${destination}/departing/${year}/${month}/${day}?appId=${appId}&appKey=${appKey}`
 
@@ -52,44 +54,43 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Get all unique airport codes from the connections
-    const airportCodes = new Set<string>();
-    data.scheduledFlights?.connections?.forEach((connection: any) => {
-      connection.flights?.forEach((flight: any) => {
+    // Transform the flight schedules data into our expected format
+    if (data.scheduledFlights) {
+      console.log('Processing scheduled flights. Total flights:', data.scheduledFlights.length);
+      
+      // Get all unique airport codes from the flights
+      const airportCodes = new Set<string>();
+      data.scheduledFlights.forEach((flight: any) => {
         if (flight.departureAirportFsCode) airportCodes.add(flight.departureAirportFsCode);
         if (flight.arrivalAirportFsCode) airportCodes.add(flight.arrivalAirportFsCode);
       });
-    });
 
-    console.log('Found airport codes:', Array.from(airportCodes));
+      // Fetch airport data for all airports in one query
+      const { data: airports, error: airportsError } = await supabase
+        .from('airports')
+        .select('iata_code, country')
+        .in('iata_code', Array.from(airportCodes));
 
-    // Fetch airport data for all airports in one query
-    const { data: airports, error: airportsError } = await supabase
-      .from('airports')
-      .select('iata_code, country')
-      .in('iata_code', Array.from(airportCodes));
+      if (airportsError) {
+        console.error('Error fetching airport data:', airportsError);
+        throw new Error('Failed to fetch airport data');
+      }
 
-    if (airportsError) {
-      console.error('Error fetching airport data:', airportsError);
-      throw new Error('Failed to fetch airport data');
-    }
+      // Create a map for quick airport lookups
+      const airportMap = new Map(
+        airports?.map(airport => [airport.iata_code, airport]) || []
+      );
 
-    // Create a map for quick airport lookups
-    const airportMap = new Map(
-      airports?.map(airport => [airport.iata_code, airport]) || []
-    );
-
-    // Process each connection and its flights
-    const journeys = data.scheduledFlights?.connections?.map((connection: any) => {
-      console.log('Processing connection:', connection);
-
-      const segments = connection.flights?.map((flight: any) => {
+      // Process each flight and create journey segments
+      const processedFlights = data.scheduledFlights.map((flight: any) => {
+        const airline = data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode);
         const departureAirport = airportMap.get(flight.departureAirportFsCode);
         const arrivalAirport = airportMap.get(flight.arrivalAirportFsCode);
 
         console.log('Processing flight:', {
           carrier: flight.carrierFsCode,
           flightNumber: flight.flightNumber,
+          airlineName: airline?.name,
           departure: flight.departureAirportFsCode,
           arrival: flight.arrivalAirportFsCode,
           departureCountry: departureAirport?.country,
@@ -114,22 +115,29 @@ Deno.serve(async (req) => {
         };
       });
 
-      const totalDuration = segments?.reduce((total: number, segment: any) => 
-        total + (segment.elapsedTime || 0), 0);
+      // Create journeys with the correct structure
+      const journeys = processedFlights.map(flight => ({
+        segments: [flight],
+        totalDuration: flight.elapsedTime,
+        stops: flight.stops,
+        arrivalCountry: flight.arrivalCountry
+      }));
 
-      return {
-        segments,
-        totalDuration,
-        stops: segments ? segments.length - 1 : 0,
-        arrivalCountry: segments?.[segments.length - 1]?.arrivalCountry
-      };
-    }) || [];
+      // Return the response with the correct structure
+      return new Response(
+        JSON.stringify({ scheduledFlights: journeys }),
+        { 
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+    }
 
-    console.log('Processed journeys:', journeys);
-
-    // Return the response with the correct structure
+    // If no flights found, return empty array with correct structure
     return new Response(
-      JSON.stringify({ scheduledFlights: journeys }),
+      JSON.stringify({ scheduledFlights: [] }),
       { 
         headers: { 
           ...corsHeaders,
