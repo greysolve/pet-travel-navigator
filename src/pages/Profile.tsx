@@ -3,6 +3,7 @@ import { ContactInformation } from "@/components/profile/ContactInformation";
 import { AddressInformation } from "@/components/profile/AddressInformation";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
+import { PasswordChange } from "@/components/profile/PasswordChange";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -169,6 +170,8 @@ const Profile = () => {
               />
             </CardContent>
           </Card>
+
+          <PasswordChange />
 
           <div className="flex justify-end">
             <Button 

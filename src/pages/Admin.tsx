@@ -3,6 +3,7 @@ import { AirlineDataManager } from "@/components/admin/AirlineDataManager";
 import { SyncSection } from "@/components/admin/SyncSection";
 import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
 import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
+import UserManagement from "@/components/admin/UserManagement";
 
 const Admin = () => {
   return (
@@ -15,6 +16,7 @@ const Admin = () => {
           <TabsTrigger value="airlines">Airline Data</TabsTrigger>
           <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
           <TabsTrigger value="country-policies">Country Policies</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sync">
@@ -31,6 +33,10 @@ const Admin = () => {
 
         <TabsContent value="country-policies">
           <CountryPolicyUpdate />
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UserManagement />
         </TabsContent>
       </Tabs>
     </div>
