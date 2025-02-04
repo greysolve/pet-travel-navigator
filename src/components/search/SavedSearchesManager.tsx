@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Save, BookmarkPlus, Download } from "lucide-react";
 import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import {
   Select,
   SelectContent,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ExportView } from "./ExportView";
+import type { FlightData } from "../flight-results/types";
 
 interface SavedSearch {
   id: string;
@@ -42,6 +42,7 @@ interface SavedSearchesManagerProps {
     destination?: string;
     date?: Date;
     policySearch?: string;
+    flights?: FlightData[];
   };
   onLoadSearch: (search: SavedSearch['search_criteria']) => void;
 }
