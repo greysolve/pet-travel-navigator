@@ -68,19 +68,18 @@ export const ResultsSection = ({
     <div className="container mx-auto px-4 py-12">
       <div className="space-y-8">
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
-        {allPolicies && allPolicies.length > 0 ? (
-          <div id="country-policies" className="space-y-6">
-            <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
-            {allPolicies.map((policy, index) => (
+        <div id="country-policies" className="space-y-6">
+          <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
+          {allPolicies && allPolicies.length > 0 ? (
+            allPolicies.map((policy, index) => (
               <DestinationPolicy key={policy.id || index} policy={policy} />
-            ))}
-          </div>
-        ) : (
-          <div id="country-policies" className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold mb-4">Country Pet Policies</h2>
-            <p className="text-gray-500">No country pet policies found for this journey.</p>
-          </div>
-        )}
+            ))
+          ) : (
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <p className="text-gray-500">Loading country pet policies...</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

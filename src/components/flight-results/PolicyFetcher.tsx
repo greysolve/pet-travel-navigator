@@ -48,21 +48,28 @@ export const usePetPolicies = (flights: FlightJourney[]) => {
   });
 };
 
-export const useCountryPolicy = (destinationCountry?: string) => {
+export const useCountryPolicy = (countryName?: string) => {
   return useQuery({
-    queryKey: ['countryPolicy', destinationCountry],
+    queryKey: ['countryPolicy', countryName],
     queryFn: async () => {
-      if (!destinationCountry) return null;
+      if (!countryName) return null;
+      
+      console.log(`Looking up policies for country: ${countryName}`);
       
       // First try to get the country code from the countries table
-      const { data: countryData } = await supabase
+      const { data: countryData, error: countryError } = await supabase
         .from('countries')
         .select('code')
-        .ilike('name', destinationCountry)
-        .single();
+        .ilike('name', countryName)
+        .maybeSingle();
 
-      const countryCode = countryData?.code || destinationCountry;
-      console.log(`Looking up policies for country: ${destinationCountry}, code: ${countryCode}`);
+      if (countryError) {
+        console.error("Error fetching country code:", countryError);
+        return null;
+      }
+
+      const countryCode = countryData?.code || countryName;
+      console.log(`Using country code: ${countryCode} for ${countryName}`);
 
       // Get both arrival and transit policies
       const { data: policies, error } = await supabase
@@ -77,11 +84,12 @@ export const useCountryPolicy = (destinationCountry?: string) => {
       }
 
       if (policies && policies.length > 0) {
-        console.log(`Found ${policies.length} policies for ${destinationCountry}:`, policies);
+        console.log(`Found ${policies.length} policies for ${countryName}:`, policies);
         return policies;
       }
 
-      console.log("No policy found, triggering sync...");
+      console.log(`No policies found for ${countryName}, triggering sync...`);
+      
       try {
         const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
           body: { 
@@ -111,6 +119,7 @@ export const useCountryPolicy = (destinationCountry?: string) => {
 
       return null;
     },
-    enabled: !!destinationCountry,
+    enabled: !!countryName,
+    retry: 2,
   });
 };
