@@ -34,31 +34,29 @@ export const FlightCard = ({
   isConnection,
 }: FlightCardProps) => {
   return (
-    <div className={`${isConnection ? 'bg-accent/20 rounded-lg' : ''}`}>
-      <div className={`${isConnection ? 'p-4' : ''} space-y-4`}>
-        <div className="flex items-center justify-between">
-          <FlightHeader
-            carrierFsCode={carrierFsCode}
-            airlineName={airlineName}
-            flightNumber={flightNumber}
-            departureTime={departureTime}
-            arrivalTime={arrivalTime}
-            departureAirport={departureAirport}
-            arrivalAirport={arrivalAirport}
-            departureTerminal={departureTerminal}
-            arrivalTerminal={arrivalTerminal}
-          />
-          <div className="flex items-center gap-2">
-            {stops && stops > 0 && !isConnection && (
-              <span className="text-sm text-gray-500">
-                {stops} stop{stops > 1 ? 's' : ''}
-              </span>
-            )}
-            {policy && <PawPrint className="h-5 w-5 text-primary" />}
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <FlightHeader
+          carrierFsCode={carrierFsCode}
+          airlineName={airlineName}
+          flightNumber={flightNumber}
+          departureTime={departureTime}
+          arrivalTime={arrivalTime}
+          departureAirport={departureAirport}
+          arrivalAirport={arrivalAirport}
+          departureTerminal={departureTerminal}
+          arrivalTerminal={arrivalTerminal}
+        />
+        <div className="flex items-center gap-2">
+          {!isConnection && stops && stops > 0 && (
+            <span className="text-sm text-gray-500">
+              {stops} stop{stops > 1 ? 's' : ''}
+            </span>
+          )}
+          {policy && <PawPrint className="h-5 w-5 text-primary" />}
         </div>
-        {policy && <PolicyDetails policy={policy} />}
       </div>
+      {policy && <PolicyDetails policy={policy} />}
     </div>
   );
 };

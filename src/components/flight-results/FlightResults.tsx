@@ -27,9 +27,9 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
         const totalStops = connectingFlights.length;
 
         return (
-          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg overflow-hidden">
-            {/* Main Flight Card */}
-            <div className="p-6">
+          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg">
+            {/* Main Flight Section */}
+            <div className="p-6 border-b">
               <FlightCard
                 carrierFsCode={flight.carrierFsCode}
                 airlineName={flight.airlineName}
@@ -47,7 +47,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
             {/* Connecting Flights Section */}
             {connectingFlights.length > 0 && (
-              <div className="border-t">
+              <div className="divide-y">
                 {connectingFlights.map((connection, connectionIndex) => (
                   <div key={`${connection.flightNumber}-${connectionIndex}`}>
                     {/* Layover Information */}
@@ -62,7 +62,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                     </div>
 
                     {/* Connection Flight Card */}
-                    <div className="p-6 bg-accent/10">
+                    <div className="p-6 bg-accent/5">
                       <FlightCard
                         carrierFsCode={connection.carrierFsCode}
                         airlineName={connection.airlineName}
