@@ -82,8 +82,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
             {/* Journey Summary */}
             <div className="bg-accent p-4 flex justify-between items-center">
               <p className="text-sm font-medium text-accent-foreground">
-                {stops === 0 ? 'Non-Stop Flight' : `${stops} Stop${stops > 1 ? 's' : ''}`}
-                {totalDuration && ` • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
+                {stops === 0 ? 'Non-Stop Flight' : `${stops} Stop${stops > 1 ? 's' : ''} • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
               </p>
               <Button
                 variant="ghost"
