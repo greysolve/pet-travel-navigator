@@ -102,15 +102,26 @@ const UserManagement = () => {
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
       console.log("Deleting user:", userId);
-      const { error } = await supabase.from("profiles").delete().eq("id", userId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      
+      // First delete the auth user using the Edge Function
+      const { error: deleteAuthError } = await supabase.functions.invoke('manage_users', {
+        method: 'DELETE',
+        body: { userId }
+      });
+
+      if (deleteAuthError) {
+        console.error("Error deleting auth user:", deleteAuthError);
+        throw deleteAuthError;
+      }
+
+      // The profile and related data will be automatically deleted by the handle_deleted_user trigger
       toast({
         title: "Success",
         description: "User deleted successfully",
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (error) => {
       console.error("Error deleting user:", error);

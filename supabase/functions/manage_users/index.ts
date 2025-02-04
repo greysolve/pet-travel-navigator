@@ -19,7 +19,29 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // First get all auth users
+    // Handle DELETE request for user deletion
+    if (req.method === 'DELETE') {
+      const { userId } = await req.json();
+      console.log('Deleting user:', userId);
+
+      // Delete the auth user (this will trigger the handle_deleted_user function)
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (deleteError) {
+        console.error('Error deleting auth user:', deleteError);
+        throw deleteError;
+      }
+
+      return new Response(
+        JSON.stringify({ message: 'User deleted successfully' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        },
+      )
+    }
+
+    // Handle GET request for fetching users
     console.log('Fetching auth users...');
     const { data: { users }, error: authError } = await supabase.auth.admin.listUsers()
     if (authError) {
