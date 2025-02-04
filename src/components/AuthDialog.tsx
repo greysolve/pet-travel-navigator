@@ -72,10 +72,24 @@ const AuthDialog = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmail(email, password);
-      setShowAuthDialog(false);
-      setEmail("");
-      setPassword("");
+      const { error, data } = await signInWithEmail(email, password);
+      
+      if (error) throw error;
+      
+      if (data?.user?.email_confirmed_at) {
+        setShowAuthDialog(false);
+        setEmail("");
+        setPassword("");
+        toast({
+          title: "Success",
+          description: "You have successfully signed in.",
+        });
+      } else {
+        toast({
+          title: "Email not verified",
+          description: "Please check your email to verify your account.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error signing in",

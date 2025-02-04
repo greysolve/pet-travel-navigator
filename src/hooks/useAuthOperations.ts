@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
+import { sendVerificationEmail } from "@/utils/emailVerification";
 
 export function useAuthOperations() {
   const signIn = async () => {
@@ -13,42 +14,50 @@ export function useAuthOperations() {
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
+      return { data, error: null };
     } catch (error: any) {
       toast({
         title: "Error signing in",
         description: error.message,
         variant: "destructive",
       });
-      throw error;
+      return { data: null, error };
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+      
       if (error) throw error;
-      toast({
-        title: "Success",
-        description: "Please check your email to verify your account.",
-      });
+      
+      if (data?.user?.confirmation_sent_at) {
+        await sendVerificationEmail(email, data.user.confirmation_token || '');
+        toast({
+          title: "Success",
+          description: "Please check your email to verify your account.",
+        });
+      }
+      
+      return { data, error: null };
     } catch (error: any) {
       toast({
         title: "Error signing up",
         description: error.message,
         variant: "destructive",
       });
-      throw error;
+      return { data: null, error };
     }
   };
 
