@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData } from "../flight-results/types";
+import type { FlightJourney, FlightSegment } from "../flight-results/types";
 
 interface FlightSearchHandlerProps {
   origin: string;
   destination: string;
   date: Date | undefined;
   destinationCountry: string | undefined;
-  onSearchResults: (flights: FlightData[]) => void;
+  onSearchResults: (flights: FlightJourney[]) => void;
   onSearchComplete: () => void;
 }
 
@@ -43,55 +43,37 @@ export const useFlightSearch = () => {
 
       console.log('Flight schedules:', data);
       
-      if (data && data.scheduledFlights) {
-        const airlineMap = data.appendix?.airlines?.reduce((acc: Record<string, string>, airline: any) => {
-          acc[airline.fs] = airline.name;
-          return acc;
-        }, {}) || {};
+      if (data && data.connections) {
+        const processedJourneys = data.connections.map((connection: any) => {
+          const segments = connection.scheduledFlight.map((flight: any) => ({
+            carrierFsCode: flight.carrierFsCode,
+            flightNumber: flight.flightNumber,
+            departureTime: flight.departureTime,
+            arrivalTime: flight.arrivalTime,
+            departureAirportFsCode: flight.departureAirportFsCode,
+            arrivalAirportFsCode: flight.arrivalAirportFsCode,
+            departureTerminal: flight.departureTerminal,
+            arrivalTerminal: flight.arrivalTerminal,
+            stops: flight.stops,
+            elapsedTime: flight.elapsedTime,
+            isCodeshare: flight.isCodeshare,
+            codeshares: flight.codeshares,
+          }));
 
-        // Process flights and their connections
-        const processedFlights = data.scheduledFlights.reduce((acc: FlightData[], flight: any) => {
-          if (flight.codeshares) {
-            // Create a main flight with its connections
-            const mainFlight: FlightData = {
-              carrierFsCode: flight.carrierFsCode,
-              flightNumber: flight.flightNumber,
-              departureTime: flight.departureTime,
-              arrivalTime: flight.arrivalTime,
-              arrivalCountry: destinationCountry,
-              airlineName: airlineMap[flight.carrierFsCode],
-              departureAirport: flight.departureAirportFsCode,
-              arrivalAirport: flight.arrivalAirportFsCode,
-              connections: flight.codeshares.map((codeshare: any) => ({
-                carrierFsCode: codeshare.carrierFsCode,
-                flightNumber: codeshare.flightNumber,
-                departureTime: codeshare.departureTime,
-                arrivalTime: codeshare.arrivalTime,
-                arrivalCountry: destinationCountry,
-                airlineName: airlineMap[codeshare.carrierFsCode],
-                departureAirport: codeshare.departureAirportFsCode,
-                arrivalAirport: codeshare.arrivalAirportFsCode,
-                isConnection: true
-              }))
-            };
-            acc.push(mainFlight);
-          } else if (!flight.isCodeshare) {
-            // Add direct flights
-            acc.push({
-              carrierFsCode: flight.carrierFsCode,
-              flightNumber: flight.flightNumber,
-              departureTime: flight.departureTime,
-              arrivalTime: flight.arrivalTime,
-              arrivalCountry: destinationCountry,
-              airlineName: airlineMap[flight.carrierFsCode],
-              departureAirport: flight.departureAirportFsCode,
-              arrivalAirport: flight.arrivalAirportFsCode
-            });
-          }
-          return acc;
-        }, []);
+          const totalDuration = segments.reduce((total: number, segment: FlightSegment) => 
+            total + segment.elapsedTime, 0);
 
-        onSearchResults(processedFlights);
+          return {
+            segments,
+            totalDuration,
+            stops: segments.length - 1,
+            arrivalCountry: destinationCountry,
+          };
+        });
+
+        onSearchResults(processedJourneys);
+      } else {
+        onSearchResults([]);
       }
     } catch (error) {
       console.error('Error searching flights:', error);

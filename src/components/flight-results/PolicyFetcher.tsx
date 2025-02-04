@@ -1,24 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import type { FlightData, PetPolicy } from "./types";
+import type { FlightJourney, PetPolicy } from "./types";
 
-export const usePetPolicies = (flights: FlightData[]) => {
+export const usePetPolicies = (flights: FlightJourney[]) => {
   return useQuery({
-    queryKey: ['petPolicies', flights.map(f => {
-      const carriers = [f.carrierFsCode];
-      f.connections?.forEach(conn => carriers.push(conn.carrierFsCode));
-      return carriers;
-    }).flat()],
+    queryKey: ['petPolicies', flights.map(journey => 
+      journey.segments.map(segment => segment.carrierFsCode)
+    ).flat()],
     queryFn: async () => {
       if (!flights.length) return {};
       
-      // Get all unique carrier codes including connections
-      const carrierCodes = [...new Set(flights.flatMap(f => {
-        const codes = [f.carrierFsCode];
-        f.connections?.forEach(conn => codes.push(conn.carrierFsCode));
-        return codes;
-      }))];
+      // Get all unique carrier codes from all segments
+      const carrierCodes = [...new Set(flights.flatMap(journey => 
+        journey.segments.map(segment => segment.carrierFsCode)
+      ))];
       
       console.log("Fetching pet policies for airlines:", carrierCodes);
       
