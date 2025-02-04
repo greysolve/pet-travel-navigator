@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData } from "../flight-results/types";
+import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
   origin: string;
   destination: string;
   date: Date;
   destinationCountry: string | undefined;
-  onSearchResults: (flights: FlightData[]) => void;
+  onSearchResults: (flights: FlightData[], petPolicies?: Record<string, PetPolicy>) => void;
   onSearchComplete: () => void;
 }
 
