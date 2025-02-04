@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Transform the flight schedules data into our expected format
+    // Transform the connections data into our expected format
     if (data.connections) {
       console.log('Processing connections. Total connections:', data.connections.length);
       
@@ -83,24 +83,13 @@ Deno.serve(async (req) => {
         airports?.map(airport => [airport.iata_code, airport]) || []
       );
 
-      // Process each connection and create journey segments
-      const journeys = data.connections.map((connection: any) => {
-        // Map each flight in the connection to our segment format
+      // Transform each connection into a flight journey
+      const transformedConnections = data.connections.map((connection: any) => {
+        // Map the segments from scheduledFlight array
         const segments = connection.scheduledFlight.map((flight: any) => {
-          const airline = data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode);
           const departureAirport = airportMap.get(flight.departureAirportFsCode);
           const arrivalAirport = airportMap.get(flight.arrivalAirportFsCode);
-
-          console.log('Processing flight:', {
-            carrier: flight.carrierFsCode,
-            flightNumber: flight.flightNumber,
-            airlineName: airline?.name,
-            departure: flight.departureAirportFsCode,
-            arrival: flight.arrivalAirportFsCode,
-            departureCountry: departureAirport?.country,
-            arrivalCountry: arrivalAirport?.country
-          });
-
+          
           return {
             carrierFsCode: flight.carrierFsCode,
             flightNumber: flight.flightNumber,
@@ -112,8 +101,8 @@ Deno.serve(async (req) => {
             arrivalTerminal: flight.arrivalTerminal,
             departureCountry: departureAirport?.country,
             arrivalCountry: arrivalAirport?.country,
-            elapsedTime: flight.elapsedTime,
             stops: flight.stops || 0,
+            elapsedTime: flight.elapsedTime,
             isCodeshare: flight.isCodeshare || false,
             codeshares: flight.codeshares
           };
@@ -122,15 +111,14 @@ Deno.serve(async (req) => {
         return {
           segments,
           totalDuration: connection.elapsedTime,
-          stops: segments.length - 1,
-          arrivalCountry: segments[segments.length - 1].arrivalCountry
+          stops: segments.length - 1
         };
       });
 
-      console.log('Transformed journeys:', journeys);
+      console.log('Transformed connections:', transformedConnections);
 
       return new Response(
-        JSON.stringify({ connections: journeys }),
+        JSON.stringify({ connections: transformedConnections }),
         { 
           headers: { 
             ...corsHeaders,
@@ -140,7 +128,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If no flights found, return empty array with correct structure
+    // If no connections found, return empty array
     return new Response(
       JSON.stringify({ connections: [] }),
       { 
@@ -152,11 +140,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Detailed error in flight schedule search:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Error in flight schedule search:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
