@@ -18,7 +18,7 @@ export const ResultsSection = ({
 
   // Extract all unique countries from the journey segments
   const allCountries = flights.reduce((countries: Set<string>, journey) => {
-    console.log("Processing journey for countries:", journey);
+    console.log("Processing journey:", journey);
     
     if (!journey.segments) {
       console.log("No segments found in journey");
@@ -26,10 +26,18 @@ export const ResultsSection = ({
     }
 
     journey.segments.forEach(segment => {
-      console.log("Processing segment countries:", {
-        departure: segment.departureCountry,
-        arrival: segment.arrivalCountry
-      });
+      // Log the entire segment to see what data we're working with
+      console.log("Full segment data:", segment);
+      
+      // Check if we have country data
+      if (!segment.departureCountry || !segment.arrivalCountry) {
+        console.warn("Missing country data in segment:", {
+          departure: segment.departureCountry,
+          arrival: segment.arrivalCountry,
+          departureAirport: segment.departureAirportFsCode,
+          arrivalAirport: segment.arrivalAirportFsCode
+        });
+      }
 
       if (segment.departureCountry) {
         console.log("Adding departure country:", segment.departureCountry);
@@ -50,6 +58,15 @@ export const ResultsSection = ({
   const countryPoliciesResults = uniqueCountries.map(country => 
     useCountryPolicy(country)
   );
+
+  // Log the results of each country policy query
+  countryPoliciesResults.forEach((result, index) => {
+    console.log(`Policy result for ${uniqueCountries[index]}:`, {
+      data: result.data,
+      error: result.error,
+      isLoading: result.isLoading
+    });
+  });
 
   // Combine all policies and filter out nulls
   const allPolicies = countryPoliciesResults.reduce((acc: any[], result) => {
@@ -105,7 +122,13 @@ export const ResultsSection = ({
             ) : (
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <p className="text-gray-500">
-                  No countries found in flight segments. This might be due to missing country data.
+                  No countries found in flight segments. This might be due to missing country data in segments: {
+                    flights.map(journey => 
+                      journey.segments?.map(segment => 
+                        `${segment.departureAirportFsCode}(${segment.departureCountry || 'unknown'}) -> ${segment.arrivalAirportFsCode}(${segment.arrivalCountry || 'unknown'})`
+                      ).join(', ')
+                    ).join('; ')
+                  }
                 </p>
               </div>
             )
