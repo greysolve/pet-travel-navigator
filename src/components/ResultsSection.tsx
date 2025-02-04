@@ -16,8 +16,8 @@ export const ResultsSection = ({
   // Only fetch policies for flights if we're doing a flight search
   const { data: flightPetPolicies } = usePetPolicies(flights);
 
-  // Get all unique countries from the journey
-  const allCountries = flights.reduce((countries: string[], journey) => {
+  // Extract all unique countries from the journey segments
+  const allCountries = flights.reduce((countries: Set<string>, journey) => {
     console.log("Processing journey for countries:", journey);
     
     if (!journey.segments) {
@@ -26,33 +26,35 @@ export const ResultsSection = ({
     }
 
     journey.segments.forEach(segment => {
-      console.log("Processing segment:", {
+      console.log("Processing segment countries:", {
         departure: segment.departureCountry,
         arrival: segment.arrivalCountry
       });
 
-      if (segment.departureCountry && !countries.includes(segment.departureCountry)) {
+      if (segment.departureCountry) {
         console.log("Adding departure country:", segment.departureCountry);
-        countries.push(segment.departureCountry);
+        countries.add(segment.departureCountry);
       }
-      if (segment.arrivalCountry && !countries.includes(segment.arrivalCountry)) {
+      if (segment.arrivalCountry) {
         console.log("Adding arrival country:", segment.arrivalCountry);
-        countries.push(segment.arrivalCountry);
+        countries.add(segment.arrivalCountry);
       }
     });
     return countries;
-  }, []);
+  }, new Set<string>());
 
-  console.log("All countries in journey for policy lookup:", allCountries);
+  const uniqueCountries = Array.from(allCountries);
+  console.log("Unique countries found:", uniqueCountries);
 
-  // Fetch policies for all countries in the journey
-  const countryPoliciesResults = allCountries.map(country => 
+  // Fetch policies for all unique countries
+  const countryPoliciesResults = uniqueCountries.map(country => 
     useCountryPolicy(country)
   );
 
   // Combine all policies and filter out nulls
   const allPolicies = countryPoliciesResults.reduce((acc: any[], result) => {
     if (result.data) {
+      console.log("Found policies for country:", result.data);
       acc.push(...result.data);
     }
     return acc;
@@ -85,19 +87,26 @@ export const ResultsSection = ({
         <div id="country-policies" className="space-y-6">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
           {flights.length > 0 ? (
-            allCountries.length > 0 ? (
+            uniqueCountries.length > 0 ? (
               allPolicies && allPolicies.length > 0 ? (
                 allPolicies.map((policy, index) => (
-                  <DestinationPolicy key={policy.id || index} policy={policy} />
+                  <DestinationPolicy 
+                    key={`${policy.country_code}-${policy.policy_type}-${index}`} 
+                    policy={policy} 
+                  />
                 ))
               ) : (
                 <div className="bg-white p-6 rounded-lg shadow-md">
-                  <p className="text-gray-500">Fetching policies for {allCountries.join(', ')}...</p>
+                  <p className="text-gray-500">
+                    Fetching policies for {uniqueCountries.join(', ')}...
+                  </p>
                 </div>
               )
             ) : (
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <p className="text-gray-500">No countries found in flight segments. This might be due to missing country data.</p>
+                <p className="text-gray-500">
+                  No countries found in flight segments. This might be due to missing country data.
+                </p>
               </div>
             )
           ) : (
