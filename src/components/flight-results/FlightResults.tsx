@@ -29,7 +29,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
         return (
           <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg">
             {/* Main Flight Section */}
-            <div className="p-6 border-b">
+            <div className="p-6">
               <FlightCard
                 carrierFsCode={flight.carrierFsCode}
                 airlineName={flight.airlineName}
@@ -47,11 +47,14 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
             {/* Connecting Flights Section */}
             {connectingFlights.length > 0 && (
-              <div className="divide-y">
+              <div className="border-t divide-y divide-gray-100">
                 {connectingFlights.map((connection, connectionIndex) => (
-                  <div key={`${connection.flightNumber}-${connectionIndex}`}>
+                  <div 
+                    key={`${connection.flightNumber}-${connectionIndex}`}
+                    className="bg-gray-50"
+                  >
                     {/* Layover Information */}
-                    <div className="bg-accent/20 px-6 py-3">
+                    <div className="px-6 py-2 bg-gray-100/80">
                       <p className="text-sm text-gray-600">
                         {connectionIndex === 0 ? (
                           `${calculateLayoverDuration(flight.arrivalTime, connection.departureTime)} layover in ${connection.departureAirport}`
@@ -62,7 +65,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                     </div>
 
                     {/* Connection Flight Card */}
-                    <div className="p-6 bg-accent/5">
+                    <div className="p-6">
                       <FlightCard
                         carrierFsCode={connection.carrierFsCode}
                         airlineName={connection.airlineName}
