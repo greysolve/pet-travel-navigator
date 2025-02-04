@@ -35,42 +35,53 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
 
   Return both policies in an array, even if one type has no specific requirements (in which case, indicate "No specific policy found for this type" in the description).`;
 
-  const response = await fetch('https://perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.1-sonar-small-128k-online',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices[0].message.content.trim();
-  
-  // Clean up markdown formatting if present
-  const cleanContent = content.replace(/```json\n|\n```|```/g, '').trim();
-  console.log('Cleaned AI response:', cleanContent);
-  
   try {
-    const policies = JSON.parse(cleanContent);
-    return Array.isArray(policies) ? policies : [policies];
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-sonar-small-128k-online',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Perplexity API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      throw new Error(`Perplexity API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content.trim();
+    
+    // Clean up markdown formatting if present
+    const cleanContent = content.replace(/```json\n|\n```|```/g, '').trim();
+    console.log('Cleaned AI response:', cleanContent);
+    
+    try {
+      const policies = JSON.parse(cleanContent);
+      return Array.isArray(policies) ? policies : [policies];
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
+      console.error('Raw content:', content);
+      console.error('Cleaned content:', cleanContent);
+      throw new Error('Failed to parse policy data from AI response');
+    }
   } catch (error) {
-    console.error('Failed to parse AI response:', error);
-    console.error('Raw content:', content);
-    console.error('Cleaned content:', cleanContent);
-    throw new Error('Failed to parse policy data from AI response');
+    console.error('Error in fetchPolicyWithAI:', error);
+    throw error;
   }
 }
 
@@ -83,13 +94,13 @@ Deno.serve(async (req) => {
   try {
     const apiKey = Deno.env.get('PERPLEXITY_API_KEY');
     if (!apiKey) {
-      throw new Error('Missing Perplexity API key');
+      throw new Error('Missing Perplexity API key in environment variables');
     }
 
     // Get country from request
     const { country } = await req.json();
     if (!country) {
-      throw new Error('No country specified');
+      throw new Error('No country specified in request body');
     }
 
     console.log(`Processing country: ${country}`);
@@ -155,9 +166,12 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in edge function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ 
+        error: error.message,
+        details: error instanceof Error ? error.stack : undefined
+      }), 
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
