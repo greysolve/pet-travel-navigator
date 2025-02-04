@@ -37,18 +37,7 @@ Deno.serve(async (req) => {
       console.log('Deleting user:', userId);
 
       try {
-        // First delete from user_roles table
-        const { error: rolesError } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId);
-
-        if (rolesError) {
-          console.error('Error deleting user roles:', rolesError);
-          throw rolesError;
-        }
-
-        // Then delete the auth user
+        // Delete the auth user - this will trigger cascading deletions
         const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
         
         if (deleteError) {
@@ -66,7 +55,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error('Error in delete operation:', error);
         return new Response(
-          JSON.stringify({ error: 'Database error deleting user', details: error.message }),
+          JSON.stringify({ error: 'Error deleting user', details: error.message }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
