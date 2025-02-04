@@ -26,124 +26,130 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
   const mainFlights = flights.filter(flight => !flight.isConnection);
 
   return (
-    <div className="space-y-6">
-      {mainFlights.map((flight, index) => {
-        const connectingFlights = flight.connections || [];
-        const hasConnections = connectingFlights.length > 0;
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <Accordion type="single" collapsible className="w-full">
+        {mainFlights.map((flight, index) => {
+          const connectingFlights = flight.connections || [];
+          const hasConnections = connectingFlights.length > 0;
 
-        return (
-          <div key={`${flight.flightNumber}-${index}`} className="bg-white rounded-lg shadow-lg overflow-hidden">
-            {/* Main Flight Section */}
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold">
-                      {flight.airlineName || flight.carrierFsCode}
-                    </h3>
-                    <span className="text-sm text-gray-500">({flight.carrierFsCode})</span>
+          return (
+            <AccordionItem 
+              key={`${flight.flightNumber}-${index}`} 
+              value={`flight-${index}`}
+              className={index !== mainFlights.length - 1 ? "border-b" : ""}
+            >
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold">
+                          {flight.airlineName || flight.carrierFsCode}
+                        </h3>
+                        <span className="text-sm text-gray-500">({flight.carrierFsCode})</span>
+                      </div>
+                      <p className="text-sm text-gray-600">{flight.flightNumber}</p>
+                    </div>
+                    <div className="flex items-center gap-12">
+                      <div>
+                        <p className="text-sm text-gray-500">Departure</p>
+                        <p className="font-medium">
+                          {new Date(flight.departureTime).toLocaleTimeString()}
+                        </p>
+                        {flight.departureAirport && (
+                          <p className="text-sm text-gray-500">{flight.departureAirport}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Arrival</p>
+                        <p className="font-medium">
+                          {new Date(flight.arrivalTime).toLocaleTimeString()}
+                        </p>
+                        {flight.arrivalAirport && (
+                          <p className="text-sm text-gray-500">{flight.arrivalAirport}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">{flight.flightNumber}</p>
+                  <div className="flex items-center gap-4">
+                    {hasConnections && (
+                      <span className="text-sm text-gray-500">
+                        {connectingFlights.length} stop{connectingFlights.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    <PawPrint className="h-5 w-5 text-primary" />
+                  </div>
                 </div>
-                <PawPrint className="h-5 w-5 text-primary" />
-              </div>
+              </AccordionTrigger>
 
-              <div className="flex items-center gap-12">
-                <div>
-                  <p className="text-sm text-gray-500">Departure</p>
-                  <p className="font-medium">
-                    {new Date(flight.departureTime).toLocaleTimeString()}
-                  </p>
-                  {flight.departureAirport && (
-                    <p className="text-sm text-gray-500">{flight.departureAirport}</p>
+              <AccordionContent>
+                <div className="px-6 pb-6 space-y-6">
+                  {/* Main Flight Policy */}
+                  {petPolicies?.[flight.carrierFsCode] && (
+                    <div className="border-t pt-4">
+                      <PolicyDetails policy={petPolicies[flight.carrierFsCode]} />
+                    </div>
                   )}
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Arrival</p>
-                  <p className="font-medium">
-                    {new Date(flight.arrivalTime).toLocaleTimeString()}
-                  </p>
-                  {flight.arrivalAirport && (
-                    <p className="text-sm text-gray-500">{flight.arrivalAirport}</p>
-                  )}
-                </div>
-              </div>
 
-              {petPolicies?.[flight.carrierFsCode] && (
-                <div className="mt-4 pt-4 border-t">
-                  <PolicyDetails policy={petPolicies[flight.carrierFsCode]} />
-                </div>
-              )}
-            </div>
-
-            {/* Connecting Flights Section */}
-            {hasConnections && (
-              <div className="border-t border-gray-100">
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="connections" className="border-0">
-                    <AccordionTrigger className="px-6 py-2">
-                      {connectingFlights.length} Connecting Flight{connectingFlights.length > 1 ? 's' : ''}
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-4 px-6 pb-6">
-                        {connectingFlights.map((connection, connectionIndex) => (
-                          <div 
-                            key={`${connection.flightNumber}-${connectionIndex}`}
-                            className="relative pl-6 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-primary/30"
-                          >
-                            <div className="bg-accent/20 rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-4">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-semibold">
-                                      {connection.airlineName || connection.carrierFsCode}
-                                    </h4>
-                                    <span className="text-sm text-gray-500">({connection.carrierFsCode})</span>
-                                  </div>
-                                  <p className="text-sm text-gray-600">{connection.flightNumber}</p>
-                                </div>
-                                <PawPrint className="h-5 w-5 text-primary" />
+                  {/* Connecting Flights */}
+                  {hasConnections && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-700">Connecting Flights</h4>
+                      {connectingFlights.map((connection, connectionIndex) => (
+                        <div 
+                          key={`${connection.flightNumber}-${connectionIndex}`}
+                          className="bg-accent/20 rounded-lg p-4 space-y-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold">
+                                  {connection.airlineName || connection.carrierFsCode}
+                                </h4>
+                                <span className="text-sm text-gray-500">({connection.carrierFsCode})</span>
                               </div>
+                              <p className="text-sm text-gray-600">{connection.flightNumber}</p>
+                            </div>
+                            <PawPrint className="h-5 w-5 text-primary" />
+                          </div>
 
-                              <div className="flex items-center gap-12">
-                                <div>
-                                  <p className="text-sm text-gray-500">Departure</p>
-                                  <p className="font-medium">
-                                    {new Date(connection.departureTime).toLocaleTimeString()}
-                                  </p>
-                                  {connection.departureAirport && (
-                                    <p className="text-sm text-gray-500">{connection.departureAirport}</p>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="text-sm text-gray-500">Arrival</p>
-                                  <p className="font-medium">
-                                    {new Date(connection.arrivalTime).toLocaleTimeString()}
-                                  </p>
-                                  {connection.arrivalAirport && (
-                                    <p className="text-sm text-gray-500">{connection.arrivalAirport}</p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {connection.carrierFsCode !== flight.carrierFsCode && 
-                                petPolicies?.[connection.carrierFsCode] && (
-                                  <div className="mt-4 pt-4 border-t">
-                                    <PolicyDetails policy={petPolicies[connection.carrierFsCode]} />
-                                  </div>
+                          <div className="flex items-center gap-12">
+                            <div>
+                              <p className="text-sm text-gray-500">Departure</p>
+                              <p className="font-medium">
+                                {new Date(connection.departureTime).toLocaleTimeString()}
+                              </p>
+                              {connection.departureAirport && (
+                                <p className="text-sm text-gray-500">{connection.departureAirport}</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Arrival</p>
+                              <p className="font-medium">
+                                {new Date(connection.arrivalTime).toLocaleTimeString()}
+                              </p>
+                              {connection.arrivalAirport && (
+                                <p className="text-sm text-gray-500">{connection.arrivalAirport}</p>
                               )}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            )}
-          </div>
-        );
-      })}
+
+                          {connection.carrierFsCode !== flight.carrierFsCode && 
+                            petPolicies?.[connection.carrierFsCode] && (
+                              <div className="border-t pt-4">
+                                <PolicyDetails policy={petPolicies[connection.carrierFsCode]} />
+                              </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })}
+      </Accordion>
     </div>
   );
 };
