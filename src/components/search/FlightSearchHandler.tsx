@@ -53,13 +53,19 @@ export const useFlightSearch = () => {
     try {
       const { error } = await supabase
         .from('route_searches')
-        .upsert({
-          origin,
-          destination,
-          search_date: searchDate,
-          last_searched_at: new Date().toISOString(),
-          cached_until: cacheExpiration.toISOString()
-        });
+        .upsert(
+          {
+            origin,
+            destination,
+            search_date: searchDate,
+            last_searched_at: new Date().toISOString(),
+            cached_until: cacheExpiration.toISOString()
+          },
+          {
+            onConflict: 'origin,destination,search_date',
+            ignoreDuplicates: false
+          }
+        );
 
       if (error) {
         console.error('Error updating cache:', error);
