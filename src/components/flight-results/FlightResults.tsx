@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { PawPrint } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
 import { PolicyDetails } from "./PolicyDetails";
@@ -10,7 +11,37 @@ interface FlightResultsProps {
 }
 
 export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
+  const [airlineNames, setAirlineNames] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    const fetchAirlineNames = async () => {
+      const carrierCodes = [...new Set(flights.flatMap(journey => 
+        journey.segments?.map(segment => segment.carrierFsCode) || []
+      ))];
+      
+      for (const code of carrierCodes) {
+        const { data, error } = await supabase
+          .from('airlines')
+          .select('name')
+          .eq('iata_code', code)
+          .single();
+        
+        if (data?.name) {
+          setAirlineNames(prev => ({
+            ...prev,
+            [code]: data.name
+          }));
+        }
+      }
+    };
+
+    if (flights.length > 0) {
+      fetchAirlineNames();
+    }
+  }, [flights]);
+
   console.log("Rendering FlightResults with flights:", flights);
+  console.log("Airline names mapping:", airlineNames);
   
   if (flights.length === 0) {
     return (
@@ -19,20 +50,6 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
       </div>
     );
   }
-
-  const getAirlineName = async (carrierCode: string) => {
-    const { data, error } = await supabase
-      .from('airlines')
-      .select('name')
-      .eq('iata_code', carrierCode)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching airline name:', error);
-      return null;
-    }
-    return data?.name;
-  };
 
   return (
     <div className="space-y-6">
@@ -61,11 +78,13 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
             {segments.map((segment, segmentIndex) => {
               const isNotLastSegment = segmentIndex < segments.length - 1;
               const nextSegment = isNotLastSegment ? segments[segmentIndex + 1] : null;
+              const airlineName = airlineNames[segment.carrierFsCode];
               
               console.log("Processing segment:", {
                 segment: segment,
                 isNotLastSegment: isNotLastSegment,
-                nextSegment: nextSegment
+                nextSegment: nextSegment,
+                airlineName: airlineName
               });
 
               return (
@@ -74,7 +93,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                   <div className="p-6">
                     <FlightCard
                       carrierFsCode={segment.carrierFsCode}
-                      airlineName={segment.airlineName}
+                      airlineName={airlineName}
                       flightNumber={segment.flightNumber}
                       departureTime={segment.departureTime}
                       arrivalTime={segment.arrivalTime}

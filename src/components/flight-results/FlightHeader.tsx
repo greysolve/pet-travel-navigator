@@ -29,7 +29,7 @@ export const FlightHeader = ({
     <div className="flex items-center space-x-6">
       <div>
         <p className="font-bold text-lg">
-          {carrierFsCode} {airlineName && `(${airlineName})`}
+          {airlineName || "Unknown Airline"} ({carrierFsCode})
         </p>
         <Badge variant="secondary" className="font-normal">
           {flightNumber}
