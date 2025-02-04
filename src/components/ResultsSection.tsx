@@ -36,7 +36,7 @@ export const ResultsSection = ({
     useCountryPolicy(country)
   );
 
-  // Combine all policies
+  // Combine all policies and filter out nulls
   const allPolicies = countryPoliciesResults.reduce((acc: any[], result) => {
     if (result.data) {
       acc.push(...result.data);
@@ -70,13 +70,19 @@ export const ResultsSection = ({
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
         <div id="country-policies" className="space-y-6">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
-          {allPolicies && allPolicies.length > 0 ? (
-            allPolicies.map((policy, index) => (
-              <DestinationPolicy key={policy.id || index} policy={policy} />
-            ))
+          {allCountries.length > 0 ? (
+            allPolicies && allPolicies.length > 0 ? (
+              allPolicies.map((policy, index) => (
+                <DestinationPolicy key={policy.id || index} policy={policy} />
+              ))
+            ) : (
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <p className="text-gray-500">Fetching policies for {allCountries.join(', ')}...</p>
+              </div>
+            )
           ) : (
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <p className="text-gray-500">Loading country pet policies...</p>
+              <p className="text-gray-500">No countries found in the journey.</p>
             </div>
           )}
         </div>

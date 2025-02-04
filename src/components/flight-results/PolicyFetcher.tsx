@@ -52,7 +52,10 @@ export const useCountryPolicy = (countryName?: string) => {
   return useQuery({
     queryKey: ['countryPolicy', countryName],
     queryFn: async () => {
-      if (!countryName) return null;
+      if (!countryName) {
+        console.log("No country name provided");
+        return null;
+      }
       
       console.log(`Looking up policies for country: ${countryName}`);
       
@@ -93,6 +96,7 @@ export const useCountryPolicy = (countryName?: string) => {
       try {
         const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
           body: { 
+            country: countryName,
             lastProcessedItem: null,
             currentProcessed: 0,
             currentTotal: 0,
@@ -120,6 +124,7 @@ export const useCountryPolicy = (countryName?: string) => {
       return null;
     },
     enabled: !!countryName,
-    retry: 2,
+    retry: 3,
+    retryDelay: 2000,
   });
 };
