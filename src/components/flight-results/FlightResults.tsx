@@ -63,24 +63,27 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   return (
     <div className="space-y-6">
-      {flights.map((journey, index) => {
+      {flights.map((journey, journeyIndex) => {
         const segments = journey.segments || [];
+        const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);
+        const stops = segments.length - 1;
+        
         console.log("Processing journey:", {
-          segments: segments,
-          totalDuration: journey.totalDuration,
-          stops: journey.stops
+          segments,
+          totalDuration,
+          stops
         });
         
         return (
           <div 
-            key={`journey-${index}`} 
+            key={`journey-${journeyIndex}`} 
             className="bg-white rounded-lg shadow-lg overflow-hidden"
           >
             {/* Journey Summary */}
             <div className="bg-accent p-4 flex justify-between items-center">
               <p className="text-sm font-medium text-accent-foreground">
-                {journey.stops === 0 ? 'Direct Flight' : `${journey.stops} Stop${journey.stops > 1 ? 's' : ''}`}
-                {journey.totalDuration && ` • ${Math.floor(journey.totalDuration / 60)}h ${journey.totalDuration % 60}m`}
+                {stops === 0 ? 'Direct Flight' : `${stops} Stop${stops > 1 ? 's' : ''}`}
+                {totalDuration && ` • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
               </p>
               <Button
                 variant="ghost"
@@ -99,10 +102,10 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
               const airlineName = airlineNames[segment.carrierFsCode];
               
               console.log("Processing segment:", {
-                segment: segment,
-                isNotLastSegment: isNotLastSegment,
-                nextSegment: nextSegment,
-                airlineName: airlineName
+                segment,
+                isNotLastSegment,
+                nextSegment,
+                airlineName
               });
 
               return (
