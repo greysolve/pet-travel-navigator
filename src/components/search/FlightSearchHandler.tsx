@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightJourney } from "../flight-results/types";
+import type { FlightData } from "../flight-results/types";
 
 interface FlightSearchProps {
   origin: string;
   destination: string;
   date: Date;
   destinationCountry: string | undefined;
-  onSearchResults: (flights: FlightJourney[]) => void;
+  onSearchResults: (flights: FlightData[]) => void;
   onSearchComplete: () => void;
 }
 
@@ -44,16 +44,10 @@ export const useFlightSearch = () => {
       if (error) throw error;
 
       console.log('Full API response:', data);
-      console.log('Response structure:', {
-        hasConnections: !!data?.connections,
-        hasScheduledFlight: !!data?.connections?.scheduledFlight,
-        scheduledFlightLength: data?.connections?.scheduledFlight?.length
-      });
       
-      if (data?.connections?.scheduledFlight) {
-        const journeys = data.connections.scheduledFlight;
-        console.log('Processed journeys:', journeys);
-        onSearchResults(journeys);
+      if (data?.connections) {
+        console.log('Found connections:', data.connections);
+        onSearchResults(data.connections);
       } else {
         console.log('No flights found in response');
         onSearchResults([]);

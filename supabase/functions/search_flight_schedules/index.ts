@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     console.log('Parsed search date components:', { year, month, day, hour, minute });
 
-    const url = `https://api.flightstats.com/flex/schedules/rest/v2/json/from/${origin}/to/${destination}/departing/${year}/${month}/${day}?appId=${appId}&appKey=${appKey}`
+    const url = `https://api.flightstats.com/flex/connections/rest/v3/json/firstflightin/${origin}/to/${destination}/arriving_before/${year}/${month}/${day}/${hour}/${minute}?appId=${appId}&appKey=${appKey}&maxResults=10&numHours=6&maxConnections=2`
 
     console.log('Fetching from Cirium API with URL:', url);
     const response = await fetch(url)
@@ -55,14 +55,16 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Transform the flight schedules data into our expected format
-    if (data.connections?.scheduledFlights) {
-      console.log('Processing scheduled flights. Total flights:', data.connections.scheduledFlights.length);
+    if (data.connections) {
+      console.log('Processing connections. Total connections:', data.connections.length);
       
       // Get all unique airport codes from the flights
       const airportCodes = new Set<string>();
-      data.connections.scheduledFlights.forEach((flight: any) => {
-        if (flight.departureAirportFsCode) airportCodes.add(flight.departureAirportFsCode);
-        if (flight.arrivalAirportFsCode) airportCodes.add(flight.arrivalAirportFsCode);
+      data.connections.forEach((connection: any) => {
+        connection.scheduledFlight.forEach((flight: any) => {
+          if (flight.departureAirportFsCode) airportCodes.add(flight.departureAirportFsCode);
+          if (flight.arrivalAirportFsCode) airportCodes.add(flight.arrivalAirportFsCode);
+        });
       });
 
       // Fetch airport data for all airports in one query
@@ -81,55 +83,54 @@ Deno.serve(async (req) => {
         airports?.map(airport => [airport.iata_code, airport]) || []
       );
 
-      // Process each flight and create journey segments
-      const processedFlights = data.connections.scheduledFlights.map((flight: any) => {
-        const airline = data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode);
-        const departureAirport = airportMap.get(flight.departureAirportFsCode);
-        const arrivalAirport = airportMap.get(flight.arrivalAirportFsCode);
+      // Process each connection and create journey segments
+      const journeys = data.connections.map((connection: any) => {
+        // Map each flight in the connection to our segment format
+        const segments = connection.scheduledFlight.map((flight: any) => {
+          const airline = data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode);
+          const departureAirport = airportMap.get(flight.departureAirportFsCode);
+          const arrivalAirport = airportMap.get(flight.arrivalAirportFsCode);
 
-        console.log('Processing flight:', {
-          carrier: flight.carrierFsCode,
-          flightNumber: flight.flightNumber,
-          airlineName: airline?.name,
-          departure: flight.departureAirportFsCode,
-          arrival: flight.arrivalAirportFsCode,
-          departureCountry: departureAirport?.country,
-          arrivalCountry: arrivalAirport?.country
+          console.log('Processing flight:', {
+            carrier: flight.carrierFsCode,
+            flightNumber: flight.flightNumber,
+            airlineName: airline?.name,
+            departure: flight.departureAirportFsCode,
+            arrival: flight.arrivalAirportFsCode,
+            departureCountry: departureAirport?.country,
+            arrivalCountry: arrivalAirport?.country
+          });
+
+          return {
+            carrierFsCode: flight.carrierFsCode,
+            flightNumber: flight.flightNumber,
+            departureTime: flight.departureTime,
+            arrivalTime: flight.arrivalTime,
+            departureAirportFsCode: flight.departureAirportFsCode,
+            arrivalAirportFsCode: flight.arrivalAirportFsCode,
+            departureTerminal: flight.departureTerminal,
+            arrivalTerminal: flight.arrivalTerminal,
+            departureCountry: departureAirport?.country,
+            arrivalCountry: arrivalAirport?.country,
+            elapsedTime: flight.elapsedTime,
+            stops: flight.stops || 0,
+            isCodeshare: flight.isCodeshare || false,
+            codeshares: flight.codeshares
+          };
         });
 
         return {
-          carrierFsCode: flight.carrierFsCode,
-          flightNumber: flight.flightNumber,
-          departureTime: flight.departureTime,
-          arrivalTime: flight.arrivalTime,
-          departureAirportFsCode: flight.departureAirportFsCode,
-          arrivalAirportFsCode: flight.arrivalAirportFsCode,
-          departureTerminal: flight.departureTerminal,
-          arrivalTerminal: flight.arrivalTerminal,
-          departureCountry: departureAirport?.country,
-          arrivalCountry: arrivalAirport?.country,
-          elapsedTime: flight.flightDurationMinutes,
-          stops: flight.stops || 0,
-          isCodeshare: flight.isCodeshare || false,
-          codeshares: flight.codeshares
+          segments,
+          totalDuration: connection.elapsedTime,
+          stops: segments.length - 1,
+          arrivalCountry: segments[segments.length - 1].arrivalCountry
         };
       });
 
-      // Create journeys with the correct structure
-      const journeys = processedFlights.map(flight => ({
-        segments: [flight],
-        totalDuration: flight.elapsedTime,
-        stops: flight.stops,
-        arrivalCountry: flight.arrivalCountry
-      }));
+      console.log('Transformed journeys:', journeys);
 
-      // Return the response with the correct structure maintaining the connections parent
       return new Response(
-        JSON.stringify({ 
-          connections: {
-            scheduledFlights: journeys
-          }
-        }),
+        JSON.stringify({ connections: journeys }),
         { 
           headers: { 
             ...corsHeaders,
@@ -141,11 +142,7 @@ Deno.serve(async (req) => {
 
     // If no flights found, return empty array with correct structure
     return new Response(
-      JSON.stringify({ 
-        connections: {
-          scheduledFlights: []
-        }
-      }),
+      JSON.stringify({ connections: [] }),
       { 
         headers: { 
           ...corsHeaders,
