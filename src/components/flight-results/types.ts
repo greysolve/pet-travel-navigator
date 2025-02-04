@@ -1,3 +1,5 @@
+import type { Json } from "@/integrations/supabase/types";
+
 export type FlightSegment = {
   carrierFsCode: string;
   flightNumber: string;
@@ -48,11 +50,13 @@ export type CountryPolicy = {
   description?: string;
   requirements?: string[];
   documentation_needed?: string[];
-  fees?: Record<string, any>;
-  restrictions?: Record<string, any>;
+  fees?: Json;
+  restrictions?: Json;
   quarantine_requirements?: string;
   vaccination_requirements?: string[];
   additional_notes?: string;
   last_updated?: string;
   policy_url?: string;
+  created_at?: string;
+  updated_at?: string;
 };
