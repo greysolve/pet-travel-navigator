@@ -47,50 +47,59 @@ Deno.serve(async (req) => {
     if (data.connections) {
       const flights = data.connections.map((connection: any) => {
         const legs = connection.scheduledFlight;
-        const mainFlight = legs[0];
-        const airline = data.appendix?.airlines?.find((a: any) => a.fs === mainFlight.carrierFsCode);
+        console.log('Processing connection with legs:', legs);
 
-        // If this is a multi-leg journey, process connections
-        if (legs.length > 1) {
-          const connections = legs.slice(1).map((leg: any) => {
-            const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
+        // If we have any scheduled flights
+        if (legs && legs.length >= 1) {
+          const mainFlight = legs[0];
+          const airline = data.appendix?.airlines?.find((a: any) => a.fs === mainFlight.carrierFsCode);
+
+          // If this is a multi-leg journey
+          if (legs.length > 1) {
+            const connections = legs.slice(1).map((leg: any) => {
+              const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
+              return {
+                carrierFsCode: leg.carrierFsCode,
+                flightNumber: leg.flightNumber,
+                departureTime: leg.departureTime,
+                arrivalTime: leg.arrivalTime,
+                arrivalCountry: leg.arrivalAirportFsCode === destination ? data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode : undefined,
+                airlineName: connectionAirline?.name,
+                departureAirport: leg.departureAirportFsCode,
+                arrivalAirport: leg.arrivalAirportFsCode,
+                stops: leg.stops,
+                elapsedTime: leg.elapsedTime
+              };
+            });
+
             return {
-              carrierFsCode: leg.carrierFsCode,
-              flightNumber: leg.flightNumber,
-              departureTime: leg.departureTime,
-              arrivalTime: leg.arrivalTime,
-              arrivalCountry: leg.arrivalAirportFsCode === destination ? data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode : undefined,
-              airlineName: connectionAirline?.name,
-              departureAirport: leg.departureAirportFsCode,
-              arrivalAirport: leg.arrivalAirportFsCode,
-              stops: leg.stops,
-              elapsedTime: leg.elapsedTime
+              carrierFsCode: mainFlight.carrierFsCode,
+              flightNumber: mainFlight.flightNumber,
+              departureTime: mainFlight.departureTime,
+              arrivalTime: mainFlight.arrivalTime,
+              airlineName: airline?.name,
+              connections: connections,
+              totalDuration: connection.elapsedTime,
+              stops: mainFlight.stops,
+              departureAirport: mainFlight.departureAirportFsCode,
+              arrivalAirport: mainFlight.arrivalAirportFsCode
             };
-          });
+          }
 
+          // For single-leg journeys
           return {
             carrierFsCode: mainFlight.carrierFsCode,
             flightNumber: mainFlight.flightNumber,
             departureTime: mainFlight.departureTime,
             arrivalTime: mainFlight.arrivalTime,
+            arrivalCountry: data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode,
             airlineName: airline?.name,
-            connections: connections,
-            totalDuration: connection.elapsedTime,
-            stops: mainFlight.stops
+            stops: mainFlight.stops,
+            departureAirport: mainFlight.departureAirportFsCode,
+            arrivalAirport: mainFlight.arrivalAirportFsCode
           };
         }
-
-        // For direct flights
-        return {
-          carrierFsCode: mainFlight.carrierFsCode,
-          flightNumber: mainFlight.flightNumber,
-          departureTime: mainFlight.departureTime,
-          arrivalTime: mainFlight.arrivalTime,
-          arrivalCountry: data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode,
-          airlineName: airline?.name,
-          stops: mainFlight.stops
-        };
-      });
+      }).filter(Boolean); // Remove any undefined entries
 
       data.scheduledFlights = flights;
     }
