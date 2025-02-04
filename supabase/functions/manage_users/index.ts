@@ -20,35 +20,51 @@ Deno.serve(async (req) => {
     )
 
     // First get all auth users
+    console.log('Fetching auth users...');
     const { data: { users }, error: authError } = await supabase.auth.admin.listUsers()
-    if (authError) throw authError
+    if (authError) {
+      console.error('Error fetching auth users:', authError);
+      throw authError;
+    }
+    console.log('Auth users fetched:', users.length);
 
     // Get all profiles
+    console.log('Fetching profiles...');
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
-    if (profilesError) throw profilesError
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
+    }
+    console.log('Profiles fetched:', profiles?.length);
 
     // Get all roles
+    console.log('Fetching user roles...');
     const { data: roles, error: rolesError } = await supabase
       .from('user_roles')
       .select('*')
-    if (rolesError) throw rolesError
+    if (rolesError) {
+      console.error('Error fetching roles:', rolesError);
+      throw rolesError;
+    }
+    console.log('Roles fetched:', roles?.length);
 
     // Start with auth users and enrich with profile and role data
     const userProfiles: UserProfile[] = users.map((user) => {
       const profile = profiles.find((p) => p.id === user.id)
       const userRole = roles.find((r) => r.user_id === user.id)
-      
-      return {
+      const userProfile = {
         id: user.id,
         full_name: profile?.full_name || null,
         email: user.email || '',
         role: userRole?.role || 'pet_lover',
-      }
+      };
+      console.log('Mapped user profile:', userProfile);
+      return userProfile;
     })
 
-    console.log('Returning user profiles:', userProfiles);
+    console.log('Total user profiles mapped:', userProfiles.length);
 
     return new Response(
       JSON.stringify(userProfiles),
