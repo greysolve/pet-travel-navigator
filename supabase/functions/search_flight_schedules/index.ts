@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
   try {
     const { origin, destination, date } = await req.json()
-    console.log('Searching flights for:', { origin, destination, date });
+    console.log('Search request received for:', { origin, destination, date });
 
     const appId = Deno.env.get('CIRIUM_APP_ID')
     const appKey = Deno.env.get('CIRIUM_APP_KEY')
@@ -24,12 +24,13 @@ Deno.serve(async (req) => {
     // Parse the date into components
     const searchDate = new Date(date)
     const year = searchDate.getUTCFullYear()
-    const month = searchDate.getUTCMonth() + 1 // getMonth() returns 0-11
+    const month = searchDate.getUTCMonth() + 1
     const day = searchDate.getUTCDate()
-    const hour = 14 // Set to 2 PM UTC to catch most departures
+    const hour = 14
     const minute = 0
 
-    // Use the connections API instead of schedules
+    console.log('Parsed search date components:', { year, month, day, hour, minute });
+
     const url = `https://api.flightstats.com/flex/connections/rest/v3/json/firstflightout/${origin}/to/${destination}/leaving_after/${year}/${month}/${day}/${hour}/${minute}?appId=${appId}&appKey=${appKey}&maxConnections=2&numHours=24&maxResults=25`
 
     console.log('Fetching from Cirium API with URL:', url);
@@ -37,27 +38,50 @@ Deno.serve(async (req) => {
     
     if (!response.ok) {
       console.error('Cirium API error:', response.status, response.statusText);
+      console.error('Error response:', await response.text());
       throw new Error(`Cirium API error: ${response.statusText}`);
     }
     
     const data = await response.json()
     console.log('Raw Cirium API response:', JSON.stringify(data));
+    console.log('Number of connections found:', data.connections?.length || 0);
 
     // Transform the connections data into our expected format
     if (data.connections) {
+      console.log('Processing connections data');
       const flights = data.connections.map((connection: any) => {
         const legs = connection.scheduledFlight;
-        console.log('Processing connection with legs:', legs);
+        console.log('Processing connection:', {
+          totalLegs: legs?.length || 0,
+          elapsedTime: connection.elapsedTime,
+          firstLegCarrier: legs?.[0]?.carrierFsCode,
+          lastLegCarrier: legs?.[legs?.length - 1]?.carrierFsCode
+        });
 
         // If we have any scheduled flights
         if (legs && legs.length >= 1) {
           const mainFlight = legs[0];
           const airline = data.appendix?.airlines?.find((a: any) => a.fs === mainFlight.carrierFsCode);
+          console.log('Main flight details:', {
+            carrier: mainFlight.carrierFsCode,
+            flightNumber: mainFlight.flightNumber,
+            airlineName: airline?.name,
+            departure: mainFlight.departureAirportFsCode,
+            arrival: mainFlight.arrivalAirportFsCode
+          });
 
           // If this is a multi-leg journey
           if (legs.length > 1) {
+            console.log('Processing multi-leg journey with', legs.length, 'legs');
             const connections = legs.slice(1).map((leg: any) => {
               const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
+              console.log('Connection leg details:', {
+                carrier: leg.carrierFsCode,
+                flightNumber: leg.flightNumber,
+                airlineName: connectionAirline?.name,
+                departure: leg.departureAirportFsCode,
+                arrival: leg.arrivalAirportFsCode
+              });
               return {
                 carrierFsCode: leg.carrierFsCode,
                 flightNumber: leg.flightNumber,
@@ -87,6 +111,7 @@ Deno.serve(async (req) => {
           }
 
           // For single-leg journeys
+          console.log('Processing single-leg journey');
           return {
             carrierFsCode: mainFlight.carrierFsCode,
             flightNumber: mainFlight.flightNumber,
@@ -99,9 +124,12 @@ Deno.serve(async (req) => {
             arrivalAirport: mainFlight.arrivalAirportFsCode
           };
         }
-      }).filter(Boolean); // Remove any undefined entries
+      }).filter(Boolean);
 
+      console.log('Processed flights data:', JSON.stringify(flights));
       data.scheduledFlights = flights;
+    } else {
+      console.log('No connections data found in response');
     }
 
     return new Response(
@@ -115,7 +143,11 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in flight schedule search:', error);
+    console.error('Detailed error in flight schedule search:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
