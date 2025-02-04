@@ -1,7 +1,6 @@
-import type { FlightData, PetPolicy } from "../flight-results/types";
+import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 import { PolicyDetails } from "../flight-results/PolicyDetails";
 import { DestinationPolicy } from "../flight-results/DestinationPolicy";
-import type { CountryPolicy } from "@/types/policies";
 
 interface ExportViewProps {
   flights: FlightData[];

@@ -41,13 +41,18 @@ export type PetPolicy = {
 export type PolicyType = 'pet_arrival' | 'pet_transit';
 
 export type CountryPolicy = {
+  id: string;
+  country_code: string;
+  policy_type: PolicyType;
   title: string;
   description?: string;
   requirements?: string[];
   documentation_needed?: string[];
-  vaccination_requirements?: string[];
+  fees?: Record<string, any>;
+  restrictions?: Record<string, any>;
   quarantine_requirements?: string;
+  vaccination_requirements?: string[];
   additional_notes?: string;
+  last_updated?: string;
   policy_url?: string;
-  policy_type: PolicyType;
 };
