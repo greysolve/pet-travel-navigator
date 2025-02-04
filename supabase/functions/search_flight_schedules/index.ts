@@ -134,14 +134,14 @@ Deno.serve(async (req) => {
         // Return the complete journey with all its segments
         return {
           segments: processedSegments,
-          arrivalCountry,
           totalDuration: segments.reduce((total: number, seg: any) => total + (seg.elapsedTime || 0), 0),
-          stops: segments.length - 1
+          stops: segments.length - 1,
+          arrivalCountry
         };
       }).filter(Boolean);
 
       console.log('Final processed journeys:', JSON.stringify(journeys));
-      data.scheduledFlights = journeys;
+      data.connections = journeys;
     } else {
       console.log('No connections data found in response');
     }
