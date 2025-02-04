@@ -6,7 +6,7 @@ interface ExportViewProps {
 
 export const ExportView = ({ flights }: ExportViewProps) => {
   return (
-    <div className="bg-white p-8 space-y-4">
+    <div className="space-y-4">
       <h1 className="text-2xl font-bold">Flight Itinerary</h1>
       
       {flights.map((journey, journeyIndex) => (

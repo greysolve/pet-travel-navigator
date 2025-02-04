@@ -50,6 +50,7 @@ interface SavedSearchesManagerProps {
 export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearchesManagerProps) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [searchName, setSearchName] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -145,14 +146,6 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
         logging: true,
         backgroundColor: '#ffffff',
         useCORS: true,
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.getElementById('export-view-content');
-          if (clonedElement) {
-            clonedElement.style.display = 'block';
-            clonedElement.style.width = '800px';
-            clonedElement.style.height = 'auto';
-          }
-        }
       });
       
       const link = document.createElement('a');
@@ -160,6 +153,7 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
       link.href = canvas.toDataURL('image/png');
       link.click();
 
+      setShowExportDialog(false);
       toast({
         title: "Export successful",
         description: "Your flight results have been saved as a PNG.",
@@ -208,18 +202,12 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
 
         <Button
           variant="outline"
-          onClick={exportAsPNG}
+          onClick={() => setShowExportDialog(true)}
           className="flex items-center gap-2"
         >
           <Download className="h-4 w-4" />
           Export PNG
         </Button>
-      </div>
-
-      <div className="fixed left-0 top-0 -z-50 opacity-0">
-        <div id="export-view-content" className="bg-white w-[800px]">
-          <ExportView flights={currentSearch.flights || []} />
-        </div>
       </div>
 
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
@@ -236,6 +224,23 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
             <Button onClick={handleSaveSearch} className="w-full">
               <Save className="h-4 w-4 mr-2" />
               Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Export Flight Results</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div id="export-view-content" className="bg-white p-8">
+              <ExportView flights={currentSearch.flights || []} />
+            </div>
+            <Button onClick={exportAsPNG} className="w-full">
+              <Download className="h-4 w-4 mr-2" />
+              Download PNG
             </Button>
           </div>
         </DialogContent>
