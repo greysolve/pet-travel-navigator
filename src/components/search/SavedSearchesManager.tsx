@@ -21,6 +21,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { ExportView } from "./ExportView";
 import type { FlightData } from "../flight-results/types";
+import type { PetPolicy } from "../flight-results/types";
+import type { CountryPolicy } from "@/types/policies";
 
 interface SavedSearch {
   id: string;
@@ -44,10 +46,18 @@ interface SavedSearchesManagerProps {
     policySearch?: string;
   };
   flights?: FlightData[];
+  petPolicies?: Record<string, PetPolicy>;
+  countryPolicies?: CountryPolicy[];
   onLoadSearch: (search: SavedSearch['search_criteria']) => void;
 }
 
-export const SavedSearchesManager = ({ currentSearch, flights = [], onLoadSearch }: SavedSearchesManagerProps) => {
+export const SavedSearchesManager = ({ 
+  currentSearch, 
+  flights = [], 
+  petPolicies,
+  countryPolicies,
+  onLoadSearch 
+}: SavedSearchesManagerProps) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -230,15 +240,19 @@ export const SavedSearchesManager = ({ currentSearch, flights = [], onLoadSearch
       </Dialog>
 
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Export Flight Results</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div id="export-view-content" className="bg-white p-8">
-              <ExportView flights={flights} />
+              <ExportView 
+                flights={flights} 
+                petPolicies={petPolicies}
+                countryPolicies={countryPolicies}
+              />
             </div>
-            <Button onClick={exportAsPNG} className="w-full">
+            <Button onClick={exportAsPNG} className="w-full sticky bottom-0">
               <Download className="h-4 w-4 mr-2" />
               Download PNG
             </Button>

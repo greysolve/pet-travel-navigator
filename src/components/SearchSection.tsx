@@ -10,6 +10,7 @@ import type { SearchSectionProps } from "./search/types";
 import { supabase } from "@/integrations/supabase/client";
 import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -115,6 +116,17 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
   };
 
+  const { data: flightPetPolicies } = usePetPolicies(flights);
+  const { data: countryPolicies } = useCountryPolicies(
+    flights.reduce((countries: Set<string>, journey) => {
+      journey.segments?.forEach(segment => {
+        if (segment.departureCountry) countries.add(segment.departureCountry);
+        if (segment.arrivalCountry) countries.add(segment.arrivalCountry);
+      });
+      return countries;
+    }, new Set<string>())
+  );
+
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
@@ -122,6 +134,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           <SavedSearchesManager
             currentSearch={{ origin, destination, date, policySearch }}
             flights={flights}
+            petPolicies={flightPetPolicies}
+            countryPolicies={countryPolicies}
             onLoadSearch={handleLoadSavedSearch}
           />
         )}
