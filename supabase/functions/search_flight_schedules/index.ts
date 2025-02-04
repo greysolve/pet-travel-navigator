@@ -44,41 +44,6 @@ Deno.serve(async (req) => {
     const data = await response.json()
     console.log('Raw Cirium API response:', JSON.stringify(data));
 
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase configuration')
-    }
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Fetch all relevant airport data upfront
-    const airportCodes = new Set<string>()
-    if (data.connections) {
-      data.connections.forEach((connection: any) => {
-        connection.scheduledFlight.forEach((flight: any) => {
-          airportCodes.add(flight.departureAirportFsCode)
-          airportCodes.add(flight.arrivalAirportFsCode)
-        })
-      })
-    }
-
-    console.log('Fetching airport data for codes:', Array.from(airportCodes));
-    const { data: airportsData, error: airportsError } = await supabase
-      .from('airports')
-      .select('iata_code, country')
-      .in('iata_code', Array.from(airportCodes))
-
-    if (airportsError) {
-      console.error('Error fetching airport data:', airportsError);
-      throw new Error('Failed to fetch airport data');
-    }
-
-    // Create a map for quick airport lookups
-    const airportMap = new Map(
-      airportsData.map((airport: any) => [airport.iata_code, airport])
-    )
-
     // Transform the connections data into our expected format
     if (data.connections) {
       console.log('Processing connections data. Total connections:', data.connections.length);
@@ -93,24 +58,21 @@ Deno.serve(async (req) => {
           return null;
         }
 
+        // Get the final destination from the last segment
+        const finalSegment = segments[segments.length - 1];
+        const arrivalCountry = data.appendix?.airports?.find(
+          (a: any) => a.fs === finalSegment.arrivalAirportFsCode
+        )?.countryCode;
+
         // Process all segments in the journey
         const processedSegments = segments.map((segment: any) => {
           const airline = data.appendix?.airlines?.find((a: any) => a.fs === segment.carrierFsCode);
-          const departureAirport = airportMap.get(segment.departureAirportFsCode);
-          const arrivalAirport = airportMap.get(segment.arrivalAirportFsCode);
-
           console.log('Processing segment:', {
             carrier: segment.carrierFsCode,
             flightNumber: segment.flightNumber,
             airlineName: airline?.name,
-            departure: {
-              airport: segment.departureAirportFsCode,
-              country: departureAirport?.country
-            },
-            arrival: {
-              airport: segment.arrivalAirportFsCode,
-              country: arrivalAirport?.country
-            }
+            departure: segment.departureAirportFsCode,
+            arrival: segment.arrivalAirportFsCode
           });
 
           return {
@@ -119,22 +81,12 @@ Deno.serve(async (req) => {
             departureTime: segment.departureTime,
             arrivalTime: segment.arrivalTime,
             airlineName: airline?.name,
-            departureAirportFsCode: segment.departureAirportFsCode,
-            arrivalAirportFsCode: segment.arrivalAirportFsCode,
+            departureAirport: segment.departureAirportFsCode,
+            arrivalAirport: segment.arrivalAirportFsCode,
             departureTerminal: segment.departureTerminal,
             arrivalTerminal: segment.arrivalTerminal,
-            departureCountry: departureAirport?.country,
-            arrivalCountry: arrivalAirport?.country,
-            elapsedTime: segment.elapsedTime,
-            stops: segment.stops || 0,
-            isCodeshare: segment.isCodeshare || false,
-            codeshares: segment.codeshares
           };
         });
-
-        // Get the final destination country from the last segment
-        const finalSegment = processedSegments[processedSegments.length - 1];
-        const arrivalCountry = finalSegment.arrivalCountry;
 
         // Return the complete journey with all its segments
         return {
@@ -146,7 +98,7 @@ Deno.serve(async (req) => {
       }).filter(Boolean);
 
       console.log('Final processed journeys:', JSON.stringify(journeys));
-      data.connections = journeys;
+      data.scheduledFlights = journeys;
     } else {
       console.log('No connections data found in response');
     }
