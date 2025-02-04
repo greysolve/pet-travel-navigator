@@ -45,52 +45,29 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  // Fetch users
+  // Fetch users using the Edge Function
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       console.log("Fetching users...");
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name");
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage_users`,
+        {
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+        }
+      );
 
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        throw profilesError;
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Error fetching users:", error);
+        throw new Error(error.message);
       }
 
-      // Fetch user roles
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role");
-
-      if (rolesError) {
-        console.error("Error fetching roles:", rolesError);
-        throw rolesError;
-      }
-
-      // Fetch auth users for email addresses
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-
-      if (authError) {
-        console.error("Error fetching auth users:", authError);
-        throw authError;
-      }
-
-      // Combine profile, role, and auth user data
-      const userProfiles = profiles.map((profile) => {
-        const userRole = roles.find((r) => r.user_id === profile.id);
-        const authUser = authUsers.users.find((u) => u.id === profile.id);
-        return {
-          id: profile.id,
-          email: authUser?.email || "",
-          full_name: profile.full_name,
-          role: userRole?.role || "pet_lover",
-        };
-      });
-
-      console.log("Users fetched:", userProfiles);
-      return userProfiles;
+      const data = await response.json();
+      console.log("Users fetched:", data);
+      return data;
     },
   });
 
