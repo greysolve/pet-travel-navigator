@@ -158,7 +158,14 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
     if (!element) return;
 
     try {
-      const canvas = await html2canvas(element);
+      const canvas = await html2canvas(element, {
+        scale: 2, // Increase scale for better quality
+        useCORS: true,
+        logging: true,
+        windowWidth: 1920, // Set a wider window width
+        windowHeight: element.scrollHeight * 2,
+      });
+      
       const link = document.createElement('a');
       link.download = 'search-results.png';
       link.href = canvas.toDataURL('image/png');
@@ -169,6 +176,7 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
         description: "Your search results have been saved as a PNG.",
       });
     } catch (error) {
+      console.error('PNG export error:', error);
       toast({
         title: "Error exporting PNG",
         description: "Failed to generate PNG. Please try again.",
