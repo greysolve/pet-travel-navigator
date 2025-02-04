@@ -50,31 +50,18 @@ const UserManagement = () => {
     queryKey: ["users"],
     queryFn: async () => {
       console.log("Starting user fetch request...");
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage_users`;
-      console.log("Fetching from URL:", url);
-      
-      try {
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        });
+      // Use the supabase client instead of raw fetch
+      const { data, error: functionError } = await supabase.functions.invoke('manage_users', {
+        method: 'GET'
+      });
 
-        console.log("Response status:", response.status);
-        
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error("Error response:", errorData);
-          throw new Error(`Failed to fetch users: ${errorData}`);
-        }
-
-        const data = await response.json();
-        console.log("Users data received:", data);
-        return data;
-      } catch (error) {
-        console.error("Error in fetch:", error);
-        throw error;
+      if (functionError) {
+        console.error("Error in function:", functionError);
+        throw functionError;
       }
+
+      console.log("Users data received:", data);
+      return data;
     },
   });
 
