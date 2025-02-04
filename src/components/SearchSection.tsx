@@ -4,10 +4,12 @@ import { useToast } from "@/hooks/use-toast";
 import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
 import { RouteSearch } from "./search/RouteSearch";
 import { DateSelector } from "./search/DateSelector";
+import { SavedSearchesManager } from "./search/SavedSearchesManager";
 import { useFlightSearch } from "./search/FlightSearchHandler";
 import type { SearchSectionProps } from "./search/types";
 import { supabase } from "@/integrations/supabase/client";
 import type { PetPolicy } from "./flight-results/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -17,6 +19,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [destinationCountry, setDestinationCountry] = useState<string>();
   const { toast } = useToast();
   const { handleFlightSearch, isLoading } = useFlightSearch();
+  const { user } = useAuth();
 
   const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
@@ -87,9 +90,36 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
   };
 
+  const handleLoadSavedSearch = (searchCriteria: any) => {
+    if (searchCriteria.policySearch) {
+      setPolicySearch(searchCriteria.policySearch);
+    } else {
+      setPolicySearch("");
+    }
+    
+    if (searchCriteria.origin) {
+      setOrigin(searchCriteria.origin);
+    }
+    
+    if (searchCriteria.destination) {
+      setDestination(searchCriteria.destination);
+    }
+    
+    if (searchCriteria.date) {
+      setDate(new Date(searchCriteria.date));
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
+        {user && (
+          <SavedSearchesManager
+            currentSearch={{ origin, destination, date, policySearch }}
+            onLoadSearch={handleLoadSavedSearch}
+          />
+        )}
+        
         <AirlinePolicySearch 
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
