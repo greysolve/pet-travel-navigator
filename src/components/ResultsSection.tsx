@@ -22,6 +22,9 @@ export const ResultsSection = ({
       if (segment.arrivalCountry && !countries.includes(segment.arrivalCountry)) {
         countries.push(segment.arrivalCountry);
       }
+      if (segment.departureCountry && !countries.includes(segment.departureCountry)) {
+        countries.push(segment.departureCountry);
+      }
     });
     return countries;
   }, []);
@@ -65,11 +68,19 @@ export const ResultsSection = ({
     <div className="container mx-auto px-4 py-12">
       <div className="space-y-8">
         <FlightResults flights={flights} petPolicies={flightPetPolicies} />
-        <div id="country-policies">
-          {allPolicies?.map((policy, index) => (
-            <DestinationPolicy key={policy.id || index} policy={policy} />
-          ))}
-        </div>
+        {allPolicies && allPolicies.length > 0 ? (
+          <div id="country-policies" className="space-y-6">
+            <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
+            {allPolicies.map((policy, index) => (
+              <DestinationPolicy key={policy.id || index} policy={policy} />
+            ))}
+          </div>
+        ) : (
+          <div id="country-policies" className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-2xl font-semibold mb-4">Country Pet Policies</h2>
+            <p className="text-gray-500">No country pet policies found for this journey.</p>
+          </div>
+        )}
       </div>
     </div>
   );

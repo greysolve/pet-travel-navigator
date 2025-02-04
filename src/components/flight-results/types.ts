@@ -11,6 +11,8 @@ export type FlightSegment = {
   elapsedTime: number;
   airlineName?: string;
   isCodeshare: boolean;
+  departureCountry?: string;
+  arrivalCountry?: string;
   codeshares?: Array<{
     carrierFsCode: string;
     flightNumber: string;
