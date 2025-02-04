@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -12,11 +13,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const AuthDialog = () => {
-  const { user, profile, signIn, signOut } = useAuth();
+  const { user, profile, signInWithEmail, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
@@ -56,12 +68,20 @@ const AuthDialog = () => {
     return names.map(name => name[0]).join("").toUpperCase();
   };
 
-  const handleSignIn = async () => {
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     try {
-      await signIn();
-    } catch (error) {
-      console.error("Error signing in:", error);
+      await signInWithEmail(email, password);
+      setShowAuthDialog(false);
+      setEmail("");
+      setPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Error signing in",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -72,8 +92,12 @@ const AuthDialog = () => {
     try {
       await signOut();
       navigate("/");
-    } catch (error) {
-      console.error("Error signing out:", error);
+    } catch (error: any) {
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -111,14 +135,51 @@ const AuthDialog = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <Button
-          variant="outline"
-          onClick={handleSignIn}
-          disabled={isLoading}
-          className="bg-sky-100 hover:bg-sky-200"
-        >
-          Sign In
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setShowAuthDialog(true)}
+            disabled={isLoading}
+            className="bg-sky-100 hover:bg-sky-200"
+          >
+            Sign In
+          </Button>
+          
+          <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Sign In</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Signing in..." : "Sign In"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </div>
   );
