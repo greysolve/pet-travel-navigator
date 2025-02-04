@@ -101,33 +101,32 @@ export const useCountryPolicies = (countries: string[]) => {
 
       console.log(`No policies found for countries, triggering sync...`);
       
-      try {
-        const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
-          body: { 
-            countries: mappedCountries,
-            lastProcessedItem: null,
-            currentProcessed: 0,
-            currentTotal: 0,
-            processedItems: [],
-            errorItems: [],
-            startTime: new Date().toISOString(),
+      // Trigger sync for each country individually to ensure we have a country parameter
+      for (const country of mappedCountries) {
+        try {
+          console.log(`Triggering sync for country: ${country}`);
+          const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
+            body: { country }
+          });
+          
+          if (syncError) {
+            console.error(`Error syncing policy for ${country}:`, syncError);
+            throw syncError;
           }
-        });
-        
-        if (syncError) throw syncError;
-        
-        toast({
-          title: "Syncing Country Policies",
-          description: "We're fetching the latest country policies. Please try your search again in a few moments.",
-        });
-      } catch (error) {
-        console.error("Error triggering sync:", error);
-        toast({
-          variant: "destructive",
-          title: "Sync Error",
-          description: "Failed to sync country policies. Please try again later.",
-        });
+        } catch (error) {
+          console.error(`Failed to sync policy for ${country}:`, error);
+          toast({
+            variant: "destructive",
+            title: "Sync Error",
+            description: `Failed to sync policies for ${country}. Please try again later.`,
+          });
+        }
       }
+
+      toast({
+        title: "Syncing Country Policies",
+        description: "We're fetching the latest country policies. Please try your search again in a few moments.",
+      });
 
       return [];
     },
