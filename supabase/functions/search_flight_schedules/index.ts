@@ -58,75 +58,63 @@ Deno.serve(async (req) => {
           lastLegCarrier: legs?.[legs?.length - 1]?.carrierFsCode
         });
 
-        // If we have any scheduled flights
-        if (legs && legs.length >= 1) {
-          const mainFlight = legs[0];
-          const airline = data.appendix?.airlines?.find((a: any) => a.fs === mainFlight.carrierFsCode);
-          console.log('Main flight details:', {
-            carrier: mainFlight.carrierFsCode,
-            flightNumber: mainFlight.flightNumber,
-            airlineName: airline?.name,
-            departure: mainFlight.departureAirportFsCode,
-            arrival: mainFlight.arrivalAirportFsCode
-          });
-
-          // If this is a multi-leg journey
-          if (legs.length > 1) {
-            console.log('Processing multi-leg journey with', legs.length, 'legs');
-            const connections = legs.slice(1).map((leg: any) => {
-              const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
-              console.log('Connection leg details:', {
-                carrier: leg.carrierFsCode,
-                flightNumber: leg.flightNumber,
-                airlineName: connectionAirline?.name,
-                departure: leg.departureAirportFsCode,
-                arrival: leg.arrivalAirportFsCode
-              });
-              return {
-                carrierFsCode: leg.carrierFsCode,
-                flightNumber: leg.flightNumber,
-                departureTime: leg.departureTime,
-                arrivalTime: leg.arrivalTime,
-                arrivalCountry: leg.arrivalAirportFsCode === destination ? data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode : undefined,
-                airlineName: connectionAirline?.name,
-                departureAirport: leg.departureAirportFsCode,
-                arrivalAirport: leg.arrivalAirportFsCode,
-                stops: leg.stops,
-                elapsedTime: leg.elapsedTime
-              };
-            });
-
-            return {
-              carrierFsCode: mainFlight.carrierFsCode,
-              flightNumber: mainFlight.flightNumber,
-              departureTime: mainFlight.departureTime,
-              arrivalTime: mainFlight.arrivalTime,
-              airlineName: airline?.name,
-              connections: connections,
-              totalDuration: connection.elapsedTime,
-              stops: mainFlight.stops,
-              departureAirport: mainFlight.departureAirportFsCode,
-              arrivalAirport: mainFlight.arrivalAirportFsCode
-            };
-          }
-
-          // For single-leg journeys
-          console.log('Processing single-leg journey');
-          return {
-            carrierFsCode: mainFlight.carrierFsCode,
-            flightNumber: mainFlight.flightNumber,
-            departureTime: mainFlight.departureTime,
-            arrivalTime: mainFlight.arrivalTime,
-            arrivalCountry: data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode,
-            airlineName: airline?.name,
-            stops: mainFlight.stops,
-            departureAirport: mainFlight.departureAirportFsCode,
-            arrivalAirport: mainFlight.arrivalAirportFsCode
-          };
+        if (!legs || legs.length === 0) {
+          console.log('No legs found for this connection, skipping');
+          return null;
         }
+
+        // Get the main (first) flight
+        const mainFlight = legs[0];
+        const mainAirline = data.appendix?.airlines?.find((a: any) => a.fs === mainFlight.carrierFsCode);
+        
+        console.log('Main flight details:', {
+          carrier: mainFlight.carrierFsCode,
+          flightNumber: mainFlight.flightNumber,
+          airlineName: mainAirline?.name,
+          departure: mainFlight.departureAirportFsCode,
+          arrival: mainFlight.arrivalAirportFsCode
+        });
+
+        // Process the main flight with its connections
+        const processedFlight = {
+          carrierFsCode: mainFlight.carrierFsCode,
+          flightNumber: mainFlight.flightNumber,
+          departureTime: mainFlight.departureTime,
+          arrivalTime: mainFlight.arrivalTime,
+          arrivalCountry: legs[legs.length - 1].arrivalAirportFsCode === destination 
+            ? data.appendix?.airports?.find((a: any) => a.fs === destination)?.countryCode 
+            : undefined,
+          airlineName: mainAirline?.name,
+          departureAirport: mainFlight.departureAirportFsCode,
+          arrivalAirport: mainFlight.arrivalAirportFsCode,
+          connections: legs.slice(1).map((leg: any) => {
+            const connectionAirline = data.appendix?.airlines?.find((a: any) => a.fs === leg.carrierFsCode);
+            console.log('Connection leg details:', {
+              carrier: leg.carrierFsCode,
+              flightNumber: leg.flightNumber,
+              airlineName: connectionAirline?.name,
+              departure: leg.departureAirportFsCode,
+              arrival: leg.arrivalAirportFsCode
+            });
+            
+            return {
+              carrierFsCode: leg.carrierFsCode,
+              flightNumber: leg.flightNumber,
+              departureTime: leg.departureTime,
+              arrivalTime: leg.arrivalTime,
+              airlineName: connectionAirline?.name,
+              departureAirport: leg.departureAirportFsCode,
+              arrivalAirport: leg.arrivalAirportFsCode,
+              isConnection: true
+            };
+          })
+        };
+
+        console.log('Processed flight with connections:', processedFlight);
+        return processedFlight;
       }).filter(Boolean);
 
-      console.log('Processed flights data:', JSON.stringify(flights));
+      console.log('Final processed flights:', JSON.stringify(flights));
       data.scheduledFlights = flights;
     } else {
       console.log('No connections data found in response');
