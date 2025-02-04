@@ -63,29 +63,11 @@ export const useCountryPolicies = (countries: string[]) => {
       
       console.log(`Looking up policies for countries:`, countries);
       
-      // Map common country codes to full names
-      const mappedCountries = countries.map(country => COUNTRY_MAPPINGS[country] || country);
-      console.log(`Using mapped country names:`, mappedCountries);
-      
-      // First try to get the country codes from the countries table
-      const { data: countryData, error: countryError } = await supabase
-        .from('countries')
-        .select('code')
-        .in('name', mappedCountries);
-
-      if (countryError) {
-        console.error("Error fetching country codes:", countryError);
-        return [];
-      }
-
-      const countryCodes = countryData?.map(c => c.code) || mappedCountries;
-      console.log(`Using country codes:`, countryCodes);
-
-      // Get both arrival and transit policies
+      // Get both arrival and transit policies directly using country names
       const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')
-        .in('country_code', countryCodes)
+        .in('country_code', countries)
         .in('policy_type', ['pet_arrival', 'pet_transit']);
 
       if (error) {
