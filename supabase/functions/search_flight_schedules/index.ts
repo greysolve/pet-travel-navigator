@@ -55,12 +55,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Transform the flight schedules data into our expected format
-    if (data.scheduledFlights) {
-      console.log('Processing scheduled flights. Total flights:', data.scheduledFlights.length);
+    if (data.connections?.scheduledFlights) {
+      console.log('Processing scheduled flights. Total flights:', data.connections.scheduledFlights.length);
       
       // Get all unique airport codes from the flights
       const airportCodes = new Set<string>();
-      data.scheduledFlights.forEach((flight: any) => {
+      data.connections.scheduledFlights.forEach((flight: any) => {
         if (flight.departureAirportFsCode) airportCodes.add(flight.departureAirportFsCode);
         if (flight.arrivalAirportFsCode) airportCodes.add(flight.arrivalAirportFsCode);
       });
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       );
 
       // Process each flight and create journey segments
-      const processedFlights = data.scheduledFlights.map((flight: any) => {
+      const processedFlights = data.connections.scheduledFlights.map((flight: any) => {
         const airline = data.appendix?.airlines?.find((a: any) => a.fs === flight.carrierFsCode);
         const departureAirport = airportMap.get(flight.departureAirportFsCode);
         const arrivalAirport = airportMap.get(flight.arrivalAirportFsCode);
