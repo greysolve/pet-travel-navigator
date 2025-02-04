@@ -1,24 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import type { FlightJourney, PetPolicy } from "./types";
+import type { FlightData, PetPolicy } from "./types";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
   'UK': 'United Kingdom'
 };
 
-export const usePetPolicies = (flights: FlightJourney[]) => {
+export const usePetPolicies = (flights: FlightData[]) => {
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
-      journey.segments.map(segment => segment.carrierFsCode)
+      journey.segments?.map(segment => segment.carrierFsCode)
     ).flat()],
     queryFn: async () => {
       if (!flights.length) return {};
       
       // Get all unique carrier codes from all segments
       const carrierCodes = [...new Set(flights.flatMap(journey => 
-        journey.segments.map(segment => segment.carrierFsCode)
+        journey.segments?.map(segment => segment.carrierFsCode)
       ))];
       
       console.log("Fetching pet policies for airlines:", carrierCodes);
@@ -94,41 +93,8 @@ export const useCountryPolicies = (countries: string[]) => {
         return [];
       }
 
-      if (policies && policies.length > 0) {
-        console.log(`Found ${policies.length} policies:`, policies);
-        return policies;
-      }
-
-      console.log(`No policies found for countries, triggering sync...`);
-      
-      // Trigger sync for each country individually to ensure we have a country parameter
-      for (const country of mappedCountries) {
-        try {
-          console.log(`Triggering sync for country: ${country}`);
-          const { error: syncError } = await supabase.functions.invoke('sync_country_policies', {
-            body: { country }
-          });
-          
-          if (syncError) {
-            console.error(`Error syncing policy for ${country}:`, syncError);
-            throw syncError;
-          }
-        } catch (error) {
-          console.error(`Failed to sync policy for ${country}:`, error);
-          toast({
-            variant: "destructive",
-            title: "Sync Error",
-            description: `Failed to sync policies for ${country}. Please try again later.`,
-          });
-        }
-      }
-
-      toast({
-        title: "Syncing Country Policies",
-        description: "We're fetching the latest country policies. Please try your search again in a few moments.",
-      });
-
-      return [];
+      console.log(`Found ${policies?.length || 0} policies:`, policies);
+      return policies || [];
     },
     enabled: countries.length > 0,
     retry: 3,
