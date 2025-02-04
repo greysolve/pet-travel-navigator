@@ -159,11 +159,13 @@ export const SavedSearchesManager = ({ currentSearch, onLoadSearch }: SavedSearc
 
     try {
       const canvas = await html2canvas(element, {
-        scale: 2, // Increase scale for better quality
+        scale: 2, // Keep high quality
         useCORS: true,
         logging: true,
-        windowWidth: 1920, // Set a wider window width
-        windowHeight: element.scrollHeight * 2,
+        width: 1920, // Set fixed width
+        height: element.scrollHeight,
+        windowWidth: 1920,
+        backgroundColor: '#ffffff', // Ensure white background
       });
       
       const link = document.createElement('a');
