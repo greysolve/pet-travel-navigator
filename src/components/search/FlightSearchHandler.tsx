@@ -35,19 +35,27 @@ export const useFlightSearch = () => {
 
     setIsLoading(true);
     try {
+      console.log('Sending search request with:', { origin, destination, date: date.toISOString() });
+      
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
       });
 
       if (error) throw error;
 
-      console.log('Flight schedules response:', data);
+      console.log('Full API response:', data);
+      console.log('Response structure:', {
+        hasConnections: !!data?.connections,
+        hasScheduledFlights: !!data?.connections?.scheduledFlights,
+        scheduledFlightsLength: data?.connections?.scheduledFlights?.length
+      });
       
-      if (data && data.scheduledFlights) {
-        const journeys = data.scheduledFlights;
+      if (data?.connections?.scheduledFlights) {
+        const journeys = data.connections.scheduledFlights;
         console.log('Processed journeys:', journeys);
         onSearchResults(journeys);
       } else {
+        console.log('No flights found in response');
         onSearchResults([]);
       }
     } catch (error) {
