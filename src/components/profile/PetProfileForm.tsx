@@ -1,10 +1,17 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter 
+} from "@/components/ui/dialog";
 import { PetPhotoUpload } from "./PetPhotoUpload";
 import { PetDocumentUpload } from "./PetDocumentUpload";
 import { PetBasicInfo } from "./PetBasicInfo";
@@ -166,48 +173,50 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Edit' : 'Add'} Pet Profile</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <PetPhotoUpload
-            photoUrls={photoUrls}
-            onPhotoUrlsChange={setPhotoUrls}
-            photos={photos}
-            onPhotosChange={setPhotos}
-          />
+        <div className="flex-1 overflow-y-auto px-1">
+          <form id="pet-profile-form" onSubmit={handleSubmit} className="space-y-6">
+            <PetPhotoUpload
+              photoUrls={photoUrls}
+              onPhotoUrlsChange={setPhotoUrls}
+              photos={photos}
+              onPhotosChange={setPhotos}
+            />
 
-          <PetBasicInfo
-            name={name}
-            type={type}
-            breed={breed}
-            age={age}
-            weight={weight}
-            onNameChange={setName}
-            onTypeChange={setType}
-            onBreedChange={setBreed}
-            onAgeChange={setAge}
-            onWeightChange={setWeight}
-          />
+            <PetBasicInfo
+              name={name}
+              type={type}
+              breed={breed}
+              age={age}
+              weight={weight}
+              onNameChange={setName}
+              onTypeChange={setType}
+              onBreedChange={setBreed}
+              onAgeChange={setAge}
+              onWeightChange={setWeight}
+            />
 
-          <PetDocumentUpload
-            documentTypes={documentTypes}
-            selectedDocumentType={selectedDocumentType}
-            onDocumentTypeChange={setSelectedDocumentType}
-            onFileChange={handleFileChange}
-          />
+            <PetDocumentUpload
+              documentTypes={documentTypes}
+              selectedDocumentType={selectedDocumentType}
+              onDocumentTypeChange={setSelectedDocumentType}
+              onFileChange={handleFileChange}
+            />
+          </form>
+        </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {initialData ? 'Update' : 'Add'} Pet
-            </Button>
-          </div>
-        </form>
+        <DialogFooter className="mt-6">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="pet-profile-form">
+            {initialData ? 'Update' : 'Add'} Pet
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
