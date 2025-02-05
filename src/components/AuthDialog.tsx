@@ -105,8 +105,10 @@ const AuthDialog = () => {
     
     setIsLoading(true);
     try {
-      const { error } = await signInWithEmail(email, password);
-      if (error) throw error;
+      const result = await signInWithEmail(email, password);
+      if (result?.error) {
+        throw result.error;
+      }
       
       setShowAuthDialog(false);
       resetForm();

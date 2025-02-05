@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
+import { AuthError } from "@supabase/supabase-js";
 
 export function useAuthOperations() {
   const signIn = async () => {
@@ -11,20 +12,15 @@ export function useAuthOperations() {
     });
   };
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
+      return { error };
     } catch (error: any) {
-      toast({
-        title: "Error signing in",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
+      return { error };
     }
   };
 
