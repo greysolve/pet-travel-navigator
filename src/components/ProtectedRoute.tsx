@@ -41,7 +41,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
       if (error) {
         console.error("Error fetching user role from DB:", error);
-        return null;
+        return "pet_lover"; // Default to pet_lover on error
       }
 
       // If no role found in database, default to pet_lover
