@@ -1,3 +1,4 @@
+
 import { PolicyDetails } from "../flight-results/PolicyDetails";
 import { DestinationPolicy } from "../flight-results/DestinationPolicy";
 import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
@@ -28,7 +29,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         </div>
       </div>
       
-      {/* Flight Itinerary Section - Simplified for better performance */}
+      {/* Flight Itinerary Section */}
       <div className="page-break-inside-avoid page-break-after">
         <h2 className="text-2xl font-semibold mb-6">Flight Itinerary</h2>
         {flights.map((journey, journeyIndex) => (
@@ -66,13 +67,13 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         ))}
       </div>
 
-      {/* Airline Pet Policies Section - Simplified */}
+      {/* Airline Pet Policies Section */}
       {petPolicies && carrierCodes.length > 0 && (
         <div className="page-break-before page-break-after">
           <h2 className="text-2xl font-semibold mb-6">Airline Pet Policies</h2>
           <div className="space-y-8">
             {carrierCodes.map(code => (
-              <div key={code} className="bg-gray-50 p-6 rounded-lg page-break-inside-avoid">
+              <div key={code} className="bg-white p-6 rounded-lg page-break-inside-avoid">
                 <h3 className="font-medium text-lg mb-4">Carrier: {code}</h3>
                 <PolicyDetails policy={petPolicies[code]} />
               </div>
@@ -81,7 +82,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         </div>
       )}
 
-      {/* Country Pet Policies Section - Simplified */}
+      {/* Country Pet Policies Section */}
       {countryPolicies && countryPolicies.length > 0 && (
         <div className="page-break-before">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
