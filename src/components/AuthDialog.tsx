@@ -20,8 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SignUpForm } from "./auth/SignUpForm";
-import { SignInForm } from "./auth/SignInForm";
+import { SignUpForm } from "@/components/auth/SignUpForm";
+import { SignInForm } from "@/components/auth/SignInForm";
 
 const AuthDialog = () => {
   const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
@@ -244,5 +244,3 @@ const AuthDialog = () => {
     </div>
   );
 };
-
-export default AuthDialog;
