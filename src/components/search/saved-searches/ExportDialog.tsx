@@ -55,7 +55,6 @@ export const ExportDialog = ({
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        letterRendering: true, // Enable letter rendering for better text spacing
         // Optimize image quality while preserving text
         onclone: (document) => {
           const images = document.getElementsByTagName('img');
@@ -68,6 +67,9 @@ export const ExportDialog = ({
           for (let i = 0; i < textElements.length; i++) {
             textElements[i].style.letterSpacing = '0.025em';
             textElements[i].style.wordSpacing = '0.1em';
+            textElements[i].style.marginBottom = '1.5em';
+            textElements[i].style.fontKerning = 'normal';
+            textElements[i].style.textRendering = 'optimizeLegibility';
           }
         }
       });
