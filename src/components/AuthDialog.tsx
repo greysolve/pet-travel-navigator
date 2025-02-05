@@ -23,7 +23,7 @@ import {
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import { SignInForm } from "@/components/auth/SignInForm";
 
-const AuthDialog = () => {
+export const AuthDialog = () => {
   const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -244,3 +244,5 @@ const AuthDialog = () => {
     </div>
   );
 };
+
+export default AuthDialog;
