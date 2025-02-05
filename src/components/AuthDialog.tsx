@@ -38,22 +38,44 @@ const AuthDialog = () => {
     queryFn: async () => {
       if (!user) return null;
       
+      console.log("Fetching user role for:", user.id);
+
+      // First check user metadata
       if (user.user_metadata?.role === "site_manager") {
+        console.log("Role found in metadata:", user.user_metadata.role);
         return "site_manager";
       }
 
+      // If not in metadata, check the user_roles table
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching user role:", error);
-        return null;
+        return "pet_lover"; // Default to pet_lover on error
       }
 
-      return data?.role;
+      if (!data) {
+        console.log("No role found in database, creating default role");
+        // Insert default role
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: user.id,
+            role: "pet_lover"
+          });
+
+        if (insertError) {
+          console.error("Error inserting default role:", insertError);
+        }
+        return "pet_lover";
+      }
+
+      console.log("Role from database:", data.role);
+      return data.role;
     },
     enabled: !!user,
   });
