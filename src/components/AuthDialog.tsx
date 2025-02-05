@@ -17,6 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -93,15 +94,33 @@ const AuthDialog = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter both email and password",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      await signInWithEmail(email, password);
+      const { error } = await signInWithEmail(email, password);
+      if (error) throw error;
+      
       setShowAuthDialog(false);
       resetForm();
+      toast({
+        title: "Success",
+        description: "Successfully signed in",
+      });
     } catch (error: any) {
+      console.error("Sign in error:", error);
       toast({
         title: "Error signing in",
-        description: error.message,
+        description: error.message === "Invalid login credentials" 
+          ? "Invalid email or password. Please try again."
+          : error.message,
         variant: "destructive",
       });
     } finally {
@@ -111,14 +130,24 @@ const AuthDialog = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) {
+    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) {
       toast({
-        title: "Error signing up",
-        description: "First name and last name are required",
+        title: "Error",
+        description: "All fields are required",
         variant: "destructive",
       });
       return;
     }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       await signUp(email, password, `${firstName.trim()} ${lastName.trim()}`);
@@ -129,6 +158,7 @@ const AuthDialog = () => {
       setShowAuthDialog(false);
       resetForm();
     } catch (error: any) {
+      console.error("Sign up error:", error);
       toast({
         title: "Error signing up",
         description: error.message,
@@ -226,6 +256,12 @@ const AuthDialog = () => {
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>{isSignUp ? "Sign Up" : "Sign In"}</DialogTitle>
+                <DialogDescription>
+                  {isSignUp 
+                    ? "Create an account to get started"
+                    : "Welcome back! Please sign in to continue"
+                  }
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
                 {isSignUp && (
@@ -270,12 +306,16 @@ const AuthDialog = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={isSignUp ? "Choose a password (min. 6 characters)" : "Enter your password"}
                     required
+                    minLength={6}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (isSignUp ? "Signing up..." : "Signing in...") : (isSignUp ? "Sign Up" : "Sign In")}
+                  {isLoading 
+                    ? (isSignUp ? "Signing up..." : "Signing in...") 
+                    : (isSignUp ? "Sign Up" : "Sign In")
+                  }
                 </Button>
                 <div className="text-center text-sm">
                   <button
@@ -283,7 +323,10 @@ const AuthDialog = () => {
                     onClick={() => setIsSignUp(!isSignUp)}
                     className="text-blue-500 hover:underline"
                   >
-                    {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+                    {isSignUp 
+                      ? "Already have an account? Sign In" 
+                      : "Don't have an account? Sign Up"
+                    }
                   </button>
                 </div>
               </form>
