@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { SignUpForm } from "./auth/SignUpForm";
+import { SignInForm } from "./auth/SignInForm";
 
 const AuthDialog = () => {
   const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
@@ -29,10 +29,6 @@ const AuthDialog = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
@@ -92,17 +88,7 @@ const AuthDialog = () => {
     return names.map(name => name[0]).join("").toUpperCase();
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter both email and password",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  const handleSignIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
       const result = await signInWithEmail(email, password);
@@ -111,7 +97,6 @@ const AuthDialog = () => {
       }
       
       setShowAuthDialog(false);
-      resetForm();
       toast({
         title: "Success",
         description: "Successfully signed in",
@@ -130,26 +115,7 @@ const AuthDialog = () => {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) {
-      toast({
-        title: "Error",
-        description: "All fields are required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleSignUp = async (email: string, password: string, firstName: string, lastName: string) => {
     setIsLoading(true);
     try {
       await signUp(email, password, `${firstName.trim()} ${lastName.trim()}`);
@@ -158,7 +124,6 @@ const AuthDialog = () => {
         description: "Please check your email to verify your account.",
       });
       setShowAuthDialog(false);
-      resetForm();
     } catch (error: any) {
       console.error("Sign up error:", error);
       toast({
@@ -185,14 +150,6 @@ const AuthDialog = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setEmail("");
-    setPassword("");
-    setFirstName("");
-    setLastName("");
-    setIsSignUp(false);
   };
 
   return (
@@ -253,7 +210,9 @@ const AuthDialog = () => {
           
           <Dialog open={showAuthDialog} onOpenChange={(open) => {
             setShowAuthDialog(open);
-            if (!open) resetForm();
+            if (!open) {
+              setIsSignUp(false);
+            }
           }}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
@@ -265,73 +224,19 @@ const AuthDialog = () => {
                   }
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-                {isSignUp && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="Enter your first name"
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Enter your last name"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={isSignUp ? "Choose a password (min. 6 characters)" : "Enter your password"}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading 
-                    ? (isSignUp ? "Signing up..." : "Signing in...") 
-                    : (isSignUp ? "Sign Up" : "Sign In")
-                  }
-                </Button>
-                <div className="text-center text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-blue-500 hover:underline"
-                  >
-                    {isSignUp 
-                      ? "Already have an account? Sign In" 
-                      : "Don't have an account? Sign Up"
-                    }
-                  </button>
-                </div>
-              </form>
+              {isSignUp ? (
+                <SignUpForm
+                  onSignUp={handleSignUp}
+                  isLoading={isLoading}
+                  onToggleMode={() => setIsSignUp(false)}
+                />
+              ) : (
+                <SignInForm
+                  onSignIn={handleSignIn}
+                  isLoading={isLoading}
+                  onToggleMode={() => setIsSignUp(true)}
+                />
+              )}
             </DialogContent>
           </Dialog>
         </div>
