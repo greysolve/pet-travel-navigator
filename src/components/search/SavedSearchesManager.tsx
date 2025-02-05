@@ -15,7 +15,7 @@ import { format } from "date-fns";
 
 interface SavedSearch {
   id: string;
-  name: string;
+  name: string | null;
   search_criteria: {
     origin: string;
     destination: string;
@@ -68,7 +68,10 @@ export const SavedSearchesManager = ({
       }
 
       console.log("Fetched saved searches:", data);
-      setSavedSearches(data as SavedSearch[]);
+      setSavedSearches(data.map(search => ({
+        ...search,
+        search_criteria: search.search_criteria as SavedSearch['search_criteria']
+      })));
     } catch (error) {
       console.error('Error in fetchSavedSearches:', error);
       toast({
@@ -81,11 +84,16 @@ export const SavedSearchesManager = ({
 
   const handleSaveSearch = async (name: string) => {
     try {
+      const searchToSave = {
+        ...currentSearch,
+        date: currentSearch.date?.toISOString()
+      };
+
       const { error } = await supabase
         .from('saved_searches')
         .insert({
           name,
-          search_criteria: currentSearch
+          search_criteria: searchToSave
         });
 
       if (error) throw error;
@@ -116,44 +124,48 @@ export const SavedSearchesManager = ({
   };
 
   return (
-    <div className="flex justify-end gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline">My Searches</Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[240px] bg-white">
-          {savedSearches.length === 0 ? (
-            <DropdownMenuItem disabled>No saved searches</DropdownMenuItem>
-          ) : (
-            savedSearches.map((search) => (
-              <DropdownMenuItem
-                key={search.id}
-                onClick={() => handleLoadSearch(search.search_criteria)}
-                className="flex flex-col items-start py-2 cursor-pointer"
-              >
-                <span className="font-medium">{search.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {format(new Date(search.created_at), 'MMM d, yyyy')}
-                </span>
-              </DropdownMenuItem>
-            ))
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div className="flex justify-between gap-2">
+      <div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">My Searches</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[240px] bg-white">
+            {savedSearches.length === 0 ? (
+              <DropdownMenuItem disabled>No saved searches</DropdownMenuItem>
+            ) : (
+              savedSearches.map((search) => (
+                <DropdownMenuItem
+                  key={search.id}
+                  onClick={() => handleLoadSearch(search.search_criteria)}
+                  className="flex flex-col items-start py-2 cursor-pointer"
+                >
+                  <span className="font-medium">{search.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(search.created_at), 'MMM d, yyyy')}
+                  </span>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       
-      <Button 
-        variant="outline" 
-        onClick={() => setIsSaveDialogOpen(true)}
-      >
-        Save Search
-      </Button>
-      
-      <Button 
-        variant="outline"
-        onClick={() => setIsExportDialogOpen(true)}
-      >
-        Export Results
-      </Button>
+      <div className="flex gap-2">
+        <Button 
+          variant="outline" 
+          onClick={() => setIsSaveDialogOpen(true)}
+        >
+          Save Search
+        </Button>
+        
+        <Button 
+          variant="outline"
+          onClick={() => setIsExportDialogOpen(true)}
+        >
+          Export Results
+        </Button>
+      </div>
 
       <SaveSearchDialog
         isOpen={isSaveDialogOpen}
