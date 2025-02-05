@@ -44,11 +44,11 @@ export const ExportDialog = ({
         throw new Error("Export content not found");
       }
 
-      console.log("Starting PDF export with optimization settings");
+      console.log("Starting PDF export with quality-optimized settings");
 
-      // Optimize canvas settings for better file size
+      // Optimize canvas settings for better quality while maintaining reasonable file size
       const canvas = await html2canvas(element, {
-        scale: 1, // Reduced from 2 to 1
+        scale: 1.5, // Increased from 1 to 1.5 for better quality
         logging: false,
         useCORS: true,
         allowTaint: true,
@@ -58,21 +58,21 @@ export const ExportDialog = ({
         onclone: (document) => {
           const images = document.getElementsByTagName('img');
           for (let i = 0; i < images.length; i++) {
-            images[i].style.maxWidth = '600px'; // Limit image size
+            images[i].style.maxWidth = '800px'; // Increased from 600px
             images[i].style.height = 'auto';
           }
         }
       });
 
-      console.log("Canvas generated, creating PDF");
+      console.log("Canvas generated, creating PDF with optimized settings");
 
       // Create PDF with optimized settings
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
         format: [canvas.width, canvas.height],
-        compress: true, // Enable compression
-        hotfixes: ['px_scaling'], // Fix scaling issues
+        compress: true,
+        hotfixes: ['px_scaling'],
       });
 
       // Add metadata
@@ -84,11 +84,11 @@ export const ExportDialog = ({
         creator: 'PawsOnBoard PDF Export'
       });
 
-      // Convert canvas to image with reduced quality
-      const imgData = canvas.toDataURL('image/jpeg', 0.7); // Reduced quality to 70%
+      // Convert canvas to image with better quality
+      const imgData = canvas.toDataURL('image/jpeg', 0.95); // Increased quality from 0.7 to 0.95
 
-      // Add image to PDF with compression
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'FAST');
+      // Add image to PDF with better quality settings
+      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
       
       // Save with custom filename
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
