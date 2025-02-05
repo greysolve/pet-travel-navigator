@@ -75,7 +75,8 @@ export const ExportDialog = ({
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        letterRendering: true, // Improve text rendering
+        foreignObjectRendering: true, // Better text rendering
+        removeContainer: false,
         onclone: (document) => {
           const images = document.getElementsByTagName('img');
           for (let i = 0; i < images.length; i++) {
