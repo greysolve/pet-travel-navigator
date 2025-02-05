@@ -13,8 +13,8 @@ type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 export const PetTravelWallet = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<PetProfile | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingPet, setEditingPet] = useState<PetProfile | null>(null);
 
   const { data: pets, isLoading } = useQuery({
     queryKey: ['pet-profiles'],
@@ -60,19 +60,17 @@ export const PetTravelWallet = () => {
   });
 
   const handleEdit = (pet: PetProfile) => {
-    console.log('Editing pet profile:', pet);
-    setSelectedPet(pet);
-    setIsEditing(true);
+    setEditingPet(pet);
+    setIsFormOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsFormOpen(false);
+    setEditingPet(null);
   };
 
   const handleDelete = async (id: string) => {
     deleteMutation.mutate(id);
-  };
-
-  const handleClose = () => {
-    console.log('Closing form, selectedPet was:', selectedPet);
-    setIsEditing(false);
-    setSelectedPet(null);
   };
 
   if (isLoading) {
@@ -83,7 +81,7 @@ export const PetTravelWallet = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Pet Travel Wallet</h2>
-        <Button onClick={() => setIsEditing(true)}>
+        <Button onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Pet
         </Button>
@@ -107,9 +105,9 @@ export const PetTravelWallet = () => {
       )}
 
       <PetProfileForm
-        isOpen={isEditing}
+        isOpen={isFormOpen}
         onClose={handleClose}
-        initialData={selectedPet}
+        initialData={editingPet}
       />
     </div>
   );
