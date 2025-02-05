@@ -44,8 +44,14 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         return null;
       }
 
-      console.log("Role from database:", data?.role);
-      return data?.role || 'pet_lover'; // Default to pet_lover if no role found
+      // If no role found in database, default to pet_lover
+      if (!data) {
+        console.log("No role found in database, defaulting to pet_lover");
+        return "pet_lover";
+      }
+
+      console.log("Role from database:", data.role);
+      return data.role;
     },
     enabled: !!user && !!requiredRole,
   });
