@@ -44,61 +44,35 @@ export const ExportDialog = ({
         throw new Error("Export content not found");
       }
 
-      console.log("Starting PDF export with enhanced quality settings");
+      console.log("Starting PDF export with optimization settings");
 
-      // Apply pre-rendering styles to ensure text alignment
-      const styleSheet = document.createElement('style');
-      styleSheet.textContent = `
-        #pdf-export-content * {
-          transform: none !important;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-          line-height: 1.5 !important;
-        }
-        #pdf-export-content h1, #pdf-export-content h2, #pdf-export-content h3 {
-          margin: 1.5em 0 0.75em !important;
-          font-weight: 600 !important;
-        }
-        #pdf-export-content p {
-          margin: 0.75em 0 !important;
-        }
-        #pdf-export-content ul {
-          margin: 0.5em 0 !important;
-          padding-left: 1.5em !important;
-        }
-        #pdf-export-content li {
-          margin: 0.25em 0 !important;
-        }
-      `;
-      document.head.appendChild(styleSheet);
-
-      // Optimize canvas settings for better quality
+      // Optimize canvas settings for better file size
       const canvas = await html2canvas(element, {
-        scale: 2, // Increased for sharper text
+        scale: 1, // Reduced from 2 to 1
+        logging: false,
         useCORS: true,
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        foreignObjectRendering: true,
-        removeContainer: false,
+        // Optimize image quality
         onclone: (document) => {
           const images = document.getElementsByTagName('img');
           for (let i = 0; i < images.length; i++) {
-            images[i].style.maxWidth = '800px';
+            images[i].style.maxWidth = '600px'; // Limit image size
             images[i].style.height = 'auto';
           }
         }
       });
 
-      console.log("Canvas generated, creating PDF with enhanced settings");
+      console.log("Canvas generated, creating PDF");
 
       // Create PDF with optimized settings
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
         format: [canvas.width, canvas.height],
-        compress: true,
-        precision: 32, // Increased precision for better text rendering
-        hotfixes: ['px_scaling'],
+        compress: true, // Enable compression
+        hotfixes: ['px_scaling'], // Fix scaling issues
       });
 
       // Add metadata
@@ -110,18 +84,15 @@ export const ExportDialog = ({
         creator: 'PawsOnBoard PDF Export'
       });
 
-      // Convert canvas to image with better quality
-      const imgData = canvas.toDataURL('image/jpeg', 1.0); // Maximum quality
+      // Convert canvas to image with reduced quality
+      const imgData = canvas.toDataURL('image/jpeg', 0.7); // Reduced quality to 70%
 
-      // Add image to PDF with better quality settings
+      // Add image to PDF with compression
       pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'FAST');
       
       // Save with custom filename
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeFilename}.pdf`);
-
-      // Clean up the temporary style sheet
-      document.head.removeChild(styleSheet);
 
       toast({
         title: "PDF Generated Successfully",
