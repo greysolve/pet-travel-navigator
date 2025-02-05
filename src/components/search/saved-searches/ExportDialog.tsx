@@ -47,58 +47,61 @@ export const ExportDialog = ({
 
       console.log("Starting PDF export with enhanced text spacing settings");
 
-      // Apply text spacing styles before generating canvas
       const canvas = await html2canvas(element, {
-        scale: 1.5, // Increased for better text clarity
+        scale: 1.5,
         logging: false,
         useCORS: true,
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        onclone: (document) => {
-          const element = document.getElementById('pdf-export-content');
-          if (element) {
-            // Apply base text spacing to the container
-            element.style.wordSpacing = '0.05em';
-            element.style.letterSpacing = '0.01em';
-            element.style.lineHeight = '1.5';
+        onclone: (clonedDoc) => {
+          const exportElement = clonedDoc.getElementById('pdf-export-content');
+          if (exportElement instanceof HTMLElement) {
+            exportElement.style.wordSpacing = '0.05em';
+            exportElement.style.letterSpacing = '0.01em';
+            exportElement.style.lineHeight = '1.5';
           }
 
           // Handle headings
-          const headings = document.querySelectorAll('h1, h2, h3');
-          headings.forEach(heading => {
-            heading.style.marginBottom = '1em';
-            heading.style.marginTop = '0.5em';
-            heading.style.wordSpacing = '0.1em';
-            heading.style.letterSpacing = '0.02em';
-            heading.style.fontKerning = 'normal';
-            heading.style.textRendering = 'optimizeLegibility';
+          const headings = clonedDoc.querySelectorAll('h1, h2, h3');
+          headings.forEach((heading) => {
+            if (heading instanceof HTMLElement) {
+              heading.style.marginBottom = '1em';
+              heading.style.marginTop = '0.5em';
+              heading.style.wordSpacing = '0.1em';
+              heading.style.letterSpacing = '0.02em';
+              heading.style.fontKerning = 'normal';
+              heading.style.textRendering = 'optimizeLegibility';
+            }
           });
 
           // Handle paragraphs and list items
-          const textElements = document.querySelectorAll('p, li');
-          textElements.forEach(element => {
-            element.style.wordSpacing = '0.05em';
-            element.style.letterSpacing = '0.01em';
-            element.style.marginBottom = '0.5em';
-            element.style.lineHeight = '1.6';
-            element.style.fontKerning = 'normal';
-            element.style.textRendering = 'optimizeLegibility';
+          const textElements = clonedDoc.querySelectorAll('p, li');
+          textElements.forEach((element) => {
+            if (element instanceof HTMLElement) {
+              element.style.wordSpacing = '0.05em';
+              element.style.letterSpacing = '0.01em';
+              element.style.marginBottom = '0.5em';
+              element.style.lineHeight = '1.6';
+              element.style.fontKerning = 'normal';
+              element.style.textRendering = 'optimizeLegibility';
+            }
           });
 
           // Ensure proper list spacing
-          const lists = document.querySelectorAll('ul, ol');
-          lists.forEach(list => {
-            list.style.paddingLeft = '2em';
-            list.style.marginBottom = '1em';
-            list.style.marginTop = '0.5em';
+          const lists = clonedDoc.querySelectorAll('ul, ol');
+          lists.forEach((list) => {
+            if (list instanceof HTMLElement) {
+              list.style.paddingLeft = '2em';
+              list.style.marginBottom = '1em';
+              list.style.marginTop = '0.5em';
+            }
           });
         }
       });
 
       console.log("Canvas generated with enhanced text spacing, creating PDF");
 
-      // Create PDF with optimized settings
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
@@ -107,7 +110,6 @@ export const ExportDialog = ({
         hotfixes: ['px_scaling'],
       });
 
-      // Add metadata
       pdf.setProperties({
         title: `${filename} - PawsOnBoard Travel Requirements`,
         subject: 'Pet Travel Requirements and Flight Itinerary',
@@ -116,13 +118,10 @@ export const ExportDialog = ({
         creator: 'PawsOnBoard PDF Export'
       });
 
-      // Convert canvas to image with higher quality
-      const imgData = canvas.toDataURL('image/jpeg', 0.95); // Increased quality to 95%
-
-      // Add image to PDF with medium compression
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      
       pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
       
-      // Save with custom filename
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeFilename}.pdf`);
 
@@ -181,4 +180,3 @@ export const ExportDialog = ({
     </Dialog>
   );
 };
-
