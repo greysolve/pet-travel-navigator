@@ -25,7 +25,7 @@ export const useFlightSearch = () => {
     }
 
     const searchDate = date.toISOString().split('T')[0];
-    console.log('Checking cache for:', { origin, destination, searchDate, userId: user.id });
+    console.log('Checking cache for:', { origin, destination, searchDate });
 
     const { data: cachedSearch, error } = await supabase
       .from('route_searches')
@@ -33,7 +33,6 @@ export const useFlightSearch = () => {
       .eq('origin', origin)
       .eq('destination', destination)
       .eq('search_date', searchDate)
-      .eq('user_id', user.id)
       .gt('cached_until', new Date().toISOString())
       .maybeSingle();
 
@@ -56,12 +55,11 @@ export const useFlightSearch = () => {
     const cacheExpiration = new Date();
     cacheExpiration.setMinutes(cacheExpiration.getMinutes() + 5); // 5-minute cache
 
-    console.log('Updating cache for:', { 
+    console.log('Updating cache with:', { 
       origin, 
       destination, 
       searchDate,
-      cacheExpiration: cacheExpiration.toISOString(),
-      userId: user.id 
+      cacheExpiration: cacheExpiration.toISOString()
     });
 
     try {
@@ -77,8 +75,7 @@ export const useFlightSearch = () => {
             user_id: user.id
           },
           {
-            onConflict: 'origin,destination,search_date,user_id',
-            ignoreDuplicates: false
+            onConflict: 'origin,destination,search_date'
           }
         );
 
