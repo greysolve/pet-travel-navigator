@@ -74,6 +74,17 @@ export const usePetProfileForm = (
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<PetProfile>) => {
+      // Get the current user's ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("User must be authenticated to create/edit pet profiles");
+
+      // Add the user_id to the data
+      const dataWithUserId = {
+        ...data,
+        user_id: user.id
+      };
+
       const { data: result, error } = initialData
         ? await supabase
             .from('pet_profiles')
@@ -83,7 +94,7 @@ export const usePetProfileForm = (
             .single()
         : await supabase
             .from('pet_profiles')
-            .insert([data])
+            .insert([dataWithUserId])
             .select()
             .single();
 
@@ -138,6 +149,12 @@ export const usePetProfileForm = (
     mutation.mutate(data);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
   return {
     name,
     type,
@@ -154,7 +171,7 @@ export const usePetProfileForm = (
     setAge,
     setWeight,
     setSelectedDocumentType,
-    setFile,
+    setFile: handleFileChange,
     setPhotos,
     setPhotoUrls,
     handleSubmit
