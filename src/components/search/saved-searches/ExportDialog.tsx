@@ -44,27 +44,48 @@ export const ExportDialog = ({
         throw new Error("Export content not found");
       }
 
-      console.log("Starting PDF export with quality-optimized settings");
+      console.log("Starting PDF export with enhanced quality settings");
+
+      // Apply pre-rendering styles to ensure text alignment
+      const styleSheet = document.createElement('style');
+      styleSheet.textContent = `
+        #pdf-export-content * {
+          text-align: left !important;
+          transform: none !important;
+          letter-spacing: normal !important;
+          word-spacing: normal !important;
+        }
+        #pdf-export-content h1, #pdf-export-content h2, #pdf-export-content h3 {
+          margin-bottom: 1em !important;
+          font-weight: bold !important;
+          line-height: 1.4 !important;
+        }
+        #pdf-export-content p {
+          margin-bottom: 0.8em !important;
+          line-height: 1.6 !important;
+        }
+      `;
+      document.head.appendChild(styleSheet);
 
       // Optimize canvas settings for better quality while maintaining reasonable file size
       const canvas = await html2canvas(element, {
-        scale: 1.5, // Increased from 1 to 1.5 for better quality
+        scale: 1.5,
         logging: false,
         useCORS: true,
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        // Optimize image quality
+        letterRendering: true, // Improve text rendering
         onclone: (document) => {
           const images = document.getElementsByTagName('img');
           for (let i = 0; i < images.length; i++) {
-            images[i].style.maxWidth = '800px'; // Increased from 600px
+            images[i].style.maxWidth = '800px';
             images[i].style.height = 'auto';
           }
         }
       });
 
-      console.log("Canvas generated, creating PDF with optimized settings");
+      console.log("Canvas generated, creating PDF with enhanced settings");
 
       // Create PDF with optimized settings
       const pdf = new jsPDF({
@@ -73,6 +94,7 @@ export const ExportDialog = ({
         format: [canvas.width, canvas.height],
         compress: true,
         hotfixes: ['px_scaling'],
+        precision: 16, // Increase precision for better text rendering
       });
 
       // Add metadata
@@ -85,7 +107,7 @@ export const ExportDialog = ({
       });
 
       // Convert canvas to image with better quality
-      const imgData = canvas.toDataURL('image/jpeg', 0.95); // Increased quality from 0.7 to 0.95
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
       // Add image to PDF with better quality settings
       pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
@@ -93,6 +115,9 @@ export const ExportDialog = ({
       // Save with custom filename
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeFilename}.pdf`);
+
+      // Clean up the temporary style sheet
+      document.head.removeChild(styleSheet);
 
       toast({
         title: "PDF Generated Successfully",
