@@ -2,7 +2,7 @@ import AuthDialog from "./AuthDialog";
 
 export const HeroSection = () => {
   return (
-    <div className="relative bg-primary w-full min-h-[400px] py-16">
+    <div className="relative bg-primary py-16">
       {/* Auth Dialog positioned absolutely in top right */}
       <div className="absolute top-4 right-4">
         <AuthDialog />

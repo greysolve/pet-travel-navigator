@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
-import { AuthResponse } from "@supabase/supabase-js";
 
 export function useAuthOperations() {
   const signIn = async () => {
@@ -12,14 +11,13 @@ export function useAuthOperations() {
     });
   };
 
-  const signInWithEmail = async (email: string, password: string): Promise<AuthResponse> => {
+  const signInWithEmail = async (email: string, password: string) => {
     try {
-      const response = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (response.error) throw response.error;
-      return response;
+      if (error) throw error;
     } catch (error: any) {
       toast({
         title: "Error signing in",
@@ -30,26 +28,20 @@ export function useAuthOperations() {
     }
   };
 
-  const signUp = async (email: string, password: string): Promise<AuthResponse> => {
+  const signUp = async (email: string, password: string) => {
     try {
-      const response = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      
-      if (response.error) throw response.error;
-      
-      if (response.data?.user) {
-        toast({
-          title: "Success",
-          description: "Please check your email to verify your account.",
-        });
-      }
-      
-      return response;
+      if (error) throw error;
+      toast({
+        title: "Success",
+        description: "Please check your email to verify your account.",
+      });
     } catch (error: any) {
       toast({
         title: "Error signing up",
