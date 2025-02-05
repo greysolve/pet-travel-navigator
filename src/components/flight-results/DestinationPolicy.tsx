@@ -23,11 +23,11 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
   return (
     <div className="bg-white p-8 rounded-lg">
-      <div className="flex items-center space-x-3 mb-4">
-        <h2 className="text-2xl font-semibold tracking-normal leading-relaxed text-gray-900">{policy.title}</h2>
-        <Badge className={`${getPolicyTypeBadgeColor(policy.policy_type)} mt-1`}>
+      <div className="flex items-center gap-4 mb-4">
+        <Badge className={`${getPolicyTypeBadgeColor(policy.policy_type)} shrink-0`}>
           {getPolicyTypeLabel(policy.policy_type)}
         </Badge>
+        <h2 className="text-2xl font-semibold tracking-normal leading-relaxed text-gray-900">{policy.title}</h2>
       </div>
       
       {policy.policy_url && (
@@ -95,3 +95,4 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
+
