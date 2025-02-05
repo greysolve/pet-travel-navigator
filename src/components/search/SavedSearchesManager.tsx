@@ -1,10 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SaveSearchDialog } from "./saved-searches/SaveSearchDialog";
 import { ExportDialog } from "./saved-searches/ExportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+
+interface SavedSearch {
+  id: string;
+  name: string;
+  search_criteria: {
+    origin: string;
+    destination: string;
+    date?: string;
+    policySearch: string;
+  };
+  created_at: string;
+}
 
 interface SavedSearchesManagerProps {
   currentSearch: {
@@ -28,7 +47,37 @@ export const SavedSearchesManager = ({
 }: SavedSearchesManagerProps) => {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchSavedSearches();
+  }, []);
+
+  const fetchSavedSearches = async () => {
+    try {
+      console.log("Fetching saved searches...");
+      const { data, error } = await supabase
+        .from('saved_searches')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching saved searches:', error);
+        throw error;
+      }
+
+      console.log("Fetched saved searches:", data);
+      setSavedSearches(data as SavedSearch[]);
+    } catch (error) {
+      console.error('Error in fetchSavedSearches:', error);
+      toast({
+        title: "Error loading saved searches",
+        description: "There was a problem loading your saved searches.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSaveSearch = async (name: string) => {
     try {
@@ -46,6 +95,7 @@ export const SavedSearchesManager = ({
         description: `Your search has been saved as "${name}"`,
       });
 
+      fetchSavedSearches(); // Refresh the list
       setIsSaveDialogOpen(false);
     } catch (error) {
       console.error('Error saving search:', error);
@@ -57,8 +107,40 @@ export const SavedSearchesManager = ({
     }
   };
 
+  const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
+    onLoadSearch(searchCriteria);
+    toast({
+      title: "Search loaded",
+      description: "The saved search has been loaded successfully.",
+    });
+  };
+
   return (
     <div className="flex justify-end gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">My Searches</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[240px] bg-white">
+          {savedSearches.length === 0 ? (
+            <DropdownMenuItem disabled>No saved searches</DropdownMenuItem>
+          ) : (
+            savedSearches.map((search) => (
+              <DropdownMenuItem
+                key={search.id}
+                onClick={() => handleLoadSearch(search.search_criteria)}
+                className="flex flex-col items-start py-2 cursor-pointer"
+              >
+                <span className="font-medium">{search.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(search.created_at), 'MMM d, yyyy')}
+                </span>
+              </DropdownMenuItem>
+            ))
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
       <Button 
         variant="outline" 
         onClick={() => setIsSaveDialogOpen(true)}
