@@ -240,12 +240,12 @@ export const SavedSearchesManager = ({
       </Dialog>
 
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[1300px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Export Flight Results</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
-            <div id="export-view-content" className="bg-white p-8">
+            <div id="export-view-content" className="bg-white">
               <ExportView 
                 flights={flights} 
                 petPolicies={petPolicies}
