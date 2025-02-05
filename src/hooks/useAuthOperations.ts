@@ -13,15 +13,11 @@ export function useAuthOperations() {
   };
 
   const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      return { error };
-    } catch (error: any) {
-      return { error };
-    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
