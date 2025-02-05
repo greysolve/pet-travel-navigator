@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -15,10 +16,16 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const checkCache = async (origin: string, destination: string, date: Date) => {
+    if (!user) {
+      console.log('No authenticated user for cache check');
+      return null;
+    }
+
     const searchDate = date.toISOString().split('T')[0];
-    console.log('Checking cache for:', { origin, destination, searchDate });
+    console.log('Checking cache for:', { origin, destination, searchDate, userId: user.id });
 
     const { data: cachedSearch, error } = await supabase
       .from('route_searches')
@@ -26,6 +33,7 @@ export const useFlightSearch = () => {
       .eq('origin', origin)
       .eq('destination', destination)
       .eq('search_date', searchDate)
+      .eq('user_id', user.id)
       .gt('cached_until', new Date().toISOString())
       .maybeSingle();
 
@@ -39,6 +47,11 @@ export const useFlightSearch = () => {
   };
 
   const updateCache = async (origin: string, destination: string, date: Date) => {
+    if (!user) {
+      console.log('No authenticated user for cache update');
+      return;
+    }
+
     const searchDate = date.toISOString().split('T')[0];
     const cacheExpiration = new Date();
     cacheExpiration.setMinutes(cacheExpiration.getMinutes() + 5); // 5-minute cache
@@ -47,7 +60,8 @@ export const useFlightSearch = () => {
       origin, 
       destination, 
       searchDate,
-      cacheExpiration: cacheExpiration.toISOString() 
+      cacheExpiration: cacheExpiration.toISOString(),
+      userId: user.id 
     });
 
     try {
@@ -59,10 +73,11 @@ export const useFlightSearch = () => {
             destination,
             search_date: searchDate,
             last_searched_at: new Date().toISOString(),
-            cached_until: cacheExpiration.toISOString()
+            cached_until: cacheExpiration.toISOString(),
+            user_id: user.id
           },
           {
-            onConflict: 'origin,destination,search_date',
+            onConflict: 'origin,destination,search_date,user_id',
             ignoreDuplicates: false
           }
         );
@@ -86,6 +101,16 @@ export const useFlightSearch = () => {
     onSearchResults,
     onSearchComplete,
   }: FlightSearchProps) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search for flights.",
+        variant: "destructive",
+      });
+      onSearchComplete();
+      return;
+    }
+
     if (!origin || !destination || !date) {
       toast({
         title: "Missing search criteria",

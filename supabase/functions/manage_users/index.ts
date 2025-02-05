@@ -35,13 +35,13 @@ Deno.serve(async (req) => {
     // Handle DELETE request for user deletion
     if (req.method === 'DELETE') {
       const { userId } = await req.json();
-      console.log('Starting deletion process for user:', userId);
+      console.log('Starting hard deletion process for user:', userId);
 
       try {
-        // Delete the auth user using admin client
+        // Delete the auth user using admin client with hard delete (soft_delete = false)
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
           userId,
-          true // Set soft delete to true to ensure clean deletion
+          false // Set soft delete to false to ensure hard deletion
         );
         
         if (deleteError) {
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
           throw deleteError;
         }
 
-        console.log('User deleted successfully:', userId);
+        console.log('User hard deleted successfully:', userId);
         return new Response(
           JSON.stringify({ message: 'User deleted successfully' }),
           {

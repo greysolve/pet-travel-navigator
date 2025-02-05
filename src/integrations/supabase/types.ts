@@ -377,6 +377,7 @@ export type Database = {
           origin: string
           search_date: string
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           cached_until?: string | null
@@ -387,6 +388,7 @@ export type Database = {
           origin: string
           search_date: string
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           cached_until?: string | null
@@ -397,6 +399,7 @@ export type Database = {
           origin?: string
           search_date?: string
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

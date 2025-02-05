@@ -17,26 +17,33 @@ import { toast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
 const AuthDialog = () => {
-  const { user, profile, signInWithEmail, signOut } = useAuth();
+  const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
     queryFn: async () => {
       if (!user) return null;
       
+      console.log("Fetching user role for:", user.id);
+
       // First check user metadata
       if (user.user_metadata?.role === "site_manager") {
+        console.log("Role found in metadata:", user.user_metadata.role);
         return "site_manager";
       }
 
@@ -45,14 +52,31 @@ const AuthDialog = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching user role:", error);
-        return null;
+        return "pet_lover"; // Default to pet_lover on error
       }
 
-      return data?.role;
+      if (!data) {
+        console.log("No role found in database, creating default role");
+        // Insert default role
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: user.id,
+            role: "pet_lover"
+          });
+
+        if (insertError) {
+          console.error("Error inserting default role:", insertError);
+        }
+        return "pet_lover";
+      }
+
+      console.log("Role from database:", data.role);
+      return data.role;
     },
     enabled: !!user,
   });
@@ -70,15 +94,75 @@ const AuthDialog = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter both email and password",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      await signInWithEmail(email, password);
+      const result = await signInWithEmail(email, password);
+      if (result?.error) {
+        throw result.error;
+      }
+      
       setShowAuthDialog(false);
-      setEmail("");
-      setPassword("");
+      resetForm();
+      toast({
+        title: "Success",
+        description: "Successfully signed in",
+      });
     } catch (error: any) {
+      console.error("Sign in error:", error);
       toast({
         title: "Error signing in",
+        description: error.message === "Invalid login credentials" 
+          ? "Invalid email or password. Please try again."
+          : error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) {
+      toast({
+        title: "Error",
+        description: "All fields are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await signUp(email, password, `${firstName.trim()} ${lastName.trim()}`);
+      toast({
+        title: "Success",
+        description: "Please check your email to verify your account.",
+      });
+      setShowAuthDialog(false);
+      resetForm();
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      toast({
+        title: "Error signing up",
         description: error.message,
         variant: "destructive",
       });
@@ -101,6 +185,14 @@ const AuthDialog = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setFirstName("");
+    setLastName("");
+    setIsSignUp(false);
   };
 
   return (
@@ -135,22 +227,69 @@ const AuthDialog = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <>
+        <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => setShowAuthDialog(true)}
+            onClick={() => {
+              setIsSignUp(false);
+              setShowAuthDialog(true);
+            }}
             disabled={isLoading}
             className="bg-sky-100 hover:bg-sky-200"
           >
             Sign In
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIsSignUp(true);
+              setShowAuthDialog(true);
+            }}
+            disabled={isLoading}
+            className="bg-sky-100 hover:bg-sky-200"
+          >
+            Sign Up
+          </Button>
           
-          <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+          <Dialog open={showAuthDialog} onOpenChange={(open) => {
+            setShowAuthDialog(open);
+            if (!open) resetForm();
+          }}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Sign In</DialogTitle>
+                <DialogTitle>{isSignUp ? "Sign Up" : "Sign In"}</DialogTitle>
+                <DialogDescription>
+                  {isSignUp 
+                    ? "Create an account to get started"
+                    : "Welcome back! Please sign in to continue"
+                  }
+                </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSignIn} className="space-y-4">
+              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+                {isSignUp && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Enter your first name"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter your last name"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -169,17 +308,33 @@ const AuthDialog = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={isSignUp ? "Choose a password (min. 6 characters)" : "Enter your password"}
                     required
+                    minLength={6}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
+                  {isLoading 
+                    ? (isSignUp ? "Signing up..." : "Signing in...") 
+                    : (isSignUp ? "Sign Up" : "Sign In")
+                  }
                 </Button>
+                <div className="text-center text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-blue-500 hover:underline"
+                  >
+                    {isSignUp 
+                      ? "Already have an account? Sign In" 
+                      : "Don't have an account? Sign Up"
+                    }
+                  </button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
-        </>
+        </div>
       )}
     </div>
   );
