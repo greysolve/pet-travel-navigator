@@ -45,38 +45,60 @@ export const ExportDialog = ({
         throw new Error("Export content not found");
       }
 
-      console.log("Starting PDF export with optimized settings for text spacing");
+      console.log("Starting PDF export with enhanced text spacing settings");
 
-      // Enhanced canvas settings for better text quality
+      // Apply text spacing styles before generating canvas
       const canvas = await html2canvas(element, {
-        scale: 1.2, // Increased from 1 to 1.2 for better text quality
+        scale: 1.5, // Increased for better text clarity
         logging: false,
         useCORS: true,
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        // Optimize image quality while preserving text
         onclone: (document) => {
-          const images = document.getElementsByTagName('img');
-          for (let i = 0; i < images.length; i++) {
-            images[i].style.maxWidth = '600px';
-            images[i].style.height = 'auto';
+          const element = document.getElementById('pdf-export-content');
+          if (element) {
+            // Apply base text spacing to the container
+            element.style.wordSpacing = '0.05em';
+            element.style.letterSpacing = '0.01em';
+            element.style.lineHeight = '1.5';
           }
-          // Ensure text elements maintain spacing
-          const textElements = document.getElementsByTagName('h2');
-          for (let i = 0; i < textElements.length; i++) {
-            textElements[i].style.letterSpacing = '0.025em';
-            textElements[i].style.wordSpacing = '0.1em';
-            textElements[i].style.marginBottom = '1.5em';
-            textElements[i].style.fontKerning = 'normal';
-            textElements[i].style.textRendering = 'optimizeLegibility';
-          }
+
+          // Handle headings
+          const headings = document.querySelectorAll('h1, h2, h3');
+          headings.forEach(heading => {
+            heading.style.marginBottom = '1em';
+            heading.style.marginTop = '0.5em';
+            heading.style.wordSpacing = '0.1em';
+            heading.style.letterSpacing = '0.02em';
+            heading.style.fontKerning = 'normal';
+            heading.style.textRendering = 'optimizeLegibility';
+          });
+
+          // Handle paragraphs and list items
+          const textElements = document.querySelectorAll('p, li');
+          textElements.forEach(element => {
+            element.style.wordSpacing = '0.05em';
+            element.style.letterSpacing = '0.01em';
+            element.style.marginBottom = '0.5em';
+            element.style.lineHeight = '1.6';
+            element.style.fontKerning = 'normal';
+            element.style.textRendering = 'optimizeLegibility';
+          });
+
+          // Ensure proper list spacing
+          const lists = document.querySelectorAll('ul, ol');
+          lists.forEach(list => {
+            list.style.paddingLeft = '2em';
+            list.style.marginBottom = '1em';
+            list.style.marginTop = '0.5em';
+          });
         }
       });
 
-      console.log("Canvas generated with enhanced text settings, creating PDF");
+      console.log("Canvas generated with enhanced text spacing, creating PDF");
 
-      // Create PDF with optimized settings for text
+      // Create PDF with optimized settings
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
@@ -95,7 +117,7 @@ export const ExportDialog = ({
       });
 
       // Convert canvas to image with higher quality
-      const imgData = canvas.toDataURL('image/jpeg', 0.85); // Increased quality to 85%
+      const imgData = canvas.toDataURL('image/jpeg', 0.95); // Increased quality to 95%
 
       // Add image to PDF with medium compression
       pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
@@ -109,7 +131,7 @@ export const ExportDialog = ({
         description: "Your travel requirements have been exported to PDF",
       });
 
-      console.log("PDF export completed successfully with enhanced text settings");
+      console.log("PDF export completed successfully with enhanced text spacing");
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
@@ -159,3 +181,4 @@ export const ExportDialog = ({
     </Dialog>
   );
 };
+
