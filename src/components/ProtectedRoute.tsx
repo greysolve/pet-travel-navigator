@@ -37,16 +37,15 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle(); // Changed from .single() to .maybeSingle()
 
       if (error) {
         console.error("Error fetching user role from DB:", error);
-        navigate("/");
         return null;
       }
 
       console.log("Role from database:", data?.role);
-      return data?.role;
+      return data?.role || 'pet_lover'; // Default to pet_lover if no role found
     },
     enabled: !!user && !!requiredRole,
   });
