@@ -44,21 +44,38 @@ export const ExportDialog = ({
         throw new Error("Export content not found");
       }
 
+      console.log("Starting PDF export with optimization settings");
+
+      // Optimize canvas settings for better file size
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 1, // Reduced from 2 to 1
         logging: false,
         useCORS: true,
         allowTaint: true,
+        imageTimeout: 0,
+        backgroundColor: '#ffffff',
+        // Optimize image quality
+        onclone: (document) => {
+          const images = document.getElementsByTagName('img');
+          for (let i = 0; i < images.length; i++) {
+            images[i].style.maxWidth = '600px'; // Limit image size
+            images[i].style.height = 'auto';
+          }
+        }
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      console.log("Canvas generated, creating PDF");
+
+      // Create PDF with optimized settings
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2],
+        format: [canvas.width, canvas.height],
+        compress: true, // Enable compression
+        hotfixes: ['px_scaling'], // Fix scaling issues
       });
 
-      // Add metadata to the PDF
+      // Add metadata
       pdf.setProperties({
         title: `${filename} - PawsOnBoard Travel Requirements`,
         subject: 'Pet Travel Requirements and Flight Itinerary',
@@ -67,7 +84,11 @@ export const ExportDialog = ({
         creator: 'PawsOnBoard PDF Export'
       });
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      // Convert canvas to image with reduced quality
+      const imgData = canvas.toDataURL('image/jpeg', 0.7); // Reduced quality to 70%
+
+      // Add image to PDF with compression
+      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'FAST');
       
       // Save with custom filename
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -77,6 +98,8 @@ export const ExportDialog = ({
         title: "PDF Generated Successfully",
         description: "Your travel requirements have been exported to PDF",
       });
+
+      console.log("PDF export completed successfully");
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({

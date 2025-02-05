@@ -1,7 +1,6 @@
-import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 import { PolicyDetails } from "../flight-results/PolicyDetails";
 import { DestinationPolicy } from "../flight-results/DestinationPolicy";
-import { ArrowDown } from "lucide-react";
+import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 
 interface PdfExportViewProps {
   flights: FlightData[];
@@ -10,7 +9,6 @@ interface PdfExportViewProps {
 }
 
 export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExportViewProps) => {
-  // Get unique carrier codes from flights
   const carrierCodes = [...new Set(flights.flatMap(journey => 
     journey.segments?.map(segment => segment.carrierFsCode) || []
   ))];
@@ -30,7 +28,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         </div>
       </div>
       
-      {/* Flight Itinerary Section */}
+      {/* Flight Itinerary Section - Simplified for better performance */}
       <div className="page-break-inside-avoid page-break-after">
         <h2 className="text-2xl font-semibold mb-6">Flight Itinerary</h2>
         {flights.map((journey, journeyIndex) => (
@@ -41,20 +39,6 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
             
             {journey.segments?.map((segment, segIndex) => (
               <div key={segIndex} className="mb-6 page-break-inside-avoid">
-                <div className="flex justify-between items-center mb-4 bg-gray-50 p-4 rounded-lg">
-                  <div className="font-semibold text-lg">
-                    {segment.carrierFsCode} {segment.flightNumber}
-                  </div>
-                  <div className="text-base">
-                    {new Date(segment.departureTime).toLocaleDateString(undefined, {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </div>
-                </div>
-                
                 <div className="grid grid-cols-2 gap-8 text-base">
                   <div className="space-y-2">
                     <div className="font-medium text-lg">{segment.departureAirportFsCode}</div>
@@ -82,7 +66,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         ))}
       </div>
 
-      {/* Airline Pet Policies Section */}
+      {/* Airline Pet Policies Section - Simplified */}
       {petPolicies && carrierCodes.length > 0 && (
         <div className="page-break-before page-break-after">
           <h2 className="text-2xl font-semibold mb-6">Airline Pet Policies</h2>
@@ -97,7 +81,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         </div>
       )}
 
-      {/* Country Pet Policies Section */}
+      {/* Country Pet Policies Section - Simplified */}
       {countryPolicies && countryPolicies.length > 0 && (
         <div className="page-break-before">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
