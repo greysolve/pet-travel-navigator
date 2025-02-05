@@ -50,32 +50,35 @@ export const ExportDialog = ({
       const styleSheet = document.createElement('style');
       styleSheet.textContent = `
         #pdf-export-content * {
-          text-align: left !important;
           transform: none !important;
-          letter-spacing: normal !important;
-          word-spacing: normal !important;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+          line-height: 1.5 !important;
         }
         #pdf-export-content h1, #pdf-export-content h2, #pdf-export-content h3 {
-          margin-bottom: 1em !important;
-          font-weight: bold !important;
-          line-height: 1.4 !important;
+          margin: 1.5em 0 0.75em !important;
+          font-weight: 600 !important;
         }
         #pdf-export-content p {
-          margin-bottom: 0.8em !important;
-          line-height: 1.6 !important;
+          margin: 0.75em 0 !important;
+        }
+        #pdf-export-content ul {
+          margin: 0.5em 0 !important;
+          padding-left: 1.5em !important;
+        }
+        #pdf-export-content li {
+          margin: 0.25em 0 !important;
         }
       `;
       document.head.appendChild(styleSheet);
 
-      // Optimize canvas settings for better quality while maintaining reasonable file size
+      // Optimize canvas settings for better quality
       const canvas = await html2canvas(element, {
-        scale: 1.5,
-        logging: false,
+        scale: 2, // Increased for sharper text
         useCORS: true,
         allowTaint: true,
         imageTimeout: 0,
         backgroundColor: '#ffffff',
-        foreignObjectRendering: true, // Better text rendering
+        foreignObjectRendering: true,
         removeContainer: false,
         onclone: (document) => {
           const images = document.getElementsByTagName('img');
@@ -94,8 +97,8 @@ export const ExportDialog = ({
         unit: 'px',
         format: [canvas.width, canvas.height],
         compress: true,
+        precision: 32, // Increased precision for better text rendering
         hotfixes: ['px_scaling'],
-        precision: 16, // Increase precision for better text rendering
       });
 
       // Add metadata
@@ -108,10 +111,10 @@ export const ExportDialog = ({
       });
 
       // Convert canvas to image with better quality
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', 1.0); // Maximum quality
 
       // Add image to PDF with better quality settings
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
+      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'FAST');
       
       // Save with custom filename
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
