@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { SaveSearchDialog } from "./saved-searches/SaveSearchDialog";
 import { ExportDialog } from "./saved-searches/ExportDialog";
 import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface SavedSearchesManagerProps {
   currentSearch: {
@@ -26,6 +28,34 @@ export const SavedSearchesManager = ({
 }: SavedSearchesManagerProps) => {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const handleSaveSearch = async (name: string) => {
+    try {
+      const { error } = await supabase
+        .from('saved_searches')
+        .insert({
+          name,
+          search_criteria: currentSearch
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Search saved successfully",
+        description: `Your search has been saved as "${name}"`,
+      });
+
+      setIsSaveDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving search:', error);
+      toast({
+        title: "Error saving search",
+        description: "There was a problem saving your search. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="flex justify-end gap-2">
@@ -45,8 +75,8 @@ export const SavedSearchesManager = ({
 
       <SaveSearchDialog
         isOpen={isSaveDialogOpen}
-        onClose={() => setIsSaveDialogOpen(false)}
-        searchCriteria={currentSearch}
+        onOpenChange={setIsSaveDialogOpen}
+        onSave={handleSaveSearch}
       />
 
       <ExportDialog
