@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +8,8 @@ export const usePetProfileForm = (
   initialData: PetProfile | undefined,
   onClose: () => void
 ) => {
+  console.log('Initializing form with data:', initialData);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [name, setName] = useState(initialData?.name || "");
@@ -20,6 +21,16 @@ export const usePetProfileForm = (
   const [file, setFile] = useState<File | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
+
+  // Log initial state values
+  console.log('Form initial state:', {
+    name,
+    type,
+    breed,
+    age,
+    weight,
+    photoUrls
+  });
 
   const uploadPhotos = async (petId: string) => {
     const uploadedUrls: string[] = [...photoUrls];
@@ -74,6 +85,8 @@ export const usePetProfileForm = (
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<PetProfile>) => {
+      console.log('Submitting form with data:', data);
+      
       // Get the current user's ID
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;

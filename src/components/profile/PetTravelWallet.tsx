@@ -19,11 +19,16 @@ export const PetTravelWallet = () => {
   const { data: pets, isLoading } = useQuery({
     queryKey: ['pet-profiles'],
     queryFn: async () => {
+      console.log('Fetching pet profiles...');
       const { data, error } = await supabase
         .from('pet_profiles')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pet profiles:', error);
+        throw error;
+      }
+      console.log('Fetched pet profiles:', data);
       return data;
     },
   });
@@ -55,6 +60,7 @@ export const PetTravelWallet = () => {
   });
 
   const handleEdit = (pet: PetProfile) => {
+    console.log('Editing pet profile:', pet);
     setSelectedPet(pet);
     setIsEditing(true);
   };
@@ -64,6 +70,7 @@ export const PetTravelWallet = () => {
   };
 
   const handleClose = () => {
+    console.log('Closing form, selectedPet was:', selectedPet);
     setIsEditing(false);
     setSelectedPet(null);
   };

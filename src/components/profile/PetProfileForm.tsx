@@ -14,6 +14,8 @@ import { usePetProfileForm } from "./hooks/usePetProfileForm";
 import { PetProfileFormProps, documentTypes } from "./types/pet-profile.types";
 
 export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
+  console.log('PetProfileForm rendered with initialData:', initialData);
+  
   const {
     name,
     type,
@@ -34,6 +36,16 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
     setPhotoUrls,
     handleSubmit
   } = usePetProfileForm(initialData, onClose);
+
+  // Log current form values
+  console.log('Current form values:', {
+    name,
+    type,
+    breed,
+    age,
+    weight,
+    photoUrls
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
