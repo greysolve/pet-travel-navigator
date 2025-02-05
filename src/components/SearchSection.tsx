@@ -128,8 +128,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   );
 
   return (
-    <div className="relative max-w-3xl mx-auto px-4 -mt-24 z-10">
-      <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
+    <div className="relative max-w-3xl mx-auto px-4 -mt-32 z-10">
+      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-6 space-y-4">
         {user && (
           <SavedSearchesManager
             currentSearch={{ origin, destination, date, policySearch }}
@@ -150,7 +150,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white/80 px-2 text-muted-foreground">
+            <span className="bg-white px-2 text-muted-foreground">
               Or
             </span>
           </div>
