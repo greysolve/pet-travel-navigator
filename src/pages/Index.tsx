@@ -19,7 +19,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F0FB]">
+    <div className="min-h-screen">
       <HeroSection />
       <SearchSection onSearchResults={handleSearchResults} />
       <ResultsSection 

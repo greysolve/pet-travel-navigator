@@ -128,7 +128,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 -mt-8">
+    <div className="relative max-w-3xl mx-auto px-4 -mt-24 z-10">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
         {user && (
           <SavedSearchesManager
