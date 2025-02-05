@@ -23,24 +23,25 @@ import {
 import { Label } from "@/components/ui/label";
 
 const AuthDialog = () => {
-  const { user, profile, signInWithEmail, signOut } = useAuth();
+  const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
     queryFn: async () => {
       if (!user) return null;
       
-      // First check user metadata
       if (user.user_metadata?.role === "site_manager") {
         return "site_manager";
       }
 
-      // If not in metadata, check the user_roles table
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -74,11 +75,40 @@ const AuthDialog = () => {
     try {
       await signInWithEmail(email, password);
       setShowAuthDialog(false);
-      setEmail("");
-      setPassword("");
+      resetForm();
     } catch (error: any) {
       toast({
         title: "Error signing in",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firstName.trim() || !lastName.trim()) {
+      toast({
+        title: "Error signing up",
+        description: "First name and last name are required",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await signUp(email, password, `${firstName.trim()} ${lastName.trim()}`);
+      toast({
+        title: "Success",
+        description: "Please check your email to verify your account.",
+      });
+      setShowAuthDialog(false);
+      resetForm();
+    } catch (error: any) {
+      toast({
+        title: "Error signing up",
         description: error.message,
         variant: "destructive",
       });
@@ -101,6 +131,14 @@ const AuthDialog = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setFirstName("");
+    setLastName("");
+    setIsSignUp(false);
   };
 
   return (
@@ -135,22 +173,63 @@ const AuthDialog = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <>
+        <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => setShowAuthDialog(true)}
+            onClick={() => {
+              setIsSignUp(false);
+              setShowAuthDialog(true);
+            }}
             disabled={isLoading}
             className="bg-sky-100 hover:bg-sky-200"
           >
             Sign In
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIsSignUp(true);
+              setShowAuthDialog(true);
+            }}
+            disabled={isLoading}
+            className="bg-sky-100 hover:bg-sky-200"
+          >
+            Sign Up
+          </Button>
           
-          <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+          <Dialog open={showAuthDialog} onOpenChange={(open) => {
+            setShowAuthDialog(open);
+            if (!open) resetForm();
+          }}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Sign In</DialogTitle>
+                <DialogTitle>{isSignUp ? "Sign Up" : "Sign In"}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSignIn} className="space-y-4">
+              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+                {isSignUp && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Enter your first name"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter your last name"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -174,12 +253,21 @@ const AuthDialog = () => {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
+                  {isLoading ? (isSignUp ? "Signing up..." : "Signing in...") : (isSignUp ? "Sign Up" : "Sign In")}
                 </Button>
+                <div className="text-center text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-blue-500 hover:underline"
+                  >
+                    {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+                  </button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
-        </>
+        </div>
       )}
     </div>
   );
