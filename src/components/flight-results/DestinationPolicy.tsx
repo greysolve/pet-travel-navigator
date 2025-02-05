@@ -23,33 +23,32 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
   return (
     <div className="bg-white p-8 rounded-lg">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-semibold tracking-normal">{policy.title}</h2>
-          <Badge className={`${getPolicyTypeBadgeColor(policy.policy_type)}`}>
-            {getPolicyTypeLabel(policy.policy_type)}
-          </Badge>
-        </div>
-        {policy.policy_url && (
-          <a 
-            href={policy.policy_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-primary hover:text-primary/80"
-          >
-            Official requirements <ExternalLink className="h-4 w-4 ml-1" />
-          </a>
-        )}
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-2xl font-semibold">{policy.title}</h2>
+        <Badge className={`${getPolicyTypeBadgeColor(policy.policy_type)}`}>
+          {getPolicyTypeLabel(policy.policy_type)}
+        </Badge>
       </div>
       
+      {policy.policy_url && (
+        <a 
+          href={policy.policy_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center text-primary hover:text-primary/80"
+        >
+          Official requirements <ExternalLink className="h-4 w-4 ml-1" />
+        </a>
+      )}
+      
       {policy.description && (
-        <p className="text-gray-700 mb-6 text-lg">{policy.description}</p>
+        <p className="text-gray-700 text-lg mt-4 mb-6">{policy.description}</p>
       )}
 
       <div className="space-y-6">
         {policy.vaccination_requirements?.length > 0 && (
           <div>
-            <h3 className="text-xl font-semibold mb-3 tracking-normal">Vaccination Requirements:</h3>
+            <h3 className="text-xl font-semibold mb-3">Vaccination Requirements:</h3>
             <ul className="list-disc list-inside space-y-2">
               {policy.vaccination_requirements.map((vac, index) => (
                 <li key={index} className="text-gray-700 text-lg">{vac}</li>
@@ -60,7 +59,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
         {policy.requirements?.length > 0 && (
           <div>
-            <h3 className="text-xl font-semibold mb-3 tracking-normal">Requirements:</h3>
+            <h3 className="text-xl font-semibold mb-3">Requirements:</h3>
             <ul className="list-disc list-inside space-y-2">
               {policy.requirements.map((req, index) => (
                 <li key={index} className="text-gray-700 text-lg">{req}</li>
@@ -71,7 +70,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
         {policy.documentation_needed?.length > 0 && (
           <div>
-            <h3 className="text-xl font-semibold mb-3 tracking-normal">Required Documentation:</h3>
+            <h3 className="text-xl font-semibold mb-3">Required Documentation:</h3>
             <ul className="list-disc list-inside space-y-2">
               {policy.documentation_needed.map((doc, index) => (
                 <li key={index} className="text-gray-700 text-lg">{doc}</li>
@@ -82,7 +81,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
 
         {policy.quarantine_requirements && (
           <div>
-            <h3 className="text-xl font-semibold mb-3 tracking-normal">Quarantine Requirements:</h3>
+            <h3 className="text-xl font-semibold mb-3">Quarantine Requirements:</h3>
             <p className="text-gray-700 text-lg">{policy.quarantine_requirements}</p>
           </div>
         )}
@@ -96,3 +95,4 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
+
