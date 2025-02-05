@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -15,6 +16,7 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const checkCache = async (origin: string, destination: string, date: Date) => {
     const searchDate = date.toISOString().split('T')[0];
@@ -47,7 +49,8 @@ export const useFlightSearch = () => {
       origin, 
       destination, 
       searchDate,
-      cacheExpiration: cacheExpiration.toISOString() 
+      cacheExpiration: cacheExpiration.toISOString(),
+      user_id: user?.id 
     });
 
     try {
@@ -59,7 +62,8 @@ export const useFlightSearch = () => {
             destination,
             search_date: searchDate,
             last_searched_at: new Date().toISOString(),
-            cached_until: cacheExpiration.toISOString()
+            cached_until: cacheExpiration.toISOString(),
+            user_id: user?.id // Add user_id to the cache entry
           },
           {
             onConflict: 'origin,destination,search_date',
