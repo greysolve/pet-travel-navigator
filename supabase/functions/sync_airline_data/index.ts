@@ -7,6 +7,47 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const REQUEST_TIMEOUT = 30000; // 30 seconds
+const MAX_RETRIES = 3;
+
+async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }) {
+  const { timeout = REQUEST_TIMEOUT } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  retryCount = 0
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retryCount < MAX_RETRIES) {
+      console.log(`Operation failed, attempt ${retryCount + 1}. Retrying...`);
+      await delay(Math.pow(2, retryCount) * 1000); // Exponential backoff
+      return retryOperation(operation, retryCount + 1);
+    }
+    throw error;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -18,11 +59,9 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines')
 
-    // Parse request body to get sync mode
     const { mode = 'clear' } = await req.json()
     console.log('Starting airline sync process in mode:', mode)
 
-    // If in update mode, fetch airlines from missing_pet_policies view
     if (mode === 'update') {
       const { data: missingPolicies, error: missingPoliciesError } = await supabase
         .from('missing_pet_policies')
@@ -33,55 +72,89 @@ Deno.serve(async (req) => {
         throw missingPoliciesError
       }
 
-      // Initialize sync progress with the count of airlines with missing policies
       await syncManager.initialize(missingPolicies?.length || 0)
 
-      // Process each airline with missing policy
+      const startTime = Date.now()
+      let successCount = 0
+      let failureCount = 0
+
       for (const airline of missingPolicies || []) {
         if (!airline.iata_code) continue
 
-        const fetchResponse = await fetch(
-          `${supabaseUrl}/functions/v1/fetch_airlines`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${supabaseKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ iataCode: airline.iata_code })
+        try {
+          const response = await retryOperation(async () => {
+            return await fetchWithTimeout(
+              `${supabaseUrl}/functions/v1/fetch_airlines`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ iataCode: airline.iata_code }),
+                timeout: REQUEST_TIMEOUT
+              }
+            );
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            console.error(`Failed to fetch airline ${airline.iata_code}:`, errorText)
+            await syncManager.addErrorItem(airline.iata_code, errorText)
+            failureCount++
+            continue
           }
-        )
 
-        if (!fetchResponse.ok) {
-          const errorText = await fetchResponse.text()
-          console.error(`Failed to fetch airline ${airline.iata_code}:`, errorText)
-          await syncManager.addErrorItem(airline.iata_code, errorText)
-          continue
+          await syncManager.addProcessedItem(airline.iata_code)
+          successCount++
+
+          // Log progress metrics
+          const elapsed = Date.now() - startTime
+          const avgTimePerItem = elapsed / (successCount + failureCount)
+          const remainingItems = (missingPolicies?.length || 0) - (successCount + failureCount)
+          const estimatedTimeRemaining = avgTimePerItem * remainingItems
+
+          console.log(`Progress metrics:
+            Success: ${successCount}
+            Failures: ${failureCount}
+            Avg Time/Item: ${avgTimePerItem.toFixed(2)}ms
+            Est. Remaining: ${(estimatedTimeRemaining/1000).toFixed(2)}s
+          `)
+
+        } catch (error) {
+          console.error(`Failed to process airline ${airline.iata_code}:`, error)
+          await syncManager.addErrorItem(airline.iata_code, error.message)
+          failureCount++
         }
-
-        await syncManager.addProcessedItem(airline.iata_code)
       }
     } else {
-      // Original full sync behavior
-      const fetchAirlinesResponse = await fetch(
-        `${supabaseUrl}/functions/v1/fetch_airlines`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
+      try {
+        const response = await retryOperation(async () => {
+          return await fetchWithTimeout(
+            `${supabaseUrl}/functions/v1/fetch_airlines`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: REQUEST_TIMEOUT
+            }
+          );
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Failed to fetch airlines:', errorText)
+          throw new Error(`Failed to fetch airlines: ${errorText}`)
         }
-      )
 
-      if (!fetchAirlinesResponse.ok) {
-        const errorText = await fetchAirlinesResponse.text()
-        console.error('Failed to fetch airlines:', errorText)
-        throw new Error(`Failed to fetch airlines: ${errorText}`)
+        const result = await response.json()
+        console.log('Fetch airlines result:', result)
+      } catch (error) {
+        console.error('Error in full sync:', error)
+        throw error
       }
-
-      const result = await fetchAirlinesResponse.json()
-      console.log('Fetch airlines result:', result)
     }
 
     await syncManager.complete()
@@ -101,12 +174,11 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in sync_airline_data:', error)
     
-    // Remove the cleanup on error - this is the key change
-    // Just return the error response
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        errorDetails: error.stack
       }), 
       { 
         status: 500,
