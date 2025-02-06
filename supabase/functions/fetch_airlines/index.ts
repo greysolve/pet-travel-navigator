@@ -84,6 +84,33 @@ async function processBatchWithRetry(
   }
 }
 
+async function fetchAirlineFromCirium(iataCode: string | null, credentials: { appId: string, appKey: string }) {
+  const url = iataCode
+    ? `https://api.flightstats.com/flex/airlines/rest/v1/json/iata/${iataCode}`
+    : 'https://api.flightstats.com/flex/airlines/rest/v1/json/active';
+
+  console.log(`Fetching airlines from Cirium API: ${url}`);
+  
+  const response = await fetchWithTimeout(url, {
+    headers: {
+      'appId': credentials.appId,
+      'appKey': credentials.appKey,
+    },
+    timeout: REQUEST_TIMEOUT
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cirium API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (iataCode) {
+    // Single airline response has a different structure
+    return data.airline ? [data.airline] : [];
+  }
+  return data.airlines || [];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -97,58 +124,64 @@ Deno.serve(async (req) => {
       throw new Error('Missing Cirium API credentials')
     }
 
-    console.log('Fetching airlines from Cirium API...')
-    
-    const response = await fetchWithTimeout(
-      'https://api.flightstats.com/flex/airlines/rest/v1/json/active',
-      {
-        headers: {
-          'appId': CIRIUM_APP_ID,
-          'appKey': CIRIUM_APP_KEY,
-        },
-        timeout: REQUEST_TIMEOUT
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error(`Cirium API error: ${response.statusText}`)
+    // Parse request body for iataCode
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch {
+      requestBody = {};
     }
+    const { iataCode = null } = requestBody;
 
-    const data = await response.json()
-    const airlines: Airline[] = data.airlines
+    console.log(`Processing request for ${iataCode ? `airline ${iataCode}` : 'all airlines'}`);
+
+    const rawAirlines = await fetchAirlineFromCirium(
+      iataCode,
+      { appId: CIRIUM_APP_ID, appKey: CIRIUM_APP_KEY }
+    );
+
+    const airlines: Airline[] = rawAirlines
       .filter((airline: any) => airline.iata)
       .map((airline: any) => ({
         name: airline.name,
         iata_code: airline.iata,
         website: airline.website || null,
         country: airline.country || null,
-      }))
+      }));
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log(`Processing ${airlines.length} airlines in batches of ${BATCH_SIZE}...`)
+    console.log(`Processing ${airlines.length} airlines${iataCode ? ' for update' : ''}`);
 
     let processedCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
 
-    // Process airlines in batches
-    for (let i = 0; i < airlines.length; i += BATCH_SIZE) {
-      const batch = airlines.slice(i, i + BATCH_SIZE);
-      console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(airlines.length/BATCH_SIZE)}...`);
-      
-      const { success, errors: batchErrors } = await processBatchWithRetry(batch, supabase);
-      
-      processedCount += success;
+    // For single airline updates, process directly
+    if (iataCode) {
+      const { success, errors: batchErrors } = await processBatchWithRetry(airlines, supabase);
+      processedCount = success;
       errors.push(...batchErrors);
-      errorCount += batchErrors.length;
+      errorCount = batchErrors.length;
+    } else {
+      // Process airlines in batches for full sync
+      for (let i = 0; i < airlines.length; i += BATCH_SIZE) {
+        const batch = airlines.slice(i, i + BATCH_SIZE);
+        console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(airlines.length/BATCH_SIZE)}...`);
+        
+        const { success, errors: batchErrors } = await processBatchWithRetry(batch, supabase);
+        
+        processedCount += success;
+        errors.push(...batchErrors);
+        errorCount += batchErrors.length;
 
-      if (i + BATCH_SIZE < airlines.length) {
-        console.log(`Waiting ${BATCH_DELAY}ms before next batch...`);
-        await delay(BATCH_DELAY);
+        if (i + BATCH_SIZE < airlines.length) {
+          console.log(`Waiting ${BATCH_DELAY}ms before next batch...`);
+          await delay(BATCH_DELAY);
+        }
       }
     }
 
