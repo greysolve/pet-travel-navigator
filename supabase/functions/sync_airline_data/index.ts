@@ -120,6 +120,12 @@ Deno.serve(async (req) => {
           const remainingItems = (missingPolicies?.length || 0) - (successCount + failureCount)
           const estimatedTimeRemaining = avgTimePerItem * remainingItems
 
+          await syncManager.updateProgress({
+            processed: successCount,
+            last_processed: airline.iata_code,
+            processed_items: [...(await syncManager.getCurrentProgress()).processed_items, airline.iata_code]
+          })
+
           console.log(`Progress metrics:
             Success: ${successCount}
             Failures: ${failureCount}
@@ -157,6 +163,16 @@ Deno.serve(async (req) => {
 
         const result = await response.json()
         console.log('Fetch airlines result:', result)
+        
+        // Update progress for full sync mode
+        const progress = await syncManager.getCurrentProgress()
+        if (progress) {
+          await syncManager.updateProgress({
+            processed: progress.processed + 1,
+            last_processed: 'Full sync completed',
+            processed_items: [...progress.processed_items, 'Full sync']
+          })
+        }
       } catch (error) {
         console.error('Error in full sync:', error)
         throw error

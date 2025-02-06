@@ -29,7 +29,7 @@ export class SyncManager {
     this.startTime = Date.now();
   }
 
-  async getCurrentProgress(): Promise<SyncState | null> {
+  async getCurrentProgress(): Promise<SyncState> {
     console.log(`Fetching current progress for ${this.type}`);
     
     const { data, error } = await this.supabase
@@ -39,7 +39,17 @@ export class SyncManager {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === 'PGRST116') {
+        return {
+          total: 0,
+          processed: 0,
+          last_processed: null,
+          processed_items: [],
+          error_items: [],
+          start_time: null,
+          is_complete: false
+        };
+      }
       console.error(`Error fetching progress for ${this.type}:`, error);
       throw error;
     }
@@ -92,8 +102,7 @@ export class SyncManager {
     console.log(`Updating sync progress for ${this.type}:`, updates);
     
     const current = await this.getCurrentProgress();
-    if (!current) throw new Error('No sync progress found');
-
+    
     const elapsed = Date.now() - this.startTime;
     const avgTimePerItem = current.processed > 0 ? elapsed / current.processed : 0;
     const successRate = current.processed > 0 
@@ -127,19 +136,17 @@ export class SyncManager {
   async addProcessedItem(item: string): Promise<void> {
     console.log(`Adding processed item for ${this.type}:`, item);
     const current = await this.getCurrentProgress();
-    if (!current) throw new Error('No sync progress found');
 
     await this.updateProgress({
-      processed: current.processed + 1,
+      processed: (current.processed || 0) + 1,
       last_processed: item,
-      processed_items: [...current.processed_items, item]
+      processed_items: [...(current.processed_items || []), item]
     });
   }
 
   async addErrorItem(item: string, error: string): Promise<void> {
     console.log(`Adding error item for ${this.type}:`, { item, error });
     const current = await this.getCurrentProgress();
-    if (!current) throw new Error('No sync progress found');
 
     const errorDetails = {
       ...(current.error_details || {}),
@@ -147,7 +154,7 @@ export class SyncManager {
     };
 
     await this.updateProgress({
-      error_items: [...current.error_items, item],
+      error_items: [...(current.error_items || []), item],
       error_details: errorDetails
     });
   }
@@ -161,7 +168,6 @@ export class SyncManager {
 
   async shouldProcessItem(item: string): Promise<boolean> {
     const current = await this.getCurrentProgress();
-    if (!current) return true;
-    return !current.processed_items.includes(item);
+    return !(current.processed_items || []).includes(item);
   }
 }
