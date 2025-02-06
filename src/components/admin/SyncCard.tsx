@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { SyncProgress } from "@/types/sync";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SyncCardProps {
   title: string;
