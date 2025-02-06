@@ -1,5 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
-import App from "./App";
+import { Outlet } from "react-router-dom";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
@@ -8,10 +8,15 @@ import Admin from "./pages/Admin";
 import SampleResults from "./pages/SampleResults";
 import AuthCallback from "./pages/AuthCallback";
 
+// Create a root layout component instead of importing App
+const RootLayout = () => {
+  return <Outlet />;
+};
+
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <App />,
+    element: <RootLayout />,
     errorElement: <NotFound />,
     children: [
       {
