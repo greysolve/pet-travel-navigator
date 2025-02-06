@@ -234,6 +234,13 @@ export type Database = {
             referencedRelation: "airlines"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pet_policies_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: true
+            referencedRelation: "missing_pet_policies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pet_profiles: {
@@ -446,6 +453,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "routes_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: false
+            referencedRelation: "missing_pet_policies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "routes_arrival_airport_id_fkey"
             columns: ["arrival_airport_id"]
             isOneToOne: false
@@ -580,7 +594,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      missing_pet_policies: {
+        Row: {
+          iata_code: string | null
+          id: string | null
+          name: string | null
+          policy_status: string | null
+          website: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_airlines_data: {
