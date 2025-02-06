@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ interface SyncProgressDB {
   processed_items: string[];
   error_items: string[];
   start_time: string | null;
+  is_complete: boolean;
   needs_continuation: boolean;
   created_at: string | null;
   updated_at: string | null;
@@ -80,7 +82,7 @@ export const SyncSection = () => {
                   processedItems: newRecord.processed_items || [],
                   errorItems: newRecord.error_items || [],
                   startTime: newRecord.start_time,
-                  isComplete: !newRecord.needs_continuation
+                  isComplete: newRecord.is_complete
                 }
               })
             );
@@ -96,7 +98,7 @@ export const SyncSection = () => {
             }
 
             // If sync completed successfully, show success toast
-            if (!newRecord.needs_continuation && payload.eventType === 'UPDATE') {
+            if (newRecord.is_complete && payload.eventType === 'UPDATE') {
               toast({
                 title: "Sync Complete",
                 description: `Successfully synchronized ${newRecord.type} data.`,
@@ -136,7 +138,7 @@ export const SyncSection = () => {
           processedItems: curr.processed_items || [],
           errorItems: curr.error_items || [],
           startTime: curr.start_time,
-          isComplete: !curr.needs_continuation
+          isComplete: curr.is_complete
         };
         return acc;
       }, {});
