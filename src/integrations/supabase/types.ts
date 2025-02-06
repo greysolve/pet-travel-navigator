@@ -530,6 +530,7 @@ export type Database = {
         Row: {
           batch_metrics: Json | null
           created_at: string | null
+          error_details: Json | null
           error_items: string[] | null
           id: string
           is_complete: boolean | null
@@ -545,6 +546,7 @@ export type Database = {
         Insert: {
           batch_metrics?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           error_items?: string[] | null
           id?: string
           is_complete?: boolean | null
@@ -560,6 +562,7 @@ export type Database = {
         Update: {
           batch_metrics?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           error_items?: string[] | null
           id?: string
           is_complete?: boolean | null
