@@ -21,13 +21,11 @@ export interface SyncState {
 export class SyncManager {
   private supabase;
   private type: string;
-  private startTime: number;
   
   constructor(supabaseUrl: string, supabaseKey: string, type: string) {
     console.log(`Initializing SyncManager for ${type}`);
     this.supabase = createClient(supabaseUrl, supabaseKey);
     this.type = type;
-    this.startTime = Date.now();
   }
 
   async getCurrentProgress(): Promise<SyncState> {
@@ -72,7 +70,6 @@ export class SyncManager {
 
   async initialize(total: number): Promise<void> {
     console.log(`Initializing sync progress for ${this.type} with total: ${total}`);
-    this.startTime = Date.now();
     
     const { error } = await this.supabase
       .from('sync_progress')
@@ -103,82 +100,19 @@ export class SyncManager {
   }
 
   async updateProgress(updates: Partial<SyncState>): Promise<void> {
-    console.log(`Updating sync progress for ${this.type}:`, updates);
+    console.log(`Updating progress for ${this.type}:`, updates);
     
-    const current = await this.getCurrentProgress();
-    
-    const elapsed = Date.now() - this.startTime;
-    const avgTimePerItem = current.processed > 0 ? elapsed / current.processed : 0;
-    const successRate = current.processed > 0 
-      ? ((current.processed - current.error_items.length) / current.processed) * 100 
-      : 100;
-    const remainingItems = current.total - current.processed;
-    
-    const batchMetrics = {
-      avg_time_per_item: avgTimePerItem,
-      estimated_time_remaining: avgTimePerItem * remainingItems,
-      success_rate: successRate
-    };
-
     const { error } = await this.supabase
       .from('sync_progress')
-      .upsert({
-        type: this.type,
+      .update({
         ...updates,
-        batch_metrics: batchMetrics,
         updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'type'
-      });
+      })
+      .eq('type', this.type);
 
     if (error) {
-      console.error(`Error updating sync progress for ${this.type}:`, error);
+      console.error(`Error updating progress for ${this.type}:`, error);
       throw error;
     }
-  }
-
-  async addProcessedItem(item: string): Promise<void> {
-    console.log(`Adding processed item for ${this.type}:`, item);
-    const current = await this.getCurrentProgress();
-
-    await this.updateProgress({
-      processed: (current.processed || 0) + 1,
-      last_processed: item,
-      processed_items: [...(current.processed_items || []), item]
-    });
-  }
-
-  async addErrorItem(item: string, error: string): Promise<void> {
-    console.log(`Adding error item for ${this.type}:`, { item, error });
-    const current = await this.getCurrentProgress();
-
-    const errorDetails = {
-      ...(current.error_details || {}),
-      [item]: error
-    };
-
-    await this.updateProgress({
-      error_items: [...(current.error_items || []), item],
-      error_details: errorDetails,
-      needs_continuation: true // Set needs_continuation to true when an error occurs
-    });
-  }
-
-  async complete(): Promise<void> {
-    console.log(`Completing sync for ${this.type}`);
-    const current = await this.getCurrentProgress();
-    
-    // Only mark as complete if there are no pending errors that need continuation
-    const shouldComplete = !current.needs_continuation || current.processed === current.total;
-    
-    await this.updateProgress({
-      is_complete: shouldComplete,
-      needs_continuation: !shouldComplete
-    });
-  }
-
-  async shouldProcessItem(item: string): Promise<boolean> {
-    const current = await this.getCurrentProgress();
-    return !(current.processed_items || []).includes(item);
   }
 }

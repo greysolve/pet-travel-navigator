@@ -78,7 +78,10 @@ Deno.serve(async (req) => {
         throw missingPoliciesError
       }
 
-      await syncManager.initialize(missingPolicies?.length || 0)
+      // Initialize with the total number of missing policies
+      const total = missingPolicies?.length || 0
+      await syncManager.initialize(total)
+      console.log(`Initialized sync progress with ${total} airlines to process`)
 
       const startTime = Date.now()
       let successCount = 0
@@ -88,6 +91,7 @@ Deno.serve(async (req) => {
         if (!airline.iata_code) continue
 
         try {
+          console.log(`Processing airline ${airline.iata_code}`)
           const response = await retryOperation(async () => {
             return await fetchWithTimeout(
               `${supabaseUrl}/functions/v1/fetch_airlines`,
@@ -106,25 +110,27 @@ Deno.serve(async (req) => {
           if (!response.ok) {
             const errorText = await response.text()
             console.error(`Failed to fetch airline ${airline.iata_code}:`, errorText)
-            await syncManager.addErrorItem(airline.iata_code, errorText)
+            await syncManager.updateProgress({
+              error_items: [...(await syncManager.getCurrentProgress()).error_items, airline.iata_code],
+              needs_continuation: true
+            })
             failureCount++
             continue
           }
 
-          await syncManager.addProcessedItem(airline.iata_code)
+          // Update progress after successful processing
+          await syncManager.updateProgress({
+            processed: successCount + 1,
+            processed_items: [...(await syncManager.getCurrentProgress()).processed_items, airline.iata_code],
+            last_processed: airline.iata_code
+          })
           successCount++
 
           // Log progress metrics
           const elapsed = Date.now() - startTime
           const avgTimePerItem = elapsed / (successCount + failureCount)
-          const remainingItems = (missingPolicies?.length || 0) - (successCount + failureCount)
+          const remainingItems = total - (successCount + failureCount)
           const estimatedTimeRemaining = avgTimePerItem * remainingItems
-
-          await syncManager.updateProgress({
-            processed: successCount,
-            last_processed: airline.iata_code,
-            processed_items: [...(await syncManager.getCurrentProgress()).processed_items, airline.iata_code]
-          })
 
           console.log(`Progress metrics:
             Success: ${successCount}
@@ -135,12 +141,32 @@ Deno.serve(async (req) => {
 
         } catch (error) {
           console.error(`Failed to process airline ${airline.iata_code}:`, error)
-          await syncManager.addErrorItem(airline.iata_code, error.message)
+          await syncManager.updateProgress({
+            error_items: [...(await syncManager.getCurrentProgress()).error_items, airline.iata_code],
+            needs_continuation: true
+          })
           failureCount++
         }
       }
+
+      // Mark sync as complete based on success/failure counts
+      if (failureCount === 0) {
+        await syncManager.updateProgress({
+          is_complete: true,
+          needs_continuation: false
+        })
+      } else {
+        await syncManager.updateProgress({
+          is_complete: false,
+          needs_continuation: true
+        })
+      }
     } else {
+      // Full sync mode
       try {
+        console.log('Starting full airline sync')
+        await syncManager.initialize(1) // Initialize with 1 for the full sync operation
+
         const response = await retryOperation(async () => {
           return await fetchWithTimeout(
             `${supabaseUrl}/functions/v1/fetch_airlines`,
@@ -158,34 +184,39 @@ Deno.serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text()
           console.error('Failed to fetch airlines:', errorText)
+          await syncManager.updateProgress({
+            error_items: ['full_sync'],
+            needs_continuation: true,
+            is_complete: false
+          })
           throw new Error(`Failed to fetch airlines: ${errorText}`)
         }
 
         const result = await response.json()
         console.log('Fetch airlines result:', result)
         
-        // Update progress for full sync mode
-        const progress = await syncManager.getCurrentProgress()
-        if (progress) {
-          await syncManager.updateProgress({
-            processed: progress.processed + 1,
-            last_processed: 'Full sync completed',
-            processed_items: [...progress.processed_items, 'Full sync']
-          })
-        }
+        await syncManager.updateProgress({
+          processed: 1,
+          last_processed: 'Full sync completed',
+          processed_items: ['full_sync'],
+          is_complete: true,
+          needs_continuation: false
+        })
       } catch (error) {
         console.error('Error in full sync:', error)
-        await syncManager.addErrorItem('full_sync', error.message)
+        await syncManager.updateProgress({
+          error_items: ['full_sync'],
+          needs_continuation: true,
+          is_complete: false
+        })
         throw error
       }
     }
 
-    await syncManager.complete()
-
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Airlines sync completed successfully'
+        message: 'Airlines sync process started successfully'
       }), 
       { 
         headers: { 
@@ -197,14 +228,18 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in sync_airline_data:', error)
     
-    // Ensure the sync manager properly handles the error state if available
+    // Ensure the sync manager properly handles the error state
     try {
       const syncManager = new SyncManager(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
         'airlines'
       )
-      await syncManager.addErrorItem('sync_error', error.message)
+      await syncManager.updateProgress({
+        error_items: ['sync_error'],
+        needs_continuation: true,
+        is_complete: false
+      })
     } catch (e) {
       console.error('Failed to update sync error state:', e)
     }
