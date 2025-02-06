@@ -133,7 +133,10 @@ const SampleResultsManager = () => {
     const routeName = filePath
       .replace(/^\d+-/, '') // Remove timestamp prefix
       .replace(/\.[^/.]+$/, ''); // Remove file extension
-    return `/${routeName}-Sample`;
+    
+    // Get the current domain from the window location
+    const domain = window.location.origin;
+    return `${domain}/${routeName}-Sample`;
   };
 
   if (isLoading) {
