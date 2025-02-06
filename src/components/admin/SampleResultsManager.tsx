@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Trash2, Link } from "lucide-react";
+import { Loader2, Upload, Trash2, Copy } from "lucide-react";
 
 const SampleResultsManager = () => {
   const [uploading, setUploading] = useState(false);
@@ -130,13 +130,16 @@ const SampleResultsManager = () => {
   const getPublicUrl = (filePath: string) => {
     // Extract the route name from the file path
     // Remove timestamp and extension
-    const routeName = filePath
+    return filePath
       .replace(/^\d+-/, '') // Remove timestamp prefix
       .replace(/\.[^/.]+$/, ''); // Remove file extension
-    
-    // Get the current domain from the window location
-    const domain = window.location.origin;
-    return `${domain}/${routeName}-Sample`;
+  };
+
+  const copyToClipboard = (route: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/${route}-Sample`);
+    toast({
+      title: "URL copied to clipboard",
+    });
   };
 
   if (isLoading) {
@@ -171,7 +174,7 @@ const SampleResultsManager = () => {
 
       <div className="space-y-4">
         {sampleFiles?.map((file) => {
-          const publicUrl = getPublicUrl(file.file_path);
+          const routeName = getPublicUrl(file.file_path);
 
           return (
             <div
@@ -179,21 +182,20 @@ const SampleResultsManager = () => {
               className="flex items-center justify-between p-4 bg-white rounded-lg shadow"
             >
               <div className="space-y-1">
-                <p className="font-medium">{file.file_path}</p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>Views: {file.view_count || 0}</span>
-                  <span className="flex items-center gap-1">
-                    <Link className="h-4 w-4" />
-                    <a
-                      href={publicUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      Public URL
-                    </a>
-                  </span>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{routeName}-Sample</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(routeName)}
+                    className="h-8 w-8"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </div>
+                <p className="text-sm text-gray-500">
+                  Views: {file.view_count || 0}
+                </p>
               </div>
               <Button
                 variant="destructive"
