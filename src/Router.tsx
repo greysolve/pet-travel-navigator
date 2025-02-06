@@ -1,14 +1,14 @@
 import { createBrowserRouter } from "react-router-dom";
 import { Outlet } from "react-router-dom";
-import NotFound from "./pages/NotFound";
-import Index from "./pages/Index";
-import Profile from "./pages/Profile";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Admin from "./pages/Admin";
-import SampleResults from "./pages/SampleResults";
-import AuthCallback from "./pages/AuthCallback";
+import NotFound from "@/pages/NotFound";
+import Index from "@/pages/Index";
+import Profile from "@/pages/Profile";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Admin from "@/pages/Admin";
+import SampleResults from "@/pages/SampleResults";
+import AuthCallback from "@/pages/AuthCallback";
 
-// Create a root layout component instead of importing App
+// Create a root layout component
 const RootLayout = () => {
   return <Outlet />;
 };
