@@ -101,14 +101,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in sync_airline_data:', error)
     
-    // Clean up on error
-    const syncManager = new SyncManager(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      'airlines'
-    );
-    await syncManager.cleanup();
-
+    // Remove the cleanup on error - this is the key change
+    // Just return the error response
     return new Response(
       JSON.stringify({ 
         success: false, 
