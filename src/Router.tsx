@@ -1,28 +1,49 @@
-import { Routes, Route } from "react-router-dom";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Profile from "./pages/Profile";
-import AuthCallback from "./pages/AuthCallback";
-import Admin from "./pages/Admin";
-import SampleResults from "./pages/SampleResults";
+import { createBrowserRouter } from "react-router-dom";
+import App from "./App";
+import NotFound from "./NotFound";
+import Index from "./Index";
+import Profile from "./Profile";
+import ProtectedRoute from "./ProtectedRoute";
+import Admin from "./Admin";
+import SampleResults from "./SampleResults";
+import AuthCallback from "./AuthCallback";
 
-export function Router() {
-  return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route 
-        path="/admin" 
-        element={
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <App />,
+    errorElement: <NotFound />,
+    children: [
+      {
+        path: "/",
+        element: <Index />,
+      },
+      {
+        path: "/profile",
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin",
+        element: (
           <ProtectedRoute requiredRole="site_manager">
             <Admin />
           </ProtectedRoute>
-        } 
-      />
-      <Route path="/ORG-DST-Sample" element={<SampleResults />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-}
+        ),
+      },
+      {
+        path: "/:route",
+        element: <SampleResults />,
+      },
+    ],
+  },
+  {
+    path: "/auth/callback",
+    element: <AuthCallback />,
+  },
+]);
+
+export default router;
