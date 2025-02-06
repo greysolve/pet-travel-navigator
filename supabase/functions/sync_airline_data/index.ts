@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 
@@ -17,34 +18,78 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines')
 
-    console.log('Starting airline sync process...')
+    // Parse request body to get sync mode
+    const { mode = 'clear' } = await req.json()
+    console.log('Starting airline sync process in mode:', mode)
 
-    // First, fetch airlines from the fetch_airlines function
-    const fetchAirlinesResponse = await fetch(
-      `${supabaseUrl}/functions/v1/fetch_airlines`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
+    // If in update mode, fetch airlines from missing_pet_policies view
+    if (mode === 'update') {
+      const { data: missingPolicies, error: missingPoliciesError } = await supabase
+        .from('missing_pet_policies')
+        .select('iata_code, name')
+
+      if (missingPoliciesError) {
+        console.error('Failed to fetch missing policies:', missingPoliciesError)
+        throw missingPoliciesError
       }
-    )
 
-    if (!fetchAirlinesResponse.ok) {
-      const errorText = await fetchAirlinesResponse.text()
-      console.error('Failed to fetch airlines:', errorText)
-      throw new Error(`Failed to fetch airlines: ${errorText}`)
+      // Initialize sync progress with the count of airlines with missing policies
+      await syncManager.initialize(missingPolicies?.length || 0)
+
+      // Process each airline with missing policy
+      for (const airline of missingPolicies || []) {
+        if (!airline.iata_code) continue
+
+        const fetchResponse = await fetch(
+          `${supabaseUrl}/functions/v1/fetch_airlines`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ iataCode: airline.iata_code })
+          }
+        )
+
+        if (!fetchResponse.ok) {
+          const errorText = await fetchResponse.text()
+          console.error(`Failed to fetch airline ${airline.iata_code}:`, errorText)
+          await syncManager.addErrorItem(airline.iata_code, errorText)
+          continue
+        }
+
+        await syncManager.addProcessedItem(airline.iata_code)
+      }
+    } else {
+      // Original full sync behavior
+      const fetchAirlinesResponse = await fetch(
+        `${supabaseUrl}/functions/v1/fetch_airlines`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!fetchAirlinesResponse.ok) {
+        const errorText = await fetchAirlinesResponse.text()
+        console.error('Failed to fetch airlines:', errorText)
+        throw new Error(`Failed to fetch airlines: ${errorText}`)
+      }
+
+      const result = await fetchAirlinesResponse.json()
+      console.log('Fetch airlines result:', result)
     }
 
-    const result = await fetchAirlinesResponse.json()
-    console.log('Fetch airlines result:', result)
+    await syncManager.complete()
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Airlines sync completed successfully',
-        result
+        message: 'Airlines sync completed successfully'
       }), 
       { 
         headers: { 

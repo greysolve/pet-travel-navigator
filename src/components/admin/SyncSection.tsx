@@ -146,8 +146,8 @@ export const SyncSection = () => {
     },
   });
 
-  const handleSync = async (type: keyof typeof SyncType, resume: boolean = false) => {
-    console.log(`Starting sync for ${type}, resume: ${resume}`);
+  const handleSync = async (type: keyof typeof SyncType, resume: boolean = false, mode?: string) => {
+    console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
     
     try {
@@ -190,7 +190,11 @@ export const SyncSection = () => {
       };
 
       const { error } = await supabase.functions.invoke(functionMap[type], {
-        body: type === 'countryPolicies' && testCountry ? { country: testCountry } : undefined
+        body: type === 'countryPolicies' && testCountry 
+          ? { country: testCountry }
+          : type === 'airlines' 
+          ? { mode: mode || 'clear' }
+          : undefined
       });
 
       if (error) throw error;
@@ -255,7 +259,7 @@ export const SyncSection = () => {
               setClearData(prev => ({ ...prev, [key]: checked }));
             }}
             isLoading={isInitializing[value]}
-            onSync={(resume) => handleSync(key as keyof typeof SyncType, resume)}
+            onSync={(resume, mode) => handleSync(key as keyof typeof SyncType, resume, mode)}
             syncProgress={syncProgress?.[value]}
           />
         ))}
