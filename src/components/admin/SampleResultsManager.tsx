@@ -127,6 +127,15 @@ const SampleResultsManager = () => {
     }
   };
 
+  const getPublicUrl = (filePath: string) => {
+    // Extract the route name from the file path
+    // Remove timestamp and extension
+    const routeName = filePath
+      .replace(/^\d+-/, '') // Remove timestamp prefix
+      .replace(/\.[^/.]+$/, ''); // Remove file extension
+    return `/${routeName}-Sample`;
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -159,9 +168,7 @@ const SampleResultsManager = () => {
 
       <div className="space-y-4">
         {sampleFiles?.map((file) => {
-          const { data } = supabase.storage
-            .from("sample-results")
-            .getPublicUrl(file.file_path);
+          const publicUrl = getPublicUrl(file.file_path);
 
           return (
             <div
@@ -175,7 +182,7 @@ const SampleResultsManager = () => {
                   <span className="flex items-center gap-1">
                     <Link className="h-4 w-4" />
                     <a
-                      href={data.publicUrl}
+                      href={publicUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline"
