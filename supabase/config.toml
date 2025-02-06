@@ -1,7 +1,14 @@
+
 project_id = "jhokkuszubzngrcamfdb"
 
 [functions.sync_country_policies]
 verify_jwt = false
 
 [functions.send-email]
+verify_jwt = false
+
+[functions.sync_airline_data]
+verify_jwt = false
+
+[functions.fetch_airlines]
 verify_jwt = false
