@@ -14,11 +14,29 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
     journey.segments?.map(segment => segment.carrierFsCode) || []
   ))];
 
+  // Get first and last airports from the first journey's segments
+  const firstJourney = flights[0];
+  const firstSegment = firstJourney?.segments?.[0];
+  const lastSegment = firstJourney?.segments?.[firstJourney.segments.length - 1];
+  const originCode = firstSegment?.departureAirportFsCode;
+  const destinationCode = lastSegment?.arrivalAirportFsCode;
+  const departureDate = firstSegment?.departureTime ? new Date(firstSegment.departureTime).toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }) : '';
+
   return (
     <div className="min-w-[1200px] p-8 bg-white space-y-8">
       {/* Title Page */}
       <div className="page-break-after">
         <h1 className="text-3xl font-bold mb-8 text-center">Flight Itinerary & Pet Travel Requirements</h1>
+        {originCode && destinationCode && (
+          <div className="text-xl font-bold text-center mb-4">
+            {originCode} =&gt; {destinationCode} on {departureDate}
+          </div>
+        )}
         <div className="text-center text-gray-600 mt-4">
           Generated on {new Date().toLocaleDateString(undefined, {
             weekday: 'long',
