@@ -1,12 +1,12 @@
 import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
-import NotFound from "./NotFound";
-import Index from "./Index";
-import Profile from "./Profile";
-import ProtectedRoute from "./ProtectedRoute";
-import Admin from "./Admin";
-import SampleResults from "./SampleResults";
-import AuthCallback from "./AuthCallback";
+import NotFound from "./pages/NotFound";
+import Index from "./pages/Index";
+import Profile from "./pages/Profile";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Admin from "./pages/Admin";
+import SampleResults from "./pages/SampleResults";
+import AuthCallback from "./pages/AuthCallback";
 
 const router = createBrowserRouter([
   {
