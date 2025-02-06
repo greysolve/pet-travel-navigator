@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Trash2 } from "lucide-react";
+import { Loader2, Upload, Trash2, Link } from "lucide-react";
 
 const SampleResultsManager = () => {
   const [uploading, setUploading] = useState(false);
@@ -158,27 +158,44 @@ const SampleResultsManager = () => {
       </div>
 
       <div className="space-y-4">
-        {sampleFiles?.map((file) => (
-          <div
-            key={file.id}
-            className="flex items-center justify-between p-4 bg-white rounded-lg shadow"
-          >
-            <div>
-              <p className="font-medium">{file.file_path}</p>
-              <p className="text-sm text-gray-500">
-                Views: {file.view_count || 0}
-              </p>
-            </div>
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={() => deleteMutation.mutate(file.id)}
-              disabled={deleteMutation.isPending}
+        {sampleFiles?.map((file) => {
+          const { data } = supabase.storage
+            .from("sample-results")
+            .getPublicUrl(file.file_path);
+
+          return (
+            <div
+              key={file.id}
+              className="flex items-center justify-between p-4 bg-white rounded-lg shadow"
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
+              <div className="space-y-1">
+                <p className="font-medium">{file.file_path}</p>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>Views: {file.view_count || 0}</span>
+                  <span className="flex items-center gap-1">
+                    <Link className="h-4 w-4" />
+                    <a
+                      href={data.publicUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Public URL
+                    </a>
+                  </span>
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => deleteMutation.mutate(file.id)}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
