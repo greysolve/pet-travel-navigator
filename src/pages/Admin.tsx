@@ -4,6 +4,7 @@ import { SyncSection } from "@/components/admin/SyncSection";
 import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
 import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
 import UserManagement from "@/components/admin/UserManagement";
+import SampleResultsManager from "@/components/admin/SampleResultsManager";
 
 const Admin = () => {
   return (
@@ -17,6 +18,7 @@ const Admin = () => {
           <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
           <TabsTrigger value="country-policies">Country Policies</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="sample-results">Sample Results</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sync">
@@ -37,6 +39,10 @@ const Admin = () => {
 
         <TabsContent value="users">
           <UserManagement />
+        </TabsContent>
+
+        <TabsContent value="sample-results">
+          <SampleResultsManager />
         </TabsContent>
       </Tabs>
     </div>

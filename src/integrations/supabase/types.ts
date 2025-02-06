@@ -613,6 +613,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_view_count: {
+        Args: {
+          file_id: string
+        }
+        Returns: undefined
+      }
       search_airports_insensitive: {
         Args: {
           search_term: string

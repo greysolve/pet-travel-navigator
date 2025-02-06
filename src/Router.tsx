@@ -5,6 +5,7 @@ import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
 import Admin from "./pages/Admin";
+import SampleResults from "./pages/SampleResults";
 
 export function Router() {
   return (
@@ -20,6 +21,7 @@ export function Router() {
           </ProtectedRoute>
         } 
       />
+      <Route path="/ORG-DST-Sample" element={<SampleResults />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
