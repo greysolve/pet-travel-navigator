@@ -13,6 +13,11 @@ const SampleResultsManager = () => {
   const { data: sampleFiles, isLoading } = useQuery({
     queryKey: ["sample-files"],
     queryFn: async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
       const { data, error } = await supabase
         .from("sample_files")
         .select("*")
@@ -25,6 +30,11 @@ const SampleResultsManager = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (fileId: string) => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
       const { data: file } = await supabase
         .from("sample_files")
         .select("file_path")
@@ -66,7 +76,13 @@ const SampleResultsManager = () => {
       const file = event.target.files?.[0];
       if (!file) return;
 
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
       setUploading(true);
+      console.log("Starting file upload...");
 
       // Upload file to storage
       const fileName = `${Date.now()}-${file.name}`;
@@ -74,7 +90,12 @@ const SampleResultsManager = () => {
         .from("sample-results")
         .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      console.log("File uploaded to storage successfully");
 
       // Create database record
       const { error: dbError } = await supabase.from("sample_files").insert({
@@ -82,7 +103,12 @@ const SampleResultsManager = () => {
         active: true,
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("Database insert error:", dbError);
+        throw dbError;
+      }
+
+      console.log("Database record created successfully");
 
       queryClient.invalidateQueries({ queryKey: ["sample-files"] });
       toast({
@@ -112,12 +138,12 @@ const SampleResultsManager = () => {
           <label className="cursor-pointer">
             {uploading ? (
               <>
-                <Loader2 className="animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Uploading...
               </>
             ) : (
               <>
-                <Upload />
+                <Upload className="mr-2 h-4 w-4" />
                 Upload PDF
               </>
             )}
@@ -149,7 +175,7 @@ const SampleResultsManager = () => {
               onClick={() => deleteMutation.mutate(file.id)}
               disabled={deleteMutation.isPending}
             >
-              <Trash2 />
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         ))}
