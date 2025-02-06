@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
+import { Loader2 } from "lucide-react";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -171,7 +173,14 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           onClick={handleSearch}
           disabled={isLoading}
         >
-          {isLoading ? "Searching..." : "Search"}
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Searching...
+            </>
+          ) : (
+            "Search"
+          )}
         </Button>
       </div>
     </div>

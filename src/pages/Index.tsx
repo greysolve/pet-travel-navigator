@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useRef } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
@@ -8,6 +9,7 @@ const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleSearchResults = (
     results: FlightData[], 
@@ -16,17 +18,27 @@ const Index = () => {
     setFlights(results);
     setPetPolicies(policies);
     setSearchPerformed(true);
+
+    // Scroll to results after a brief delay to ensure DOM update
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
   };
 
   return (
     <div className="min-h-screen bg-[#F1F0FB]">
       <HeroSection />
       <SearchSection onSearchResults={handleSearchResults} />
-      <ResultsSection 
-        searchPerformed={searchPerformed} 
-        flights={flights}
-        petPolicies={petPolicies} 
-      />
+      <div ref={resultsRef} className="scroll-mt-8">
+        <ResultsSection 
+          searchPerformed={searchPerformed} 
+          flights={flights}
+          petPolicies={petPolicies} 
+        />
+      </div>
     </div>
   );
 };
