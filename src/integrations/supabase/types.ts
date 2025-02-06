@@ -528,6 +528,7 @@ export type Database = {
       }
       sync_progress: {
         Row: {
+          batch_metrics: Json | null
           created_at: string | null
           error_items: string[] | null
           id: string
@@ -542,6 +543,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          batch_metrics?: Json | null
           created_at?: string | null
           error_items?: string[] | null
           id?: string
@@ -556,6 +558,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          batch_metrics?: Json | null
           created_at?: string | null
           error_items?: string[] | null
           id?: string

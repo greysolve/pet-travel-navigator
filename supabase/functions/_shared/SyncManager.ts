@@ -97,7 +97,7 @@ export class SyncManager {
     const elapsed = Date.now() - this.startTime;
     const avgTimePerItem = current.processed > 0 ? elapsed / current.processed : 0;
     const successRate = current.processed > 0 
-      ? (current.processed / (current.processed + current.error_items.length)) * 100 
+      ? ((current.processed - current.error_items.length) / current.processed) * 100 
       : 100;
     const remainingItems = current.total - current.processed;
     
@@ -147,7 +147,7 @@ export class SyncManager {
     };
 
     await this.updateProgress({
-      error_items: [...current.error_items, `${item}: ${error}`],
+      error_items: [...current.error_items, item],
       error_details: errorDetails
     });
   }
