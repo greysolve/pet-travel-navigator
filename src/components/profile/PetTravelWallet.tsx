@@ -13,17 +13,22 @@ type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 export const PetTravelWallet = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<PetProfile | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingPet, setEditingPet] = useState<PetProfile | null>(null);
 
   const { data: pets, isLoading } = useQuery({
     queryKey: ['pet-profiles'],
     queryFn: async () => {
+      console.log('Fetching pet profiles...');
       const { data, error } = await supabase
         .from('pet_profiles')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pet profiles:', error);
+        throw error;
+      }
+      console.log('Fetched pet profiles:', data);
       return data;
     },
   });
@@ -55,17 +60,18 @@ export const PetTravelWallet = () => {
   });
 
   const handleEdit = (pet: PetProfile) => {
-    setSelectedPet(pet);
-    setIsEditing(true);
+    console.log('1. Pet data when clicking edit:', pet);
+    setEditingPet(pet);
+    setIsFormOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsFormOpen(false);
+    setEditingPet(null);
   };
 
   const handleDelete = async (id: string) => {
     deleteMutation.mutate(id);
-  };
-
-  const handleClose = () => {
-    setIsEditing(false);
-    setSelectedPet(null);
   };
 
   if (isLoading) {
@@ -76,7 +82,7 @@ export const PetTravelWallet = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Pet Travel Wallet</h2>
-        <Button onClick={() => setIsEditing(true)}>
+        <Button onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Pet
         </Button>
@@ -100,9 +106,9 @@ export const PetTravelWallet = () => {
       )}
 
       <PetProfileForm
-        isOpen={isEditing}
+        isOpen={isFormOpen}
         onClose={handleClose}
-        initialData={selectedPet}
+        initialData={editingPet}
       />
     </div>
   );
