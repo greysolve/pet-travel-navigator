@@ -52,10 +52,7 @@ Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
-      headers: {
-        ...corsHeaders,
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      }
+      headers: corsHeaders
     });
   }
 
@@ -65,7 +62,15 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines')
 
-    const { mode = 'clear' } = await req.json()
+    // Parse request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      requestBody = { mode: 'clear' }; // Default to clear mode if no body
+    }
+    const { mode = 'clear' } = requestBody;
+    
     console.log('Starting airline sync process in mode:', mode)
 
     if (mode === 'update') {
