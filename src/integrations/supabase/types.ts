@@ -461,6 +461,30 @@ export type Database = {
           },
         ]
       }
+      sample_files: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          file_path: string
+          id: string
+          view_count: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          file_path: string
+          id?: string
+          view_count?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          file_path?: string
+          id?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       saved_searches: {
         Row: {
           created_at: string | null
