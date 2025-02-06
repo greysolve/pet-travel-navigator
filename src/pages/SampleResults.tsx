@@ -37,23 +37,28 @@ const SampleResults = () => {
     incrementViewCount();
   }, [file?.id]);
 
-  useEffect(() => {
-    if (file?.file_path) {
-      console.log("Getting public URL for file:", file.file_path);
-      const { data } = supabase.storage
-        .from("sample-results")
-        .getPublicUrl(file.file_path);
-
-      // Open PDF in current window
-      window.location.href = data.publicUrl;
-    }
-  }, [file?.file_path]);
+  const pdfUrl = file?.file_path
+    ? supabase.storage.from("sample-results").getPublicUrl(file.file_path).data
+        .publicUrl
+    : null;
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        {!file && <p>No sample results available for route: {route}</p>}
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {pdfUrl ? (
+        <div className="w-full h-screen">
+          <embed
+            src={pdfUrl}
+            type="application/pdf"
+            className="w-full h-full"
+          />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p>No sample results available for route: {route}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
