@@ -15,6 +15,7 @@ export interface SyncState {
     estimated_time_remaining: number;
     success_rate: number;
   };
+  needs_continuation: boolean;
 }
 
 export class SyncManager {
@@ -47,7 +48,8 @@ export class SyncManager {
           processed_items: [],
           error_items: [],
           start_time: null,
-          is_complete: false
+          is_complete: false,
+          needs_continuation: false
         };
       }
       console.error(`Error fetching progress for ${this.type}:`, error);
@@ -63,7 +65,8 @@ export class SyncManager {
       start_time: data.start_time,
       is_complete: data.is_complete,
       error_details: data.error_details,
-      batch_metrics: data.batch_metrics
+      batch_metrics: data.batch_metrics,
+      needs_continuation: data.needs_continuation
     };
   }
 
@@ -87,7 +90,8 @@ export class SyncManager {
           avg_time_per_item: 0,
           estimated_time_remaining: 0,
           success_rate: 100
-        }
+        },
+        needs_continuation: false
       }, {
         onConflict: 'type'
       });
@@ -155,14 +159,21 @@ export class SyncManager {
 
     await this.updateProgress({
       error_items: [...(current.error_items || []), item],
-      error_details: errorDetails
+      error_details: errorDetails,
+      needs_continuation: true // Set needs_continuation to true when an error occurs
     });
   }
 
   async complete(): Promise<void> {
     console.log(`Completing sync for ${this.type}`);
+    const current = await this.getCurrentProgress();
+    
+    // Only mark as complete if there are no pending errors that need continuation
+    const shouldComplete = !current.needs_continuation || current.processed === current.total;
+    
     await this.updateProgress({
-      is_complete: true
+      is_complete: shouldComplete,
+      needs_continuation: !shouldComplete
     });
   }
 

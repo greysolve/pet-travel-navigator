@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
         }
       } catch (error) {
         console.error('Error in full sync:', error)
+        await syncManager.addErrorItem('full_sync', error.message)
         throw error
       }
     }
@@ -195,6 +196,18 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('Error in sync_airline_data:', error)
+    
+    // Ensure the sync manager properly handles the error state if available
+    try {
+      const syncManager = new SyncManager(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        'airlines'
+      )
+      await syncManager.addErrorItem('sync_error', error.message)
+    } catch (e) {
+      console.error('Failed to update sync error state:', e)
+    }
     
     return new Response(
       JSON.stringify({ 
