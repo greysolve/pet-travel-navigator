@@ -60,6 +60,7 @@ export const PetTravelWallet = () => {
   });
 
   const handleEdit = (pet: PetProfile) => {
+    console.log('1. Pet data when clicking edit:', pet);
     setEditingPet(pet);
     setIsFormOpen(true);
   };

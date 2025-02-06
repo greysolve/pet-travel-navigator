@@ -9,7 +9,7 @@ import {
 import { PetPhotoUpload } from "./PetPhotoUpload";
 import { PetDocumentUpload } from "./PetDocumentUpload";
 import { PetBasicInfo } from "./PetBasicInfo";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,16 +27,40 @@ interface PetProfileFormProps {
 export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  console.log('2. Initial data when form renders:', initialData);
   
   // Form state
-  const [name, setName] = useState(initialData?.name || "");
-  const [type, setType] = useState(initialData?.type || "");
-  const [breed, setBreed] = useState(initialData?.breed || "");
-  const [age, setAge] = useState(initialData?.age?.toString() || "");
-  const [weight, setWeight] = useState(initialData?.weight?.toString() || "");
+  const [name, setName] = useState('');
+  const [type, setType] = useState('');
+  const [breed, setBreed] = useState('');
+  const [age, setAge] = useState('');
+  const [weight, setWeight] = useState('');
   const [selectedDocumentType, setSelectedDocumentType] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+
+  // Use useEffect to update form state when initialData changes
+  useEffect(() => {
+    console.log('4. Setting form data from initialData:', initialData);
+    if (initialData) {
+      setName(initialData.name || '');
+      setType(initialData.type || '');
+      setBreed(initialData.breed || '');
+      setAge(initialData.age?.toString() || '');
+      setWeight(initialData.weight?.toString() || '');
+      setPhotoUrls(initialData.images || []);
+    } else {
+      // Reset form when adding new pet
+      setName('');
+      setType('');
+      setBreed('');
+      setAge('');
+      setWeight('');
+      setPhotoUrls([]);
+    }
+  }, [initialData]);
+
+  console.log('3. Current form state:', { name, type, breed, age, weight, photoUrls });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +69,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
       const petData = {
         name,
         type,
-        breed,
+        breed: breed || null,
         age: age ? parseFloat(age) : null,
         weight: weight ? parseFloat(weight) : null,
         images: photoUrls,
