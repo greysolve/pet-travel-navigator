@@ -104,11 +104,29 @@ async function fetchAirlineFromCirium(iataCode: string | null, credentials: { ap
   }
 
   const data = await response.json();
+  console.log('Cirium API response:', data); // Add detailed logging
+
   if (iataCode) {
-    // Single airline response has a different structure
-    return data.airline ? [data.airline] : [];
+    // For single airline requests, the response structure is different
+    if (!data.airline) {
+      console.log(`No airline found for IATA code: ${iataCode}`);
+      return [];
+    }
+    // Make sure we're getting valid data
+    if (!data.airline.iata) {
+      console.log(`Invalid airline data received for ${iataCode}:`, data.airline);
+      return [];
+    }
+    return [data.airline];
   }
-  return data.airlines || [];
+  
+  // For full sync, verify we have an airlines array
+  if (!Array.isArray(data.airlines)) {
+    console.log('Invalid response format - expected airlines array:', data);
+    return [];
+  }
+  
+  return data.airlines;
 }
 
 Deno.serve(async (req) => {
@@ -162,6 +180,17 @@ Deno.serve(async (req) => {
 
     // For single airline updates, process directly
     if (iataCode) {
+      if (airlines.length === 0) {
+        console.log(`No valid airline data found for IATA code: ${iataCode}`);
+        return new Response(JSON.stringify({
+          success: false,
+          error: `No valid airline data found for IATA code: ${iataCode}`,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404
+        });
+      }
+
       const { success, errors: batchErrors } = await processBatchWithRetry(airlines, supabase);
       processedCount = success;
       errors.push(...batchErrors);
