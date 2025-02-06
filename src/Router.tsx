@@ -1,26 +1,54 @@
-import { Routes, Route } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import NotFound from "@/pages/NotFound";
+import Index from "@/pages/Index";
+import Profile from "@/pages/Profile";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Profile from "./pages/Profile";
-import AuthCallback from "./pages/AuthCallback";
-import Admin from "./pages/Admin";
+import Admin from "@/pages/Admin";
+import SampleResults from "@/pages/SampleResults";
+import AuthCallback from "@/pages/AuthCallback";
 
-export function Router() {
-  return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route 
-        path="/admin" 
-        element={
+// Create a root layout component
+const RootLayout = () => {
+  return <Outlet />;
+};
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <RootLayout />,
+    errorElement: <NotFound />,
+    children: [
+      {
+        path: "/",
+        element: <Index />,
+      },
+      {
+        path: "/profile",
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/admin",
+        element: (
           <ProtectedRoute requiredRole="site_manager">
             <Admin />
           </ProtectedRoute>
-        } 
-      />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-}
+        ),
+      },
+      {
+        path: "/:route",
+        element: <SampleResults />,
+      },
+    ],
+  },
+  {
+    path: "/auth/callback",
+    element: <AuthCallback />,
+  },
+]);
+
+export default router;

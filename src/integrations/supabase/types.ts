@@ -461,6 +461,30 @@ export type Database = {
           },
         ]
       }
+      sample_files: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          file_path: string
+          id: string
+          view_count: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          file_path: string
+          id?: string
+          view_count?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          file_path?: string
+          id?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       saved_searches: {
         Row: {
           created_at: string | null
@@ -588,6 +612,12 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      increment_view_count: {
+        Args: {
+          file_id: string
+        }
+        Returns: undefined
       }
       search_airports_insensitive: {
         Args: {
