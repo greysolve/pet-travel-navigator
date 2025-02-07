@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     if (mode === 'update') {
       const { data: missingPolicies, error: missingPoliciesError } = await supabase
         .from('missing_pet_policies')
-        .select('id, iata_code, name'); // Removed policy_url from selection
+        .select('id, iata_code, name');
 
       if (missingPoliciesError) {
         console.error('Failed to fetch missing policies:', missingPoliciesError);
@@ -89,28 +89,15 @@ Deno.serve(async (req) => {
         console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
 
         try {
-          const response = await retryOperation(async () => {
-            return await fetchWithTimeout(
-              `${supabaseUrl}/functions/v1/analyze_batch_pet_policies`,
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${supabaseKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ airlines: batch }),
-                timeout: REQUEST_TIMEOUT
-              }
-            );
+          // Use supabase.functions.invoke instead of direct fetch
+          const { data: result, error } = await supabase.functions.invoke('analyze_batch_pet_policies', {
+            body: { airlines: batch }
           });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Failed to process batch:`, errorText);
-            throw new Error(errorText);
+          if (error) {
+            console.error(`Failed to process batch:`, error);
+            throw error;
           }
-
-          const result = await response.json();
           
           // Update progress for successful items
           for (const success of result.results) {
@@ -164,33 +151,21 @@ Deno.serve(async (req) => {
         console.log('Starting full airline sync')
         await syncManager.initialize(1) // Initialize with 1 for the full sync operation
 
-        const response = await retryOperation(async () => {
-          return await fetchWithTimeout(
-            `${supabaseUrl}/functions/v1/fetch_airlines`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${supabaseKey}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: REQUEST_TIMEOUT
-            }
-          );
+        const { data: result, error } = await supabase.functions.invoke('fetch_airlines', {
+          body: {}
         });
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('Failed to fetch airlines:', errorText)
+        if (error) {
+          console.error('Failed to fetch airlines:', error);
           await syncManager.updateProgress({
             error_items: ['full_sync'],
             needs_continuation: true,
             is_complete: false
-          })
-          throw new Error(`Failed to fetch airlines: ${errorText}`)
+          });
+          throw error;
         }
 
-        const result = await response.json()
-        console.log('Fetch airlines result:', result)
+        console.log('Fetch airlines result:', result);
         
         await syncManager.updateProgress({
           processed: 1,
@@ -198,15 +173,15 @@ Deno.serve(async (req) => {
           processed_items: ['full_sync'],
           is_complete: true,
           needs_continuation: false
-        })
+        });
       } catch (error) {
-        console.error('Error in full sync:', error)
+        console.error('Error in full sync:', error);
         await syncManager.updateProgress({
           error_items: ['full_sync'],
           needs_continuation: true,
           is_complete: false
-        })
-        throw error
+        });
+        throw error;
       }
     }
 
@@ -256,3 +231,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
