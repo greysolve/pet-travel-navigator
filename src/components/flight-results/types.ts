@@ -1,4 +1,10 @@
+
 import type { Json } from "@/integrations/supabase/types";
+
+export type FlightLocation = {
+  country?: string;
+  code: string;
+};
 
 export type FlightSegment = {
   carrierFsCode: string;
@@ -27,6 +33,8 @@ export type FlightJourney = {
   totalDuration: number;
   stops: number;
   arrivalCountry?: string;
+  origin?: FlightLocation;
+  destination?: FlightLocation;
 };
 
 export type FlightData = FlightJourney;
