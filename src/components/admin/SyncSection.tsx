@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 
 export const SyncSection = () => {
   const { toast } = useToast();
-  const [countryInput, setCountryInput] = useState<string>("");
   const { isInitializing, clearData, setClearData, handleSync } = useSyncOperations();
   
   // Set up sync progress subscription
@@ -47,18 +46,6 @@ export const SyncSection = () => {
         return acc;
       }, {} as any);
 
-      // Set country input if there's an incomplete country policy sync
-      // Only set if it's a valid country name (not "clear" or empty)
-      const countrySync = progressRecord.countryPolicies;
-      if (countrySync && 
-          !countrySync.isComplete && 
-          countrySync.lastProcessed && 
-          countrySync.lastProcessed !== 'clear' &&
-          countrySync.needsContinuation) {
-        console.log('Setting country input from incomplete sync:', countrySync.lastProcessed);
-        setCountryInput(countrySync.lastProcessed);
-      }
-
       console.log('Processed sync progress data:', progressRecord);
       return progressRecord;
     },
@@ -67,17 +54,6 @@ export const SyncSection = () => {
   return (
     <div className="space-y-8">
       <ActiveSyncs syncProgress={syncProgress || {}} />
-
-      {/* Country input for country policies */}
-      <div className="mb-8">
-        <input
-          type="text"
-          placeholder="Enter country name to sync policies"
-          value={countryInput}
-          onChange={(e) => setCountryInput(e.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        />
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {Object.entries(SyncType).map(([key, value]) => (
@@ -89,22 +65,7 @@ export const SyncSection = () => {
               setClearData(prev => ({ ...prev, [key]: checked }));
             }}
             isLoading={isInitializing[value]}
-            onSync={(resume, mode) => {
-              if (key === 'countryPolicies') {
-                const trimmedCountry = countryInput.trim();
-                if (!trimmedCountry || trimmedCountry === 'clear') {
-                  toast({
-                    variant: "destructive",
-                    title: "Country Required",
-                    description: "Please enter a valid country name to sync policies.",
-                  });
-                  return;
-                }
-                handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
-              } else {
-                handleSync(key as keyof typeof SyncType, resume, mode);
-              }
-            }}
+            onSync={(resume, mode) => handleSync(key as keyof typeof SyncType, resume, mode)}
             syncProgress={syncProgress?.[value]}
           />
         ))}

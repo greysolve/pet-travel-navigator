@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -139,37 +138,19 @@ export const useSyncOperations = () => {
         countryPolicies: 'sync_country_policies'
       };
 
-      // Handle country policies sync with proper validation
+      // Handle country policies sync
       if (type === 'countryPolicies') {
-        // Always require valid country name
-        if (!mode || mode.trim() === '' || mode === 'clear') {
-          throw new Error('Valid country name is required for country policies sync');
-        }
-
-        console.log(`Initiating country policies sync for: ${mode}`);
+        // For a full sync, we don't need a specific country
+        console.log(`Initiating full country policies sync`);
         const { error } = await supabase.functions.invoke(functionMap[type], {
           body: { 
-            country: mode.trim(),
+            fullSync: true,
             resume: resume,
             clearData: clearData[type]
           }
         });
         
         if (error) throw error;
-
-        // Only update sync progress if not resuming
-        if (!resume) {
-          await supabase
-            .from('sync_progress')
-            .upsert({
-              type: 'countryPolicies',
-              last_processed: mode.trim(),
-              needs_continuation: true,
-              is_complete: false
-            }, {
-              onConflict: 'type'
-            });
-        }
 
       } else {
         // Handle other sync types
