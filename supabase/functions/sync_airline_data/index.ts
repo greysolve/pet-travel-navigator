@@ -6,9 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+const REQUEST_TIMEOUT = 30000;
 const MAX_RETRIES = 3;
-const BATCH_SIZE = 5; // Process 5 airlines at a time for pet policy updates
+const BATCH_SIZE = 5;
 
 async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }) {
   const { timeout = REQUEST_TIMEOUT } = options;
@@ -59,12 +59,11 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines');
 
-    // Parse request body
     let requestBody;
     try {
       requestBody = await req.json();
     } catch (error) {
-      requestBody = { mode: 'clear' }; // Default to clear mode if no body
+      requestBody = { mode: 'clear' };
     }
     const { mode = 'clear' } = requestBody;
     
@@ -73,7 +72,7 @@ Deno.serve(async (req) => {
     if (mode === 'update') {
       const { data: missingPolicies, error: missingPoliciesError } = await supabase
         .from('missing_pet_policies')
-        .select('id, iata_code, name');
+        .select('id, iata_code, name, policy_url'); // Added policy_url to selection
 
       if (missingPoliciesError) {
         console.error('Failed to fetch missing policies:', missingPoliciesError);
@@ -84,7 +83,6 @@ Deno.serve(async (req) => {
       await syncManager.initialize(total);
       console.log(`Initialized sync progress with ${total} airlines to process`);
 
-      // Process airlines in batches
       for (let i = 0; i < (missingPolicies?.length || 0); i += BATCH_SIZE) {
         const batch = missingPolicies!.slice(i, i + BATCH_SIZE);
         console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
@@ -136,14 +134,12 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Add delay between batches
           if (i + BATCH_SIZE < (missingPolicies?.length || 0)) {
-            await delay(1000); // 1 second delay between batches
+            await delay(1000);
           }
 
         } catch (error) {
           console.error(`Failed to process batch:`, error);
-          // Mark all airlines in the batch as failed
           await syncManager.updateProgress({
             error_items: [
               ...(await syncManager.getCurrentProgress()).error_items,
@@ -154,7 +150,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check if all airlines were processed successfully
       const currentProgress = await syncManager.getCurrentProgress();
       const isComplete = currentProgress.processed + currentProgress.error_items.length >= total;
       await syncManager.updateProgress({
@@ -229,7 +224,6 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in sync_airline_data:', error);
     
-    // Ensure the sync manager properly handles the error state
     try {
       const syncManager = new SyncManager(
         Deno.env.get('SUPABASE_URL')!,

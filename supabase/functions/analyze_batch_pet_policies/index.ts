@@ -10,6 +10,7 @@ interface Airline {
   id: string;
   name: string;
   iata_code: string;
+  policy_url?: string; // Added policy_url to interface
 }
 
 Deno.serve(async (req) => {
@@ -48,13 +49,17 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicy = await analyzePetPolicy(airline, perplexityKey);
         
+        // Include the policy_url from missing_pet_policies if available
+        const policyData = {
+          airline_id: airline.id,
+          ...petPolicy,
+          policy_url: airline.policy_url || petPolicy.policy_url // Prioritize manually added URL
+        };
+        
         // Upsert the pet policy
         const { error: upsertError } = await supabase
           .from('pet_policies')
-          .upsert({
-            airline_id: airline.id,
-            ...petPolicy
-          }, {
+          .upsert(policyData, {
             onConflict: 'airline_id'
           });
 
@@ -63,7 +68,7 @@ Deno.serve(async (req) => {
         }
 
         // Update airline website if provided
-        if (petPolicy.policy_url) {
+        if (petPolicy.policy_url && !airline.policy_url) { // Only update if we found a new URL
           const { error: airlineError } = await supabase
             .from('airlines')
             .update({ website: petPolicy.policy_url })
