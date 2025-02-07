@@ -20,10 +20,13 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.pet_types_allowed?.length > 0 && (
         <p><span className="font-medium">Allowed pets:</span> {policy.pet_types_allowed.join(', ')}</p>
       )}
-      {policy.carrier_requirements_cabin && (
+      {policy.carrier_requirements && (
+        <p><span className="font-medium">Carrier requirements:</span> {policy.carrier_requirements}</p>
+      )}
+      {!policy.carrier_requirements && policy.carrier_requirements_cabin && (
         <p><span className="font-medium">Cabin carrier requirements:</span> {policy.carrier_requirements_cabin}</p>
       )}
-      {policy.carrier_requirements_cargo && (
+      {!policy.carrier_requirements && policy.carrier_requirements_cargo && (
         <p><span className="font-medium">Cargo carrier requirements:</span> {policy.carrier_requirements_cargo}</p>
       )}
       {policy.documentation_needed?.length > 0 && (

@@ -43,6 +43,7 @@ export type PetPolicy = {
   pet_types_allowed: string[];
   carrier_requirements_cabin?: string;
   carrier_requirements_cargo?: string;
+  carrier_requirements?: string;
   documentation_needed: string[];
   temperature_restrictions: string;
   breed_restrictions: string[];
@@ -80,3 +81,4 @@ export type CountryPolicy = {
   all_other_biological_tests?: string;
   required_ports_of_entry?: string;
 };
+
