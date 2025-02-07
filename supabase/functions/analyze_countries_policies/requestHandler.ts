@@ -4,7 +4,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { SyncManager } from '../_shared/SyncManager.ts';
 import { RequestBody, AnalysisResponse } from './types.ts';
 import { processCountriesChunk } from './countryProcessor.ts';
-import { validateAndInitializeProgress } from './progressManager.ts';
 
 export async function handleAnalysisRequest(req: Request): Promise<Response> {
   try {
@@ -21,6 +20,7 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
 
+    // Get total count from countries table
     const { count: totalCount, error: countError } = await supabase
       .from('countries')
       .select('*', { count: 'exact', head: true });
@@ -40,7 +40,27 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       });
     }
 
-    await validateAndInitializeProgress(syncManager, totalCount, offset, resumeToken);
+    // Handle resume token
+    if (resumeToken) {
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress?.needs_continuation) {
+        throw new Error('Invalid resume token or no continuation needed');
+      }
+      console.log('Resuming from previous state:', currentProgress);
+    }
+
+    // Initialize sync progress only when starting from beginning
+    if (offset === 0) {
+      console.log(`Initializing sync progress with total count: ${totalCount}`);
+      await syncManager.initialize(totalCount);
+    } else {
+      // For non-zero offset, validate against existing progress
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress) {
+        throw new Error('No sync progress found for non-zero offset');
+      }
+      console.log('Continuing with existing progress:', currentProgress);
+    }
 
     return await processCountriesChunk(supabase, syncManager, offset, totalCount, mode);
 
