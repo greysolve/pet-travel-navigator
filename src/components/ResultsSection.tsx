@@ -16,7 +16,9 @@ export const ResultsSection = ({
   petPolicies?: Record<string, PetPolicy>;
 }) => {
   const { data: flightPetPolicies } = usePetPolicies(flights);
-  const allCountries = flights.reduce((countries: Set<string>, journey) => {
+  
+  // Get unique countries from flights if available
+  const flightCountries = flights.reduce((countries: Set<string>, journey) => {
     if (!journey.segments) return countries;
     journey.segments.forEach(segment => {
       if (segment.departureCountry) countries.add(segment.departureCountry);
@@ -25,7 +27,8 @@ export const ResultsSection = ({
     return countries;
   }, new Set<string>());
 
-  const uniqueCountries = Array.from(allCountries);
+  // Filter out undefined/null values and convert to array
+  const uniqueCountries = Array.from(flightCountries).filter(Boolean);
   const { data: countryPolicies, isLoading: isPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
   if (!searchPerformed) return null;
@@ -48,10 +51,13 @@ export const ResultsSection = ({
   return (
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
       <div className="space-y-8">
-        <FlightResults flights={flights} petPolicies={flightPetPolicies} />
+        {flights.length > 0 && (
+          <FlightResults flights={flights} petPolicies={flightPetPolicies} />
+        )}
+        
         <div id="country-policies" className="space-y-6">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
-          {flights.length > 0 ? (
+          {searchPerformed ? (
             uniqueCountries.length > 0 ? (
               countryPolicies && countryPolicies.length > 0 ? (
                 countryPolicies.map((policy, index) => (
@@ -78,12 +84,12 @@ export const ResultsSection = ({
               )
             ) : (
               <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
-                <p className="text-gray-500">No countries found in flight segments.</p>
+                <p className="text-gray-500">No countries found in search results.</p>
               </div>
             )
           ) : (
             <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
-              <p className="text-gray-500">No flights selected.</p>
+              <p className="text-gray-500">Please perform a search to view country policies.</p>
             </div>
           )}
         </div>
