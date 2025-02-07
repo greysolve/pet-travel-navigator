@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
         console.log('Parsed request body:', parsedBody);
         
         if (parsedBody.mode) mode = parsedBody.mode;
-        if (parsedBody.offset) offset = parsedBody.offset;
+        if (typeof parsedBody.offset === 'number') offset = parsedBody.offset;
         if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
       }
     } catch (error) {
@@ -62,11 +62,19 @@ Deno.serve(async (req) => {
 
     // Handle resume token
     if (resumeToken) {
+      console.log('Handling resume token...');
       const currentProgress = await syncManager.getCurrentProgress();
-      if (!currentProgress?.needs_continuation) {
+      console.log('Current progress:', currentProgress);
+      
+      if (!currentProgress) {
+        throw new Error('No sync progress found for resume attempt');
+      }
+      
+      if (!currentProgress.needs_continuation) {
         throw new Error('Invalid resume token or no continuation needed');
       }
-      console.log('Resuming from previous state:', currentProgress);
+      
+      console.log('Valid resume token, continuing sync...');
     }
 
     // Get total count of countries
@@ -94,11 +102,11 @@ Deno.serve(async (req) => {
     }
 
     // Initialize sync progress
-    if (offset === 0) {
+    if (offset === 0 && !resumeToken) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
     } else {
-      // For non-zero offset, validate against existing progress
+      // For non-zero offset or resume, validate against existing progress
       const currentProgress = await syncManager.getCurrentProgress();
       if (!currentProgress) {
         throw new Error('No sync progress found for non-zero offset');
@@ -234,3 +242,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
