@@ -62,19 +62,11 @@ Deno.serve(async (req) => {
 
     // Handle resume token
     if (resumeToken) {
-      console.log('Handling resume token...');
       const currentProgress = await syncManager.getCurrentProgress();
-      console.log('Current progress:', currentProgress);
-      
-      if (!currentProgress) {
-        throw new Error('No sync progress found for resume attempt');
-      }
-      
-      if (!currentProgress.needs_continuation) {
+      if (!currentProgress?.needs_continuation) {
         throw new Error('Invalid resume token or no continuation needed');
       }
-      
-      console.log('Valid resume token, continuing sync...');
+      console.log('Resuming from previous state:', currentProgress);
     }
 
     // Get total count of countries
@@ -105,15 +97,6 @@ Deno.serve(async (req) => {
     if (offset === 0 && !resumeToken) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
-    } else {
-      // For non-zero offset or resume, validate against existing progress
-      const currentProgress = await syncManager.getCurrentProgress();
-      if (!currentProgress) {
-        throw new Error('No sync progress found for non-zero offset');
-      }
-      if (currentProgress.total !== totalCount) {
-        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
-      }
     }
 
     // Get batch of countries
@@ -172,14 +155,15 @@ Deno.serve(async (req) => {
 
         results.push(country.name);
 
-        // Update progress after each country
+        // Update progress after each country, maintaining continuation flag until last chunk
         const currentProgress = await syncManager.getCurrentProgress();
         
         await syncManager.updateProgress({
           processed: currentProgress.processed + 1,
           last_processed: country.name,
           processed_items: [...(currentProgress.processed_items || []), country.name],
-          needs_continuation: true
+          error_items: [...(currentProgress.error_items || [])],
+          needs_continuation: true  // Keep true until explicitly set false at end
         });
 
         // Add delay between countries
@@ -197,6 +181,7 @@ Deno.serve(async (req) => {
     const nextOffset = offset + countries.length;
     const hasMore = nextOffset < totalCount;
 
+    // Only set needs_continuation to false if this is the last chunk
     if (!hasMore) {
       await syncManager.updateProgress({ 
         is_complete: true,
