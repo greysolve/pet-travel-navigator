@@ -10,7 +10,7 @@ interface Airline {
   id: string;
   name: string;
   iata_code: string;
-  policy_url?: string; // Added policy_url to interface
+  policy_url?: string;
 }
 
 Deno.serve(async (req) => {
