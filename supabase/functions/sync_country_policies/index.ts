@@ -201,6 +201,7 @@ Deno.serve(async (req) => {
       throw new Error('Missing Perplexity API key in environment variables');
     }
 
+    // Get request body safely
     let requestBody;
     try {
       if (req.body) {
@@ -214,14 +215,13 @@ Deno.serve(async (req) => {
       throw new Error('Invalid JSON in request body');
     }
 
-    const { country, fullSync, resume, clearData } = requestBody;
-    const BATCH_SIZE = 1; // Process one country at a time to avoid rate limits
-
-    if (!fullSync && !country) {
-      throw new Error('Either fullSync must be true or a country must be specified');
+    // Get country from request body
+    const { country } = requestBody;
+    if (!country) {
+      throw new Error('No country specified in request body');
     }
 
-    console.log(`Processing request: fullSync=${fullSync}, country=${country}, resume=${resume}`);
+    console.log(`Processing country: ${country}`);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -231,200 +231,62 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (fullSync) {
-      // Get list of countries to process
-      const { data: countries, error: countriesError } = await supabase
-        .from('countries')
-        .select('name')
-        .order('name');
+    // Standardize the country name before processing
+    const standardizedCountry = await standardizeCountryName(country, supabase);
+    console.log(`Using standardized country name: ${standardizedCountry}`);
+    
+    // Initialize sync progress
+    await supabase
+      .from('sync_progress')
+      .upsert({
+        type: 'countryPolicies',
+        total: 1,
+        processed: 0,
+        last_processed: null,
+        processed_items: [],
+        error_items: [],
+        start_time: new Date().toISOString(),
+        needs_continuation: false
+      }, {
+        onConflict: 'type'
+      });
 
-      if (countriesError) {
-        throw new Error(`Failed to fetch countries: ${countriesError.message}`);
-      }
-
-      let startIndex = 0;
-      let processedItems: string[] = [];
-      let errorItems: string[] = [];
-
-      // If resuming, get current progress
-      if (resume) {
-        const { data: progress } = await supabase
-          .from('sync_progress')
-          .select('*')
-          .eq('type', 'countryPolicies')
-          .single();
-
-        if (progress) {
-          processedItems = progress.processed_items || [];
-          errorItems = progress.error_items || [];
-          const lastProcessed = progress.last_processed;
-          
-          // Find index of last processed country to resume from there
-          if (lastProcessed) {
-            const lastIndex = countries.findIndex(c => c.name === lastProcessed);
-            if (lastIndex !== -1) {
-              startIndex = lastIndex + 1;
-            }
-          }
-        }
-      } else {
-        // Initialize new sync progress
-        await supabase
-          .from('sync_progress')
-          .upsert({
-            type: 'countryPolicies',
-            total: countries.length,
-            processed: 0,
-            last_processed: null,
-            processed_items: [],
-            error_items: [],
-            start_time: new Date().toISOString(),
-            needs_continuation: true,
-            is_complete: false
-          }, {
-            onConflict: 'type'
-          });
-      }
-
-      // Process next batch of countries
-      const endIndex = Math.min(startIndex + BATCH_SIZE, countries.length);
-      const batch = countries.slice(startIndex, endIndex);
-
-      for (const countryObj of batch) {
-        try {
-          const countryName = countryObj.name;
-          console.log(`Processing country: ${countryName}`);
-          
-          const policies = await fetchPolicyWithAI(countryName, apiKey);
-          
-          // Store each policy
-          for (const policy of policies) {
-            const normalizedPolicy = normalizePolicy(policy);
-            
-            const { error: upsertError } = await supabase
-              .from('country_policies')
-              .upsert({
-                country_code: countryName,
-                ...normalizedPolicy,
-                last_updated: new Date().toISOString()
-              }, {
-                onConflict: 'country_code,policy_type'
-              });
-
-            if (upsertError) {
-              throw upsertError;
-            }
-          }
-
-          processedItems.push(countryName);
-          
-        } catch (error) {
-          console.error(`Error processing country ${countryObj.name}:`, error);
-          errorItems.push(`${countryObj.name}: ${error.message}`);
-        }
-      }
-
-      // Update progress
-      const isComplete = endIndex >= countries.length;
-      await supabase
-        .from('sync_progress')
-        .update({
-          processed: processedItems.length,
-          last_processed: batch[batch.length - 1]?.name || null,
-          processed_items: processedItems,
-          error_items: errorItems,
-          needs_continuation: !isComplete,
-          is_complete: isComplete,
-          resume_token: isComplete ? null : String(endIndex)
-        })
-        .eq('type', 'countryPolicies');
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          isComplete,
-          nextBatch: isComplete ? null : endIndex
-        }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } else {
-      // Handle individual country sync
-      const standardizedCountry = await standardizeCountryName(country, supabase);
-      console.log(`Processing single country: ${standardizedCountry}`);
+    // Fetch and store policies
+    const policies = await fetchPolicyWithAI(standardizedCountry, apiKey);
+    
+    // Store each policy separately with normalized fields
+    for (const policy of policies) {
+      const normalizedPolicy = normalizePolicy(policy);
       
-      // Initialize sync progress for individual country
-      await supabase
-        .from('sync_progress')
+      const { error: upsertError } = await supabase
+        .from('country_policies')
         .upsert({
-          type: 'countryPolicies',
-          total: 1,
-          processed: 0,
-          last_processed: null,
-          processed_items: [],
-          error_items: [],
-          start_time: new Date().toISOString(),
-          needs_continuation: false,
-          is_complete: false
+          country_code: standardizedCountry,
+          ...normalizedPolicy,
+          last_updated: new Date().toISOString()
         }, {
-          onConflict: 'type'
+          onConflict: 'country_code,policy_type'
         });
 
-      try {
-        const policies = await fetchPolicyWithAI(standardizedCountry, apiKey);
-        
-        // Store each policy
-        for (const policy of policies) {
-          const normalizedPolicy = normalizePolicy(policy);
-          
-          const { error: upsertError } = await supabase
-            .from('country_policies')
-            .upsert({
-              country_code: standardizedCountry,
-              ...normalizedPolicy,
-              last_updated: new Date().toISOString()
-            }, {
-              onConflict: 'country_code,policy_type'
-            });
-
-          if (upsertError) {
-            throw upsertError;
-          }
-        }
-
-        // Update progress
-        await supabase
-          .from('sync_progress')
-          .update({
-            processed: 1,
-            last_processed: standardizedCountry,
-            processed_items: [standardizedCountry],
-            needs_continuation: false,
-            is_complete: true
-          })
-          .eq('type', 'countryPolicies');
-
-      } catch (error) {
-        console.error(`Error processing country ${standardizedCountry}:`, error);
-        
-        // Update progress with error
-        await supabase
-          .from('sync_progress')
-          .update({
-            error_items: [`${standardizedCountry}: ${error.message}`],
-            needs_continuation: false,
-            is_complete: true
-          })
-          .eq('type', 'countryPolicies');
-          
-        throw error;
+      if (upsertError) {
+        throw upsertError;
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Update progress
+    await supabase
+      .from('sync_progress')
+      .update({
+        processed: 1,
+        last_processed: standardizedCountry,
+        processed_items: [standardizedCountry],
+        needs_continuation: false
+      })
+      .eq('type', 'countryPolicies');
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     console.error('Error in edge function:', error);

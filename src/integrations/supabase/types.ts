@@ -622,7 +622,6 @@ export type Database = {
           needs_continuation: boolean | null
           processed: number
           processed_items: string[] | null
-          resume_token: string | null
           start_time: string | null
           total: number
           type: string
@@ -639,7 +638,6 @@ export type Database = {
           needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
-          resume_token?: string | null
           start_time?: string | null
           total?: number
           type: string
@@ -656,7 +654,6 @@ export type Database = {
           needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
-          resume_token?: string | null
           start_time?: string | null
           total?: number
           type?: string
