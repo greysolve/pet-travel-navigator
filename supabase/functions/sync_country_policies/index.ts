@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
@@ -17,19 +18,22 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
      - Official requirements for pets TRANSITING THROUGH ${country} (transit policy)
   2. Use the most authoritative URLs from the results, with strong preference for government websites
   3. Extract complete policy details for both scenarios
-  
+
   Format as TWO separate JSON objects with this structure, one for each policy type:
   {
     "policy_type": "pet_arrival", // or "pet_transit" for the transit policy
     "title": "string - official name of the policy/requirements",
     "description": "string - comprehensive overview specific to arrival or transit",
-    "requirements": ["string - list each main requirement"],
-    "documentation_needed": ["string - list each required document"],
+    "requirements": ["string - list each and every and test requirement"],
+    "all_blood_tests": "string - list all blood, urine and other physical biological tests and their names and required conditions",
+    "all_other_biological_tests": "string - list all other physical biological tests and their names and required conditions",
+    "documentation_needed": ["string - list each and every document required"],
     "fees": {"description": "string - include all fee details if available"},
     "restrictions": {"description": "string - any limitations or special conditions"},
     "quarantine_requirements": "string - detailed quarantine information",
     "vaccination_requirements": ["string - list each required vaccination"],
     "additional_notes": "string - include source authority and last verified date",
+    "Required_Ports_of_Entry": "string - include the airports required and the accompanying conditions",
     "policy_url": "string - MUST be the direct URL to the policy. If using non-government source, explain why in additional_notes"
   }
 
@@ -139,7 +143,19 @@ Deno.serve(async (req) => {
         .upsert({
           country_code: country,
           policy_type: policy.policy_type,
-          ...policy,
+          title: policy.title,
+          description: policy.description,
+          requirements: policy.requirements,
+          documentation_needed: policy.documentation_needed,
+          fees: policy.fees,
+          restrictions: policy.restrictions,
+          quarantine_requirements: policy.quarantine_requirements,
+          vaccination_requirements: policy.vaccination_requirements,
+          additional_notes: policy.additional_notes,
+          policy_url: policy.policy_url,
+          all_blood_tests: policy.all_blood_tests,
+          all_other_biological_tests: policy.all_other_biological_tests,
+          required_ports_of_entry: policy.Required_Ports_of_Entry,
           last_updated: new Date().toISOString()
         }, {
           onConflict: 'country_code,policy_type'

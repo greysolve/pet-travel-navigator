@@ -129,6 +129,8 @@ export type Database = {
       country_policies: {
         Row: {
           additional_notes: string | null
+          all_blood_tests: string | null
+          all_other_biological_tests: string | null
           country_code: string
           created_at: string | null
           description: string | null
@@ -139,6 +141,7 @@ export type Database = {
           policy_type: Database["public"]["Enums"]["policy_type"]
           policy_url: string | null
           quarantine_requirements: string | null
+          required_ports_of_entry: string | null
           requirements: string[] | null
           restrictions: Json | null
           title: string
@@ -147,6 +150,8 @@ export type Database = {
         }
         Insert: {
           additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
           country_code: string
           created_at?: string | null
           description?: string | null
@@ -157,6 +162,7 @@ export type Database = {
           policy_type: Database["public"]["Enums"]["policy_type"]
           policy_url?: string | null
           quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
           title: string
@@ -165,6 +171,8 @@ export type Database = {
         }
         Update: {
           additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
           country_code?: string
           created_at?: string | null
           description?: string | null
@@ -175,6 +183,7 @@ export type Database = {
           policy_type?: Database["public"]["Enums"]["policy_type"]
           policy_url?: string | null
           quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
           title?: string

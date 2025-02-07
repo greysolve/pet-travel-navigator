@@ -63,8 +63,10 @@ export type CountryPolicy = {
   quarantine_requirements?: string;
   vaccination_requirements?: string[];
   additional_notes?: string;
-  last_updated?: string;
   policy_url?: string;
   created_at?: string;
   updated_at?: string;
+  all_blood_tests?: string;
+  all_other_biological_tests?: string;
+  required_ports_of_entry?: string;
 };
