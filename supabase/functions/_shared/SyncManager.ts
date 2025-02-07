@@ -60,47 +60,52 @@ export class SyncManager {
   async initialize(total: number, resume: boolean = false): Promise<void> {
     console.log(`Initializing sync progress for ${this.type}, resume: ${resume}`);
     
-    if (!resume) {
-      const { error } = await this.supabase
-        .from('sync_progress')
-        .upsert({
-          type: this.type,
-          total,
-          processed: 0,
-          last_processed: null,
-          processed_items: [],
-          error_items: [],
-          start_time: new Date().toISOString(),
-          is_complete: false,
-          error_details: {},
-          batch_metrics: {
-            avg_time_per_item: 0,
-            estimated_time_remaining: 0,
-            success_rate: 100
-          },
-          needs_continuation: false
-        }, {
-          onConflict: 'type'
-        });
+    // Only initialize if we're not resuming or there's no existing progress
+    const currentProgress = await this.getCurrentProgress();
+    if (currentProgress && resume) {
+      console.log('Skipping initialization as we are resuming with existing progress');
+      return;
+    }
+    
+    const { error } = await this.supabase
+      .from('sync_progress')
+      .upsert({
+        type: this.type,
+        total,
+        processed: 0,
+        last_processed: null,
+        processed_items: [],
+        error_items: [],
+        start_time: new Date().toISOString(),
+        is_complete: false,
+        error_details: {},
+        batch_metrics: {
+          avg_time_per_item: 0,
+          estimated_time_remaining: 0,
+          success_rate: 100
+        },
+        needs_continuation: false
+      }, {
+        onConflict: 'type'
+      });
 
-      if (error) {
-        console.error(`Error initializing sync progress for ${this.type}:`, error);
-        throw error;
-      }
+    if (error) {
+      console.error(`Error initializing sync progress for ${this.type}:`, error);
+      throw error;
     }
   }
 
   async updateProgress(updates: Partial<SyncState>): Promise<void> {
     console.log(`Updating progress for ${this.type}:`, updates);
     
-    // Get current state to properly handle processed count
+    // Get current state to properly handle processed count and preserve total
     const currentState = await this.getCurrentProgress();
     if (!currentState) {
       console.error('No current state found when updating progress');
       return;
     }
 
-    // Ensure processed count doesn't exceed total
+    // Ensure processed count doesn't exceed total and preserve the total
     let processedCount = updates.processed ?? currentState.processed;
     if (processedCount > currentState.total) {
       console.warn(`Attempted to set processed count (${processedCount}) higher than total (${currentState.total}). Capping at total.`);
@@ -111,6 +116,7 @@ export class SyncManager {
       .from('sync_progress')
       .update({
         ...updates,
+        total: currentState.total, // Preserve the original total
         processed: processedCount,
         updated_at: new Date().toISOString()
       })
@@ -122,3 +128,4 @@ export class SyncManager {
     }
   }
 }
+
