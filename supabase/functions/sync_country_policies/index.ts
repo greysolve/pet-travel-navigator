@@ -1,10 +1,46 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const findCaseInsensitiveKey = (obj: any, targetKey: string): string | null => {
+  const lowerTargetKey = targetKey.toLowerCase();
+  const matchingKey = Object.keys(obj).find(
+    key => key.toLowerCase() === lowerTargetKey
+  );
+  return matchingKey || null;
+};
+
+const normalizePolicy = (policy: any) => {
+  const normalized: any = {};
+  const expectedFields = [
+    'policy_type',
+    'title',
+    'description',
+    'requirements',
+    'documentation_needed',
+    'fees',
+    'restrictions',
+    'quarantine_requirements',
+    'vaccination_requirements',
+    'additional_notes',
+    'policy_url',
+    'all_blood_tests',
+    'all_other_biological_tests',
+    'required_ports_of_entry'
+  ];
+
+  expectedFields.forEach(field => {
+    const matchingKey = findCaseInsensitiveKey(policy, field);
+    if (matchingKey !== null) {
+      normalized[field] = policy[matchingKey];
+    }
+  });
+
+  return normalized;
+};
 
 async function fetchPolicyWithAI(country: string, apiKey: string) {
   console.log(`Fetching policy for ${country}`);
@@ -66,7 +102,8 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
       });
       throw new Error(`Perplexity API error: ${response.status}`);
     }
-
+  
+  try {
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
     
@@ -76,7 +113,10 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
     
     try {
       const policies = JSON.parse(cleanContent);
-      return Array.isArray(policies) ? policies : [policies];
+      const normalizedPolicies = Array.isArray(policies) 
+        ? policies.map(normalizePolicy)
+        : [normalizePolicy(policies)];
+      return normalizedPolicies;
     } catch (error) {
       console.error('Failed to parse AI response:', error);
       console.error('Raw content:', content);
@@ -136,26 +176,15 @@ Deno.serve(async (req) => {
     // Fetch and store policies
     const policies = await fetchPolicyWithAI(country, apiKey);
     
-    // Store each policy separately
+    // Store each policy separately with normalized fields
     for (const policy of policies) {
+      const normalizedPolicy = normalizePolicy(policy);
+      
       const { error: upsertError } = await supabase
         .from('country_policies')
         .upsert({
           country_code: country,
-          policy_type: policy.policy_type,
-          title: policy.title,
-          description: policy.description,
-          requirements: policy.requirements,
-          documentation_needed: policy.documentation_needed,
-          fees: policy.fees,
-          restrictions: policy.restrictions,
-          quarantine_requirements: policy.quarantine_requirements,
-          vaccination_requirements: policy.vaccination_requirements,
-          additional_notes: policy.additional_notes,
-          policy_url: policy.policy_url,
-          all_blood_tests: policy.all_blood_tests,
-          all_other_biological_tests: policy.all_other_biological_tests,
-          required_ports_of_entry: policy.Required_Ports_of_Entry,
+          ...normalizedPolicy,
           last_updated: new Date().toISOString()
         }, {
           onConflict: 'country_code,policy_type'

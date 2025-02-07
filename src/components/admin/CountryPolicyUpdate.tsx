@@ -39,11 +39,47 @@ const CountryPolicyUpdate = () => {
         return [];
       }
 
-      console.log('Fetched countries:', data);
       return data || [];
     },
     enabled: searchTerm.length >= 2,
   });
+
+  const findCaseInsensitiveKey = (obj: any, targetKey: string): string | null => {
+    const lowerTargetKey = targetKey.toLowerCase();
+    const matchingKey = Object.keys(obj).find(
+      key => key.toLowerCase() === lowerTargetKey
+    );
+    return matchingKey || null;
+  };
+
+  const normalizePolicy = (policy: any) => {
+    const normalized: any = {};
+    const expectedFields = [
+      'policy_type',
+      'title',
+      'description',
+      'requirements',
+      'documentation_needed',
+      'fees',
+      'restrictions',
+      'quarantine_requirements',
+      'vaccination_requirements',
+      'additional_notes',
+      'policy_url',
+      'all_blood_tests',
+      'all_other_biological_tests',
+      'required_ports_of_entry'
+    ];
+
+    expectedFields.forEach(field => {
+      const matchingKey = findCaseInsensitiveKey(policy, field);
+      if (matchingKey !== null) {
+        normalized[field] = policy[matchingKey];
+      }
+    });
+
+    return normalized;
+  };
 
   const handleUpdate = async () => {
     if (!selectedCountry) {
@@ -64,7 +100,7 @@ const CountryPolicyUpdate = () => {
       }
 
       console.log('Attempting to update policies for country:', selectedCountry.code);
-      console.log('Policies data:', policiesData);
+      console.log('Original policies data:', policiesData);
 
       // Delete existing policies for this country
       const { error: deleteError } = await supabase
@@ -77,27 +113,15 @@ const CountryPolicyUpdate = () => {
         throw deleteError;
       }
 
-      // Insert new policies
+      // Insert new policies with normalized fields
       for (const policy of policiesData) {
+        const normalizedPolicy = normalizePolicy(policy);
         const policyData = {
           country_code: selectedCountry.code,
-          policy_type: policy.policy_type,
-          title: policy.title,
-          description: policy.description,
-          requirements: policy.requirements,
-          documentation_needed: policy.documentation_needed,
-          fees: policy.fees,
-          restrictions: policy.restrictions,
-          quarantine_requirements: policy.quarantine_requirements,
-          vaccination_requirements: policy.vaccination_requirements,
-          additional_notes: policy.additional_notes,
-          policy_url: policy.policy_url,
-          all_blood_tests: policy.all_blood_tests,
-          all_other_biological_tests: policy.all_other_biological_tests,
-          required_ports_of_entry: policy.Required_Ports_of_Entry || policy.required_ports_of_entry // Handle both cases
+          ...normalizedPolicy
         };
 
-        console.log('Inserting policy:', policyData);
+        console.log('Inserting normalized policy:', policyData);
 
         const { error: insertError } = await supabase
           .from("country_policies")
@@ -188,9 +212,9 @@ const CountryPolicyUpdate = () => {
           className="min-h-[400px] font-mono"
         />
         <p className="text-sm text-muted-foreground">
-          Expected fields: policy_type, title, description, requirements, documentation_needed, 
+          Expected fields (case-insensitive): policy_type, title, description, requirements, documentation_needed, 
           fees, restrictions, quarantine_requirements, vaccination_requirements, additional_notes, 
-          policy_url, all_blood_tests, all_other_biological_tests, Required_Ports_of_Entry
+          policy_url, all_blood_tests, all_other_biological_tests, required_ports_of_entry
         </p>
         {selectedCountry && (
           <p className="text-sm text-muted-foreground">
