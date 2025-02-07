@@ -81,6 +81,42 @@ export const useSyncOperations = () => {
     }
   };
 
+  const processCountryPolicies = async (resume: boolean = false) => {
+    try {
+      const { data: response, error } = await supabase.functions.invoke('sync_country_policies', {
+        body: { 
+          fullSync: true,
+          resume,
+          clearData: clearData.countryPolicies
+        }
+      });
+
+      if (error) throw error;
+
+      // If more countries need to be processed, schedule the next batch
+      if (!response.isComplete && response.nextBatch !== null) {
+        console.log('Scheduling next batch of countries...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Add delay between batches
+        await processCountryPolicies(true);
+      } else {
+        console.log('Country policies sync completed');
+        setIsInitializing(prev => ({ ...prev, countryPolicies: false }));
+        toast({
+          title: "Country Policies Sync Complete",
+          description: "Successfully processed all country policies.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error in processCountryPolicies:', error);
+      toast({
+        variant: "destructive",
+        title: "Sync Failed",
+        description: error.message || "Failed to sync country policies.",
+      });
+      setIsInitializing(prev => ({ ...prev, countryPolicies: false }));
+    }
+  };
+
   const handleSync = async (type: keyof typeof SyncType, resume: boolean = false, mode?: string) => {
     console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}, clearData: ${clearData[type]}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
@@ -129,6 +165,12 @@ export const useSyncOperations = () => {
         return;
       }
 
+      // Special handling for country policies
+      if (type === 'countryPolicies') {
+        await processCountryPolicies(resume);
+        return;
+      }
+
       // Handle other sync types with existing logic
       const functionMap: Record<keyof typeof SyncType, string> = {
         airlines: 'sync_airline_data',
@@ -138,25 +180,8 @@ export const useSyncOperations = () => {
         countryPolicies: 'sync_country_policies'
       };
 
-      // Handle country policies sync
-      if (type === 'countryPolicies') {
-        // For a full sync, we don't need a specific country
-        console.log(`Initiating full country policies sync`);
-        const { error } = await supabase.functions.invoke(functionMap[type], {
-          body: { 
-            fullSync: true,
-            resume: resume,
-            clearData: clearData[type]
-          }
-        });
-        
-        if (error) throw error;
-
-      } else {
-        // Handle other sync types
-        const { error } = await supabase.functions.invoke(functionMap[type]);
-        if (error) throw error;
-      }
+      const { error } = await supabase.functions.invoke(functionMap[type]);
+      if (error) throw error;
 
       toast({
         title: "Sync Started",
@@ -174,7 +199,7 @@ export const useSyncOperations = () => {
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      if (type !== 'petPolicies') {
+      if (type !== 'petPolicies' && type !== 'countryPolicies') {
         setIsInitializing(prev => ({ ...prev, [type]: false }));
       }
     }
