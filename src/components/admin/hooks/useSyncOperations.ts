@@ -1,11 +1,12 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { SyncType } from "@/types/sync";
 
 export const useSyncOperations = () => {
+  const { toast } = useToast();
   const [isInitializing, setIsInitializing] = useState<{[key: string]: boolean}>({});
   const [clearData, setClearData] = useState<{[key in keyof typeof SyncType]: boolean}>({
     airlines: false,

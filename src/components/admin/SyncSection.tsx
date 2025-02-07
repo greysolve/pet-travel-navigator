@@ -8,9 +8,10 @@ import { ActiveSyncs } from "./sync/ActiveSyncs";
 import { useSyncOperations } from "./hooks/useSyncOperations";
 import { useSyncProgressSubscription } from "./hooks/useSyncProgressSubscription";
 import { SyncProgressDB } from "./types/sync-types";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export const SyncSection = () => {
+  const { toast } = useToast();
   const [countryInput, setCountryInput] = useState<string>("");
   const { isInitializing, clearData, setClearData, handleSync } = useSyncOperations();
   
