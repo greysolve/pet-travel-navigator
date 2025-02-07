@@ -64,8 +64,8 @@ Deno.serve(async (req) => {
     const airlines = airlinesQuery.data || [];
     console.log(`Found ${airlines.length} airlines to process`);
 
-    // Initialize sync progress
-    await syncManager.initialize(airlines.length, false);
+    // Initialize sync progress - removed the second parameter
+    await syncManager.initialize(airlines.length);
 
     // Process airlines in batches
     const batchSize = 3;
