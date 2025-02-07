@@ -41,11 +41,21 @@ export type FlightData = FlightJourney;
 
 export type PetPolicy = {
   pet_types_allowed: string[];
-  carrier_requirements: string;
+  carrier_requirements_cabin?: string;
+  carrier_requirements_cargo?: string;
   documentation_needed: string[];
   temperature_restrictions: string;
   breed_restrictions: string[];
   policy_url?: string;
+  size_restrictions?: {
+    max_weight_cabin?: string;
+    max_weight_cargo?: string;
+    carrier_dimensions_cabin?: string;
+  };
+  fees?: {
+    in_cabin?: string;
+    cargo?: string;
+  };
 };
 
 export type PolicyType = 'pet_arrival' | 'pet_transit';

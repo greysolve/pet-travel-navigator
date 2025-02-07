@@ -143,21 +143,35 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
       "official_website": "url if found"
     },
     "pet_policy": {
-      "pet_types_allowed": ["list of allowed pets"],
+      "pet_types_allowed": ["list of allowed pets, specify if in cabin or cargo"],
       "size_restrictions": {
-        "max_weight": "weight in kg/lbs",
-        "carrier_dimensions": "size limits"
+        "max_weight_cabin": "weight in kg/lbs",
+        "max_weight_cargo": "weight in kg/lbs",
+        "carrier_dimensions_cabin": "size limits"
       },
-      "carrier_requirements": "description",
-      "documentation_needed": ["list of required documents"],
+      "carrier_requirements_cabin": "description of carrier requirements for cabin travel",
+      "carrier_requirements_cargo": "description of carrier requirements for cargo travel",
+      "documentation_needed": ["list each and every required document"],
       "fees": {
         "in_cabin": "fee amount",
         "cargo": "fee amount"
       },
-      "temperature_restrictions": "description",
+      "temperature_restrictions": "description of any temperature related restrictions",
       "breed_restrictions": ["list of restricted breeds"]
     }
-  }`;
+  }
+
+  Search specifically for:
+  1. What pets are allowed in cabin vs cargo
+  2. Size and weight limits for both cabin and cargo
+  3. Specific carrier requirements for both cabin and cargo
+  4. All required documentation and health certificates
+  5. Fees for both cabin and cargo transport
+  6. Any temperature or weather restrictions
+  7. Any breed restrictions
+  8. Official airline website if found
+
+  Return ONLY the JSON object with all available information. If any information is not found, use null for that field.`;
 
   const maxRetries = 3;
   let lastError = null;
@@ -229,13 +243,21 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
 
       return {
         pet_types_allowed: content.pet_policy.pet_types_allowed || [],
-        size_restrictions: content.pet_policy.size_restrictions || {},
-        carrier_requirements: content.pet_policy.carrier_requirements || '',
+        carrier_requirements_cabin: content.pet_policy.carrier_requirements_cabin || '',
+        carrier_requirements_cargo: content.pet_policy.carrier_requirements_cargo || '',
         documentation_needed: content.pet_policy.documentation_needed || [],
-        fees: content.pet_policy.fees || {},
         temperature_restrictions: content.pet_policy.temperature_restrictions || '',
         breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info?.official_website || null
+        policy_url: content.airline_info?.official_website || null,
+        size_restrictions: {
+          max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
+          max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,
+          carrier_dimensions_cabin: content.pet_policy.size_restrictions?.carrier_dimensions_cabin || null
+        },
+        fees: {
+          in_cabin: content.pet_policy.fees?.in_cabin || null,
+          cargo: content.pet_policy.fees?.cargo || null
+        }
       };
 
     } catch (error) {
