@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -60,16 +59,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
 
-    // Handle resume token
-    if (resumeToken) {
-      const currentProgress = await syncManager.getCurrentProgress();
-      if (!currentProgress?.needs_continuation) {
-        throw new Error('Invalid resume token or no continuation needed');
-      }
-      console.log('Resuming from previous state:', currentProgress);
-    }
-
-    // Get total count of countries
+    // Get total count of countries first, just like pet policies
     const { count: totalCount, error: countError } = await supabase
       .from('countries')
       .select('*', { count: 'exact', head: true });
@@ -93,10 +83,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Initialize sync progress
-    if (offset === 0 && !resumeToken) {
+    // Progress initialization and validation logic
+    if (offset === 0) {
+      // Only initialize for fresh starts
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
+    } else {
+      // For non-zero offset, validate against existing progress
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress) {
+        throw new Error('No sync progress found for non-zero offset');
+      }
+      
+      // Log warning if counts don't match but keep existing total
+      if (currentProgress.total !== totalCount) {
+        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
+      }
     }
 
     // Get batch of countries
@@ -155,7 +157,7 @@ Deno.serve(async (req) => {
 
         results.push(country.name);
 
-        // Update progress after each country, maintaining continuation flag until last chunk
+        // Update progress after each country
         const currentProgress = await syncManager.getCurrentProgress();
         
         await syncManager.updateProgress({
@@ -163,7 +165,7 @@ Deno.serve(async (req) => {
           last_processed: country.name,
           processed_items: [...(currentProgress.processed_items || []), country.name],
           error_items: [...(currentProgress.error_items || [])],
-          needs_continuation: true  // Keep true until explicitly set false at end
+          needs_continuation: true
         });
 
         // Add delay between countries
@@ -227,4 +229,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
