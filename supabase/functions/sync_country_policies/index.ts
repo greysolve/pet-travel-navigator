@@ -201,8 +201,22 @@ Deno.serve(async (req) => {
       throw new Error('Missing Perplexity API key in environment variables');
     }
 
-    // Get country from request
-    const { country } = await req.json();
+    // Get request body safely
+    let requestBody;
+    try {
+      if (req.body) {
+        const text = await req.text();
+        requestBody = text ? JSON.parse(text) : {};
+      } else {
+        requestBody = {};
+      }
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      throw new Error('Invalid JSON in request body');
+    }
+
+    // Get country from request body
+    const { country } = requestBody;
     if (!country) {
       throw new Error('No country specified in request body');
     }
@@ -288,4 +302,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
