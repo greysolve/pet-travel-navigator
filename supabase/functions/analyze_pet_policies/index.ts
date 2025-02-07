@@ -30,21 +30,32 @@ Deno.serve(async (req) => {
 
     let mode = 'clear';
     let offset = 0;
+    let resumeToken = null;
     try {
       const body = await req.text();
       if (body) {
-        const { mode: requestMode, offset: requestOffset } = JSON.parse(body);
+        const { mode: requestMode, offset: requestOffset, resumeToken: requestToken } = JSON.parse(body);
         if (requestMode) mode = requestMode;
         if (requestOffset) offset = requestOffset;
+        if (requestToken) resumeToken = requestToken;
       }
     } catch (error) {
       console.error('Error parsing request body:', error);
     }
 
-    console.log(`Starting pet policy analysis in mode: ${mode}, offset: ${offset}`);
+    console.log(`Starting pet policy analysis in mode: ${mode}, offset: ${offset}, resumeToken: ${resumeToken}`);
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
+
+    // If resuming, verify the resume token and get the last state
+    if (resumeToken) {
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress || currentProgress.needs_continuation !== true) {
+        throw new Error('Invalid resume token or no continuation needed');
+      }
+      console.log('Resuming from previous state:', currentProgress);
+    }
 
     // Get the total count based on mode
     const { count: totalCount, error: countError } = mode === 'update' 
@@ -94,7 +105,10 @@ Deno.serve(async (req) => {
 
     if (!airlines || airlines.length === 0) {
       console.log('No more airlines to process');
-      await syncManager.updateProgress({ is_complete: true });
+      await syncManager.updateProgress({ 
+        is_complete: true,
+        needs_continuation: false
+      });
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -155,10 +169,11 @@ Deno.serve(async (req) => {
             ...result.results.map((r: any) => r.iata_code)],
           error_items: [...(currentProgress.error_items || []),
             ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)],
-          batch_metrics: batchMetrics
+          batch_metrics: batchMetrics,
+          needs_continuation: true
         });
 
-        // Add delay between batches
+        // Add delay between batches to prevent rate limiting
         await new Promise(resolve => setTimeout(resolve, 2000));
 
       } catch (error) {
@@ -174,11 +189,22 @@ Deno.serve(async (req) => {
     const nextOffset = offset + airlines.length;
     const hasMore = nextOffset < totalCount;
 
+    // Only mark as complete if this is the last chunk
     if (!hasMore) {
-      await syncManager.updateProgress({ is_complete: true });
+      await syncManager.updateProgress({ 
+        is_complete: true,
+        needs_continuation: false
+      });
     }
 
     const chunkExecutionTime = Date.now() - chunkStartTime;
+    
+    // Generate a resume token for continuation if needed
+    const resumeData = hasMore ? {
+      offset: nextOffset,
+      mode,
+      timestamp: new Date().toISOString()
+    } : null;
     
     return new Response(
       JSON.stringify({
@@ -192,7 +218,8 @@ Deno.serve(async (req) => {
         },
         has_more: hasMore,
         next_offset: hasMore ? nextOffset : null,
-        total_remaining: totalCount - nextOffset
+        total_remaining: totalCount - nextOffset,
+        resume_token: resumeData ? btoa(JSON.stringify(resumeData)) : null
       }), 
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

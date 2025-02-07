@@ -28,7 +28,7 @@ export class SyncManager {
     this.type = type;
   }
 
-  async getCurrentProgress(): Promise<SyncState> {
+  async getCurrentProgress(): Promise<SyncState | null> {
     console.log(`Fetching current progress for ${this.type}`);
     
     const { data, error } = await this.supabase
@@ -38,18 +38,7 @@ export class SyncManager {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return {
-          total: 0,
-          processed: 0,
-          last_processed: null,
-          processed_items: [],
-          error_items: [],
-          start_time: null,
-          is_complete: false,
-          needs_continuation: false
-        };
-      }
+      if (error.code === 'PGRST116') return null;
       console.error(`Error fetching progress for ${this.type}:`, error);
       throw error;
     }
@@ -68,34 +57,36 @@ export class SyncManager {
     };
   }
 
-  async initialize(total: number): Promise<void> {
-    console.log(`Initializing sync progress for ${this.type} with total: ${total}`);
+  async initialize(total: number, resume: boolean = false): Promise<void> {
+    console.log(`Initializing sync progress for ${this.type}, resume: ${resume}`);
     
-    const { error } = await this.supabase
-      .from('sync_progress')
-      .upsert({
-        type: this.type,
-        total,
-        processed: 0,
-        last_processed: null,
-        processed_items: [],
-        error_items: [],
-        start_time: new Date().toISOString(),
-        is_complete: false,
-        error_details: {},
-        batch_metrics: {
-          avg_time_per_item: 0,
-          estimated_time_remaining: 0,
-          success_rate: 100
-        },
-        needs_continuation: false
-      }, {
-        onConflict: 'type'
-      });
+    if (!resume) {
+      const { error } = await this.supabase
+        .from('sync_progress')
+        .upsert({
+          type: this.type,
+          total,
+          processed: 0,
+          last_processed: null,
+          processed_items: [],
+          error_items: [],
+          start_time: new Date().toISOString(),
+          is_complete: false,
+          error_details: {},
+          batch_metrics: {
+            avg_time_per_item: 0,
+            estimated_time_remaining: 0,
+            success_rate: 100
+          },
+          needs_continuation: false
+        }, {
+          onConflict: 'type'
+        });
 
-    if (error) {
-      console.error(`Error initializing sync progress for ${this.type}:`, error);
-      throw error;
+      if (error) {
+        console.error(`Error initializing sync progress for ${this.type}:`, error);
+        throw error;
+      }
     }
   }
 

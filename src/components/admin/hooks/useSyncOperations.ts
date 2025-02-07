@@ -21,25 +21,12 @@ export const useSyncOperations = () => {
     await queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
   };
 
-  const resetSyncProgress = async (type: keyof typeof SyncType) => {
-    console.log(`Resetting sync progress for ${type} in database`);
-    const { error } = await supabase
-      .from('sync_progress')
-      .delete()
-      .eq('type', type);
-
-    if (error) {
-      console.error(`Error resetting sync progress for ${type}:`, error);
-      throw error;
-    }
-  };
-
-  const processPetPoliciesChunk = async (offset: number = 0, mode: string = 'clear') => {
-    console.log(`Processing pet policies chunk with offset ${offset}, mode ${mode}`);
+  const processPetPoliciesChunk = async (offset: number = 0, mode: string = 'clear', resumeToken: string | null = null) => {
+    console.log(`Processing pet policies chunk with offset ${offset}, mode ${mode}, resumeToken: ${resumeToken}`);
     
     try {
       const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
-        body: { offset, mode }
+        body: { offset, mode, resumeToken }
       });
 
       if (error) throw error;
@@ -49,9 +36,8 @@ export const useSyncOperations = () => {
       if (data.has_more) {
         console.log(`More chunks remaining, scheduling next chunk at offset ${data.next_offset}`);
         // Schedule next chunk with a small delay
-        setTimeout(() => {
-          processPetPoliciesChunk(data.next_offset, mode);
-        }, 1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await processPetPoliciesChunk(data.next_offset, mode, data.resume_token);
       } else {
         console.log('All chunks processed');
         setIsInitializing(prev => ({ ...prev, petPolicies: false }));
@@ -68,6 +54,7 @@ export const useSyncOperations = () => {
         title: "Chunk Processing Error",
         description: error.message || "Failed to process pet policies chunk.",
       });
+      // Don't reset progress on error anymore, allow for resume
       setIsInitializing(prev => ({ ...prev, petPolicies: false }));
     }
   };
@@ -77,39 +64,37 @@ export const useSyncOperations = () => {
     setIsInitializing(prev => ({ ...prev, [type]: true }));
     
     try {
-      if (!resume) {
-        console.log(`Resetting progress for ${type}`);
-        await resetSyncProgress(type);
-        await resetSyncProgressCache(type);
-
-        if (clearData[type]) {
-          console.log(`Clearing existing data for ${type}`);
-          const tableNameMap: Record<keyof typeof SyncType, string> = {
-            airlines: 'airlines',
-            airports: 'airports',
-            petPolicies: 'pet_policies',
-            routes: 'routes',
-            countryPolicies: 'country_policies'
-          };
-          
-          const tableName = tableNameMap[type];
-          console.log(`Clearing data from table: ${tableName}`);
-          
-          const { error: clearError } = await supabase
-            .from(tableName)
-            .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000');
-          
-          if (clearError) {
-            console.error(`Error clearing ${tableName}:`, clearError);
-            throw clearError;
-          }
-        }
-      }
-
       // Special handling for pet policies to use chunked processing
       if (type === 'petPolicies') {
-        await processPetPoliciesChunk(0, mode);
+        const currentProgress = await supabase
+          .from('sync_progress')
+          .select('*')
+          .eq('type', type)
+          .single();
+
+        if (resume && currentProgress.data?.needs_continuation) {
+          console.log('Resuming from previous progress:', currentProgress.data);
+          await processPetPoliciesChunk(
+            currentProgress.data.processed, 
+            mode || 'clear',
+            currentProgress.data.resume_token
+          );
+        } else {
+          if (!resume) {
+            console.log('Starting new sync');
+            // Only clear data if explicitly requested and not resuming
+            if (clearData[type]) {
+              console.log(`Clearing existing data for ${type}`);
+              const { error: clearError } = await supabase
+                .from('pet_policies')
+                .delete()
+                .neq('id', '00000000-0000-0000-0000-000000000000');
+              
+              if (clearError) throw clearError;
+            }
+          }
+          await processPetPoliciesChunk(0, mode);
+        }
         return;
       }
 
@@ -141,9 +126,6 @@ export const useSyncOperations = () => {
         title: "Sync Failed",
         description: error.message || `Failed to sync ${type} data.`,
       });
-
-      await resetSyncProgress(type);
-      await resetSyncProgressCache(type);
     } finally {
       if (type !== 'petPolicies') {
         setIsInitializing(prev => ({ ...prev, [type]: false }));
