@@ -99,25 +99,25 @@ const CountryPolicyUpdate = () => {
         throw new Error("Input must be an array of policies");
       }
 
-      console.log('Attempting to update policies for country:', selectedCountry.code);
+      console.log('Attempting to update policies for country:', selectedCountry.name);
       console.log('Original policies data:', policiesData);
 
-      // Delete existing policies for this country
+      // Delete existing policies for this country using the country name
       const { error: deleteError } = await supabase
         .from("country_policies")
         .delete()
-        .eq("country_code", selectedCountry.code);
+        .eq("country_code", selectedCountry.name);
 
       if (deleteError) {
         console.error('Error deleting existing policies:', deleteError);
         throw deleteError;
       }
 
-      // Insert new policies with normalized fields
+      // Insert new policies with normalized fields, using country name
       for (const policy of policiesData) {
         const normalizedPolicy = normalizePolicy(policy);
         const policyData = {
-          country_code: selectedCountry.code,
+          country_code: selectedCountry.name, // Using country name instead of code
           ...normalizedPolicy
         };
 
