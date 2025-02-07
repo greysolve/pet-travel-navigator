@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -40,11 +39,14 @@ export const usePetPolicies = (flights: FlightData[]) => {
       return policies?.reduce((acc: Record<string, PetPolicy>, policy: any) => {
         acc[policy.airlines.iata_code] = {
           pet_types_allowed: policy.pet_types_allowed,
-          carrier_requirements: policy.carrier_requirements,
+          carrier_requirements_cabin: policy.carrier_requirements_cabin,
+          carrier_requirements_cargo: policy.carrier_requirements_cargo,
           documentation_needed: policy.documentation_needed,
           temperature_restrictions: policy.temperature_restrictions,
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
+          size_restrictions: policy.size_restrictions,
+          fees: policy.fees
         };
         return acc;
       }, {}) || {};
