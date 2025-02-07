@@ -2,6 +2,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { SyncManager } from '../_shared/SyncManager.ts';
+import { processCountriesChunk } from './countryProcessor.ts';
 import { RequestBody, AnalysisResponse } from './types.ts';
 
 export async function handleAnalysisRequest(req: Request): Promise<Response> {
@@ -18,13 +19,6 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
-
-    // Check for existing sync in progress first
-    const currentProgress = await syncManager.getCurrentProgress();
-    if (currentProgress?.needs_continuation && !resumeToken) {
-      console.log('Found incomplete sync:', currentProgress);
-      return await processCountriesChunk(supabase, syncManager, currentProgress.processed, mode);
-    }
 
     // Get total count for the full table - this sets our baseline
     const { count: totalCount, error: countError } = await supabase
@@ -46,18 +40,23 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       });
     }
 
-    // Handle resume token
-    if (resumeToken) {
-      if (!currentProgress?.needs_continuation) {
-        throw new Error('Invalid resume token or no continuation needed');
-      }
-      console.log('Resuming from previous state:', currentProgress);
-    }
-
+    // Check for existing sync in progress first
+    const currentProgress = await syncManager.getCurrentProgress();
+    
     // Initialize sync progress only when starting from beginning
-    if (offset === 0) {
+    if (offset === 0 && !currentProgress) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
+    } else if (offset === 0 && currentProgress) {
+      // If starting new sync but there's existing progress, check if it needs continuation
+      if (currentProgress.needs_continuation) {
+        console.log('Found incomplete sync:', currentProgress);
+        return await processCountriesChunk(supabase, syncManager, currentProgress.processed, mode);
+      } else {
+        // Reinitialize for new sync
+        console.log('Reinitializing sync progress');
+        await syncManager.initialize(totalCount);
+      }
     } else {
       // For non-zero offset, validate against existing progress
       if (!currentProgress) {

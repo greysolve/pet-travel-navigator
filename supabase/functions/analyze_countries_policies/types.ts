@@ -16,6 +16,7 @@ export interface AnalysisResponse {
   total_remaining?: number;
   resume_token?: string | null;
   message?: string;
+  error?: string;
 }
 
 export interface RequestBody {
