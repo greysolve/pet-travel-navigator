@@ -18,25 +18,21 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Always return errors with CORS headers
   try {
-    // Validate request method
-    if (req.method !== 'POST') {
-      throw new Error(`Method ${req.method} not allowed`);
-    }
-
-    // Get Supabase configuration
+    // Get Supabase configuration first
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase configuration');
     }
 
-    // Initialize variables
+    // Initialize variables with safe defaults
     let mode = 'clear';
     let offset = 0;
     let resumeToken = null;
     
-    // Parse request body
+    // Parse request body with error handling
     try {
       const body = await req.text();
       console.log('Received request body:', body);
@@ -51,7 +47,13 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error('Error parsing request body:', error);
-      throw new Error('Invalid request body');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request body' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     console.log(`Starting country policies analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
@@ -59,15 +61,6 @@ Deno.serve(async (req) => {
     // Initialize clients
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
-
-    // Handle resume token first, just like pet policies
-    if (resumeToken) {
-      const currentProgress = await syncManager.getCurrentProgress();
-      if (!currentProgress?.needs_continuation) {
-        throw new Error('Invalid resume token or no continuation needed');
-      }
-      console.log('Resuming from previous state:', currentProgress);
-    }
 
     // Get total count of countries
     const { count: totalCount, error: countError } = await supabase
@@ -82,7 +75,6 @@ Deno.serve(async (req) => {
     console.log('Total count:', totalCount);
 
     if (!totalCount) {
-      console.log('No countries to process');
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -93,18 +85,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Initialize sync progress if starting fresh
-    if (offset === 0) {
+    // Initialize or validate sync progress
+    if (resumeToken) {
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress?.needs_continuation) {
+        throw new Error('Invalid resume token or no continuation needed');
+      }
+      console.log('Resuming from previous state:', currentProgress);
+    } else if (offset === 0) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
     } else {
-      // For non-zero offset, validate against existing progress
       const currentProgress = await syncManager.getCurrentProgress();
       if (!currentProgress) {
         throw new Error('No sync progress found for non-zero offset');
-      }
-      if (currentProgress.total !== totalCount) {
-        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
       }
     }
 
