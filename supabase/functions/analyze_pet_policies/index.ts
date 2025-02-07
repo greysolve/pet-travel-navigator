@@ -15,6 +15,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate Supabase configuration first
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
     // Parse request body with error handling
     let mode = 'clear'; // Default mode
     try {
@@ -31,13 +38,6 @@ Deno.serve(async (req) => {
     }
 
     console.log('Starting pet policy analysis in mode:', mode);
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase configuration');
-    }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     }
 
     if (airlinesQuery.error) {
+      console.error('Error fetching airlines:', airlinesQuery.error);
       throw airlinesQuery.error;
     }
 
