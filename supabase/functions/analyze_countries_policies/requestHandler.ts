@@ -23,7 +23,6 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     const currentProgress = await syncManager.getCurrentProgress();
     if (currentProgress?.needs_continuation && !resumeToken) {
       console.log('Found incomplete sync:', currentProgress);
-      // Continue from where we left off
       return await processCountriesChunk(
         supabase, 
         syncManager, 
@@ -59,13 +58,6 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
         throw new Error('Invalid resume token or no continuation needed');
       }
       console.log('Resuming from previous state:', currentProgress);
-      return await processCountriesChunk(
-        supabase,
-        syncManager,
-        currentProgress.processed,
-        currentProgress.total,
-        mode
-      );
     }
 
     // Initialize sync progress only when starting from beginning
