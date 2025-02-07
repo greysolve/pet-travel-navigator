@@ -14,6 +14,7 @@ export interface AnalysisResponse {
   has_more: boolean;
   next_offset?: number;
   total_remaining?: number;
+  resume_token?: string | null;
   message?: string;
   error?: string;
 }
@@ -21,4 +22,5 @@ export interface AnalysisResponse {
 export interface RequestBody {
   mode?: string;
   offset?: number;
+  resumeToken?: string | null;
 }

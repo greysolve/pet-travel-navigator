@@ -7,7 +7,7 @@ import { RequestBody, AnalysisResponse } from './types.ts';
 
 export async function handleAnalysisRequest(req: Request): Promise<Response> {
   try {
-    const { mode, offset } = await parseRequestBody(req);
+    const { mode, offset, resumeToken } = await parseRequestBody(req);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -15,7 +15,7 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       throw new Error('Missing Supabase configuration');
     }
 
-    console.log(`Starting country policies analysis - Mode: ${mode}, Offset: ${offset}`);
+    console.log(`Starting country policies analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
@@ -40,23 +40,30 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       });
     }
 
-    // Check for existing sync in progress
+    // Check for existing sync in progress first
     const currentProgress = await syncManager.getCurrentProgress();
-    console.log('Current progress:', currentProgress);
     
-    // Initialize or resume sync progress
-    if (offset === 0) {
-      if (currentProgress?.needs_continuation) {
-        console.log('Resuming existing sync from beginning');
-        // Start from where we left off
+    // Initialize sync progress only when starting from beginning
+    if (offset === 0 && !currentProgress) {
+      console.log(`Initializing sync progress with total count: ${totalCount}`);
+      await syncManager.initialize(totalCount);
+    } else if (offset === 0 && currentProgress) {
+      // If starting new sync but there's existing progress, check if it needs continuation
+      if (currentProgress.needs_continuation) {
+        console.log('Found incomplete sync:', currentProgress);
         return await processCountriesChunk(supabase, syncManager, currentProgress.processed, mode);
       } else {
-        console.log('Initializing new sync');
+        // Reinitialize for new sync
+        console.log('Reinitializing sync progress');
         await syncManager.initialize(totalCount);
       }
     } else {
+      // For non-zero offset, validate against existing progress
       if (!currentProgress) {
         throw new Error('No sync progress found for non-zero offset');
+      }
+      if (currentProgress.total !== totalCount) {
+        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
       }
       console.log('Continuing with existing progress:', currentProgress);
     }
@@ -72,9 +79,10 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
   }
 }
 
-async function parseRequestBody(req: Request): Promise<{ mode: string; offset: number }> {
+async function parseRequestBody(req: Request): Promise<{ mode: string; offset: number; resumeToken: string | null }> {
   let mode = 'clear';
   let offset = 0;
+  let resumeToken = null;
   
   try {
     const body = await req.text();
@@ -86,13 +94,14 @@ async function parseRequestBody(req: Request): Promise<{ mode: string; offset: n
       
       if (parsedBody.mode) mode = parsedBody.mode;
       if (typeof parsedBody.offset === 'number') offset = parsedBody.offset;
+      if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
     }
   } catch (error) {
     console.error('Error parsing request body:', error);
     throw new Error('Invalid request body');
   }
 
-  return { mode, offset };
+  return { mode, offset, resumeToken };
 }
 
 export function createResponse(data: AnalysisResponse, status: number = 200): Response {
