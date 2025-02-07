@@ -13,14 +13,39 @@ export async function processCountriesChunk(
   totalCount: number,
   mode: string
 ): Promise<Response> {
-  const { data: countries, error: batchError } = await supabase
-    .from('countries')
-    .select('*')
-    .range(offset, offset + CHUNK_SIZE - 1);
+  // For single country mode, get just that country
+  let countries;
+  if (mode && mode !== 'clear') {
+    console.log('Processing single country:', mode);
+    const { data, error } = await supabase
+      .from('countries')
+      .select('*')
+      .eq('name', mode)
+      .limit(1);
 
-  if (batchError) {
-    console.error('Error fetching countries batch:', batchError);
-    throw batchError;
+    if (error) throw error;
+    countries = data;
+    
+    // If country not found, try to find it by code
+    if (!countries?.length) {
+      const { data: byCode, error: codeError } = await supabase
+        .from('countries')
+        .select('*')
+        .eq('code', mode)
+        .limit(1);
+
+      if (codeError) throw codeError;
+      countries = byCode;
+    }
+  } else {
+    // For bulk mode, get the next chunk
+    const { data: batchData, error: batchError } = await supabase
+      .from('countries')
+      .select('*')
+      .range(offset, offset + CHUNK_SIZE - 1);
+
+    if (batchError) throw batchError;
+    countries = batchData;
   }
 
   if (!countries || countries.length === 0) {
@@ -42,25 +67,38 @@ export async function processCountriesChunk(
   const errors = [];
   const chunkStartTime = Date.now();
 
-  for (const country of countries) {
-    try {
-      const result = await processCountry(country.name, supabase);
-      console.log('Country processing result:', result);
-      results.push(country.name);
+  try {
+    const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze_batch_countries_policies`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ countries }),
+    });
 
-      await updateProgressAfterCountry(syncManager, country.name);
-      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_COUNTRIES));
-
-    } catch (error) {
-      console.error('Error processing country:', country.name, error);
-      errors.push({
-        country: country.name,
-        error: error.message
-      });
+    if (!response.ok) {
+      throw new Error(`Batch processing failed: ${response.statusText}`);
     }
+
+    const batchResult = await response.json();
+    results.push(...batchResult.results);
+    errors.push(...batchResult.errors);
+
+    // Update progress after processing the batch
+    for (const result of batchResult.results) {
+      await updateProgressAfterCountry(syncManager, result.country);
+    }
+
+  } catch (error) {
+    console.error('Error processing batch:', error);
+    errors.push(...countries.map(country => ({
+      country: country.name,
+      error: error.message
+    })));
   }
 
-  const nextOffset = offset + countries.length;
+  const nextOffset = mode !== 'clear' ? totalCount : offset + countries.length;
   const hasMore = nextOffset < totalCount;
 
   if (!hasMore) {
@@ -90,32 +128,6 @@ export async function processCountriesChunk(
     total_remaining: totalCount - nextOffset,
     resume_token: resumeData ? btoa(JSON.stringify(resumeData)) : null
   });
-}
-
-async function processCountry(countryName: string, supabase: SupabaseClient): Promise<any> {
-  console.log(`Processing country: ${countryName}`);
-  
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase configuration');
-  }
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/sync_country_policies`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ country: countryName }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to process country: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 async function updateProgressAfterCountry(syncManager: SyncManager, countryName: string): Promise<void> {

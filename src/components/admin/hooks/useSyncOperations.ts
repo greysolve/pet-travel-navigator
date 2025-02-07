@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -150,7 +149,6 @@ export const useSyncOperations = () => {
         } else {
           if (!resume) {
             console.log('Starting new sync');
-            // Only clear data if explicitly requested and not resuming
             if (clearData[type]) {
               console.log(`Clearing existing data for ${type}`);
               const { error: clearError } = await supabase
@@ -168,53 +166,37 @@ export const useSyncOperations = () => {
 
       // Special handling for country policies
       if (type === 'countryPolicies') {
-        // For single country sync
-        if (mode && mode.trim() !== '' && mode !== 'clear') {
-          console.log(`Initiating single country policy sync for: ${mode}`);
-          const { error } = await supabase.functions.invoke('sync_country_policies', {
-            body: { 
-              country: mode.trim(),
-              resume: resume,
-              clearData: clearData[type]
-            }
-          });
-          
-          if (error) throw error;
-        } 
-        // For full sync
-        else {
-          const { data: currentProgress, error: progressError } = await supabase
-            .from('sync_progress')
-            .select('*')
-            .eq('type', type)
-            .maybeSingle();
+        const { data: currentProgress, error: progressError } = await supabase
+          .from('sync_progress')
+          .select('*')
+          .eq('type', type)
+          .maybeSingle();
 
-          if (progressError && progressError.code !== 'PGRST116') {
-            throw progressError;
-          }
+        if (progressError && progressError.code !== 'PGRST116') {
+          throw progressError;
+        }
 
-          if (resume && currentProgress?.needs_continuation) {
-            console.log('Resuming from previous progress:', currentProgress);
-            await processCountryPoliciesChunk(
-              currentProgress.processed,
-              'clear',
-              currentProgress.resume_token
-            );
-          } else {
-            if (!resume) {
-              console.log('Starting new full country policies sync');
-              if (clearData[type]) {
-                console.log(`Clearing existing data for ${type}`);
-                const { error: clearError } = await supabase
-                  .from('country_policies')
-                  .delete()
-                  .neq('country_code', '');
-                
-                if (clearError) throw clearError;
-              }
+        if (resume && currentProgress?.needs_continuation) {
+          console.log('Resuming from previous progress:', currentProgress);
+          await processCountryPoliciesChunk(
+            currentProgress.processed,
+            mode || 'clear',
+            currentProgress.resume_token
+          );
+        } else {
+          if (!resume) {
+            console.log('Starting new sync');
+            if (clearData[type]) {
+              console.log(`Clearing existing data for ${type}`);
+              const { error: clearError } = await supabase
+                .from('country_policies')
+                .delete()
+                .neq('country_code', '');
+              
+              if (clearError) throw clearError;
             }
-            await processCountryPoliciesChunk(0, 'clear');
           }
+          await processCountryPoliciesChunk(0, mode || 'clear');
         }
         return;
       }
