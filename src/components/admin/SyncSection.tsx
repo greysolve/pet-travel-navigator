@@ -41,14 +41,21 @@ export const SyncSection = () => {
           processedItems: curr.processed_items || [],
           errorItems: curr.error_items || [],
           startTime: curr.start_time,
-          isComplete: curr.is_complete
+          isComplete: curr.is_complete,
+          needsContinuation: curr.needs_continuation
         };
         return acc;
       }, {} as any);
 
       // Set country input if there's an incomplete country policy sync
+      // Only set if it's a valid country name (not "clear" or empty)
       const countrySync = progressRecord.countryPolicies;
-      if (countrySync && !countrySync.isComplete && countrySync.lastProcessed) {
+      if (countrySync && 
+          !countrySync.isComplete && 
+          countrySync.lastProcessed && 
+          countrySync.lastProcessed !== 'clear' &&
+          countrySync.needsContinuation) {
+        console.log('Setting country input from incomplete sync:', countrySync.lastProcessed);
         setCountryInput(countrySync.lastProcessed);
       }
 
@@ -84,15 +91,16 @@ export const SyncSection = () => {
             isLoading={isInitializing[value]}
             onSync={(resume, mode) => {
               if (key === 'countryPolicies') {
-                if (!countryInput.trim()) {
+                const trimmedCountry = countryInput.trim();
+                if (!trimmedCountry || trimmedCountry === 'clear') {
                   toast({
                     variant: "destructive",
                     title: "Country Required",
-                    description: "Please enter a country name to sync policies.",
+                    description: "Please enter a valid country name to sync policies.",
                   });
                   return;
                 }
-                handleSync(key as keyof typeof SyncType, resume, countryInput.trim());
+                handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
               } else {
                 handleSync(key as keyof typeof SyncType, resume, mode);
               }

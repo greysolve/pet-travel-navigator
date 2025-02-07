@@ -22,6 +22,30 @@ export const useSyncOperations = () => {
     await queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
   };
 
+  const clearSyncProgress = async (type: keyof typeof SyncType) => {
+    console.log(`Clearing sync progress for ${type}`);
+    const { error } = await supabase
+      .from('sync_progress')
+      .upsert({
+        type,
+        total: 0,
+        processed: 0,
+        last_processed: null,
+        processed_items: [],
+        error_items: [],
+        start_time: new Date().toISOString(),
+        is_complete: true,
+        needs_continuation: false
+      }, {
+        onConflict: 'type'
+      });
+
+    if (error) {
+      console.error(`Error clearing sync progress for ${type}:`, error);
+      throw error;
+    }
+  };
+
   const processPetPoliciesChunk = async (offset: number = 0, mode: string = 'clear', resumeToken: string | null = null) => {
     console.log(`Processing pet policies chunk with offset ${offset}, mode ${mode}, resumeToken: ${resumeToken}`);
     
@@ -59,10 +83,15 @@ export const useSyncOperations = () => {
   };
 
   const handleSync = async (type: keyof typeof SyncType, resume: boolean = false, mode?: string) => {
-    console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}`);
+    console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}, clearData: ${clearData[type]}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
     
     try {
+      // If clearing data is requested and not resuming, reset sync progress first
+      if (clearData[type] && !resume) {
+        await clearSyncProgress(type);
+      }
+
       // Special handling for pet policies to use chunked processing
       if (type === 'petPolicies') {
         const { data: currentProgress, error: progressError } = await supabase
@@ -112,31 +141,35 @@ export const useSyncOperations = () => {
 
       // Handle country policies sync with proper validation
       if (type === 'countryPolicies') {
-        // Always require country name, even for resume operations
-        if (!mode || mode.trim() === '') {
-          throw new Error('Country name is required for country policies sync');
+        // Always require valid country name
+        if (!mode || mode.trim() === '' || mode === 'clear') {
+          throw new Error('Valid country name is required for country policies sync');
         }
 
         console.log(`Initiating country policies sync for: ${mode}`);
         const { error } = await supabase.functions.invoke(functionMap[type], {
           body: { 
             country: mode.trim(),
-            resume: resume 
+            resume: resume,
+            clearData: clearData[type]
           }
         });
         
         if (error) throw error;
 
-        // Update sync progress for country policies
-        await supabase
-          .from('sync_progress')
-          .upsert({
-            type: 'countryPolicies',
-            last_processed: mode.trim(),
-            needs_continuation: false
-          }, {
-            onConflict: 'type'
-          });
+        // Only update sync progress if not resuming
+        if (!resume) {
+          await supabase
+            .from('sync_progress')
+            .upsert({
+              type: 'countryPolicies',
+              last_processed: mode.trim(),
+              needs_continuation: true,
+              is_complete: false
+            }, {
+              onConflict: 'type'
+            });
+        }
 
       } else {
         // Handle other sync types
