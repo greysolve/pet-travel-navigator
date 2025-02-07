@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
     });
   }
 
+  const startTime = Date.now();
   try {
     const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
     if (!perplexityKey) {
@@ -74,6 +75,18 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Remove from missing_pet_policies if present
+        if (airline.policy_url) {
+          const { error: deleteError } = await supabase
+            .from('missing_pet_policies')
+            .delete()
+            .eq('iata_code', airline.iata_code);
+
+          if (deleteError) {
+            console.error(`Error removing from missing_pet_policies: ${deleteError.message}`);
+          }
+        }
+
         results.push({
           airline_id: airline.id,
           success: true,
@@ -90,11 +103,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    const executionTime = Date.now() - startTime;
     return new Response(
       JSON.stringify({
         success: true,
         results,
-        errors
+        errors,
+        execution_time: executionTime
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -237,5 +252,5 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
     }
   }
 
-  throw lastError; // Shouldn't reach here, but TypeScript wants it
+  throw lastError;
 }
