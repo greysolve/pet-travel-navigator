@@ -136,7 +136,7 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
     "quarantine_requirements": "string - detailed quarantine information",
     "vaccination_requirements": ["string - list each required vaccination"],
     "additional_notes": "string - include source authority and last verified date",
-    "Required_Ports_of_Entry": "string - include the airports required and the accompanying conditions",
+    "required_ports_of_entry": "string - include the airports required and the accompanying conditions",
     "policy_url": "string - MUST be the direct URL to the policy. If using non-government source, explain why in additional_notes"
   }
 
