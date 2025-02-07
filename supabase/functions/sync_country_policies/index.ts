@@ -1,9 +1,70 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const countryNameMappings: Record<string, string> = {
+  'HK': 'Hong Kong SAR',
+  'LA': 'Lao People\'s Democratic Republic',
+  'PRK': 'Democratic People\'s Democratic Republic of Korea',
+  'KR': 'Republic of Korea',
+  'ES': 'Spain and Canary Islands',
+  'BN': 'Brunei Darussalam',
+  'RU': 'Russian Federation',
+  'VN': 'Viet Nam',
+  'TR': 'Turkiye',
+  'MO': 'Macau SAR',
+  'MD': 'Republic of Moldova',
+  'CD': 'The Democratic Republic of The Congo',
+  'CI': 'Cote d\'Ivoire',
+  // Add common variations
+  'Hong Kong': 'Hong Kong SAR',
+  'Laos': 'Lao People\'s Democratic Republic',
+  'North Korea': 'Democratic People\'s Democratic Republic of Korea',
+  'South Korea': 'Republic of Korea',
+  'Spain': 'Spain and Canary Islands',
+  'Brunei': 'Brunei Darussalam',
+  'Russia': 'Russian Federation',
+  'Vietnam': 'Viet Nam',
+  'Turkey': 'Turkiye',
+  'Macau': 'Macau SAR',
+  'Moldova': 'Republic of Moldova',
+  'DR Congo': 'The Democratic Republic of The Congo',
+  'DRC': 'The Democratic Republic of The Congo',
+  'Ivory Coast': 'Cote d\'Ivoire'
+};
+
+const standardizeCountryName = async (country: string, supabase: any): Promise<string> => {
+  // If we have a direct mapping, use it
+  if (countryNameMappings[country]) {
+    console.log(`Mapped country name from ${country} to ${countryNameMappings[country]}`);
+    return countryNameMappings[country];
+  }
+
+  // Try to find the country in our countries table
+  const { data: countryData, error: countryError } = await supabase
+    .from('countries')
+    .select('name')
+    .or(`code.eq.${country},name.ilike.${country}`)
+    .maybeSingle();
+
+  if (countryError) {
+    console.error('Error looking up country:', countryError);
+    throw new Error(`Failed to lookup country: ${countryError.message}`);
+  }
+
+  if (countryData?.name) {
+    console.log(`Found standard country name: ${countryData.name} for input: ${country}`);
+    return countryData.name;
+  }
+
+  // If we can't find a mapping, return the original name but log a warning
+  console.warn(`No standardized name found for country: ${country}`);
+  return country;
+};
 
 const findCaseInsensitiveKey = (obj: any, targetKey: string): string | null => {
   const lowerTargetKey = targetKey.toLowerCase();
@@ -103,7 +164,6 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
       throw new Error(`Perplexity API error: ${response.status}`);
     }
   
-  try {
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
     
@@ -156,6 +216,10 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Standardize the country name before processing
+    const standardizedCountry = await standardizeCountryName(country, supabase);
+    console.log(`Using standardized country name: ${standardizedCountry}`);
     
     // Initialize sync progress
     await supabase
@@ -174,7 +238,7 @@ Deno.serve(async (req) => {
       });
 
     // Fetch and store policies
-    const policies = await fetchPolicyWithAI(country, apiKey);
+    const policies = await fetchPolicyWithAI(standardizedCountry, apiKey);
     
     // Store each policy separately with normalized fields
     for (const policy of policies) {
@@ -183,7 +247,7 @@ Deno.serve(async (req) => {
       const { error: upsertError } = await supabase
         .from('country_policies')
         .upsert({
-          country_code: country,
+          country_code: standardizedCountry,
           ...normalizedPolicy,
           last_updated: new Date().toISOString()
         }, {
@@ -200,8 +264,8 @@ Deno.serve(async (req) => {
       .from('sync_progress')
       .update({
         processed: 1,
-        last_processed: country,
-        processed_items: [country],
+        last_processed: standardizedCountry,
+        processed_items: [standardizedCountry],
         needs_continuation: false
       })
       .eq('type', 'countryPolicies');
@@ -224,3 +288,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
