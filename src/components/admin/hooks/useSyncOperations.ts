@@ -112,14 +112,32 @@ export const useSyncOperations = () => {
 
       // Handle country policies sync with proper validation
       if (type === 'countryPolicies') {
+        // Always require country name, even for resume operations
         if (!mode || mode.trim() === '') {
           throw new Error('Country name is required for country policies sync');
         }
+
         console.log(`Initiating country policies sync for: ${mode}`);
         const { error } = await supabase.functions.invoke(functionMap[type], {
-          body: { country: mode.trim() }
+          body: { 
+            country: mode.trim(),
+            resume: resume 
+          }
         });
+        
         if (error) throw error;
+
+        // Update sync progress for country policies
+        await supabase
+          .from('sync_progress')
+          .upsert({
+            type: 'countryPolicies',
+            last_processed: mode.trim(),
+            needs_continuation: false
+          }, {
+            onConflict: 'type'
+          });
+
       } else {
         // Handle other sync types
         const { error } = await supabase.functions.invoke(functionMap[type]);
@@ -130,6 +148,9 @@ export const useSyncOperations = () => {
         title: "Sync Started",
         description: `Started synchronizing ${type} data${mode ? ` for ${mode}` : ''}.`,
       });
+
+      // Invalidate sync progress cache
+      await resetSyncProgressCache(type);
 
     } catch (error: any) {
       console.error(`Error syncing ${type}:`, error);

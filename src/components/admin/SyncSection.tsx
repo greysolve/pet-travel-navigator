@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { SyncCard } from "./SyncCard";
@@ -45,6 +45,12 @@ export const SyncSection = () => {
         };
         return acc;
       }, {} as any);
+
+      // Set country input if there's an incomplete country policy sync
+      const countrySync = progressRecord.countryPolicies;
+      if (countrySync && !countrySync.isComplete && countrySync.lastProcessed) {
+        setCountryInput(countrySync.lastProcessed);
+      }
 
       console.log('Processed sync progress data:', progressRecord);
       return progressRecord;
