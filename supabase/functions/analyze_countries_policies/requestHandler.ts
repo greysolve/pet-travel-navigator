@@ -3,7 +3,6 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { SyncManager } from '../_shared/SyncManager.ts';
 import { RequestBody, AnalysisResponse } from './types.ts';
-import { processCountriesChunk } from './countryProcessor.ts';
 
 export async function handleAnalysisRequest(req: Request): Promise<Response> {
   try {
@@ -24,16 +23,10 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     const currentProgress = await syncManager.getCurrentProgress();
     if (currentProgress?.needs_continuation && !resumeToken) {
       console.log('Found incomplete sync:', currentProgress);
-      return await processCountriesChunk(
-        supabase, 
-        syncManager, 
-        currentProgress.processed, 
-        currentProgress.total,
-        mode
-      );
+      return await processCountriesChunk(supabase, syncManager, currentProgress.processed, mode);
     }
 
-    // For new syncs or explicit resume requests, get total count
+    // Get total count for the full table - this sets our baseline
     const { count: totalCount, error: countError } = await supabase
       .from('countries')
       .select('*', { count: 'exact', head: true });
@@ -70,10 +63,13 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       if (!currentProgress) {
         throw new Error('No sync progress found for non-zero offset');
       }
+      if (currentProgress.total !== totalCount) {
+        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
+      }
       console.log('Continuing with existing progress:', currentProgress);
     }
 
-    return await processCountriesChunk(supabase, syncManager, offset, totalCount, mode);
+    return await processCountriesChunk(supabase, syncManager, offset, mode);
 
   } catch (error) {
     console.error('Fatal error in analyze_countries_policies:', error);

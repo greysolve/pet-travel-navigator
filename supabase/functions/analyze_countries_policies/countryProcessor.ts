@@ -4,41 +4,26 @@ import { SyncManager } from '../_shared/SyncManager.ts';
 import { createResponse } from './requestHandler.ts';
 
 const CHUNK_SIZE = 5;
-const DELAY_BETWEEN_COUNTRIES = 1000; // 1 second delay
 
 export async function processCountriesChunk(
   supabase: SupabaseClient,
   syncManager: SyncManager,
   offset: number,
-  totalCount: number,
   mode: string
 ): Promise<Response> {
-  // For single country mode, get just that country
+  // Get the next chunk of countries
   let countries;
   if (mode && mode !== 'clear') {
     console.log('Processing single country:', mode);
     const { data, error } = await supabase
       .from('countries')
       .select('*')
-      .eq('name', mode)
+      .or(`name.eq.${mode},code.eq.${mode}`)
       .limit(1);
 
     if (error) throw error;
     countries = data;
-    
-    // If country not found, try to find it by code
-    if (!countries?.length) {
-      const { data: byCode, error: codeError } = await supabase
-        .from('countries')
-        .select('*')
-        .eq('code', mode)
-        .limit(1);
-
-      if (codeError) throw codeError;
-      countries = byCode;
-    }
   } else {
-    // For bulk mode, get the next chunk
     const { data: batchData, error: batchError } = await supabase
       .from('countries')
       .select('*')
@@ -86,9 +71,14 @@ export async function processCountriesChunk(
     errors.push(...batchResult.errors);
 
     // Update progress after processing the batch
-    for (const result of batchResult.results) {
-      await updateProgressAfterCountry(syncManager, result.country);
-    }
+    const currentProgress = await syncManager.getCurrentProgress();
+    await syncManager.updateProgress({
+      processed: currentProgress.processed + countries.length,
+      last_processed: countries[countries.length - 1].name,
+      processed_items: [...(currentProgress.processed_items || []), ...results.map(r => r.country)],
+      error_items: [...(currentProgress.error_items || []), ...errors.map(e => e.country)],
+      needs_continuation: true
+    });
 
   } catch (error) {
     console.error('Error processing batch:', error);
@@ -98,8 +88,9 @@ export async function processCountriesChunk(
     })));
   }
 
-  const nextOffset = mode !== 'clear' ? totalCount : offset + countries.length;
-  const hasMore = nextOffset < totalCount;
+  const currentProgress = await syncManager.getCurrentProgress();
+  const nextOffset = offset + countries.length;
+  const hasMore = nextOffset < currentProgress.total;
 
   if (!hasMore) {
     await syncManager.updateProgress({ 
@@ -125,19 +116,7 @@ export async function processCountriesChunk(
     },
     has_more: hasMore,
     next_offset: hasMore ? nextOffset : null,
-    total_remaining: totalCount - nextOffset,
+    total_remaining: currentProgress.total - nextOffset,
     resume_token: resumeData ? btoa(JSON.stringify(resumeData)) : null
-  });
-}
-
-async function updateProgressAfterCountry(syncManager: SyncManager, countryName: string): Promise<void> {
-  const currentProgress = await syncManager.getCurrentProgress();
-  
-  await syncManager.updateProgress({
-    processed: currentProgress.processed + 1,
-    last_processed: countryName,
-    processed_items: [...(currentProgress.processed_items || []), countryName],
-    error_items: [...(currentProgress.error_items || [])],
-    needs_continuation: true
   });
 }
