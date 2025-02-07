@@ -11,24 +11,6 @@ interface Country {
   code: string;
 }
 
-// Helper function to convert PascalCase/camelCase to snake_case
-function toSnakeCase(str: string): string {
-  return str
-    .replace(/([A-Z])/g, '_$1')
-    .toLowerCase()
-    .replace(/^_/, '');
-}
-
-// Helper function to transform policy object keys to snake_case
-function transformPolicyKeys(policy: any): any {
-  const transformed: any = {};
-  Object.entries(policy).forEach(([key, value]) => {
-    const snakeCaseKey = toSnakeCase(key);
-    transformed[snakeCaseKey] = value;
-  });
-  return transformed;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -68,15 +50,11 @@ Deno.serve(async (req) => {
 
         // Store each policy type separately
         for (const policy of policies) {
-          // Transform policy keys to snake_case before insertion
-          const transformedPolicy = transformPolicyKeys(policy);
           const policyData = {
             country_code: country.code,
-            ...transformedPolicy,
+            ...policy,
             last_updated: new Date().toISOString()
           };
-
-          console.log(`Transformed policy data for ${country.name}:`, policyData);
 
           const { error: upsertError } = await supabase
             .from('country_policies')
@@ -158,7 +136,7 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
     "quarantine_requirements": "string - detailed quarantine information",
     "vaccination_requirements": ["string - list each required vaccination"],
     "additional_notes": "string - include source authority and last verified date",
-    "required_ports_of_entry": "string - include the airports required and the accompanying conditions",
+    "Required_Ports_of_Entry": "string - include the airports required and the accompanying conditions",
     "policy_url": "string - MUST be the direct URL to the policy. If using non-government source, explain why in additional_notes"
   }
 
