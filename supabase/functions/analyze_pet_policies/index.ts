@@ -6,6 +6,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 const CHUNK_SIZE = 30; // Process 30 airlines per function call
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -16,6 +17,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate request method
+    if (req.method !== 'POST') {
+      throw new Error(`Method ${req.method} not allowed`);
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
