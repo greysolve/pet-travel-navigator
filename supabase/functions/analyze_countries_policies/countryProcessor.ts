@@ -53,10 +53,18 @@ export async function processCountriesChunk(
   const chunkStartTime = Date.now();
 
   try {
-    const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze_batch_countries_policies`, {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    // Call the batch processor with the chunk of countries
+    const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_countries_policies`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Authorization': `Bearer ${supabaseKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ countries }),
@@ -67,11 +75,21 @@ export async function processCountriesChunk(
     }
 
     const batchResult = await response.json();
-    results.push(...batchResult.results);
-    errors.push(...batchResult.errors);
+    console.log('Batch processing result:', batchResult);
+
+    if (batchResult.results) {
+      results.push(...batchResult.results);
+    }
+    if (batchResult.errors) {
+      errors.push(...batchResult.errors);
+    }
 
     // Update progress after processing the batch
     const currentProgress = await syncManager.getCurrentProgress();
+    if (!currentProgress) {
+      throw new Error('No sync progress found');
+    }
+
     await syncManager.updateProgress({
       processed: currentProgress.processed + countries.length,
       last_processed: countries[countries.length - 1].name,
@@ -89,6 +107,10 @@ export async function processCountriesChunk(
   }
 
   const currentProgress = await syncManager.getCurrentProgress();
+  if (!currentProgress) {
+    throw new Error('No sync progress found');
+  }
+
   const nextOffset = offset + countries.length;
   const hasMore = nextOffset < currentProgress.total;
 

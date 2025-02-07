@@ -8,10 +8,10 @@ const corsHeaders = {
 
 interface Country {
   name: string;
+  code: string;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: corsHeaders,
@@ -46,11 +46,12 @@ Deno.serve(async (req) => {
       try {
         console.log(`Processing country: ${country.name}`);
         const policies = await analyzePolicies(country, perplexityKey);
+        console.log(`Got policies for ${country.name}:`, policies);
 
         // Store each policy type separately
         for (const policy of policies) {
           const policyData = {
-            country_code: country.name,
+            country_code: country.code,
             ...policy,
             last_updated: new Date().toISOString()
           };
