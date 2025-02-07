@@ -7,11 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Reduced batch size and increased timeout
-const REQUEST_TIMEOUT = 60000; // Increased to 60 seconds
+// Connection and retry settings
+const REQUEST_TIMEOUT = 30000; // Reduced to 30s to fail faster
+const SUPABASE_TIMEOUT = 10000; // Timeout for Supabase client operations
 const MAX_RETRIES = 3;
-const BATCH_SIZE = 3; // Reduced from 5 to 3 to reduce load
-const DELAY_BETWEEN_BATCHES = 2000; // 2 second delay between batches
+const BATCH_SIZE = 3;
+const DELAY_BETWEEN_BATCHES = 2000;
 
 async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -39,16 +40,51 @@ async function retryOperation<T>(
   }
 }
 
+async function initializeSupabase() {
+  console.log('Initializing Supabase client...');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    },
+    global: {
+      fetch: (url, options) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SUPABASE_TIMEOUT);
+        
+        return fetch(url, {
+          ...options,
+          signal: controller.signal
+        }).finally(() => clearTimeout(timeoutId));
+      }
+    }
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let supabase;
+  let syncManager;
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines');
+    console.log('Starting sync_airline_data function...');
+    supabase = await initializeSupabase();
+    syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'airlines'
+    );
 
     let requestBody;
     try {
@@ -213,16 +249,13 @@ Deno.serve(async (req) => {
     console.error('Error in sync_airline_data:', error);
     
     try {
-      const syncManager = new SyncManager(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-        'airlines'
-      );
-      await syncManager.updateProgress({
-        error_items: ['sync_error'],
-        needs_continuation: true,
-        is_complete: false
-      });
+      if (syncManager) {
+        await syncManager.updateProgress({
+          error_items: ['sync_error'],
+          needs_continuation: true,
+          is_complete: false
+        });
+      }
     } catch (e) {
       console.error('Failed to update sync error state:', e);
     }
@@ -243,4 +276,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
