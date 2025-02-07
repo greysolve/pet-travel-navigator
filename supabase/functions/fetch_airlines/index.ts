@@ -1,9 +1,15 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const BATCH_SIZE = 25;
+const MAX_RETRIES = 3;
+const BATCH_DELAY = 200; // ms between batches
+const REQUEST_TIMEOUT = 15000; // 15 seconds
 
 interface Airline {
   name: string;
@@ -12,7 +18,116 @@ interface Airline {
   country?: string;
 }
 
-const BATCH_SIZE = 50; // Process airlines in batches
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }) {
+  const { timeout = REQUEST_TIMEOUT } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+async function processBatchWithRetry(
+  airlines: Airline[], 
+  supabase: any, 
+  retryCount = 0
+): Promise<{ success: number; errors: string[] }> {
+  try {
+    console.log(`Processing batch of ${airlines.length} airlines, attempt ${retryCount + 1}`);
+    
+    const startTime = Date.now();
+    const { error } = await supabase
+      .from('airlines')
+      .upsert(
+        airlines.map(airline => ({
+          ...airline,
+          active: true,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: 'iata_code' }
+      );
+
+    if (error) throw error;
+
+    const processTime = Date.now() - startTime;
+    console.log(`Batch processed successfully in ${processTime}ms`);
+    
+    return { success: airlines.length, errors: [] };
+  } catch (error) {
+    console.error(`Error processing batch, attempt ${retryCount + 1}:`, error);
+    
+    if (retryCount < MAX_RETRIES) {
+      console.log(`Retrying batch after delay...`);
+      await delay(Math.pow(2, retryCount) * 1000); // Exponential backoff
+      return processBatchWithRetry(airlines, supabase, retryCount + 1);
+    }
+    
+    return {
+      success: 0,
+      errors: airlines.map(airline => 
+        `Failed to process ${airline.iata_code}: ${error.message}`
+      )
+    };
+  }
+}
+
+async function fetchAirlineFromCirium(iataCode: string | null, credentials: { appId: string, appKey: string }) {
+  const url = iataCode
+    ? `https://api.flightstats.com/flex/airlines/rest/v1/json/iata/${iataCode}`
+    : 'https://api.flightstats.com/flex/airlines/rest/v1/json/active';
+
+  console.log(`Fetching airlines from Cirium API: ${url}`);
+  
+  const response = await fetchWithTimeout(url, {
+    headers: {
+      'appId': credentials.appId,
+      'appKey': credentials.appKey,
+    },
+    timeout: REQUEST_TIMEOUT
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cirium API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log('Cirium API response:', data); // Add detailed logging
+
+  if (iataCode) {
+    // For single airline requests, the response structure is different
+    if (!data.airline) {
+      console.log(`No airline found for IATA code: ${iataCode}`);
+      return [];
+    }
+    // Make sure we're getting valid data
+    if (!data.airline.iata) {
+      console.log(`Invalid airline data received for ${iataCode}:`, data.airline);
+      return [];
+    }
+    return [data.airline];
+  }
+  
+  // For full sync, verify we have an airlines array
+  if (!Array.isArray(data.airlines)) {
+    console.log('Invalid response format - expected airlines array:', data);
+    return [];
+  }
+  
+  return data.airlines;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -27,77 +142,75 @@ Deno.serve(async (req) => {
       throw new Error('Missing Cirium API credentials')
     }
 
-    console.log('Fetching airlines from Cirium API...')
-    
-    const response = await fetch(
-      'https://api.flightstats.com/flex/airlines/rest/v1/json/active',
-      {
-        headers: {
-          'appId': CIRIUM_APP_ID,
-          'appKey': CIRIUM_APP_KEY,
-        },
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error(`Cirium API error: ${response.statusText}`)
+    // Parse request body for iataCode
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch {
+      requestBody = {};
     }
+    const { iataCode = null } = requestBody;
 
-    const data = await response.json()
-    const airlines: Airline[] = data.airlines
-      .filter((airline: any) => airline.iata) // Only process airlines with IATA codes
+    console.log(`Processing request for ${iataCode ? `airline ${iataCode}` : 'all airlines'}`);
+
+    const rawAirlines = await fetchAirlineFromCirium(
+      iataCode,
+      { appId: CIRIUM_APP_ID, appKey: CIRIUM_APP_KEY }
+    );
+
+    const airlines: Airline[] = rawAirlines
+      .filter((airline: any) => airline.iata)
       .map((airline: any) => ({
         name: airline.name,
         iata_code: airline.iata,
         website: airline.website || null,
         country: airline.country || null,
-      }))
+      }));
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log(`Processing ${airlines.length} airlines in batches of ${BATCH_SIZE}...`)
-
-    // Process airlines in batches
-    const batches = [];
-    for (let i = 0; i < airlines.length; i += BATCH_SIZE) {
-      batches.push(airlines.slice(i, i + BATCH_SIZE));
-    }
+    console.log(`Processing ${airlines.length} airlines${iataCode ? ' for update' : ''}`);
 
     let processedCount = 0;
     let errorCount = 0;
+    const errors: string[] = [];
 
-    for (const [index, batch] of batches.entries()) {
-      console.log(`Processing batch ${index + 1} of ${batches.length}...`);
-      
-      try {
-        const { error } = await supabase
-          .from('airlines')
-          .upsert(
-            batch.map(airline => ({
-              ...airline,
-              active: true,
-              updated_at: new Date().toISOString(),
-            })),
-            { onConflict: 'iata_code' }
-          )
+    // For single airline updates, process directly
+    if (iataCode) {
+      if (airlines.length === 0) {
+        console.log(`No valid airline data found for IATA code: ${iataCode}`);
+        return new Response(JSON.stringify({
+          success: false,
+          error: `No valid airline data found for IATA code: ${iataCode}`,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404
+        });
+      }
 
-        if (error) {
-          console.error(`Error in batch ${index + 1}:`, error)
-          errorCount++
-        } else {
-          processedCount += batch.length
+      const { success, errors: batchErrors } = await processBatchWithRetry(airlines, supabase);
+      processedCount = success;
+      errors.push(...batchErrors);
+      errorCount = batchErrors.length;
+    } else {
+      // Process airlines in batches for full sync
+      for (let i = 0; i < airlines.length; i += BATCH_SIZE) {
+        const batch = airlines.slice(i, i + BATCH_SIZE);
+        console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(airlines.length/BATCH_SIZE)}...`);
+        
+        const { success, errors: batchErrors } = await processBatchWithRetry(batch, supabase);
+        
+        processedCount += success;
+        errors.push(...batchErrors);
+        errorCount += batchErrors.length;
+
+        if (i + BATCH_SIZE < airlines.length) {
+          console.log(`Waiting ${BATCH_DELAY}ms before next batch...`);
+          await delay(BATCH_DELAY);
         }
-
-        // Add a small delay between batches
-        if (index < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-        }
-      } catch (error) {
-        console.error(`Failed to process batch ${index + 1}:`, error)
-        errorCount++
       }
     }
 
@@ -106,6 +219,7 @@ Deno.serve(async (req) => {
       total: airlines.length,
       processed: processedCount,
       errors: errorCount,
+      errorDetails: errors,
     }
 
     console.log('Sync complete:', summary)
@@ -118,7 +232,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        errorDetails: error.stack 
       }), 
       {
         status: 500,

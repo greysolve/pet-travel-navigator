@@ -1,3 +1,4 @@
+
 import { ExternalLink } from "lucide-react";
 import type { PetPolicy } from "./types";
 
@@ -21,6 +22,12 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       )}
       {policy.carrier_requirements && (
         <p><span className="font-medium">Carrier requirements:</span> {policy.carrier_requirements}</p>
+      )}
+      {!policy.carrier_requirements && policy.carrier_requirements_cabin && (
+        <p><span className="font-medium">Cabin carrier requirements:</span> {policy.carrier_requirements_cabin}</p>
+      )}
+      {!policy.carrier_requirements && policy.carrier_requirements_cargo && (
+        <p><span className="font-medium">Cargo carrier requirements:</span> {policy.carrier_requirements_cargo}</p>
       )}
       {policy.documentation_needed?.length > 0 && (
         <p><span className="font-medium">Required documentation:</span> {policy.documentation_needed.join(', ')}</p>

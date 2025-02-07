@@ -1,5 +1,5 @@
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, TestTube, Microscope, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CountryPolicy, PolicyType } from "./types";
 
@@ -76,6 +76,36 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
                 <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{doc}</li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {policy.all_blood_tests && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <TestTube className="h-5 w-5 text-primary" />
+              <h3 className="text-xl font-semibold tracking-normal text-gray-900">Blood Tests</h3>
+            </div>
+            <p className="text-gray-700 text-lg leading-relaxed">{policy.all_blood_tests}</p>
+          </section>
+        )}
+
+        {policy.all_other_biological_tests && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Microscope className="h-5 w-5 text-primary" />
+              <h3 className="text-xl font-semibold tracking-normal text-gray-900">Other Biological Tests</h3>
+            </div>
+            <p className="text-gray-700 text-lg leading-relaxed">{policy.all_other_biological_tests}</p>
+          </section>
+        )}
+
+        {policy.required_ports_of_entry && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="h-5 w-5 text-primary" />
+              <h3 className="text-xl font-semibold tracking-normal text-gray-900">Entry Port Requirements</h3>
+            </div>
+            <p className="text-gray-700 text-lg leading-relaxed">{policy.required_ports_of_entry}</p>
           </section>
         )}
 

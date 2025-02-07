@@ -1,5 +1,8 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { SyncManager } from '../_shared/SyncManager.ts'
+
+import { BatchProcessor } from '../_shared/BatchProcessor.ts';
+import { SupabaseClientManager } from '../_shared/SupabaseClient.ts';
+import { AirlineSyncService } from '../_shared/AirlineSyncService.ts';
+import { SyncManager } from '../_shared/SyncManager.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,43 +11,84 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
+  let supabase;
+  let syncManager;
+  let airlineSyncService;
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines')
+    console.log('Starting sync_airline_data function...');
+    
+    // Initialize dependencies
+    const supabaseManager = new SupabaseClientManager();
+    supabase = await supabaseManager.initialize();
+    
+    syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'airlines'
+    );
+    
+    const batchProcessor = new BatchProcessor();
+    airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
 
-    console.log('Starting airline sync process...')
-
-    // First, fetch airlines from the fetch_airlines function
-    const fetchAirlinesResponse = await fetch(
-      `${supabaseUrl}/functions/v1/fetch_airlines`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    )
-
-    if (!fetchAirlinesResponse.ok) {
-      const errorText = await fetchAirlinesResponse.text()
-      console.error('Failed to fetch airlines:', errorText)
-      throw new Error(`Failed to fetch airlines: ${errorText}`)
+    // Parse request
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      requestBody = { mode: 'clear' };
     }
+    const { mode = 'clear' } = requestBody;
+    
+    console.log('Starting airline sync process in mode:', mode);
 
-    const result = await fetchAirlinesResponse.json()
-    console.log('Fetch airlines result:', result)
+    if (mode === 'update') {
+      const { data: missingPolicies, error: missingPoliciesError } = await supabase
+        .from('missing_pet_policies')
+        .select('id, iata_code, name');
+
+      if (missingPoliciesError) {
+        console.error('Failed to fetch missing policies:', missingPoliciesError);
+        throw missingPoliciesError;
+      }
+
+      const total = missingPolicies?.length || 0;
+      await syncManager.initialize(total);
+      console.log(`Initialized sync progress with ${total} airlines to process`);
+
+      // Process airlines in batches
+      for (let i = 0; i < (missingPolicies?.length || 0); i += batchProcessor.getBatchSize()) {
+        const batch = missingPolicies!.slice(i, i + batchProcessor.getBatchSize());
+        console.log(`Processing batch ${Math.floor(i/batchProcessor.getBatchSize()) + 1} of ${Math.ceil((missingPolicies?.length || 0)/batchProcessor.getBatchSize())}`);
+
+        await airlineSyncService.processBatch(batch);
+
+        // Add delay between batches
+        if (i + batchProcessor.getBatchSize() < (missingPolicies?.length || 0)) {
+          console.log(`Waiting ${batchProcessor.getDelayBetweenBatches()}ms before next batch...`);
+          await batchProcessor.delay(batchProcessor.getDelayBetweenBatches());
+        }
+      }
+
+      const finalProgress = await syncManager.getCurrentProgress();
+      const isComplete = finalProgress.processed + finalProgress.error_items.length >= total;
+      await syncManager.updateProgress({
+        is_complete: isComplete,
+        needs_continuation: !isComplete
+      });
+
+    } else {
+      // Full sync mode
+      await airlineSyncService.performFullSync();
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Airlines sync completed successfully',
-        result
+        message: 'Airlines sync process started successfully'
       }), 
       { 
         headers: { 
@@ -52,22 +96,27 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         } 
       }
-    )
-  } catch (error) {
-    console.error('Error in sync_airline_data:', error)
-    
-    // Clean up on error
-    const syncManager = new SyncManager(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      'airlines'
     );
-    await syncManager.cleanup();
-
+  } catch (error) {
+    console.error('Error in sync_airline_data:', error);
+    
+    try {
+      if (syncManager) {
+        await syncManager.updateProgress({
+          error_items: ['sync_error'],
+          needs_continuation: true,
+          is_complete: false
+        });
+      }
+    } catch (e) {
+      console.error('Failed to update sync error state:', e);
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        errorDetails: error.stack
       }), 
       { 
         status: 500,
@@ -76,6 +125,6 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         } 
       }
-    )
+    );
   }
-})
+});

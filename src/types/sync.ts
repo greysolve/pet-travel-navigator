@@ -1,3 +1,4 @@
+
 export const SyncType = {
   airlines: 'airlines',
   airports: 'airports',
@@ -16,6 +17,7 @@ export interface SyncProgress {
   errorItems: string[];
   startTime: string | null;
   isComplete: boolean;
+  errorDetails?: { [key: string]: string };
 }
 
 export interface SyncProgressRecord {

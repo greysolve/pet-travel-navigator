@@ -129,6 +129,8 @@ export type Database = {
       country_policies: {
         Row: {
           additional_notes: string | null
+          all_blood_tests: string | null
+          all_other_biological_tests: string | null
           country_code: string
           created_at: string | null
           description: string | null
@@ -139,6 +141,7 @@ export type Database = {
           policy_type: Database["public"]["Enums"]["policy_type"]
           policy_url: string | null
           quarantine_requirements: string | null
+          required_ports_of_entry: string | null
           requirements: string[] | null
           restrictions: Json | null
           title: string
@@ -147,6 +150,8 @@ export type Database = {
         }
         Insert: {
           additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
           country_code: string
           created_at?: string | null
           description?: string | null
@@ -157,6 +162,7 @@ export type Database = {
           policy_type: Database["public"]["Enums"]["policy_type"]
           policy_url?: string | null
           quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
           title: string
@@ -165,6 +171,8 @@ export type Database = {
         }
         Update: {
           additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
           country_code?: string
           created_at?: string | null
           description?: string | null
@@ -175,9 +183,79 @@ export type Database = {
           policy_type?: Database["public"]["Enums"]["policy_type"]
           policy_url?: string | null
           quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
           title?: string
+          updated_at?: string | null
+          vaccination_requirements?: string[] | null
+        }
+        Relationships: []
+      }
+      country_policies_backup_2025_02_07: {
+        Row: {
+          additional_notes: string | null
+          all_blood_tests: string | null
+          all_other_biological_tests: string | null
+          backup_timestamp: string | null
+          country_code: string | null
+          created_at: string | null
+          description: string | null
+          documentation_needed: string[] | null
+          fees: Json | null
+          id: string | null
+          last_updated: string | null
+          policy_type: Database["public"]["Enums"]["policy_type"] | null
+          policy_url: string | null
+          quarantine_requirements: string | null
+          required_ports_of_entry: string | null
+          requirements: string[] | null
+          restrictions: Json | null
+          title: string | null
+          updated_at: string | null
+          vaccination_requirements: string[] | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
+          backup_timestamp?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          documentation_needed?: string[] | null
+          fees?: Json | null
+          id?: string | null
+          last_updated?: string | null
+          policy_type?: Database["public"]["Enums"]["policy_type"] | null
+          policy_url?: string | null
+          quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
+          requirements?: string[] | null
+          restrictions?: Json | null
+          title?: string | null
+          updated_at?: string | null
+          vaccination_requirements?: string[] | null
+        }
+        Update: {
+          additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
+          backup_timestamp?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          documentation_needed?: string[] | null
+          fees?: Json | null
+          id?: string | null
+          last_updated?: string | null
+          policy_type?: Database["public"]["Enums"]["policy_type"] | null
+          policy_url?: string | null
+          quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
+          requirements?: string[] | null
+          restrictions?: Json | null
+          title?: string | null
           updated_at?: string | null
           vaccination_requirements?: string[] | null
         }
@@ -188,6 +266,8 @@ export type Database = {
           airline_id: string | null
           breed_restrictions: string[] | null
           carrier_requirements: string | null
+          carrier_requirements_cabin: string | null
+          carrier_requirements_cargo: string | null
           created_at: string | null
           documentation_needed: string[] | null
           fees: Json | null
@@ -202,6 +282,8 @@ export type Database = {
           airline_id?: string | null
           breed_restrictions?: string[] | null
           carrier_requirements?: string | null
+          carrier_requirements_cabin?: string | null
+          carrier_requirements_cargo?: string | null
           created_at?: string | null
           documentation_needed?: string[] | null
           fees?: Json | null
@@ -216,6 +298,8 @@ export type Database = {
           airline_id?: string | null
           breed_restrictions?: string[] | null
           carrier_requirements?: string | null
+          carrier_requirements_cabin?: string | null
+          carrier_requirements_cargo?: string | null
           created_at?: string | null
           documentation_needed?: string[] | null
           fees?: Json | null
@@ -232,6 +316,13 @@ export type Database = {
             columns: ["airline_id"]
             isOneToOne: true
             referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_policies_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: true
+            referencedRelation: "missing_pet_policies"
             referencedColumns: ["id"]
           },
         ]
@@ -446,6 +537,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "routes_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: false
+            referencedRelation: "missing_pet_policies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "routes_arrival_airport_id_fkey"
             columns: ["arrival_airport_id"]
             isOneToOne: false
@@ -514,7 +612,9 @@ export type Database = {
       }
       sync_progress: {
         Row: {
+          batch_metrics: Json | null
           created_at: string | null
+          error_details: Json | null
           error_items: string[] | null
           id: string
           is_complete: boolean | null
@@ -522,13 +622,16 @@ export type Database = {
           needs_continuation: boolean | null
           processed: number
           processed_items: string[] | null
+          resume_token: string | null
           start_time: string | null
           total: number
           type: string
           updated_at: string | null
         }
         Insert: {
+          batch_metrics?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           error_items?: string[] | null
           id?: string
           is_complete?: boolean | null
@@ -536,13 +639,16 @@ export type Database = {
           needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
+          resume_token?: string | null
           start_time?: string | null
           total?: number
           type: string
           updated_at?: string | null
         }
         Update: {
+          batch_metrics?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           error_items?: string[] | null
           id?: string
           is_complete?: boolean | null
@@ -550,6 +656,7 @@ export type Database = {
           needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
+          resume_token?: string | null
           start_time?: string | null
           total?: number
           type?: string
@@ -580,7 +687,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      missing_pet_policies: {
+        Row: {
+          iata_code: string | null
+          id: string | null
+          name: string | null
+          policy_status: string | null
+          website: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_airlines_data: {
