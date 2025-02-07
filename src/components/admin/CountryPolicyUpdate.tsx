@@ -63,37 +63,50 @@ const CountryPolicyUpdate = () => {
         throw new Error("Input must be an array of policies");
       }
 
+      console.log('Attempting to update policies for country:', selectedCountry.code);
+      console.log('Policies data:', policiesData);
+
       // Delete existing policies for this country
       const { error: deleteError } = await supabase
         .from("country_policies")
         .delete()
         .eq("country_code", selectedCountry.code);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Error deleting existing policies:', deleteError);
+        throw deleteError;
+      }
 
       // Insert new policies
       for (const policy of policiesData) {
+        const policyData = {
+          country_code: selectedCountry.code,
+          policy_type: policy.policy_type,
+          title: policy.title,
+          description: policy.description,
+          requirements: policy.requirements,
+          documentation_needed: policy.documentation_needed,
+          fees: policy.fees,
+          restrictions: policy.restrictions,
+          quarantine_requirements: policy.quarantine_requirements,
+          vaccination_requirements: policy.vaccination_requirements,
+          additional_notes: policy.additional_notes,
+          policy_url: policy.policy_url,
+          all_blood_tests: policy.all_blood_tests,
+          all_other_biological_tests: policy.all_other_biological_tests,
+          required_ports_of_entry: policy.Required_Ports_of_Entry || policy.required_ports_of_entry // Handle both cases
+        };
+
+        console.log('Inserting policy:', policyData);
+
         const { error: insertError } = await supabase
           .from("country_policies")
-          .insert({
-            country_code: selectedCountry.code,
-            policy_type: policy.policy_type,
-            title: policy.title,
-            description: policy.description,
-            requirements: policy.requirements,
-            documentation_needed: policy.documentation_needed,
-            fees: policy.fees,
-            restrictions: policy.restrictions,
-            quarantine_requirements: policy.quarantine_requirements,
-            vaccination_requirements: policy.vaccination_requirements,
-            additional_notes: policy.additional_notes,
-            policy_url: policy.policy_url,
-            all_blood_tests: policy.all_blood_tests,
-            all_other_biological_tests: policy.all_other_biological_tests,
-            required_ports_of_entry: policy.Required_Ports_of_Entry // Note: matches the field name from the sync function
-          });
+          .insert(policyData);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting policy:', insertError);
+          throw insertError;
+        }
       }
 
       toast({
@@ -103,6 +116,8 @@ const CountryPolicyUpdate = () => {
 
       // Clear form after successful update
       setJsonInput("");
+      setSelectedCountry(null);
+      setSearchTerm("");
     } catch (error) {
       console.error("Error updating country policies:", error);
       toast({
@@ -177,6 +192,11 @@ const CountryPolicyUpdate = () => {
           fees, restrictions, quarantine_requirements, vaccination_requirements, additional_notes, 
           policy_url, all_blood_tests, all_other_biological_tests, Required_Ports_of_Entry
         </p>
+        {selectedCountry && (
+          <p className="text-sm text-muted-foreground">
+            Selected country: {selectedCountry.name} ({selectedCountry.code})
+          </p>
+        )}
       </div>
 
       <Button onClick={handleUpdate} className="w-full">
