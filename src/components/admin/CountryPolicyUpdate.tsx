@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -87,6 +88,9 @@ const CountryPolicyUpdate = () => {
             vaccination_requirements: policy.vaccination_requirements,
             additional_notes: policy.additional_notes,
             policy_url: policy.policy_url,
+            all_blood_tests: policy.all_blood_tests,
+            all_other_biological_tests: policy.all_other_biological_tests,
+            required_ports_of_entry: policy.Required_Ports_of_Entry // Note: matches the field name from the sync function
           });
 
         if (insertError) throw insertError;
@@ -96,6 +100,9 @@ const CountryPolicyUpdate = () => {
         title: "Success",
         description: "Country policies updated successfully",
       });
+
+      // Clear form after successful update
+      setJsonInput("");
     } catch (error) {
       console.error("Error updating country policies:", error);
       toast({
@@ -165,6 +172,11 @@ const CountryPolicyUpdate = () => {
           placeholder="Paste the country policies JSON here..."
           className="min-h-[400px] font-mono"
         />
+        <p className="text-sm text-muted-foreground">
+          Expected fields: policy_type, title, description, requirements, documentation_needed, 
+          fees, restrictions, quarantine_requirements, vaccination_requirements, additional_notes, 
+          policy_url, all_blood_tests, all_other_biological_tests, Required_Ports_of_Entry
+        </p>
       </div>
 
       <Button onClick={handleUpdate} className="w-full">
