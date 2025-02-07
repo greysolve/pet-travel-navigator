@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
-const CHUNK_SIZE = 30; // Process 30 airlines per function call
+// Reduce chunk size to prevent timeouts
+const CHUNK_SIZE = 10;
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,7 +18,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate request method
     if (req.method !== 'POST') {
       throw new Error(`Method ${req.method} not allowed`);
     }
@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     let mode = 'clear';
     let offset = 0;
     let resumeToken = null;
+    
     try {
       const body = await req.text();
       if (body) {
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error('Error parsing request body:', error);
+      throw new Error('Invalid request body');
     }
 
     console.log(`Starting pet policy analysis in mode: ${mode}, offset: ${offset}, resumeToken: ${resumeToken}`);
@@ -48,7 +50,6 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
 
-    // If resuming, verify the resume token and get the last state
     if (resumeToken) {
       const currentProgress = await syncManager.getCurrentProgress();
       if (!currentProgress || currentProgress.needs_continuation !== true) {
@@ -57,7 +58,6 @@ Deno.serve(async (req) => {
       console.log('Resuming from previous state:', currentProgress);
     }
 
-    // Get the total count based on mode
     const { count: totalCount, error: countError } = mode === 'update' 
       ? await supabase.from('missing_pet_policies').select('*', { count: 'exact', head: true })
       : await supabase.from('airlines').select('*', { count: 'exact', head: true }).eq('active', true);
@@ -78,15 +78,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If this is the first chunk (offset = 0), initialize sync progress
     if (offset === 0) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
-    } else {
-      console.log(`Continuing from offset ${offset}`);
     }
 
-    // Process current chunk
     const { data: airlines, error: batchError } = mode === 'update'
       ? await supabase
           .from('missing_pet_policies')
@@ -125,12 +121,10 @@ Deno.serve(async (req) => {
     const errors = [];
     const chunkStartTime = Date.now();
 
-    // Process airlines in smaller batches within the chunk
-    const batchSize = 2;
-    for (let i = 0; i < airlines.length; i += batchSize) {
-      const batch = airlines.slice(i, i + batchSize);
+    // Process airlines one at a time to prevent timeouts
+    for (const airline of airlines) {
       try {
-        console.log(`Processing batch of ${batch.length} airlines within chunk`);
+        console.log(`Processing airline: ${airline.name}`);
         
         const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
           method: 'POST',
@@ -138,22 +132,24 @@ Deno.serve(async (req) => {
             'Authorization': `Bearer ${supabaseKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ airlines: batch }),
+          body: JSON.stringify({ airlines: [airline] }),
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to process batch: ${response.statusText}`);
+          throw new Error(`Failed to process airline: ${response.statusText}`);
         }
 
         const result = await response.json();
-        console.log('Batch processing result:', result);
+        console.log('Airline processing result:', result);
 
-        results.push(...result.results);
-        if (result.errors) {
+        if (result.results?.length > 0) {
+          results.push(...result.results);
+        }
+        if (result.errors?.length > 0) {
           errors.push(...result.errors);
         }
 
-        // Update sync progress after each batch
+        // Update progress after each airline
         const currentProgress = await syncManager.getCurrentProgress();
         const processedInChunk = results.length + errors.length;
         const batchMetrics = {
@@ -163,33 +159,32 @@ Deno.serve(async (req) => {
         };
 
         await syncManager.updateProgress({
-          processed: currentProgress.processed + batch.length,
-          last_processed: batch[batch.length - 1].name,
+          processed: currentProgress.processed + 1,
+          last_processed: airline.name,
           processed_items: [...(currentProgress.processed_items || []), 
-            ...result.results.map((r: any) => r.iata_code)],
+            ...(result.results || []).map((r: any) => r.iata_code)],
           error_items: [...(currentProgress.error_items || []),
             ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)],
           batch_metrics: batchMetrics,
           needs_continuation: true
         });
 
-        // Add delay between batches to prevent rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Add small delay between airlines to prevent rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
 
       } catch (error) {
-        console.error('Error processing batch:', error);
-        errors.push(...batch.map(airline => ({
+        console.error('Error processing airline:', airline.name, error);
+        errors.push({
           airline_id: airline.id,
           error: error.message,
           iata_code: airline.iata_code
-        })));
+        });
       }
     }
 
     const nextOffset = offset + airlines.length;
     const hasMore = nextOffset < totalCount;
 
-    // Only mark as complete if this is the last chunk
     if (!hasMore) {
       await syncManager.updateProgress({ 
         is_complete: true,
@@ -199,7 +194,6 @@ Deno.serve(async (req) => {
 
     const chunkExecutionTime = Date.now() - chunkStartTime;
     
-    // Generate a resume token for continuation if needed
     const resumeData = hasMore ? {
       offset: nextOffset,
       mode,
@@ -238,3 +232,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
