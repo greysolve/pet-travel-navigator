@@ -197,6 +197,8 @@ export type Database = {
           airline_id: string | null
           breed_restrictions: string[] | null
           carrier_requirements: string | null
+          carrier_requirements_cabin: string | null
+          carrier_requirements_cargo: string | null
           created_at: string | null
           documentation_needed: string[] | null
           fees: Json | null
@@ -211,6 +213,8 @@ export type Database = {
           airline_id?: string | null
           breed_restrictions?: string[] | null
           carrier_requirements?: string | null
+          carrier_requirements_cabin?: string | null
+          carrier_requirements_cargo?: string | null
           created_at?: string | null
           documentation_needed?: string[] | null
           fees?: Json | null
@@ -225,6 +229,8 @@ export type Database = {
           airline_id?: string | null
           breed_restrictions?: string[] | null
           carrier_requirements?: string | null
+          carrier_requirements_cabin?: string | null
+          carrier_requirements_cargo?: string | null
           created_at?: string | null
           documentation_needed?: string[] | null
           fees?: Json | null
