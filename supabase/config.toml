@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.fetch_airlines]
 verify_jwt = false
+
+[functions.analyze_countries_policies]
+verify_jwt = false
