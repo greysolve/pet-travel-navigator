@@ -89,7 +89,7 @@ export const SyncSection = () => {
             }}
             isLoading={isInitializing[value]}
             onSync={(resume, mode) => {
-              if (key === 'countryPolicies' && mode && mode !== 'clear') {
+              if (key === 'countryPolicies' && mode !== 'clear') {
                 // Only validate country input for single country sync
                 const trimmedCountry = countryInput.trim();
                 if (!trimmedCountry) {

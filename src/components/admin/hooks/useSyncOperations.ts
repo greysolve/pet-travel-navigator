@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +82,42 @@ export const useSyncOperations = () => {
     }
   };
 
+  const processCountryPoliciesChunk = async (offset: number = 0, mode: string = 'clear', resumeToken: string | null = null) => {
+    console.log(`Processing country policies chunk with offset ${offset}, mode ${mode}, resumeToken: ${resumeToken}`);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze_countries_policies', {
+        body: { offset, mode, resumeToken }
+      });
+
+      if (error) throw error;
+
+      console.log('Country chunk processing result:', data);
+
+      if (data.has_more) {
+        console.log(`More chunks remaining, scheduling next chunk at offset ${data.next_offset}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await processCountryPoliciesChunk(data.next_offset, mode, data.resume_token);
+      } else {
+        console.log('All chunks processed');
+        setIsInitializing(prev => ({ ...prev, countryPolicies: false }));
+        toast({
+          title: "Country Policies Sync Complete",
+          description: `Successfully processed all country policies.`,
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Error processing country chunk:', error);
+      toast({
+        variant: "destructive",
+        title: "Chunk Processing Error",
+        description: error.message || "Failed to process country policies chunk.",
+      });
+      setIsInitializing(prev => ({ ...prev, countryPolicies: false }));
+    }
+  };
+
   const handleSync = async (type: keyof typeof SyncType, resume: boolean = false, mode?: string) => {
     console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}, clearData: ${clearData[type]}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
@@ -124,21 +161,12 @@ export const useSyncOperations = () => {
               if (clearError) throw clearError;
             }
           }
-          await processPetPoliciesChunk(0, mode);
+          await processPetPoliciesChunk(0, mode || 'clear');
         }
         return;
       }
 
-      // Handle other sync types with existing logic
-      const functionMap: Record<keyof typeof SyncType, string> = {
-        airlines: 'sync_airline_data',
-        airports: 'sync_airport_data',
-        routes: 'sync_route_data',
-        petPolicies: 'analyze_pet_policies',
-        countryPolicies: 'analyze_countries_policies'
-      };
-
-      // Handle country policies sync
+      // Special handling for country policies
       if (type === 'countryPolicies') {
         // For single country sync
         if (mode && mode.trim() !== '' && mode !== 'clear') {
@@ -155,21 +183,53 @@ export const useSyncOperations = () => {
         } 
         // For full sync
         else {
-          console.log('Initiating full country policies sync');
-          const { error } = await supabase.functions.invoke('analyze_countries_policies', {
-            body: { 
-              mode: 'clear',
-              resume: resume
+          const { data: currentProgress, error: progressError } = await supabase
+            .from('sync_progress')
+            .select('*')
+            .eq('type', type)
+            .maybeSingle();
+
+          if (progressError && progressError.code !== 'PGRST116') {
+            throw progressError;
+          }
+
+          if (resume && currentProgress?.needs_continuation) {
+            console.log('Resuming from previous progress:', currentProgress);
+            await processCountryPoliciesChunk(
+              currentProgress.processed,
+              'clear',
+              currentProgress.resume_token
+            );
+          } else {
+            if (!resume) {
+              console.log('Starting new full country policies sync');
+              if (clearData[type]) {
+                console.log(`Clearing existing data for ${type}`);
+                const { error: clearError } = await supabase
+                  .from('country_policies')
+                  .delete()
+                  .neq('country_code', '');
+                
+                if (clearError) throw clearError;
+              }
             }
-          });
-          
-          if (error) throw error;
+            await processCountryPoliciesChunk(0, 'clear');
+          }
         }
-      } else {
-        // Handle other sync types
-        const { error } = await supabase.functions.invoke(functionMap[type]);
-        if (error) throw error;
+        return;
       }
+
+      // Handle other sync types with existing logic
+      const functionMap: Record<keyof typeof SyncType, string> = {
+        airlines: 'sync_airline_data',
+        airports: 'sync_airport_data',
+        routes: 'sync_route_data',
+        petPolicies: 'analyze_pet_policies',
+        countryPolicies: 'analyze_countries_policies'
+      };
+
+      const { error } = await supabase.functions.invoke(functionMap[type]);
+      if (error) throw error;
 
       toast({
         title: "Sync Started",
@@ -187,7 +247,7 @@ export const useSyncOperations = () => {
         description: error.message || `Failed to sync ${type} data.`,
       });
     } finally {
-      if (type !== 'petPolicies') {
+      if (type !== 'petPolicies' && type !== 'countryPolicies') {
         setIsInitializing(prev => ({ ...prev, [type]: false }));
       }
     }
