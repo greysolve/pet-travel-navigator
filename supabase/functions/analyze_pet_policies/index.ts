@@ -3,8 +3,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// Reduce chunk size to prevent timeouts
-const CHUNK_SIZE = 10;
+// Reduce chunk size further to prevent timeouts
+const CHUNK_SIZE = 5;
+const DELAY_BETWEEN_AIRLINES = 1000; // 1 second delay between airlines
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,53 +19,67 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate request method
     if (req.method !== 'POST') {
       throw new Error(`Method ${req.method} not allowed`);
     }
 
+    // Get Supabase configuration
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase configuration');
     }
 
+    // Initialize variables
     let mode = 'clear';
     let offset = 0;
     let resumeToken = null;
     
+    // Parse request body
     try {
       const body = await req.text();
+      console.log('Received request body:', body);
+      
       if (body) {
-        const { mode: requestMode, offset: requestOffset, resumeToken: requestToken } = JSON.parse(body);
-        if (requestMode) mode = requestMode;
-        if (requestOffset) offset = requestOffset;
-        if (requestToken) resumeToken = requestToken;
+        const parsedBody = JSON.parse(body);
+        console.log('Parsed request body:', parsedBody);
+        
+        if (parsedBody.mode) mode = parsedBody.mode;
+        if (parsedBody.offset) offset = parsedBody.offset;
+        if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
       }
     } catch (error) {
       console.error('Error parsing request body:', error);
       throw new Error('Invalid request body');
     }
 
-    console.log(`Starting pet policy analysis in mode: ${mode}, offset: ${offset}, resumeToken: ${resumeToken}`);
+    console.log(`Starting pet policy analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
     
+    // Initialize clients
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
 
+    // Handle resume token
     if (resumeToken) {
       const currentProgress = await syncManager.getCurrentProgress();
-      if (!currentProgress || currentProgress.needs_continuation !== true) {
+      if (!currentProgress?.needs_continuation) {
         throw new Error('Invalid resume token or no continuation needed');
       }
       console.log('Resuming from previous state:', currentProgress);
     }
 
+    // Get total count
     const { count: totalCount, error: countError } = mode === 'update' 
       ? await supabase.from('missing_pet_policies').select('*', { count: 'exact', head: true })
       : await supabase.from('airlines').select('*', { count: 'exact', head: true }).eq('active', true);
 
     if (countError) {
+      console.error('Error getting count:', countError);
       throw new Error(`Error getting count: ${countError.message}`);
     }
+
+    console.log('Total count:', totalCount);
 
     if (!totalCount) {
       console.log('No airlines to process');
@@ -78,11 +93,13 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Initialize sync progress
     if (offset === 0) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
     }
 
+    // Get batch of airlines
     const { data: airlines, error: batchError } = mode === 'update'
       ? await supabase
           .from('missing_pet_policies')
@@ -121,7 +138,7 @@ Deno.serve(async (req) => {
     const errors = [];
     const chunkStartTime = Date.now();
 
-    // Process airlines one at a time to prevent timeouts
+    // Process airlines one at a time with delay
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
@@ -152,12 +169,7 @@ Deno.serve(async (req) => {
         // Update progress after each airline
         const currentProgress = await syncManager.getCurrentProgress();
         const processedInChunk = results.length + errors.length;
-        const batchMetrics = {
-          avg_time_per_item: (Date.now() - chunkStartTime) / processedInChunk,
-          estimated_time_remaining: ((Date.now() - chunkStartTime) / processedInChunk) * (totalCount - offset - processedInChunk),
-          success_rate: (results.length / processedInChunk) * 100
-        };
-
+        
         await syncManager.updateProgress({
           processed: currentProgress.processed + 1,
           last_processed: airline.name,
@@ -165,12 +177,11 @@ Deno.serve(async (req) => {
             ...(result.results || []).map((r: any) => r.iata_code)],
           error_items: [...(currentProgress.error_items || []),
             ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)],
-          batch_metrics: batchMetrics,
           needs_continuation: true
         });
 
-        // Add small delay between airlines to prevent rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Add delay between airlines
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_AIRLINES));
 
       } catch (error) {
         console.error('Error processing airline:', airline.name, error);
@@ -192,8 +203,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const chunkExecutionTime = Date.now() - chunkStartTime;
-    
     const resumeData = hasMore ? {
       offset: nextOffset,
       mode,
@@ -207,7 +216,7 @@ Deno.serve(async (req) => {
         errors,
         chunk_metrics: {
           processed: airlines.length,
-          execution_time: chunkExecutionTime,
+          execution_time: Date.now() - chunkStartTime,
           success_rate: (results.length / airlines.length) * 100
         },
         has_more: hasMore,
@@ -232,4 +241,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-

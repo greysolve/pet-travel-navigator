@@ -10,6 +10,7 @@ interface Airline {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -92,6 +93,9 @@ Deno.serve(async (req) => {
           success: true,
           iata_code: airline.iata_code
         });
+
+        // Add delay between API calls
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
       } catch (error) {
         console.error(`Error processing ${airline.name}:`, error);
@@ -198,14 +202,11 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
       const rawContent = responseData.choices[0].message.content;
       console.log('Raw API response:', rawContent);
 
-      // More robust JSON parsing
       let content;
       try {
-        // First try direct parsing
         content = JSON.parse(rawContent);
       } catch (parseError) {
         console.log('Initial parse failed, attempting to clean content');
-        // Try cleaning markdown and parsing again
         const cleanContent = rawContent
           .replace(/```json\n?|\n?```/g, '')
           .replace(/^\s*\{/, '{')
@@ -222,7 +223,6 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
 
       console.log('Successfully parsed content:', content);
 
-      // Validate the structure
       if (!content.pet_policy || !content.airline_info) {
         throw new Error('Invalid response structure: missing required fields');
       }
@@ -243,7 +243,7 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
       lastError = error;
       
       if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        const delay = Math.pow(2, attempt) * 1000;
         console.log(`Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
