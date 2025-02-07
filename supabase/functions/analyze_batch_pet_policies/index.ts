@@ -20,14 +20,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate Perplexity API key
     const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
     if (!perplexityKey) {
       console.error('PERPLEXITY_API_KEY is not set');
       throw new Error('API key configuration error');
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
@@ -35,7 +33,6 @@ Deno.serve(async (req) => {
     }
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get airlines batch from request body
     const { airlines } = await req.json();
     if (!Array.isArray(airlines)) {
       throw new Error('Invalid input: airlines must be an array');
@@ -50,14 +47,12 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicy = await analyzePetPolicy(airline, perplexityKey);
         
-        // Include the policy_url from missing_pet_policies if available
         const policyData = {
           airline_id: airline.id,
           ...petPolicy,
-          policy_url: airline.policy_url || petPolicy.policy_url // Prioritize manually added URL
+          policy_url: airline.policy_url || petPolicy.policy_url
         };
         
-        // Upsert the pet policy
         const { error: upsertError } = await supabase
           .from('pet_policies')
           .upsert(policyData, {
@@ -68,8 +63,7 @@ Deno.serve(async (req) => {
           throw upsertError;
         }
 
-        // Update airline website if provided
-        if (petPolicy.policy_url && !airline.policy_url) { // Only update if we found a new URL
+        if (petPolicy.policy_url && !airline.policy_url) {
           const { error: airlineError } = await supabase
             .from('airlines')
             .update({ website: petPolicy.policy_url })
@@ -122,20 +116,9 @@ Deno.serve(async (req) => {
 async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promise<any> {
   console.log(`Analyzing pet policy for airline: ${airline.name}`);
   
-  const systemPrompt = `You are a helpful assistant that analyzes airline pet policies and returns the information in a structured JSON format. Return ONLY the JSON object, nothing else.`;
+  const systemPrompt = `You are a helpful assistant that analyzes airline pet policies and returns the information in a structured JSON format. The response must be valid JSON that can be parsed with JSON.parse().`;
   
-  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}:
-  - Allowed pet types (in cabin and cargo)
-  - Size and weight restrictions
-  - Carrier requirements
-  - Required documentation
-  - Associated fees
-  - Temperature restrictions
-  - Breed restrictions
-  
-  If you find their website, include it in the response.
-  
-  Format the response as a JSON object with these fields:
+  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
   {
     "airline_info": {
       "official_website": "url if found"
@@ -157,62 +140,102 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
     }
   }`;
 
-  try {
-    console.log('Sending request to Perplexity API');
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: userMessage
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000,
-        top_p: 0.9,
-      }),
-    });
+  const maxRetries = 3;
+  let lastError = null;
 
-    if (!response.ok) {
-      throw new Error(`Perplexity API error: ${response.status} ${response.statusText}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Attempt ${attempt} to get pet policy from Perplexity API`);
+      
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-sonar-small-128k-online',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: userMessage
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+          top_p: 0.9,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Perplexity API error: ${response.status} ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+      if (!responseData.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response format from Perplexity API');
+      }
+
+      const rawContent = responseData.choices[0].message.content;
+      console.log('Raw API response:', rawContent);
+
+      // More robust JSON parsing
+      let content;
+      try {
+        // First try direct parsing
+        content = JSON.parse(rawContent);
+      } catch (parseError) {
+        console.log('Initial parse failed, attempting to clean content');
+        // Try cleaning markdown and parsing again
+        const cleanContent = rawContent
+          .replace(/```json\n?|\n?```/g, '')
+          .replace(/^\s*\{/, '{')
+          .replace(/\}\s*$/, '}')
+          .trim();
+        
+        try {
+          content = JSON.parse(cleanContent);
+        } catch (secondError) {
+          console.error('Failed to parse cleaned content:', secondError);
+          throw new Error(`JSON parsing failed: ${secondError.message}`);
+        }
+      }
+
+      console.log('Successfully parsed content:', content);
+
+      // Validate the structure
+      if (!content.pet_policy || !content.airline_info) {
+        throw new Error('Invalid response structure: missing required fields');
+      }
+
+      return {
+        pet_types_allowed: content.pet_policy.pet_types_allowed || [],
+        size_restrictions: content.pet_policy.size_restrictions || {},
+        carrier_requirements: content.pet_policy.carrier_requirements || '',
+        documentation_needed: content.pet_policy.documentation_needed || [],
+        fees: content.pet_policy.fees || {},
+        temperature_restrictions: content.pet_policy.temperature_restrictions || '',
+        breed_restrictions: content.pet_policy.breed_restrictions || [],
+        policy_url: content.airline_info?.official_website || null
+      };
+
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error);
+      lastError = error;
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw new Error(`Failed after ${maxRetries} attempts: ${lastError.message}`);
+      }
     }
-
-    const responseData = await response.json();
-    if (!responseData.choices?.[0]?.message?.content) {
-      throw new Error('Invalid response format from Perplexity API');
-    }
-
-    const rawContent = responseData.choices[0].message.content;
-    console.log('Raw API response content:', rawContent);
-    
-    const cleanContent = rawContent.replace(/```json\n?|\n?```/g, '').trim();
-    console.log('Cleaned content:', cleanContent);
-    
-    const content = JSON.parse(cleanContent);
-    console.log('Parsed content:', content);
-
-    return {
-      pet_types_allowed: content.pet_policy.pet_types_allowed,
-      size_restrictions: content.pet_policy.size_restrictions,
-      carrier_requirements: content.pet_policy.carrier_requirements,
-      documentation_needed: content.pet_policy.documentation_needed,
-      fees: content.pet_policy.fees,
-      temperature_restrictions: content.pet_policy.temperature_restrictions,
-      breed_restrictions: content.pet_policy.breed_restrictions,
-      policy_url: content.airline_info?.official_website
-    };
-  } catch (error) {
-    console.error(`Error analyzing pet policy for ${airline.name}:`, error);
-    throw error;
   }
+
+  throw lastError; // Shouldn't reach here, but TypeScript wants it
 }

@@ -4,7 +4,6 @@ import { SyncManager } from '../_shared/SyncManager.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -15,15 +14,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate Supabase configuration first
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase configuration');
     }
 
-    // Parse request body with error handling
-    let mode = 'clear'; // Default mode
+    let mode = 'clear';
     try {
       const body = await req.text();
       if (body) {
@@ -34,7 +31,6 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error('Error parsing request body:', error);
-      // Continue with default mode if parsing fails
     }
 
     console.log('Starting pet policy analysis in mode:', mode);
@@ -42,78 +38,96 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
 
-    let airlinesQuery;
-    if (mode === 'update') {
-      console.log('Fetching airlines with missing policies...');
-      airlinesQuery = await supabase
-        .from('missing_pet_policies')
-        .select('*');
-    } else {
-      console.log('Fetching all active airlines...');
-      airlinesQuery = await supabase
-        .from('airlines')
-        .select('*')
-        .eq('active', true);
+    // First, get the total count
+    const countQuery = mode === 'update' 
+      ? await supabase.from('missing_pet_policies').select('id', { count: 'exact', head: true })
+      : await supabase.from('airlines').select('id', { count: 'exact', head: true }).eq('active', true);
+
+    if (countQuery.error) {
+      throw new Error(`Error getting count: ${countQuery.error.message}`);
     }
 
-    if (airlinesQuery.error) {
-      console.error('Error fetching airlines:', airlinesQuery.error);
-      throw airlinesQuery.error;
-    }
+    const totalCount = countQuery.count || 0;
+    console.log(`Total airlines to process: ${totalCount}`);
 
-    const airlines = airlinesQuery.data || [];
-    console.log(`Found ${airlines.length} airlines to process`);
+    // Initialize sync progress with actual count
+    await syncManager.initialize(totalCount);
 
-    // Initialize sync progress - removed the second parameter
-    await syncManager.initialize(airlines.length);
+    // Get airlines in smaller batches
+    const batchSize = 50; // Process 50 at a time for the main query
+    let processedCount = 0;
 
-    // Process airlines in batches
-    const batchSize = 3;
-    for (let i = 0; i < airlines.length; i += batchSize) {
-      const batch = airlines.slice(i, i + batchSize);
-      
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ airlines: batch }),
-        });
+    while (processedCount < totalCount) {
+      const airlinesQuery = mode === 'update'
+        ? await supabase
+            .from('missing_pet_policies')
+            .select('*')
+            .range(processedCount, processedCount + batchSize - 1)
+        : await supabase
+            .from('airlines')
+            .select('*')
+            .eq('active', true)
+            .range(processedCount, processedCount + batchSize - 1);
 
-        if (!response.ok) {
-          throw new Error(`Failed to process batch: ${response.statusText}`);
+      if (airlinesQuery.error) {
+        console.error('Error fetching airlines batch:', airlinesQuery.error);
+        throw airlinesQuery.error;
+      }
+
+      const airlines = airlinesQuery.data || [];
+      if (airlines.length === 0) break;
+
+      console.log(`Processing batch of ${airlines.length} airlines`);
+
+      // Process airlines in smaller sub-batches
+      const processingBatchSize = 2; // Reduced batch size for API calls
+      for (let i = 0; i < airlines.length; i += processingBatchSize) {
+        const batch = airlines.slice(i, i + processingBatchSize);
+        
+        try {
+          const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ airlines: batch }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to process batch: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log('Batch processing result:', result);
+
+          // Update sync progress
+          const currentProgress = await syncManager.getCurrentProgress();
+          await syncManager.updateProgress({
+            processed: currentProgress.processed + batch.length,
+            last_processed: batch[batch.length - 1].name,
+            processed_items: [...(currentProgress.processed_items || []), 
+              ...batch.map(airline => airline.name)],
+            error_items: [...(currentProgress.error_items || []),
+              ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)]
+          });
+
+        } catch (error) {
+          console.error('Error processing batch:', error);
+          const currentProgress = await syncManager.getCurrentProgress();
+          await syncManager.updateProgress({
+            error_items: [...(currentProgress.error_items || []),
+              ...batch.map(airline => `${airline.name}: ${error.message}`)]
+          });
         }
 
-        const result = await response.json();
-        console.log('Batch processing result:', result);
-
-        // Update sync progress
-        await syncManager.updateProgress({
-          processed: (await syncManager.getCurrentProgress())?.processed + batch.length || batch.length,
-          last_processed: batch[batch.length - 1].name,
-          processed_items: [...((await syncManager.getCurrentProgress())?.processed_items || []), 
-            ...batch.map(airline => airline.name)],
-          error_items: [...((await syncManager.getCurrentProgress())?.error_items || []),
-            ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)]
-        });
-
-      } catch (error) {
-        console.error('Error processing batch:', error);
-        await syncManager.updateProgress({
-          error_items: [...((await syncManager.getCurrentProgress())?.error_items || []),
-            ...batch.map(airline => `${airline.name}: ${error.message}`)]
-        });
+        // Add delay between sub-batches
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      // Add delay between batches
-      if (i + batchSize < airlines.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+      processedCount += airlines.length;
     }
 
-    // Mark sync as complete
     await syncManager.completeSync();
 
     return new Response(JSON.stringify({ success: true }), { 
