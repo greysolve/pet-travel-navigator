@@ -1,3 +1,4 @@
+
 import { createBrowserRouter } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import NotFound from "@/pages/NotFound";
@@ -7,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Admin from "@/pages/Admin";
 import SampleResults from "@/pages/SampleResults";
 import AuthCallback from "@/pages/AuthCallback";
+import Pets from "@/pages/Pets";
 
 // Create a root layout component
 const RootLayout = () => {
@@ -28,6 +30,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/pets",
+        element: (
+          <ProtectedRoute>
+            <Pets />
           </ProtectedRoute>
         ),
       },

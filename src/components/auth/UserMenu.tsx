@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, PawPrint } from "lucide-react";
 import { UserProfile } from "@/types/auth";
 
 interface UserMenuProps {
@@ -49,6 +49,10 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         )}
         <DropdownMenuItem onClick={() => navigate("/profile")}>
           My Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/pets")} className="flex items-center gap-2">
+          <PawPrint className="h-4 w-4" />
+          My Pets
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut}>
           Sign Out
