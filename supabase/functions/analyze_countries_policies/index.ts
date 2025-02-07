@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
 
-    // Get total count of countries first, just like pet policies
+    // Get total count of countries first
     const { count: totalCount, error: countError } = await supabase
       .from('countries')
       .select('*', { count: 'exact', head: true });
@@ -83,22 +84,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Progress initialization and validation logic
-    if (offset === 0) {
-      // Only initialize for fresh starts
+    // Get current progress to determine if we need to initialize
+    const currentProgress = await syncManager.getCurrentProgress();
+    
+    // Only initialize if there's no existing progress
+    if (!currentProgress) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
-    } else {
-      // For non-zero offset, validate against existing progress
-      const currentProgress = await syncManager.getCurrentProgress();
-      if (!currentProgress) {
-        throw new Error('No sync progress found for non-zero offset');
-      }
-      
-      // Log warning if counts don't match but keep existing total
-      if (currentProgress.total !== totalCount) {
-        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
-      }
     }
 
     // Get batch of countries
