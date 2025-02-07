@@ -79,8 +79,8 @@ export const SyncCard = ({
     return null;
   };
 
-  // Only show sync mode selection for airlines
-  const showSyncModeSelection = title.toLowerCase().includes('airline');
+  // Show sync mode selection for pet policies instead of airlines
+  const showSyncModeSelection = title.toLowerCase().includes('pet polic');
 
   return (
     <div className={cn(
