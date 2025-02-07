@@ -34,6 +34,44 @@ export const useSyncOperations = () => {
     }
   };
 
+  const processPetPoliciesChunk = async (offset: number = 0, mode: string = 'clear') => {
+    console.log(`Processing pet policies chunk with offset ${offset}, mode ${mode}`);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze_pet_policies', {
+        body: { offset, mode }
+      });
+
+      if (error) throw error;
+
+      console.log('Chunk processing result:', data);
+
+      if (data.has_more) {
+        console.log(`More chunks remaining, scheduling next chunk at offset ${data.next_offset}`);
+        // Schedule next chunk with a small delay
+        setTimeout(() => {
+          processPetPoliciesChunk(data.next_offset, mode);
+        }, 1000);
+      } else {
+        console.log('All chunks processed');
+        setIsInitializing(prev => ({ ...prev, petPolicies: false }));
+        toast({
+          title: "Pet Policies Sync Complete",
+          description: `Successfully processed all pet policies.`,
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Error processing chunk:', error);
+      toast({
+        variant: "destructive",
+        title: "Chunk Processing Error",
+        description: error.message || "Failed to process pet policies chunk.",
+      });
+      setIsInitializing(prev => ({ ...prev, petPolicies: false }));
+    }
+  };
+
   const handleSync = async (type: keyof typeof SyncType, resume: boolean = false, mode?: string) => {
     console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}`);
     setIsInitializing(prev => ({ ...prev, [type]: true }));
@@ -69,6 +107,13 @@ export const useSyncOperations = () => {
         }
       }
 
+      // Special handling for pet policies to use chunked processing
+      if (type === 'petPolicies') {
+        await processPetPoliciesChunk(0, mode);
+        return;
+      }
+
+      // Handle other sync types with existing logic
       const functionMap: Record<keyof typeof SyncType, string> = {
         airlines: 'sync_airline_data',
         airports: 'sync_airport_data',
@@ -80,8 +125,6 @@ export const useSyncOperations = () => {
       const { error } = await supabase.functions.invoke(functionMap[type], {
         body: type === 'countryPolicies' && mode === 'country' 
           ? { country: mode }
-          : type === 'airlines' 
-          ? { mode: mode || 'clear' }
           : undefined
       });
 
@@ -102,7 +145,9 @@ export const useSyncOperations = () => {
       await resetSyncProgress(type);
       await resetSyncProgressCache(type);
     } finally {
-      setIsInitializing(prev => ({ ...prev, [type]: false }));
+      if (type !== 'petPolicies') {
+        setIsInitializing(prev => ({ ...prev, [type]: false }));
+      }
     }
   };
 
@@ -113,4 +158,3 @@ export const useSyncOperations = () => {
     handleSync
   };
 };
-
