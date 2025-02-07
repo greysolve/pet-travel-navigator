@@ -7,8 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Handle CORS preflight requests
-async function handleCorsRequest(req: Request) {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -17,14 +17,8 @@ async function handleCorsRequest(req: Request) {
       },
     })
   }
-}
 
-Deno.serve(async (req) => {
   try {
-    // Handle CORS
-    const corsResponse = await handleCorsRequest(req);
-    if (corsResponse) return corsResponse;
-
     // Parse request body with error handling
     let mode = 'clear'; // Default mode
     try {
@@ -125,10 +119,9 @@ Deno.serve(async (req) => {
     // Mark sync as complete
     await syncManager.completeSync();
 
-    return new Response(
-      JSON.stringify({ success: true }), 
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
 
   } catch (error) {
     console.error('Fatal error in analyze_pet_policies:', error);
