@@ -65,12 +65,6 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     if (offset === 0) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
-    } else {
-      // For non-zero offset, validate against existing progress
-      if (!currentProgress) {
-        throw new Error('No sync progress found for non-zero offset');
-      }
-      console.log('Continuing with existing progress:', currentProgress);
     }
 
     return await processCountriesChunk(supabase, syncManager, offset, totalCount, mode);
@@ -118,3 +112,4 @@ export function createResponse(data: AnalysisResponse, status: number = 200): Re
     }
   );
 }
+

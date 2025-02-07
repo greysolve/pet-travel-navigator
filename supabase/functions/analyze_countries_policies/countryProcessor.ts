@@ -13,6 +13,17 @@ export async function processCountriesChunk(
   totalCount: number,
   mode: string
 ): Promise<Response> {
+  // Get total count of countries for bulk mode
+  let actualTotalCount = totalCount;
+  if (mode === 'clear') {
+    const { count, error: countError } = await supabase
+      .from('countries')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+    actualTotalCount = count || 0;
+  }
+
   // For single country mode, get just that country
   let countries;
   if (mode && mode !== 'clear') {
@@ -25,6 +36,7 @@ export async function processCountriesChunk(
 
     if (error) throw error;
     countries = data;
+    actualTotalCount = 1; // For single country mode
     
     // If country not found, try to find it by code
     if (!countries?.length) {
@@ -87,7 +99,7 @@ export async function processCountriesChunk(
 
     // Update progress after processing the batch
     for (const result of batchResult.results) {
-      await updateProgressAfterCountry(syncManager, result.country);
+      await updateProgressAfterCountry(syncManager, result.country, actualTotalCount);
     }
 
   } catch (error) {
@@ -98,8 +110,8 @@ export async function processCountriesChunk(
     })));
   }
 
-  const nextOffset = mode !== 'clear' ? totalCount : offset + countries.length;
-  const hasMore = nextOffset < totalCount;
+  const nextOffset = mode !== 'clear' ? actualTotalCount : offset + countries.length;
+  const hasMore = nextOffset < actualTotalCount;
 
   if (!hasMore) {
     await syncManager.updateProgress({ 
@@ -125,15 +137,20 @@ export async function processCountriesChunk(
     },
     has_more: hasMore,
     next_offset: hasMore ? nextOffset : null,
-    total_remaining: totalCount - nextOffset,
+    total_remaining: actualTotalCount - nextOffset,
     resume_token: resumeData ? btoa(JSON.stringify(resumeData)) : null
   });
 }
 
-async function updateProgressAfterCountry(syncManager: SyncManager, countryName: string): Promise<void> {
+async function updateProgressAfterCountry(
+  syncManager: SyncManager, 
+  countryName: string,
+  totalCount: number
+): Promise<void> {
   const currentProgress = await syncManager.getCurrentProgress();
   
   await syncManager.updateProgress({
+    total: totalCount, // Make sure we update with the correct total
     processed: currentProgress.processed + 1,
     last_processed: countryName,
     processed_items: [...(currentProgress.processed_items || []), countryName],
@@ -141,3 +158,4 @@ async function updateProgressAfterCountry(syncManager: SyncManager, countryName:
     needs_continuation: true
   });
 }
+
