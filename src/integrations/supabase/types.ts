@@ -192,6 +192,75 @@ export type Database = {
         }
         Relationships: []
       }
+      country_policies_backup_2025_02_07: {
+        Row: {
+          additional_notes: string | null
+          all_blood_tests: string | null
+          all_other_biological_tests: string | null
+          backup_timestamp: string | null
+          country_code: string | null
+          created_at: string | null
+          description: string | null
+          documentation_needed: string[] | null
+          fees: Json | null
+          id: string | null
+          last_updated: string | null
+          policy_type: Database["public"]["Enums"]["policy_type"] | null
+          policy_url: string | null
+          quarantine_requirements: string | null
+          required_ports_of_entry: string | null
+          requirements: string[] | null
+          restrictions: Json | null
+          title: string | null
+          updated_at: string | null
+          vaccination_requirements: string[] | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
+          backup_timestamp?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          documentation_needed?: string[] | null
+          fees?: Json | null
+          id?: string | null
+          last_updated?: string | null
+          policy_type?: Database["public"]["Enums"]["policy_type"] | null
+          policy_url?: string | null
+          quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
+          requirements?: string[] | null
+          restrictions?: Json | null
+          title?: string | null
+          updated_at?: string | null
+          vaccination_requirements?: string[] | null
+        }
+        Update: {
+          additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
+          backup_timestamp?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          documentation_needed?: string[] | null
+          fees?: Json | null
+          id?: string | null
+          last_updated?: string | null
+          policy_type?: Database["public"]["Enums"]["policy_type"] | null
+          policy_url?: string | null
+          quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
+          requirements?: string[] | null
+          restrictions?: Json | null
+          title?: string | null
+          updated_at?: string | null
+          vaccination_requirements?: string[] | null
+        }
+        Relationships: []
+      }
       pet_policies: {
         Row: {
           airline_id: string | null
