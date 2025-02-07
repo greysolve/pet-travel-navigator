@@ -35,7 +35,6 @@ export const useSyncOperations = () => {
 
       if (data.has_more) {
         console.log(`More chunks remaining, scheduling next chunk at offset ${data.next_offset}`);
-        // Schedule next chunk with a small delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         await processPetPoliciesChunk(data.next_offset, mode, data.resume_token);
       } else {
@@ -54,7 +53,6 @@ export const useSyncOperations = () => {
         title: "Chunk Processing Error",
         description: error.message || "Failed to process pet policies chunk.",
       });
-      // Don't reset progress on error anymore, allow for resume
       setIsInitializing(prev => ({ ...prev, petPolicies: false }));
     }
   };
@@ -66,18 +64,22 @@ export const useSyncOperations = () => {
     try {
       // Special handling for pet policies to use chunked processing
       if (type === 'petPolicies') {
-        const currentProgress = await supabase
+        const { data: currentProgress, error: progressError } = await supabase
           .from('sync_progress')
           .select('*')
           .eq('type', type)
-          .single();
+          .maybeSingle();
 
-        if (resume && currentProgress.data?.needs_continuation) {
-          console.log('Resuming from previous progress:', currentProgress.data);
+        if (progressError && progressError.code !== 'PGRST116') {
+          throw progressError;
+        }
+
+        if (resume && currentProgress?.needs_continuation) {
+          console.log('Resuming from previous progress:', currentProgress);
           await processPetPoliciesChunk(
-            currentProgress.data.processed, 
+            currentProgress.processed, 
             mode || 'clear',
-            currentProgress.data.resume_token
+            currentProgress.resume_token
           );
         } else {
           if (!resume) {
