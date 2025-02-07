@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
         console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
 
         try {
+          // Process the entire batch
           const { data: result, error } = await retryOperation(async () => {
             return await supabase.functions.invoke('analyze_batch_pet_policies', {
               body: { airlines: batch }
@@ -86,39 +87,54 @@ Deno.serve(async (req) => {
           if (!result) {
             throw new Error('No result returned from analyze_batch_pet_policies');
           }
-          
-          // Update progress for successful items
-          for (const success of result.results) {
-            await syncManager.updateProgress({
-              processed: (await syncManager.getCurrentProgress()).processed + 1,
-              processed_items: [...(await syncManager.getCurrentProgress()).processed_items, success.iata_code],
-              last_processed: success.iata_code
-            });
 
-            // Remove from missing_pet_policies
-            await supabase
+          // Get current progress before batch update
+          const currentProgress = await syncManager.getCurrentProgress();
+          
+          // Prepare batch update data
+          const batchUpdate = {
+            processed: currentProgress.processed + result.results.length,
+            processed_items: [
+              ...currentProgress.processed_items,
+              ...result.results.map(success => success.iata_code)
+            ],
+            error_items: [
+              ...currentProgress.error_items,
+              ...result.errors.map(error => error.iata_code)
+            ],
+            last_processed: result.results[result.results.length - 1]?.iata_code || currentProgress.last_processed
+          };
+
+          // Make one atomic update for the entire batch
+          console.log(`Updating progress for batch with ${result.results.length} successes and ${result.errors.length} errors`);
+          await syncManager.updateProgress(batchUpdate);
+
+          // After progress is successfully updated, remove processed items from missing_pet_policies
+          if (result.results.length > 0) {
+            const successfulIataCodes = result.results.map(success => success.iata_code);
+            console.log(`Removing ${successfulIataCodes.length} processed items from missing_pet_policies`);
+            const { error: deleteError } = await supabase
               .from('missing_pet_policies')
               .delete()
-              .eq('iata_code', success.iata_code);
-          }
+              .in('iata_code', successfulIataCodes);
 
-          // Update progress for failed items
-          for (const error of result.errors) {
-            await syncManager.updateProgress({
-              error_items: [...(await syncManager.getCurrentProgress()).error_items, error.iata_code],
-              needs_continuation: true
-            });
+            if (deleteError) {
+              console.error('Error removing processed items from missing_pet_policies:', deleteError);
+              // Don't throw here, as the progress is already updated
+            }
           }
 
           if (i + BATCH_SIZE < (missingPolicies?.length || 0)) {
-            await delay(1000); // Rate limiting
+            await delay(1000); // Rate limiting between batches
           }
 
         } catch (error) {
           console.error(`Failed to process batch:`, error);
+          const currentProgress = await syncManager.getCurrentProgress();
+          // On batch failure, mark all items in the batch as errors
           await syncManager.updateProgress({
             error_items: [
-              ...(await syncManager.getCurrentProgress()).error_items,
+              ...currentProgress.error_items,
               ...batch.map(airline => airline.iata_code)
             ],
             needs_continuation: true
@@ -126,8 +142,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      const currentProgress = await syncManager.getCurrentProgress();
-      const isComplete = currentProgress.processed + currentProgress.error_items.length >= total;
+      const finalProgress = await syncManager.getCurrentProgress();
+      const isComplete = finalProgress.processed + finalProgress.error_items.length >= total;
       await syncManager.updateProgress({
         is_complete: isComplete,
         needs_continuation: !isComplete
