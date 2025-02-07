@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     if (mode === 'update') {
       const { data: missingPolicies, error: missingPoliciesError } = await supabase
         .from('missing_pet_policies')
-        .select('id, iata_code, name, policy_url');
+        .select('id, iata_code, name');
 
       if (missingPoliciesError) {
         console.error('Failed to fetch missing policies:', missingPoliciesError);
