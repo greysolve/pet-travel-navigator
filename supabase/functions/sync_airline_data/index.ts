@@ -11,24 +11,6 @@ const REQUEST_TIMEOUT = 30000;
 const MAX_RETRIES = 3;
 const BATCH_SIZE = 5;
 
-async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }) {
-  const { timeout = REQUEST_TIMEOUT } = options;
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const response = await fetch(resource, {
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
-}
-
 async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -50,6 +32,7 @@ async function retryOperation<T>(
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -89,14 +72,19 @@ Deno.serve(async (req) => {
         console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
 
         try {
-          // Use supabase.functions.invoke instead of direct fetch
-          const { data: result, error } = await supabase.functions.invoke('analyze_batch_pet_policies', {
-            body: { airlines: batch }
+          const { data: result, error } = await retryOperation(async () => {
+            return await supabase.functions.invoke('analyze_batch_pet_policies', {
+              body: { airlines: batch }
+            });
           });
 
           if (error) {
             console.error(`Failed to process batch:`, error);
             throw error;
+          }
+
+          if (!result) {
+            throw new Error('No result returned from analyze_batch_pet_policies');
           }
           
           // Update progress for successful items
@@ -123,7 +111,7 @@ Deno.serve(async (req) => {
           }
 
           if (i + BATCH_SIZE < (missingPolicies?.length || 0)) {
-            await delay(1000);
+            await delay(1000); // Rate limiting
           }
 
         } catch (error) {
@@ -148,11 +136,13 @@ Deno.serve(async (req) => {
     } else {
       // Full sync mode
       try {
-        console.log('Starting full airline sync')
-        await syncManager.initialize(1) // Initialize with 1 for the full sync operation
+        console.log('Starting full airline sync');
+        await syncManager.initialize(1); // Initialize with 1 for the full sync operation
 
-        const { data: result, error } = await supabase.functions.invoke('fetch_airlines', {
-          body: {}
+        const { data: result, error } = await retryOperation(async () => {
+          return await supabase.functions.invoke('fetch_airlines', {
+            body: {}
+          });
         });
 
         if (error) {
@@ -163,6 +153,10 @@ Deno.serve(async (req) => {
             is_complete: false
           });
           throw error;
+        }
+
+        if (!result) {
+          throw new Error('No result returned from fetch_airlines');
         }
 
         console.log('Fetch airlines result:', result);
@@ -231,4 +225,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
