@@ -18,7 +18,7 @@ export async function processCountriesChunk(
     const { data, error } = await supabase
       .from('countries')
       .select('*')
-      .or(`name.eq.${mode},code.eq.${mode}`)
+      .or(`name.ilike.${mode},code.ilike.${mode}`)
       .limit(1);
 
     if (error) throw error;
@@ -77,6 +77,7 @@ export async function processCountriesChunk(
     const batchResult = await response.json();
     console.log('Batch processing result:', batchResult);
 
+    // Update results and errors from batch processing
     if (batchResult.results) {
       results.push(...batchResult.results);
     }
@@ -90,11 +91,15 @@ export async function processCountriesChunk(
       throw new Error('No sync progress found');
     }
 
+    // Extract successfully processed country names and error country names
+    const processedCountries = results.map(r => r); // Take the country names directly
+    const errorCountries = errors.map(e => e); // Take the error country names directly
+
     await syncManager.updateProgress({
       processed: currentProgress.processed + countries.length,
       last_processed: countries[countries.length - 1].name,
-      processed_items: [...(currentProgress.processed_items || []), ...results.map(r => r.country)],
-      error_items: [...(currentProgress.error_items || []), ...errors.map(e => e.country)],
+      processed_items: [...(currentProgress.processed_items || []), ...processedCountries],
+      error_items: [...(currentProgress.error_items || []), ...errorCountries],
       needs_continuation: true
     });
 
