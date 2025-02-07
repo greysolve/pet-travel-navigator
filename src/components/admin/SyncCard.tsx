@@ -136,7 +136,7 @@ export const SyncCard = ({
               className="h-2 transition-all"
             />
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{syncProgress.processed} of {syncProgress.total} items</span>
+              <span>{syncProgress.processed} of {syncProgress.total} items processed</span>
               <span>{progressPercentage}%</span>
             </div>
           </div>
