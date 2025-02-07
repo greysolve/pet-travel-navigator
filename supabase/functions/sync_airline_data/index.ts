@@ -7,9 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const REQUEST_TIMEOUT = 30000;
+// Reduced batch size and increased timeout
+const REQUEST_TIMEOUT = 60000; // Increased to 60 seconds
 const MAX_RETRIES = 3;
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 3; // Reduced from 5 to 3 to reduce load
+const DELAY_BETWEEN_BATCHES = 2000; // 2 second delay between batches
 
 async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -20,11 +22,17 @@ async function retryOperation<T>(
   retryCount = 0
 ): Promise<T> {
   try {
-    return await operation();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Operation timed out')), REQUEST_TIMEOUT);
+    });
+    const operationPromise = operation();
+    return await Promise.race([operationPromise, timeoutPromise]) as T;
   } catch (error) {
+    console.error(`Operation failed (attempt ${retryCount + 1}):`, error);
     if (retryCount < MAX_RETRIES) {
-      console.log(`Operation failed, attempt ${retryCount + 1}. Retrying...`);
-      await delay(Math.pow(2, retryCount) * 1000); // Exponential backoff
+      const delayTime = Math.pow(2, retryCount) * 1000;
+      console.log(`Retrying in ${delayTime}ms...`);
+      await delay(delayTime);
       return retryOperation(operation, retryCount + 1);
     }
     throw error;
@@ -32,7 +40,6 @@ async function retryOperation<T>(
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -72,7 +79,6 @@ Deno.serve(async (req) => {
         console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
 
         try {
-          // Process the entire batch
           const { data: result, error } = await retryOperation(async () => {
             return await supabase.functions.invoke('analyze_batch_pet_policies', {
               body: { airlines: batch }
@@ -88,10 +94,8 @@ Deno.serve(async (req) => {
             throw new Error('No result returned from analyze_batch_pet_policies');
           }
 
-          // Get current progress before batch update
           const currentProgress = await syncManager.getCurrentProgress();
           
-          // Prepare batch update data
           const batchUpdate = {
             processed: currentProgress.processed + result.results.length,
             processed_items: [
@@ -105,11 +109,9 @@ Deno.serve(async (req) => {
             last_processed: result.results[result.results.length - 1]?.iata_code || currentProgress.last_processed
           };
 
-          // Make one atomic update for the entire batch
           console.log(`Updating progress for batch with ${result.results.length} successes and ${result.errors.length} errors`);
           await syncManager.updateProgress(batchUpdate);
 
-          // After progress is successfully updated, remove processed items from missing_pet_policies
           if (result.results.length > 0) {
             const successfulIataCodes = result.results.map(success => success.iata_code);
             console.log(`Removing ${successfulIataCodes.length} processed items from missing_pet_policies`);
@@ -120,18 +122,18 @@ Deno.serve(async (req) => {
 
             if (deleteError) {
               console.error('Error removing processed items from missing_pet_policies:', deleteError);
-              // Don't throw here, as the progress is already updated
             }
           }
 
+          // Add delay between batches to prevent rate limiting
           if (i + BATCH_SIZE < (missingPolicies?.length || 0)) {
-            await delay(1000); // Rate limiting between batches
+            console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
+            await delay(DELAY_BETWEEN_BATCHES);
           }
 
         } catch (error) {
           console.error(`Failed to process batch:`, error);
           const currentProgress = await syncManager.getCurrentProgress();
-          // On batch failure, mark all items in the batch as errors
           await syncManager.updateProgress({
             error_items: [
               ...currentProgress.error_items,
@@ -153,7 +155,7 @@ Deno.serve(async (req) => {
       // Full sync mode
       try {
         console.log('Starting full airline sync');
-        await syncManager.initialize(1); // Initialize with 1 for the full sync operation
+        await syncManager.initialize(1);
 
         const { data: result, error } = await retryOperation(async () => {
           return await supabase.functions.invoke('fetch_airlines', {
@@ -241,3 +243,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
