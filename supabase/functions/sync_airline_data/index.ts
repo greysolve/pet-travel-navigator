@@ -1,72 +1,12 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-import { SyncManager } from '../_shared/SyncManager.ts'
+import { BatchProcessor } from '../_shared/BatchProcessor.ts';
+import { SupabaseClientManager } from '../_shared/SupabaseClient.ts';
+import { AirlineSyncService } from '../_shared/AirlineSyncService.ts';
+import { SyncManager } from '../_shared/SyncManager.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Connection and retry settings
-const REQUEST_TIMEOUT = 30000; // Reduced to 30s to fail faster
-const SUPABASE_TIMEOUT = 10000; // Timeout for Supabase client operations
-const MAX_RETRIES = 3;
-const BATCH_SIZE = 3;
-const DELAY_BETWEEN_BATCHES = 2000;
-
-async function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function retryOperation<T>(
-  operation: () => Promise<T>,
-  retryCount = 0
-): Promise<T> {
-  try {
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Operation timed out')), REQUEST_TIMEOUT);
-    });
-    const operationPromise = operation();
-    return await Promise.race([operationPromise, timeoutPromise]) as T;
-  } catch (error) {
-    console.error(`Operation failed (attempt ${retryCount + 1}):`, error);
-    if (retryCount < MAX_RETRIES) {
-      const delayTime = Math.pow(2, retryCount) * 1000;
-      console.log(`Retrying in ${delayTime}ms...`);
-      await delay(delayTime);
-      return retryOperation(operation, retryCount + 1);
-    }
-    throw error;
-  }
-}
-
-async function initializeSupabase() {
-  console.log('Initializing Supabase client...');
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase credentials');
-  }
-  
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
-    },
-    global: {
-      fetch: (url, options) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), SUPABASE_TIMEOUT);
-        
-        return fetch(url, {
-          ...options,
-          signal: controller.signal
-        }).finally(() => clearTimeout(timeoutId));
-      }
-    }
-  });
 }
 
 Deno.serve(async (req) => {
@@ -76,16 +16,25 @@ Deno.serve(async (req) => {
 
   let supabase;
   let syncManager;
+  let airlineSyncService;
 
   try {
     console.log('Starting sync_airline_data function...');
-    supabase = await initializeSupabase();
+    
+    // Initialize dependencies
+    const supabaseManager = new SupabaseClientManager();
+    supabase = await supabaseManager.initialize();
+    
     syncManager = new SyncManager(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       'airlines'
     );
+    
+    const batchProcessor = new BatchProcessor();
+    airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
 
+    // Parse request
     let requestBody;
     try {
       requestBody = await req.json();
@@ -110,73 +59,17 @@ Deno.serve(async (req) => {
       await syncManager.initialize(total);
       console.log(`Initialized sync progress with ${total} airlines to process`);
 
-      for (let i = 0; i < (missingPolicies?.length || 0); i += BATCH_SIZE) {
-        const batch = missingPolicies!.slice(i, i + BATCH_SIZE);
-        console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
+      // Process airlines in batches
+      for (let i = 0; i < (missingPolicies?.length || 0); i += batchProcessor.getBatchSize()) {
+        const batch = missingPolicies!.slice(i, i + batchProcessor.getBatchSize());
+        console.log(`Processing batch ${Math.floor(i/batchProcessor.getBatchSize()) + 1} of ${Math.ceil((missingPolicies?.length || 0)/batchProcessor.getBatchSize())}`);
 
-        try {
-          const { data: result, error } = await retryOperation(async () => {
-            return await supabase.functions.invoke('analyze_batch_pet_policies', {
-              body: { airlines: batch }
-            });
-          });
+        await airlineSyncService.processBatch(batch);
 
-          if (error) {
-            console.error(`Failed to process batch:`, error);
-            throw error;
-          }
-
-          if (!result) {
-            throw new Error('No result returned from analyze_batch_pet_policies');
-          }
-
-          const currentProgress = await syncManager.getCurrentProgress();
-          
-          const batchUpdate = {
-            processed: currentProgress.processed + result.results.length,
-            processed_items: [
-              ...currentProgress.processed_items,
-              ...result.results.map(success => success.iata_code)
-            ],
-            error_items: [
-              ...currentProgress.error_items,
-              ...result.errors.map(error => error.iata_code)
-            ],
-            last_processed: result.results[result.results.length - 1]?.iata_code || currentProgress.last_processed
-          };
-
-          console.log(`Updating progress for batch with ${result.results.length} successes and ${result.errors.length} errors`);
-          await syncManager.updateProgress(batchUpdate);
-
-          if (result.results.length > 0) {
-            const successfulIataCodes = result.results.map(success => success.iata_code);
-            console.log(`Removing ${successfulIataCodes.length} processed items from missing_pet_policies`);
-            const { error: deleteError } = await supabase
-              .from('missing_pet_policies')
-              .delete()
-              .in('iata_code', successfulIataCodes);
-
-            if (deleteError) {
-              console.error('Error removing processed items from missing_pet_policies:', deleteError);
-            }
-          }
-
-          // Add delay between batches to prevent rate limiting
-          if (i + BATCH_SIZE < (missingPolicies?.length || 0)) {
-            console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
-            await delay(DELAY_BETWEEN_BATCHES);
-          }
-
-        } catch (error) {
-          console.error(`Failed to process batch:`, error);
-          const currentProgress = await syncManager.getCurrentProgress();
-          await syncManager.updateProgress({
-            error_items: [
-              ...currentProgress.error_items,
-              ...batch.map(airline => airline.iata_code)
-            ],
-            needs_continuation: true
-          });
+        // Add delay between batches
+        if (i + batchProcessor.getBatchSize() < (missingPolicies?.length || 0)) {
+          console.log(`Waiting ${batchProcessor.getDelayBetweenBatches()}ms before next batch...`);
+          await batchProcessor.delay(batchProcessor.getDelayBetweenBatches());
         }
       }
 
@@ -189,48 +82,7 @@ Deno.serve(async (req) => {
 
     } else {
       // Full sync mode
-      try {
-        console.log('Starting full airline sync');
-        await syncManager.initialize(1);
-
-        const { data: result, error } = await retryOperation(async () => {
-          return await supabase.functions.invoke('fetch_airlines', {
-            body: {}
-          });
-        });
-
-        if (error) {
-          console.error('Failed to fetch airlines:', error);
-          await syncManager.updateProgress({
-            error_items: ['full_sync'],
-            needs_continuation: true,
-            is_complete: false
-          });
-          throw error;
-        }
-
-        if (!result) {
-          throw new Error('No result returned from fetch_airlines');
-        }
-
-        console.log('Fetch airlines result:', result);
-        
-        await syncManager.updateProgress({
-          processed: 1,
-          last_processed: 'Full sync completed',
-          processed_items: ['full_sync'],
-          is_complete: true,
-          needs_continuation: false
-        });
-      } catch (error) {
-        console.error('Error in full sync:', error);
-        await syncManager.updateProgress({
-          error_items: ['full_sync'],
-          needs_continuation: true,
-          is_complete: false
-        });
-        throw error;
-      }
+      await airlineSyncService.performFullSync();
     }
 
     return new Response(
