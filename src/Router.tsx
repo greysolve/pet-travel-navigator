@@ -1,5 +1,6 @@
 
 import { createBrowserRouter } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
 import Profile from "@/pages/Profile";
@@ -8,12 +9,16 @@ import Admin from "@/pages/Admin";
 import SampleResults from "@/pages/SampleResults";
 import AuthCallback from "@/pages/AuthCallback";
 import Pets from "@/pages/Pets";
-import { Layout } from "@/components/Layout";
+
+// Create a root layout component
+const RootLayout = () => {
+  return <Outlet />;
+};
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout />,
+    element: <RootLayout />,
     errorElement: <NotFound />,
     children: [
       {
