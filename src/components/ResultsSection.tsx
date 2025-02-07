@@ -9,7 +9,7 @@ import type { FlightData, PetPolicy } from "./flight-results/types";
 export const ResultsSection = ({ 
   searchPerformed,
   flights = [],
-  petPolicies
+  petPolicies,
 }: { 
   searchPerformed: boolean;
   flights?: FlightData[];
@@ -18,7 +18,7 @@ export const ResultsSection = ({
   const { data: flightPetPolicies } = usePetPolicies(flights);
   
   // Get unique countries from flights if available
-  const flightCountries = flights.reduce((countries: Set<string>, journey) => {
+  const countriesFromFlights = flights.reduce((countries: Set<string>, journey) => {
     if (!journey.segments) return countries;
     journey.segments.forEach(segment => {
       if (segment.departureCountry) countries.add(segment.departureCountry);
@@ -27,8 +27,15 @@ export const ResultsSection = ({
     return countries;
   }, new Set<string>());
 
+  // Get countries from origin/destination even if no flights found
+  const allCountries = flights.reduce((countries: Set<string>, journey) => {
+    if (journey.origin?.country) countries.add(journey.origin.country);
+    if (journey.destination?.country) countries.add(journey.destination.country);
+    return countries;
+  }, new Set(countriesFromFlights));
+
   // Filter out undefined/null values and convert to array
-  const uniqueCountries = Array.from(flightCountries).filter(Boolean);
+  const uniqueCountries = Array.from(allCountries).filter(Boolean);
   const { data: countryPolicies, isLoading: isPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
   if (!searchPerformed) return null;
