@@ -7,10 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { standardizeCountryName } from "@/utils/countryNameMappings";
 
 const CountryPolicyUpdate = () => {
   const [selectedCountry, setSelectedCountry] = useState<{
-    code: string;
     name: string;
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
@@ -25,8 +25,9 @@ const CountryPolicyUpdate = () => {
       console.log('Fetching countries for search term:', searchTerm);
       const { data, error } = await supabase
         .from('countries')
-        .select('code, name')
-        .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
+        .select('name')
+        .ilike('name', `%${searchTerm}%`)
+        .order('name')
         .limit(10);
 
       if (error) {
@@ -99,25 +100,26 @@ const CountryPolicyUpdate = () => {
         throw new Error("Input must be an array of policies");
       }
 
-      console.log('Attempting to update policies for country:', selectedCountry.name);
+      const standardizedCountryName = standardizeCountryName(selectedCountry.name);
+      console.log('Attempting to update policies for country:', standardizedCountryName);
       console.log('Original policies data:', policiesData);
 
-      // Delete existing policies for this country using the country name
+      // Delete existing policies for this country
       const { error: deleteError } = await supabase
         .from("country_policies")
         .delete()
-        .eq("country_code", selectedCountry.name);
+        .eq("country_code", standardizedCountryName);
 
       if (deleteError) {
         console.error('Error deleting existing policies:', deleteError);
         throw deleteError;
       }
 
-      // Insert new policies with normalized fields, using country name
+      // Insert new policies with normalized fields
       for (const policy of policiesData) {
         const normalizedPolicy = normalizePolicy(policy);
         const policyData = {
-          country_code: selectedCountry.name, // Using country name instead of code
+          country_code: standardizedCountryName,
           ...normalizedPolicy
         };
 
@@ -161,7 +163,7 @@ const CountryPolicyUpdate = () => {
         <div className="relative">
           <Input
             type="text"
-            placeholder="Search for a country..."
+            placeholder="Search for a country by full name..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -181,7 +183,7 @@ const CountryPolicyUpdate = () => {
                 <ul className="max-h-60 overflow-auto py-1">
                   {countries.map((country) => (
                     <li
-                      key={country.code}
+                      key={country.name}
                       className="px-4 py-2 hover:bg-accent cursor-pointer"
                       onClick={() => {
                         setSelectedCountry(country);
@@ -189,7 +191,7 @@ const CountryPolicyUpdate = () => {
                         setShowCountrySuggestions(false);
                       }}
                     >
-                      {country.name} ({country.code})
+                      {country.name}
                     </li>
                   ))}
                 </ul>
@@ -201,6 +203,9 @@ const CountryPolicyUpdate = () => {
             </div>
           )}
         </div>
+        <p className="text-sm text-muted-foreground">
+          Please use the full official country name (e.g., "Hong Kong SAR" instead of "HK")
+        </p>
       </div>
 
       <div className="flex flex-col space-y-2">
@@ -218,7 +223,7 @@ const CountryPolicyUpdate = () => {
         </p>
         {selectedCountry && (
           <p className="text-sm text-muted-foreground">
-            Selected country: {selectedCountry.name} ({selectedCountry.code})
+            Selected country: {selectedCountry.name}
           </p>
         )}
       </div>
