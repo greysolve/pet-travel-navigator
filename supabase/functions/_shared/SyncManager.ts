@@ -93,10 +93,25 @@ export class SyncManager {
   async updateProgress(updates: Partial<SyncState>): Promise<void> {
     console.log(`Updating progress for ${this.type}:`, updates);
     
+    // Get current state to properly handle processed count
+    const currentState = await this.getCurrentProgress();
+    if (!currentState) {
+      console.error('No current state found when updating progress');
+      return;
+    }
+
+    // Ensure processed count doesn't exceed total
+    let processedCount = updates.processed ?? currentState.processed;
+    if (processedCount > currentState.total) {
+      console.warn(`Attempted to set processed count (${processedCount}) higher than total (${currentState.total}). Capping at total.`);
+      processedCount = currentState.total;
+    }
+
     const { error } = await this.supabase
       .from('sync_progress')
       .update({
         ...updates,
+        processed: processedCount,
         updated_at: new Date().toISOString()
       })
       .eq('type', this.type);

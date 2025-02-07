@@ -97,6 +97,15 @@ Deno.serve(async (req) => {
     if (offset === 0) {
       console.log(`Initializing sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
+    } else {
+      // For non-zero offset, validate against existing progress
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress) {
+        throw new Error('No sync progress found for non-zero offset');
+      }
+      if (currentProgress.total !== totalCount) {
+        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
+      }
     }
 
     // Get batch of airlines
