@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 
@@ -9,6 +8,7 @@ const corsHeaders = {
 
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
+const BATCH_SIZE = 5; // Process 5 airlines at a time for pet policy updates
 
 async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }) {
   const { timeout = REQUEST_TIMEOUT } = options;
@@ -49,18 +49,15 @@ async function retryOperation<T>(
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airlines');
 
     // Parse request body
     let requestBody;
@@ -71,101 +68,100 @@ Deno.serve(async (req) => {
     }
     const { mode = 'clear' } = requestBody;
     
-    console.log('Starting airline sync process in mode:', mode)
+    console.log('Starting airline sync process in mode:', mode);
 
     if (mode === 'update') {
       const { data: missingPolicies, error: missingPoliciesError } = await supabase
         .from('missing_pet_policies')
-        .select('iata_code, name')
+        .select('id, iata_code, name');
 
       if (missingPoliciesError) {
-        console.error('Failed to fetch missing policies:', missingPoliciesError)
-        throw missingPoliciesError
+        console.error('Failed to fetch missing policies:', missingPoliciesError);
+        throw missingPoliciesError;
       }
 
-      // Initialize with the total number of missing policies
-      const total = missingPolicies?.length || 0
-      await syncManager.initialize(total)
-      console.log(`Initialized sync progress with ${total} airlines to process`)
+      const total = missingPolicies?.length || 0;
+      await syncManager.initialize(total);
+      console.log(`Initialized sync progress with ${total} airlines to process`);
 
-      const startTime = Date.now()
-      let successCount = 0
-      let failureCount = 0
-
-      for (const airline of missingPolicies || []) {
-        if (!airline.iata_code) continue
+      // Process airlines in batches
+      for (let i = 0; i < (missingPolicies?.length || 0); i += BATCH_SIZE) {
+        const batch = missingPolicies!.slice(i, i + BATCH_SIZE);
+        console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil((missingPolicies?.length || 0)/BATCH_SIZE)}`);
 
         try {
-          console.log(`Processing airline ${airline.iata_code}`)
           const response = await retryOperation(async () => {
             return await fetchWithTimeout(
-              `${supabaseUrl}/functions/v1/fetch_airlines`,
+              `${supabaseUrl}/functions/v1/analyze_batch_pet_policies`,
               {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${supabaseKey}`,
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ iataCode: airline.iata_code }),
+                body: JSON.stringify({ airlines: batch }),
                 timeout: REQUEST_TIMEOUT
               }
             );
           });
 
           if (!response.ok) {
-            const errorText = await response.text()
-            console.error(`Failed to fetch airline ${airline.iata_code}:`, errorText)
-            await syncManager.updateProgress({
-              error_items: [...(await syncManager.getCurrentProgress()).error_items, airline.iata_code],
-              needs_continuation: true
-            })
-            failureCount++
-            continue
+            const errorText = await response.text();
+            console.error(`Failed to process batch:`, errorText);
+            throw new Error(errorText);
           }
 
-          // Update progress after successful processing
-          await syncManager.updateProgress({
-            processed: successCount + 1,
-            processed_items: [...(await syncManager.getCurrentProgress()).processed_items, airline.iata_code],
-            last_processed: airline.iata_code
-          })
-          successCount++
+          const result = await response.json();
+          
+          // Update progress for successful items
+          for (const success of result.results) {
+            await syncManager.updateProgress({
+              processed: (await syncManager.getCurrentProgress()).processed + 1,
+              processed_items: [...(await syncManager.getCurrentProgress()).processed_items, success.iata_code],
+              last_processed: success.iata_code
+            });
 
-          // Log progress metrics
-          const elapsed = Date.now() - startTime
-          const avgTimePerItem = elapsed / (successCount + failureCount)
-          const remainingItems = total - (successCount + failureCount)
-          const estimatedTimeRemaining = avgTimePerItem * remainingItems
+            // Remove from missing_pet_policies
+            await supabase
+              .from('missing_pet_policies')
+              .delete()
+              .eq('iata_code', success.iata_code);
+          }
 
-          console.log(`Progress metrics:
-            Success: ${successCount}
-            Failures: ${failureCount}
-            Avg Time/Item: ${avgTimePerItem.toFixed(2)}ms
-            Est. Remaining: ${(estimatedTimeRemaining/1000).toFixed(2)}s
-          `)
+          // Update progress for failed items
+          for (const error of result.errors) {
+            await syncManager.updateProgress({
+              error_items: [...(await syncManager.getCurrentProgress()).error_items, error.iata_code],
+              needs_continuation: true
+            });
+          }
+
+          // Add delay between batches
+          if (i + BATCH_SIZE < (missingPolicies?.length || 0)) {
+            await delay(1000); // 1 second delay between batches
+          }
 
         } catch (error) {
-          console.error(`Failed to process airline ${airline.iata_code}:`, error)
+          console.error(`Failed to process batch:`, error);
+          // Mark all airlines in the batch as failed
           await syncManager.updateProgress({
-            error_items: [...(await syncManager.getCurrentProgress()).error_items, airline.iata_code],
+            error_items: [
+              ...(await syncManager.getCurrentProgress()).error_items,
+              ...batch.map(airline => airline.iata_code)
+            ],
             needs_continuation: true
-          })
-          failureCount++
+          });
         }
       }
 
-      // Mark sync as complete based on success/failure counts
-      if (failureCount === 0) {
-        await syncManager.updateProgress({
-          is_complete: true,
-          needs_continuation: false
-        })
-      } else {
-        await syncManager.updateProgress({
-          is_complete: false,
-          needs_continuation: true
-        })
-      }
+      // Check if all airlines were processed successfully
+      const currentProgress = await syncManager.getCurrentProgress();
+      const isComplete = currentProgress.processed + currentProgress.error_items.length >= total;
+      await syncManager.updateProgress({
+        is_complete: isComplete,
+        needs_continuation: !isComplete
+      });
+
     } else {
       // Full sync mode
       try {
@@ -229,9 +225,9 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         } 
       }
-    )
+    );
   } catch (error) {
-    console.error('Error in sync_airline_data:', error)
+    console.error('Error in sync_airline_data:', error);
     
     // Ensure the sync manager properly handles the error state
     try {
@@ -239,14 +235,14 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
         'airlines'
-      )
+      );
       await syncManager.updateProgress({
         error_items: ['sync_error'],
         needs_continuation: true,
         is_complete: false
-      })
+      });
     } catch (e) {
-      console.error('Failed to update sync error state:', e)
+      console.error('Failed to update sync error state:', e);
     }
     
     return new Response(
@@ -262,6 +258,6 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json'
         } 
       }
-    )
+    );
   }
-})
+});
