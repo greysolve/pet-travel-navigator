@@ -48,7 +48,6 @@ export const SyncSection = () => {
       }, {} as any);
 
       // Set country input if there's an incomplete country policy sync
-      // Only set if it's a valid country name (not "clear" or empty)
       const countrySync = progressRecord.countryPolicies;
       if (countrySync && 
           !countrySync.isComplete && 
@@ -72,7 +71,7 @@ export const SyncSection = () => {
       <div className="mb-8">
         <input
           type="text"
-          placeholder="Enter country name to sync policies"
+          placeholder="Enter country name for single country sync"
           value={countryInput}
           onChange={(e) => setCountryInput(e.target.value)}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -90,18 +89,20 @@ export const SyncSection = () => {
             }}
             isLoading={isInitializing[value]}
             onSync={(resume, mode) => {
-              if (key === 'countryPolicies') {
+              if (key === 'countryPolicies' && mode && mode !== 'clear') {
+                // Only validate country input for single country sync
                 const trimmedCountry = countryInput.trim();
-                if (!trimmedCountry || trimmedCountry === 'clear') {
+                if (!trimmedCountry) {
                   toast({
                     variant: "destructive",
                     title: "Country Required",
-                    description: "Please enter a valid country name to sync policies.",
+                    description: "Please enter a valid country name for single country sync.",
                   });
                   return;
                 }
                 handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
               } else {
+                // For full sync or other types, no country validation needed
                 handleSync(key as keyof typeof SyncType, resume, mode);
               }
             }}
