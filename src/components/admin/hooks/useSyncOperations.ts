@@ -109,10 +109,15 @@ export const useSyncOperations = () => {
         countryPolicies: 'sync_country_policies'
       };
 
+      // Construct body based on sync type and parameters
+      let body;
+      if (type === 'countryPolicies' && mode) {
+        console.log(`Syncing country policies for country: ${mode}`);
+        body = { country: mode };
+      }
+
       const { error } = await supabase.functions.invoke(functionMap[type], {
-        body: type === 'countryPolicies' && mode === 'country' 
-          ? { country: mode }
-          : undefined
+        body: body
       });
 
       if (error) throw error;

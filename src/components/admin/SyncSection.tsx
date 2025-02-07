@@ -10,7 +10,7 @@ import { useSyncProgressSubscription } from "./hooks/useSyncProgressSubscription
 import { SyncProgressDB } from "./types/sync-types";
 
 export const SyncSection = () => {
-  const [testCountry, setTestCountry] = useState<string>("");
+  const [countryInput, setCountryInput] = useState<string>("");
   const { isInitializing, clearData, setClearData, handleSync } = useSyncOperations();
   
   // Set up sync progress subscription
@@ -53,13 +53,13 @@ export const SyncSection = () => {
     <div className="space-y-8">
       <ActiveSyncs syncProgress={syncProgress || {}} />
 
-      {/* Test country input for country policies */}
+      {/* Country input for country policies */}
       <div className="mb-8">
         <input
           type="text"
-          placeholder="Test country (optional)"
-          value={testCountry}
-          onChange={(e) => setTestCountry(e.target.value)}
+          placeholder="Enter country name to sync policies"
+          value={countryInput}
+          onChange={(e) => setCountryInput(e.target.value)}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
       </div>
@@ -74,7 +74,13 @@ export const SyncSection = () => {
               setClearData(prev => ({ ...prev, [key]: checked }));
             }}
             isLoading={isInitializing[value]}
-            onSync={(resume, mode) => handleSync(key as keyof typeof SyncType, resume, mode)}
+            onSync={(resume, mode) => {
+              if (key === 'countryPolicies' && countryInput) {
+                handleSync(key as keyof typeof SyncType, resume, countryInput);
+              } else {
+                handleSync(key as keyof typeof SyncType, resume, mode);
+              }
+            }}
             syncProgress={syncProgress?.[value]}
           />
         ))}
@@ -84,4 +90,3 @@ export const SyncSection = () => {
 };
 
 export default SyncSection;
-
