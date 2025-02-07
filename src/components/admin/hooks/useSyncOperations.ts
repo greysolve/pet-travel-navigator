@@ -109,23 +109,27 @@ export const useSyncOperations = () => {
         countryPolicies: 'sync_country_policies'
       };
 
-      // Construct body based on sync type and parameters
-      let body;
-      if (type === 'countryPolicies' && mode) {
-        console.log(`Syncing country policies for country: ${mode}`);
-        body = { country: mode };
+      // Handle country policies sync with proper validation
+      if (type === 'countryPolicies') {
+        if (!mode || mode.trim() === '') {
+          throw new Error('Country name is required for country policies sync');
+        }
+        console.log(`Initiating country policies sync for: ${mode}`);
+        const { error } = await supabase.functions.invoke(functionMap[type], {
+          body: { country: mode.trim() }
+        });
+        if (error) throw error;
+      } else {
+        // Handle other sync types
+        const { error } = await supabase.functions.invoke(functionMap[type]);
+        if (error) throw error;
       }
-
-      const { error } = await supabase.functions.invoke(functionMap[type], {
-        body: body
-      });
-
-      if (error) throw error;
 
       toast({
         title: "Sync Started",
         description: `Started synchronizing ${type} data${mode ? ` for ${mode}` : ''}.`,
       });
+
     } catch (error: any) {
       console.error(`Error syncing ${type}:`, error);
       toast({

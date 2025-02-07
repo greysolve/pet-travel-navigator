@@ -75,8 +75,16 @@ export const SyncSection = () => {
             }}
             isLoading={isInitializing[value]}
             onSync={(resume, mode) => {
-              if (key === 'countryPolicies' && countryInput) {
-                handleSync(key as keyof typeof SyncType, resume, countryInput);
+              if (key === 'countryPolicies') {
+                if (!countryInput.trim()) {
+                  toast({
+                    variant: "destructive",
+                    title: "Country Required",
+                    description: "Please enter a country name to sync policies.",
+                  });
+                  return;
+                }
+                handleSync(key as keyof typeof SyncType, resume, countryInput.trim());
               } else {
                 handleSync(key as keyof typeof SyncType, resume, mode);
               }
