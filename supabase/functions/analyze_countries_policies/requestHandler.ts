@@ -1,4 +1,3 @@
-
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { SyncManager } from '../_shared/SyncManager.ts';
@@ -20,7 +19,21 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
 
-    // Get total count from countries table
+    // Check for existing sync in progress first
+    const currentProgress = await syncManager.getCurrentProgress();
+    if (currentProgress?.needs_continuation && !resumeToken) {
+      console.log('Found incomplete sync:', currentProgress);
+      // Continue from where we left off
+      return await processCountriesChunk(
+        supabase, 
+        syncManager, 
+        currentProgress.processed, 
+        currentProgress.total,
+        mode
+      );
+    }
+
+    // For new syncs or explicit resume requests, get total count
     const { count: totalCount, error: countError } = await supabase
       .from('countries')
       .select('*', { count: 'exact', head: true });
@@ -42,11 +55,17 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
 
     // Handle resume token
     if (resumeToken) {
-      const currentProgress = await syncManager.getCurrentProgress();
       if (!currentProgress?.needs_continuation) {
         throw new Error('Invalid resume token or no continuation needed');
       }
       console.log('Resuming from previous state:', currentProgress);
+      return await processCountriesChunk(
+        supabase,
+        syncManager,
+        currentProgress.processed,
+        currentProgress.total,
+        mode
+      );
     }
 
     // Initialize sync progress only when starting from beginning
@@ -55,7 +74,6 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       await syncManager.initialize(totalCount);
     } else {
       // For non-zero offset, validate against existing progress
-      const currentProgress = await syncManager.getCurrentProgress();
       if (!currentProgress) {
         throw new Error('No sync progress found for non-zero offset');
       }
