@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
@@ -11,6 +10,7 @@ interface Airline {
   name: string;
   iata_code: string;
   policy_url?: string; // Added policy_url to interface
+  website?: string;
 }
 
 Deno.serve(async (req) => {
@@ -132,12 +132,15 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
   - Temperature restrictions
   - Breed restrictions
   
-  If you find their website, include it in the response.
+  Also find and include:
+  - The airline's main website URL
+  - The specific URL of their pet travel policy page
   
   Format the response as a JSON object with these fields:
   {
     "airline_info": {
-      "official_website": "url if found"
+      "official_website": "main airline website url",
+      "policy_url": "specific pet policy page url"
     },
     "pet_policy": {
       "pet_types_allowed": ["list of allowed pets"],
@@ -200,6 +203,23 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
     const content = JSON.parse(cleanContent);
     console.log('Parsed content:', content);
 
+    // Update airline website if found and different from current
+    if (content.airline_info?.official_website && content.airline_info.official_website !== airline.website) {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      );
+      
+      const { error: updateError } = await supabase
+        .from('airlines')
+        .update({ website: content.airline_info.official_website })
+        .eq('id', airline.id);
+
+      if (updateError) {
+        console.error('Error updating airline website:', updateError);
+      }
+    }
+
     return {
       pet_types_allowed: content.pet_policy.pet_types_allowed,
       size_restrictions: content.pet_policy.size_restrictions,
@@ -208,7 +228,7 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
       fees: content.pet_policy.fees,
       temperature_restrictions: content.pet_policy.temperature_restrictions,
       breed_restrictions: content.pet_policy.breed_restrictions,
-      policy_url: content.airline_info?.official_website
+      policy_url: content.airline_info?.policy_url // Get specific pet policy URL
     };
   } catch (error) {
     console.error(`Error analyzing pet policy for ${airline.name}:`, error);
