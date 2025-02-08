@@ -2,8 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database } from "@/integrations/supabase/types";
-import { Eye, PawPrint, Pencil, Trash, ImageIcon } from "lucide-react";
-import { documentTypes } from "./types/pet-profile.types";
+import { PawPrint, Trash, ImageIcon } from "lucide-react";
 import type { PetProfileMode } from "./types/pet-profile.types";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
@@ -11,22 +10,29 @@ type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 interface PetProfileCardProps {
   pet: PetProfile;
   mode?: PetProfileMode;
-  onEdit?: (pet: PetProfile) => void;
+  onView?: (pet: PetProfile) => void;
   onDelete?: (id: string) => void;
-  onViewDocument?: (documentUrl: string, documentType: string) => void;
 }
 
 export const PetProfileCard = ({ 
   pet, 
   mode = 'default',
-  onEdit, 
+  onView, 
   onDelete,
-  onViewDocument 
 }: PetProfileCardProps) => {
   const thumbnailUrl = pet.images?.[0];
   
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger view mode if clicking delete button
+    if ((e.target as HTMLElement).closest('button')) return;
+    onView?.(pet);
+  };
+  
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10 md:w-[60%] w-full mx-auto">
+    <Card 
+      className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10 md:w-[60%] w-full mx-auto cursor-pointer"
+      onClick={handleCardClick}
+    >
       <div className="flex items-start p-4 gap-4">
         {/* Thumbnail Section */}
         <div className="flex-shrink-0">
@@ -38,7 +44,7 @@ export const PetProfileCard = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
+              <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
             )}
           </div>
         </div>
@@ -50,45 +56,19 @@ export const PetProfileCard = ({
             <PawPrint className="h-5 w-5" />
           </CardTitle>
           
-          {mode === 'default' && onEdit && onDelete && (
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {mode === 'default' && onDelete && (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onEdit(pet)}
-                className="hover:bg-accent"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(pet.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(pet.id);
+                }}
                 className="hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash className="h-4 w-4" />
               </Button>
-            </div>
-          )}
-
-          {/* Document List in View Mode */}
-          {mode === 'view' && pet.documents && (
-            <div className="mt-2 space-y-2">
-              {Object.entries(pet.documents).map(([type, url]) => {
-                const docType = documentTypes.find(dt => dt.value === type);
-                return (
-                  <Button
-                    key={type}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start gap-2 text-sm"
-                    onClick={() => onViewDocument?.(url, type)}
-                  >
-                    <Eye className="h-4 w-4" />
-                    {docType?.label || type}
-                  </Button>
-                );
-              })}
             </div>
           )}
         </div>
@@ -122,4 +102,3 @@ export const PetProfileCard = ({
     </Card>
   );
 };
-

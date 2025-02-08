@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Dialog, 
@@ -15,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import { Database } from "@/integrations/supabase/types";
 import { documentTypes } from "./types/pet-profile.types";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 
@@ -23,9 +24,17 @@ interface PetProfileFormProps {
   isOpen: boolean;
   onClose: () => void;
   initialData?: PetProfile | null;
+  viewMode?: boolean;
+  onEdit?: () => void;
 }
 
-export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
+export const PetProfileForm = ({ 
+  isOpen, 
+  onClose, 
+  initialData,
+  viewMode = false,
+  onEdit 
+}: PetProfileFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -124,7 +133,9 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{initialData ? 'Edit' : 'Add'} Pet Profile</DialogTitle>
+          <DialogTitle>
+            {viewMode ? initialData?.name : (initialData ? 'Edit' : 'Add') + ' Pet Profile'}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto px-1">
@@ -135,6 +146,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
               photos={photos}
               onPhotosChange={setPhotos}
               petId={initialData?.id}
+              readOnly={viewMode}
             />
 
             <PetBasicInfo
@@ -148,35 +160,54 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
               onBreedChange={setBreed}
               onAgeChange={setAge}
               onWeightChange={setWeight}
+              readOnly={viewMode}
             />
 
-            <PetDocumentUpload
-              documentTypes={documentTypes}
-              selectedDocumentType={selectedDocumentType}
-              onDocumentTypeChange={setSelectedDocumentType}
-              onFileChange={(e) => console.log('File selected:', e.target.files?.[0])}
-            />
+            {!viewMode && (
+              <PetDocumentUpload
+                documentTypes={documentTypes}
+                selectedDocumentType={selectedDocumentType}
+                onDocumentTypeChange={setSelectedDocumentType}
+                onFileChange={(e) => console.log('File selected:', e.target.files?.[0])}
+              />
+            )}
           </form>
         </div>
 
         <DialogFooter className="mt-6">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            form="pet-profile-form"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {initialData ? 'Updating...' : 'Adding...'}
-              </>
-            ) : (
-              initialData ? 'Update Pet' : 'Add Pet'
-            )}
-          </Button>
+          {viewMode ? (
+            <>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Close
+              </Button>
+              {onEdit && (
+                <Button onClick={onEdit} type="button">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                form="pet-profile-form"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {initialData ? 'Updating...' : 'Adding...'}
+                  </>
+                ) : (
+                  initialData ? 'Update Pet' : 'Add Pet'
+                )}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

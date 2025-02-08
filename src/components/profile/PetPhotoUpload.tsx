@@ -14,6 +14,7 @@ interface PetPhotoUploadProps {
   photos: File[];
   onPhotosChange: (photos: File[]) => void;
   petId?: string;
+  readOnly?: boolean;
 }
 
 export const PetPhotoUpload = ({ 
@@ -21,7 +22,8 @@ export const PetPhotoUpload = ({
   onPhotoUrlsChange, 
   photos, 
   onPhotosChange,
-  petId
+  petId,
+  readOnly = false
 }: PetPhotoUploadProps) => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
@@ -132,7 +134,7 @@ export const PetPhotoUpload = ({
 
   return (
     <div className="space-y-2">
-      <Label>Pet Photos (up to 4)</Label>
+      <Label>Pet Photos</Label>
       <div className="grid grid-cols-2 gap-4">
         {photoUrls.map((url) => (
           <div key={url} className="relative">
@@ -141,18 +143,20 @@ export const PetPhotoUpload = ({
               alt="Pet photo" 
               className="w-full h-32 object-cover rounded-md"
             />
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute top-1 right-1 h-6 w-6"
-              onClick={() => removeExistingPhoto(url)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute top-1 right-1 h-6 w-6"
+                onClick={() => removeExistingPhoto(url)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ))}
-        {photos.map((photo, index) => (
+        {!readOnly && photos.map((photo, index) => (
           <div key={index} className="relative">
             <img 
               src={URL.createObjectURL(photo)} 
@@ -170,7 +174,7 @@ export const PetPhotoUpload = ({
             </Button>
           </div>
         ))}
-        {photoUrls.length + photos.length < 4 && (
+        {!readOnly && photoUrls.length + photos.length < 4 && (
           <div className="flex items-center justify-center border-2 border-dashed border-gray-300 rounded-md h-32">
             <Input
               type="file"
@@ -200,4 +204,3 @@ export const PetPhotoUpload = ({
     </div>
   );
 };
-
