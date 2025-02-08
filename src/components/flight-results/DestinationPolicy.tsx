@@ -15,28 +15,35 @@ const renderObjectValue = (value: any, depth: number = 0): string => {
   // Handle null/undefined
   if (value == null) return '';
   
-  // Handle primitive values - ensure string conversion
+  // Handle primitive values directly
   if (typeof value !== 'object') return String(value);
   
-  // Handle arrays - ensure each element is converted to string
+  // Handle arrays - ensure each element is converted to string and joined
   if (Array.isArray(value)) {
-    return value.map(item => String(renderObjectValue(item, depth))).join('\n');
+    return value.map(item => renderObjectValue(item, depth)).join('\n');
   }
 
   // Handle objects
   const entries = Object.entries(value);
   if (entries.length === 0) return '';
 
+  // Map entries to strings and ensure the final result is a string
   return entries
     .map(([key, val]) => {
       const bullet = '•'.repeat(depth + 1);
       const indent = ' '.repeat(depth * 2);
       
-      // Ensure string conversion of the rendered value
-      const renderedValue = String(renderObjectValue(val, depth + 1));
+      // Recursively render the value and ensure it's a string
+      const renderedValue = renderObjectValue(val, depth + 1);
       
-      // If the value is a primitive or empty after rendering, show on same line
-      if (typeof val !== 'object' || !val || 
+      // If the rendered value is empty, just show the key
+      if (!renderedValue) {
+        return `${indent}${bullet} ${key}`;
+      }
+      
+      // For primitive values or empty objects/arrays, show on same line
+      if (typeof val !== 'object' || 
+          !val || 
           (Array.isArray(val) && val.length === 0) || 
           (typeof val === 'object' && Object.keys(val).length === 0)) {
         return `${indent}${bullet} ${key}: ${renderedValue}`;
