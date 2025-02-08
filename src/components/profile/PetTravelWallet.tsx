@@ -99,7 +99,7 @@ export const PetTravelWallet = () => {
         </Button>
       </div>
       
-      <div className="grid gap-6 w-[115%] -ml-[7.5%]">
+      <div className="grid gap-6 w-[105%] -ml-[2.5%]">
         {pets?.map((pet) => (
           <PetProfileCard
             key={pet.id}
