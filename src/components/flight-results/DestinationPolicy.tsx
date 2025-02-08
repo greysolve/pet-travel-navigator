@@ -1,3 +1,4 @@
+
 import { ExternalLink, TestTube, Microscope, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CountryPolicy, PolicyType } from "./types";
@@ -11,29 +12,29 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
 };
 
 // Enhanced helper to render JSON structures with hierarchical bullet points
-const renderObjectValue = (value: any, depth: number = 0): string => {
+const renderObjectValue = (value: any, depth: number = 0): any => {
   // Handle null/undefined
   if (value == null) return '';
   
-  // Handle primitive values - ensure string conversion
-  if (typeof value !== 'object') return String(value);
+  // Handle primitive values
+  if (typeof value !== 'object') return value;
   
-  // Handle arrays - ensure each element is converted to string
+  // Handle arrays
   if (Array.isArray(value)) {
-    return value.map(item => String(renderObjectValue(item, depth))).join('\n');
+    return value.map(item => renderObjectValue(item, depth)).join('\n');
   }
 
-  // Handle objects
-  const entries = Object.entries(value);
-  if (entries.length === 0) return '';
+  // For pure objects, use JSON.stringify if they're simple
+  if (Object.keys(value).length === 0) return '';
 
-  return entries
+  // Handle objects with hierarchical formatting
+  return Object.entries(value)
     .map(([key, val]) => {
       const bullet = '•'.repeat(depth + 1);
       const indent = ' '.repeat(depth * 2);
       
-      // Ensure string conversion of the rendered value
-      const renderedValue = String(renderObjectValue(val, depth + 1));
+      // For nested objects/arrays, continue recursion
+      const renderedValue = renderObjectValue(val, depth + 1);
       
       // If the value is a primitive or empty after rendering, show on same line
       if (typeof val !== 'object' || !val || 
