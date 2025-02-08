@@ -76,7 +76,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
 
     console.log('Received saved searches data:', data);
-    setSavedSearches(data as SavedSearch[]);
+    // Type assertion to ensure the data matches our SavedSearch type
+    setSavedSearches(data.map(item => ({
+      id: item.id,
+      name: item.name,
+      created_at: item.created_at,
+      search_criteria: item.search_criteria as SavedSearch['search_criteria']
+    })));
   };
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
