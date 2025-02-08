@@ -1,4 +1,7 @@
 
+import { PawPrint } from "lucide-react";
+import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
+
 const Pets = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[rgba(223,234,247,1)] to-[rgba(244,248,252,1)]">
