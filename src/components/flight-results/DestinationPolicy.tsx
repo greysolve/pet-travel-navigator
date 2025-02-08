@@ -11,39 +11,38 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
 };
 
-// Enhanced helper to safely render deeply nested object values
-const renderObjectValue = (value: any, indent: number = 0): string => {
+// Enhanced helper to safely render all possible JSON structures
+const renderObjectValue = (value: any): string => {
+  // Handle null/undefined
+  if (!value) return '';
+  
   // Handle primitive values
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return value.toString();
-  if (value === null || value === undefined) return '';
   if (typeof value !== 'object') return String(value);
+  
+  // Handle arrays
+  if (Array.isArray(value)) {
+    return value.map(item => renderObjectValue(item)).join('\n');
+  }
 
   // Special case: if the object has a description field, use that
   if ('description' in value && typeof value.description === 'string') {
     return value.description;
   }
 
-  // Handle arrays
-  if (Array.isArray(value)) {
-    return value.map(item => renderObjectValue(item, indent + 1)).join('\n');
-  }
-
-  // Handle objects
+  // Handle nested objects by creating a formatted string representation
   const entries = Object.entries(value);
   if (entries.length === 0) return '';
 
-  // Create indentation string based on level
-  const indentStr = '  '.repeat(indent);
-  
   return entries
     .map(([key, val]) => {
-      const renderedValue = renderObjectValue(val, indent + 1);
-      // If the rendered value is multiple lines, format it appropriately
+      const renderedValue = renderObjectValue(val);
+      // Format nested values with proper indentation
       if (renderedValue.includes('\n')) {
-        return `${indentStr}${key}:\n${renderedValue.split('\n').map(line => `${indentStr}  ${line}`).join('\n')}`;
+        return `${key}:\n  ${renderedValue.split('\n').join('\n  ')}`;
       }
-      return `${indentStr}${key}: ${renderedValue}`;
+      return `${key}: ${renderedValue}`;
     })
     .join('\n');
 };
@@ -119,7 +118,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
         {policy.fees && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
-            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans">
+            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
               {renderObjectValue(policy.fees)}
             </pre>
           </section>
@@ -128,7 +127,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
         {policy.restrictions && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
-            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans">
+            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
               {renderObjectValue(policy.restrictions)}
             </pre>
           </section>
