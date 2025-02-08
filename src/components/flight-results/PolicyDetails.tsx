@@ -7,16 +7,6 @@ type PolicyDetailsProps = {
 };
 
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
-  // Helper function to handle potentially nested object values
-  const formatValue = (value: unknown): string => {
-    if (typeof value === 'object' && value !== null) {
-      return Object.entries(value)
-        .map(([key, val]) => `${key}: ${val}`)
-        .join(', ');
-    }
-    return String(value);
-  };
-
   if (!policy) {
     return (
       <p className="text-sm text-gray-500 border-t pt-4">
@@ -36,26 +26,26 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         <div className="space-y-1">
           <p className="font-medium">Size and Weight Restrictions:</p>
           {policy.size_restrictions.max_weight_cabin && (
-            <p className="ml-4">• Maximum cabin weight: {formatValue(policy.size_restrictions.max_weight_cabin)}</p>
+            <p className="ml-4">• Maximum cabin weight: {policy.size_restrictions.max_weight_cabin}</p>
           )}
           {policy.size_restrictions.max_weight_cargo && (
-            <p className="ml-4">• Maximum cargo weight: {formatValue(policy.size_restrictions.max_weight_cargo)}</p>
+            <p className="ml-4">• Maximum cargo weight: {policy.size_restrictions.max_weight_cargo}</p>
           )}
           {policy.size_restrictions.carrier_dimensions_cabin && (
-            <p className="ml-4">• Carrier dimensions: {formatValue(policy.size_restrictions.carrier_dimensions_cabin)}</p>
+            <p className="ml-4">• Carrier dimensions: {policy.size_restrictions.carrier_dimensions_cabin}</p>
           )}
         </div>
       )}
 
       {/* Carrier Requirements */}
       {policy.carrier_requirements && (
-        <p><span className="font-medium">Carrier requirements:</span> {formatValue(policy.carrier_requirements)}</p>
+        <p><span className="font-medium">Carrier requirements:</span> {policy.carrier_requirements}</p>
       )}
       {policy.carrier_requirements_cabin && (
-        <p><span className="font-medium">Cabin carrier requirements:</span> {formatValue(policy.carrier_requirements_cabin)}</p>
+        <p><span className="font-medium">Cabin carrier requirements:</span> {policy.carrier_requirements_cabin}</p>
       )}
       {policy.carrier_requirements_cargo && (
-        <p><span className="font-medium">Cargo carrier requirements:</span> {formatValue(policy.carrier_requirements_cargo)}</p>
+        <p><span className="font-medium">Cargo carrier requirements:</span> {policy.carrier_requirements_cargo}</p>
       )}
 
       {/* Documentation */}
@@ -68,17 +58,17 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         <div className="space-y-1">
           <p className="font-medium">Fees:</p>
           {policy.fees.in_cabin && (
-            <p className="ml-4">• Cabin: {formatValue(policy.fees.in_cabin)}</p>
+            <p className="ml-4">• Cabin: {policy.fees.in_cabin}</p>
           )}
           {policy.fees.cargo && (
-            <p className="ml-4">• Cargo: {formatValue(policy.fees.cargo)}</p>
+            <p className="ml-4">• Cargo: {policy.fees.cargo}</p>
           )}
         </div>
       )}
 
       {/* Temperature and Breed Restrictions */}
       {policy.temperature_restrictions && (
-        <p><span className="font-medium">Temperature restrictions:</span> {formatValue(policy.temperature_restrictions)}</p>
+        <p><span className="font-medium">Temperature restrictions:</span> {policy.temperature_restrictions}</p>
       )}
       {policy.breed_restrictions?.length > 0 && (
         <p><span className="font-medium">Breed restrictions:</span> {policy.breed_restrictions.join(', ')}</p>
