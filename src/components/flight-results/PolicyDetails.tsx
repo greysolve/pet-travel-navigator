@@ -1,5 +1,6 @@
 
 import { ExternalLink } from "lucide-react";
+import { JsonRenderer } from "@/components/ui/json-renderer";
 import type { PetPolicy } from "./types";
 
 type PolicyDetailsProps = {
@@ -16,62 +17,73 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   }
 
   return (
-    <div className="text-sm space-y-2 border-t pt-4">
+    <div className="text-sm space-y-4 border-t pt-4">
       {policy.pet_types_allowed?.length > 0 && (
-        <p><span className="font-medium">Allowed pets:</span> {policy.pet_types_allowed.join(', ')}</p>
+        <div>
+          <p className="font-medium mb-2">Allowed pets:</p>
+          <JsonRenderer data={policy.pet_types_allowed} />
+        </div>
       )}
 
       {/* Size Restrictions */}
       {policy.size_restrictions && (
-        <div className="space-y-1">
-          <p className="font-medium">Size and Weight Restrictions:</p>
-          {policy.size_restrictions.max_weight_cabin && (
-            <p className="ml-4">• Maximum cabin weight: {policy.size_restrictions.max_weight_cabin}</p>
-          )}
-          {policy.size_restrictions.max_weight_cargo && (
-            <p className="ml-4">• Maximum cargo weight: {policy.size_restrictions.max_weight_cargo}</p>
-          )}
-          {policy.size_restrictions.carrier_dimensions_cabin && (
-            <p className="ml-4">• Carrier dimensions: {policy.size_restrictions.carrier_dimensions_cabin}</p>
-          )}
+        <div>
+          <p className="font-medium mb-2">Size and Weight Restrictions:</p>
+          <JsonRenderer data={policy.size_restrictions} />
         </div>
       )}
 
       {/* Carrier Requirements */}
       {policy.carrier_requirements && (
-        <p><span className="font-medium">Carrier requirements:</span> {policy.carrier_requirements}</p>
+        <div>
+          <p className="font-medium mb-2">Carrier requirements:</p>
+          <JsonRenderer data={policy.carrier_requirements} />
+        </div>
       )}
+
       {policy.carrier_requirements_cabin && (
-        <p><span className="font-medium">Cabin carrier requirements:</span> {policy.carrier_requirements_cabin}</p>
+        <div>
+          <p className="font-medium mb-2">Cabin carrier requirements:</p>
+          <JsonRenderer data={policy.carrier_requirements_cabin} />
+        </div>
       )}
+
       {policy.carrier_requirements_cargo && (
-        <p><span className="font-medium">Cargo carrier requirements:</span> {policy.carrier_requirements_cargo}</p>
+        <div>
+          <p className="font-medium mb-2">Cargo carrier requirements:</p>
+          <JsonRenderer data={policy.carrier_requirements_cargo} />
+        </div>
       )}
 
       {/* Documentation */}
       {policy.documentation_needed?.length > 0 && (
-        <p><span className="font-medium">Required documentation:</span> {policy.documentation_needed.join(', ')}</p>
+        <div>
+          <p className="font-medium mb-2">Required documentation:</p>
+          <JsonRenderer data={policy.documentation_needed} />
+        </div>
       )}
 
       {/* Fees */}
-      {policy.fees && (Object.keys(policy.fees).length > 0) && (
-        <div className="space-y-1">
-          <p className="font-medium">Fees:</p>
-          {policy.fees.in_cabin && (
-            <p className="ml-4">• Cabin: {policy.fees.in_cabin}</p>
-          )}
-          {policy.fees.cargo && (
-            <p className="ml-4">• Cargo: {policy.fees.cargo}</p>
-          )}
+      {policy.fees && Object.keys(policy.fees).length > 0 && (
+        <div>
+          <p className="font-medium mb-2">Fees:</p>
+          <JsonRenderer data={policy.fees} />
         </div>
       )}
 
       {/* Temperature and Breed Restrictions */}
       {policy.temperature_restrictions && (
-        <p><span className="font-medium">Temperature restrictions:</span> {policy.temperature_restrictions}</p>
+        <div>
+          <p className="font-medium mb-2">Temperature restrictions:</p>
+          <JsonRenderer data={policy.temperature_restrictions} />
+        </div>
       )}
+
       {policy.breed_restrictions?.length > 0 && (
-        <p><span className="font-medium">Breed restrictions:</span> {policy.breed_restrictions.join(', ')}</p>
+        <div>
+          <p className="font-medium mb-2">Breed restrictions:</p>
+          <JsonRenderer data={policy.breed_restrictions} />
+        </div>
       )}
 
       {policy.policy_url && (

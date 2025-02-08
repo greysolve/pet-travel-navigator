@@ -1,6 +1,7 @@
 
 import { ExternalLink, TestTube, Microscope, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { JsonRenderer } from "@/components/ui/json-renderer";
 import type { CountryPolicy, PolicyType } from "./types";
 
 const getPolicyTypeLabel = (type: PolicyType) => {
@@ -9,33 +10,6 @@ const getPolicyTypeLabel = (type: PolicyType) => {
 
 const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
-};
-
-// Simplified helper to render values as formatted strings
-const renderValue = (value: any): string => {
-  if (value == null) return '';
-  
-  // Handle arrays as bullet points
-  if (Array.isArray(value)) {
-    return value.map(item => `• ${item}`).join('\n');
-  }
-  
-  // Handle objects by mapping their key-value pairs
-  if (typeof value === 'object') {
-    return Object.entries(value)
-      .map(([key, val]) => {
-        // If the value is an array, render it with bullet points
-        if (Array.isArray(val)) {
-          return `${key}:\n${val.map(item => `  • ${item}`).join('\n')}`;
-        }
-        // If the value is a simple type, render as key: value
-        return `${key}: ${val}`;
-      })
-      .join('\n');
-  }
-  
-  // For simple values, just convert to string
-  return String(value);
 };
 
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
@@ -76,51 +50,39 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
         {policy.vaccination_requirements?.length > 0 && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Vaccination Requirements</h3>
-            <ul className="list-disc list-inside space-y-3 ml-2">
-              {policy.vaccination_requirements.map((vac, index) => (
-                <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{vac}</li>
-              ))}
-            </ul>
+            <JsonRenderer data={policy.vaccination_requirements} className="ml-2" />
           </section>
         )}
 
         {policy.requirements?.length > 0 && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Requirements</h3>
-            <ul className="list-disc list-inside space-y-3 ml-2">
-              {policy.requirements.map((req, index) => (
-                <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{req}</li>
-              ))}
-            </ul>
+            <JsonRenderer data={policy.requirements} className="ml-2" />
           </section>
         )}
 
         {policy.documentation_needed?.length > 0 && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Required Documentation</h3>
-            <ul className="list-disc list-inside space-y-3 ml-2">
-              {policy.documentation_needed.map((doc, index) => (
-                <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{doc}</li>
-              ))}
-            </ul>
+            <JsonRenderer data={policy.documentation_needed} className="ml-2" />
           </section>
         )}
 
         {policy.fees && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
-            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderValue(policy.fees)}
-            </pre>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <JsonRenderer data={policy.fees} />
+            </div>
           </section>
         )}
 
         {policy.restrictions && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
-            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderValue(policy.restrictions)}
-            </pre>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <JsonRenderer data={policy.restrictions} />
+            </div>
           </section>
         )}
 
@@ -170,4 +132,3 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
-
