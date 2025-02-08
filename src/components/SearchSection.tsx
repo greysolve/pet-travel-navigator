@@ -91,9 +91,10 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           .from('saved_searches')
           .insert({
             user_id: user.id,
-            search_type: 'airline',
-            airline_name: policySearch,
-            created_at: new Date().toISOString()
+            search_criteria: {
+              type: 'airline',
+              airline_name: policySearch
+            }
           });
 
         if (saveError) {
@@ -125,11 +126,12 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
               .from('saved_searches')
               .insert({
                 user_id: user.id,
-                search_type: 'route',
-                origin,
-                destination,
-                departure_date: date.toISOString(),
-                created_at: new Date().toISOString()
+                search_criteria: {
+                  type: 'route',
+                  origin,
+                  destination,
+                  departure_date: date.toISOString()
+                }
               });
 
             if (saveError) {
