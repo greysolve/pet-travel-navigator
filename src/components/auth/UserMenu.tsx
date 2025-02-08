@@ -42,6 +42,9 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => navigate("/")}>
+          Pet Flight Search
+        </DropdownMenuItem>
         {userRole === "site_manager" && (
           <DropdownMenuItem onClick={() => navigate("/admin")}>
             Manage
