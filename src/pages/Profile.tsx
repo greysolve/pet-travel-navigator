@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ContactInformation } from "@/components/profile/ContactInformation";
 import { AddressInformation } from "@/components/profile/AddressInformation";
@@ -11,6 +12,7 @@ import { UserProfile } from "@/types/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import AuthDialog from "@/components/AuthDialog";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -124,6 +126,9 @@ const Profile = () => {
 
   return (
     <div className="container max-w-[70%] mx-auto py-8 space-y-8">
+      <div className="flex justify-end">
+        <AuthDialog />
+      </div>
       <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">
