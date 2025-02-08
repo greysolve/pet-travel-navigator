@@ -33,12 +33,31 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
           </div>
         </div>
 
-        {/* Pet Name Section */}
-        <div className="ml-4 flex-shrink-0">
+        {/* Pet Name and Actions Section */}
+        <div className="ml-4 flex-shrink-0 flex flex-col gap-2">
           <CardTitle className="text-xl font-bold flex items-center gap-2 text-primary">
             {pet.name}
             <PawPrint className="h-5 w-5" />
           </CardTitle>
+          
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(pet)}
+              className="hover:bg-accent"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(pet.id)}
+              className="hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Info Section */}
@@ -66,27 +85,8 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
             </div>
           )}
         </div>
-
-        {/* Actions Section */}
-        <div className="ml-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onEdit(pet)}
-            className="hover:bg-accent"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(pet.id)}
-            className="hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </Card>
   );
 };
+
