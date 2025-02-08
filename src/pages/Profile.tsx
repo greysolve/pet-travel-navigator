@@ -125,10 +125,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="container max-w-[70%] mx-auto py-8 space-y-8">
-      <div className="flex justify-end">
-        <AuthDialog />
-      </div>
+    <div className="container mx-auto px-4 md:px-8 py-8 pt-[15vh] md:pt-8 max-w-full md:max-w-[70%]">
       <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">

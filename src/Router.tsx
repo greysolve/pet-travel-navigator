@@ -1,4 +1,3 @@
-
 import { createBrowserRouter, Outlet } from "react-router-dom";
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
@@ -8,6 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Admin from "@/pages/Admin";
 import SampleResults from "@/pages/SampleResults";
 import AuthCallback from "@/pages/AuthCallback";
+import AuthDialog from "@/components/AuthDialog";
 
 // Create a protected layout that wraps routes requiring authentication
 const ProtectedLayout = () => {
@@ -16,7 +16,14 @@ const ProtectedLayout = () => {
 
 // Create a root layout component that doesn't require authentication
 const RootLayout = () => {
-  return <Outlet />;
+  return (
+    <div className="relative min-h-screen">
+      <div className="absolute top-4 right-4 z-50">
+        <AuthDialog />
+      </div>
+      <Outlet />
+    </div>
+  );
 };
 
 const router = createBrowserRouter([
@@ -72,4 +79,3 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
-

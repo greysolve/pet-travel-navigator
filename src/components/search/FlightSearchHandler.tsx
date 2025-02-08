@@ -8,7 +8,6 @@ interface FlightSearchProps {
   origin: string;
   destination: string;
   date: Date;
-  destinationCountry: string | undefined;
   onSearchResults: (flights: FlightData[], petPolicies?: Record<string, PetPolicy>) => void;
   onSearchComplete: () => void;
 }
@@ -94,7 +93,6 @@ export const useFlightSearch = () => {
     origin,
     destination,
     date,
-    destinationCountry,
     onSearchResults,
     onSearchComplete,
   }: FlightSearchProps) => {
@@ -124,8 +122,6 @@ export const useFlightSearch = () => {
       
       if (cachedResult) {
         console.log('Cache hit! Using cached data');
-        // For now, we still make the API call since we're not storing the flight data
-        // In a full implementation, we'd store and retrieve the flight data as well
       }
 
       console.log('Sending search request with:', { origin, destination, date: date.toISOString() });

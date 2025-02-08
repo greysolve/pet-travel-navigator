@@ -131,6 +131,7 @@ export const ExportDialog = ({
       });
 
       console.log("PDF export completed successfully with enhanced text spacing");
+      onClose();
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
@@ -145,12 +146,12 @@ export const ExportDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-7xl min-h-[90dvh] md:h-[90vh] overflow-y-auto p-4 md:p-6">
         <DialogHeader>
           <DialogTitle>Export Travel Requirements</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-4">
           <div className="flex-1">
             <Input
               placeholder="Enter filename"
@@ -163,13 +164,13 @@ export const ExportDialog = ({
           <Button 
             onClick={handleExport}
             disabled={isExporting}
-            className="min-w-[150px]"
+            className="w-full md:w-auto md:min-w-[150px]"
           >
             {isExporting ? "Generating PDF..." : "Download PDF"}
           </Button>
         </div>
 
-        <div id="pdf-export-content">
+        <div id="pdf-export-content" className="bg-white">
           <PdfExportView
             flights={flights}
             petPolicies={petPolicies}
