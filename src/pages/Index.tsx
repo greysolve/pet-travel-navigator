@@ -3,8 +3,8 @@ import { useState, useRef } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
-import { PageLayout } from "@/components/layout/PageLayout";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
@@ -29,7 +29,7 @@ const Index = () => {
   };
 
   return (
-    <PageLayout fullWidth>
+    <PageLayout>
       <div className="min-h-screen bg-[#F1F0FB]">
         <HeroSection />
         <SearchSection onSearchResults={handleSearchResults} />
