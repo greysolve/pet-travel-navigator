@@ -17,9 +17,9 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10">
-      <div className="flex flex-col md:flex-row md:items-center">
+      <div className="flex flex-col md:flex-row md:items-center py-4">
         {/* Thumbnail Section */}
-        <div className="p-4 flex items-center justify-center md:justify-start flex-shrink-0">
+        <div className="px-4 flex items-center justify-center md:justify-start flex-shrink-0">
           <div className="w-[200px] h-[200px] md:w-[150px] md:h-[150px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
             {thumbnailUrl ? (
               <img 
@@ -60,7 +60,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 py-4 text-center md:text-right">
+            <div className="grid gap-4 text-center md:text-right">
               <div className="text-2xl">
                 <span className="font-medium text-muted-foreground">Type:</span>{" "}
                 <span className="text-foreground capitalize">{pet.type}</span>
