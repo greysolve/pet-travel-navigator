@@ -125,8 +125,8 @@ const Profile = () => {
   };
 
   return (
-    <div className="container max-w-[70%] mx-auto py-8 space-y-8">
-      <div className="flex justify-end">
+    <div className="container max-w-[70%] mx-auto py-8 relative">
+      <div className="absolute top-4 right-4">
         <AuthDialog />
       </div>
       <h1 className="text-3xl font-bold text-center">Profile</h1>

@@ -10,8 +10,8 @@ import AuthDialog from "@/components/AuthDialog";
 
 const Admin = () => {
   return (
-    <div className="container mx-auto p-8">
-      <div className="flex justify-end mb-4">
+    <div className="container mx-auto p-8 relative">
+      <div className="absolute top-4 right-4">
         <AuthDialog />
       </div>
       <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
