@@ -50,6 +50,9 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         <DropdownMenuItem onClick={() => navigate("/profile")}>
           My Profile
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/pets")}>
+          My Pets
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut}>
           Sign Out
         </DropdownMenuItem>
