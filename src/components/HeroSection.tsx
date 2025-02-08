@@ -1,9 +1,9 @@
 
 export const HeroSection = () => {
   return (
-    <div className="relative bg-primary py-8 md:py-16">
+    <div className="relative bg-primary py-16">
       <div className="relative">
-        <div className="flex flex-col items-center gap-6 md:gap-12 max-w-3xl mx-auto px-4">
+        <div className="flex flex-col items-center gap-12 max-w-3xl mx-auto px-4">
           <div className="flex items-center gap-12 relative w-full">
             <div className="absolute -left-40 -top-8 hidden md:block">
               <img 
