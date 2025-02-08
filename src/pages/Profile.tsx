@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ContactInformation } from "@/components/profile/ContactInformation";
 import { AddressInformation } from "@/components/profile/AddressInformation";
@@ -125,82 +124,85 @@ const Profile = () => {
   };
 
   return (
-    <div className="container max-w-[70%] mx-auto py-8 relative">
+    <div className="relative w-full">
       <div className="absolute top-4 right-4">
         <AuthDialog />
       </div>
-      <h1 className="text-3xl font-bold text-center">Profile</h1>
       
-      <div className="grid gap-8">
-        <Card>
-          <CardContent className="pt-6">
-            <ProfileAvatar 
-              userId={userId}
-              avatarUrl={profile?.avatar_url}
-              onAvatarUpdate={handleAvatarUpdate}
-            />
-          </CardContent>
-        </Card>
+      <div className="container max-w-[70%] mx-auto py-8">
+        <h1 className="text-3xl font-bold text-center">Profile</h1>
         
-        <div className="space-y-8">
+        <div className="grid gap-8">
           <Card>
             <CardContent className="pt-6">
-              <ContactInformation
-                firstName={firstName}
-                lastName={lastName}
-                email={email}
-                onFirstNameChange={setFirstName}
-                onLastNameChange={setLastName}
+              <ProfileAvatar 
+                userId={userId}
+                avatarUrl={profile?.avatar_url}
+                onAvatarUpdate={handleAvatarUpdate}
               />
             </CardContent>
           </Card>
+          
+          <div className="space-y-8">
+            <Card>
+              <CardContent className="pt-6">
+                <ContactInformation
+                  firstName={firstName}
+                  lastName={lastName}
+                  email={email}
+                  onFirstNameChange={setFirstName}
+                  onLastNameChange={setLastName}
+                />
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="pt-6">
-              <AddressInformation
-                addressLine1={addressLine1}
-                addressLine2={addressLine2}
-                addressLine3={addressLine3}
-                locality={locality}
-                administrativeArea={administrativeArea}
-                postalCode={postalCode}
-                selectedCountryId={selectedCountryId}
-                onAddressLine1Change={setAddressLine1}
-                onAddressLine2Change={setAddressLine2}
-                onAddressLine3Change={setAddressLine3}
-                onLocalityChange={setLocality}
-                onAdministrativeAreaChange={setAdministrativeArea}
-                onPostalCodeChange={setPostalCode}
-                onCountryChange={setSelectedCountryId}
-              />
-            </CardContent>
-          </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <AddressInformation
+                  addressLine1={addressLine1}
+                  addressLine2={addressLine2}
+                  addressLine3={addressLine3}
+                  locality={locality}
+                  administrativeArea={administrativeArea}
+                  postalCode={postalCode}
+                  selectedCountryId={selectedCountryId}
+                  onAddressLine1Change={setAddressLine1}
+                  onAddressLine2Change={setAddressLine2}
+                  onAddressLine3Change={setAddressLine3}
+                  onLocalityChange={setLocality}
+                  onAdministrativeAreaChange={setAdministrativeArea}
+                  onPostalCodeChange={setPostalCode}
+                  onCountryChange={setSelectedCountryId}
+                />
+              </CardContent>
+            </Card>
 
-          <PasswordChange />
+            <PasswordChange />
 
-          <div className="flex justify-end">
-            <Button 
-              onClick={updateProfile} 
-              disabled={isUpdating}
-              className="w-32"
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
+            <div className="flex justify-end">
+              <Button 
+                onClick={updateProfile} 
+                disabled={isUpdating}
+                className="w-32"
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <PetTravelWallet />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <PetTravelWallet />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
