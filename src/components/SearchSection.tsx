@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -48,7 +48,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
 
-  // Add useEffect to load saved searches when component mounts or user changes
   useEffect(() => {
     if (user) {
       console.log('Loading saved searches for user:', user.id);
@@ -81,7 +80,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
     console.log('Received saved searches data:', data);
 
-    // Transform the data to match our SavedSearch type
     const transformedData: SavedSearch[] = data.map(item => ({
       id: item.id,
       name: item.name,
@@ -91,6 +89,32 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
     console.log('Transformed saved searches:', transformedData);
     setSavedSearches(transformedData);
+  };
+
+  const handleDeleteSearch = async (e: React.MouseEvent, searchId: string) => {
+    e.stopPropagation(); // Prevent triggering the load search action
+    try {
+      const { error } = await supabase
+        .from('saved_searches')
+        .delete()
+        .eq('id', searchId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Search deleted",
+        description: "Your saved search has been deleted.",
+      });
+
+      loadSavedSearches(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting search:', error);
+      toast({
+        title: "Error deleting search",
+        description: "There was a problem deleting your search. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
@@ -265,16 +289,26 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                     <DropdownMenuItem
                       key={search.id}
                       onClick={() => handleLoadSearch(search.search_criteria)}
-                      className="flex flex-col items-start py-2"
+                      className="flex items-center justify-between py-2 cursor-pointer group"
                     >
-                      <span className="font-medium">
-                        {search.search_criteria.type === 'airline'
-                          ? `Airline: ${search.search_criteria.airline_name}`
-                          : `${search.search_criteria.origin} → ${search.search_criteria.destination}`}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(search.created_at), 'MMM d, yyyy')}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {search.search_criteria.type === 'airline'
+                            ? search.search_criteria.airline_name
+                            : `${search.search_criteria.origin} → ${search.search_criteria.destination}`}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(search.created_at), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => handleDeleteSearch(e, search.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </DropdownMenuItem>
                   ))
                 )}
