@@ -89,7 +89,7 @@ export const PetTravelWallet = () => {
   return (
     <div className="space-y-8 animate-fade-in w-full px-4 md:px-0 md:w-[65%] mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
-        <h2 className="text-2xl font-bold text-primary">Pet Travel Wallet</h2>
+        <h2 className="text-2xl font-bold text-primary whitespace-nowrap">Pet Travel Wallet</h2>
         <Button 
           onClick={() => setIsFormOpen(true)}
           className="bg-primary hover:bg-primary/90 text-white transition-colors w-full md:w-auto"

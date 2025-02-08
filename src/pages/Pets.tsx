@@ -9,9 +9,9 @@ const Pets = () => {
         <div className="text-center space-y-4 mb-12 animate-fade-in">
           <div className="flex items-center justify-center gap-3">
             <PawPrint className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold text-primary">My Pets</h1>
+            <h1 className="text-4xl font-bold text-primary whitespace-nowrap">My Pets</h1>
           </div>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-muted-foreground hidden md:block">
             Manage your pet travel companions
           </p>
         </div>
