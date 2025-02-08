@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -48,6 +48,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
 
+  // Add useEffect to load saved searches when component mounts or user changes
   useEffect(() => {
     if (user) {
       console.log('Loading saved searches for user:', user.id);
@@ -80,6 +81,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
     console.log('Received saved searches data:', data);
 
+    // Transform the data to match our SavedSearch type
     const transformedData: SavedSearch[] = data.map(item => ({
       id: item.id,
       name: item.name,
@@ -91,61 +93,32 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setSavedSearches(transformedData);
   };
 
-  const handleDeleteSearch = async (e: React.MouseEvent, searchId: string) => {
-    e.stopPropagation(); // Prevent triggering the load search action
-    try {
-      const { error } = await supabase
-        .from('saved_searches')
-        .delete()
-        .eq('id', searchId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Search deleted",
-        description: "Your saved search has been deleted.",
-      });
-
-      loadSavedSearches(); // Refresh the list
-    } catch (error) {
-      console.error('Error deleting search:', error);
-      toast({
-        title: "Error deleting search",
-        description: "There was a problem deleting your search. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLoadSearch = async (searchCriteria: SavedSearch['search_criteria']) => {
+  const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
     if (searchCriteria.type === 'airline') {
       setPolicySearch(searchCriteria.airline_name || "");
       setOrigin("");
       setDestination("");
       setDate(undefined);
-      // Trigger airline search
-      await handleSearch(true, searchCriteria.airline_name || "");
     } else if (searchCriteria.type === 'route') {
       setPolicySearch("");
       setOrigin(searchCriteria.origin || "");
       setDestination(searchCriteria.destination || "");
       setDate(searchCriteria.departure_date ? new Date(searchCriteria.departure_date) : undefined);
-      // Trigger route search after state updates
-      if (searchCriteria.origin && searchCriteria.destination && searchCriteria.departure_date) {
-        await handleSearch(false, "", searchCriteria.origin, searchCriteria.destination, new Date(searchCriteria.departure_date));
-      }
     }
   };
 
-  const handleSearch = async (
-    isAirlineSearch: boolean = false, 
-    airlineName: string = policySearch,
-    searchOrigin: string = origin,
-    searchDestination: string = destination,
-    searchDate: Date | undefined = date
-  ) => {
-    if (!isAirlineSearch && (searchOrigin || searchDestination) && !searchDate) {
+  const handleSearch = async () => {
+    if (policySearch && (origin || destination)) {
+      toast({
+        title: "Please choose one search method",
+        description: "You can either search by airline policy or by route, but not both at the same time.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (origin && destination && !date) {
       toast({
         title: "Please select a date",
         description: "A departure date is required to search for flights.",
@@ -154,12 +127,12 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       return;
     }
     
-    if (isAirlineSearch || airlineName) {
-      console.log("Searching for airline policy:", airlineName);
+    if (policySearch) {
+      console.log("Searching for airline policy:", policySearch);
       const { data: airline, error: airlineError } = await supabase
         .from('airlines')
         .select('id')
-        .eq('name', airlineName)
+        .eq('name', policySearch)
         .maybeSingle();
 
       if (airlineError || !airline?.id) {
@@ -191,7 +164,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
       console.log("Found pet policy:", petPolicy);
       const results: FlightData[] = [];
-      onSearchResults(results, { [airlineName]: petPolicy as PetPolicy });
+      onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
       setFlights(results);
 
       if (shouldSaveSearch && user) {
@@ -201,7 +174,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             user_id: user.id,
             search_criteria: {
               type: 'airline',
-              airline_name: airlineName
+              airline_name: policySearch
             }
           });
 
@@ -220,11 +193,11 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           loadSavedSearches();
         }
       }
-    } else if (searchOrigin && searchDestination && searchDate) {
+    } else if (origin && destination && date) {
       handleFlightSearch({
-        origin: searchOrigin,
-        destination: searchDestination,
-        date: searchDate,
+        origin,
+        destination,
+        date,
         destinationCountry,
         onSearchResults: async (results, policies) => {
           onSearchResults(results, policies);
@@ -237,9 +210,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                 user_id: user.id,
                 search_criteria: {
                   type: 'route',
-                  origin: searchOrigin,
-                  destination: searchDestination,
-                  departure_date: searchDate.toISOString()
+                  origin,
+                  destination,
+                  departure_date: date.toISOString()
                 }
               });
 
@@ -292,26 +265,16 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                     <DropdownMenuItem
                       key={search.id}
                       onClick={() => handleLoadSearch(search.search_criteria)}
-                      className="flex items-center justify-between py-2 cursor-pointer group"
+                      className="flex flex-col items-start py-2"
                     >
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {search.search_criteria.type === 'airline'
-                            ? search.search_criteria.airline_name
-                            : `${search.search_criteria.origin} → ${search.search_criteria.destination}`}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(search.created_at), 'MMM d, yyyy')}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => handleDeleteSearch(e, search.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <span className="font-medium">
+                        {search.search_criteria.type === 'airline'
+                          ? `Airline: ${search.search_criteria.airline_name}`
+                          : `${search.search_criteria.origin} → ${search.search_criteria.destination}`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(search.created_at), 'MMM d, yyyy')}
+                      </span>
                     </DropdownMenuItem>
                   ))
                 )}
@@ -367,7 +330,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
         <Button 
           className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
-          onClick={() => handleSearch()}
+          onClick={handleSearch}
           disabled={isLoading}
         >
           {isLoading ? (

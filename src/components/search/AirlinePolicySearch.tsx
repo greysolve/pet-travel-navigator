@@ -1,5 +1,4 @@
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -60,13 +59,6 @@ export const AirlinePolicySearch = ({ policySearch, setPolicySearch }: AirlinePo
     }
   }, [toast]);
 
-  // Effect to validate and fetch airline data when policySearch is set externally
-  useEffect(() => {
-    if (policySearch && !airlines.some(airline => airline.name === policySearch)) {
-      fetchAirlines(policySearch);
-    }
-  }, [policySearch, fetchAirlines]);
-
   return (
     <div className="relative">
       <Input
@@ -80,12 +72,7 @@ export const AirlinePolicySearch = ({ policySearch, setPolicySearch }: AirlinePo
           fetchAirlines(value);
           setShowAirlineSuggestions(true);
         }}
-        onFocus={() => {
-          setShowAirlineSuggestions(true);
-          if (policySearch) {
-            fetchAirlines(policySearch);
-          }
-        }}
+        onFocus={() => setShowAirlineSuggestions(true)}
       />
       {showAirlineSuggestions && airlines.length > 0 && (
         <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">

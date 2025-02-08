@@ -1,5 +1,4 @@
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -41,9 +40,16 @@ export const RouteSearch = ({
     
     setIsSearching(true);
     try {
+      // Split the search term by comma and get the parts
+      const parts = searchTerm.split(',').map(part => part.trim());
+      const cityTerm = parts[0];
+      const countryTerm = parts[1] || '';
+      
+      console.log('Fetching airports with:', { cityTerm, countryTerm });
+      
       const { data, error } = await supabase
         .rpc('search_airports_insensitive', {
-          search_term: searchTerm
+          search_term: cityTerm
         });
 
       if (error) {
@@ -56,8 +62,16 @@ export const RouteSearch = ({
         return;
       }
 
-      console.log('Fetched airports:', data);
-      setAirports(data || []);
+      // Filter results client-side if a country term is provided
+      let filteredData = data;
+      if (countryTerm) {
+        filteredData = data.filter((airport: Airport) => 
+          airport.country.toLowerCase().startsWith(countryTerm.toLowerCase())
+        );
+      }
+
+      console.log('Filtered airports:', filteredData);
+      setAirports(filteredData || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
       toast({
@@ -69,19 +83,6 @@ export const RouteSearch = ({
       setIsSearching(false);
     }
   }, [toast]);
-
-  // Effect to validate and fetch airport data when origin/destination is set externally
-  useEffect(() => {
-    if (origin && !airports.some(airport => airport.iata_code === origin)) {
-      fetchAirports(origin);
-    }
-  }, [origin, fetchAirports]);
-
-  useEffect(() => {
-    if (destination && !airports.some(airport => airport.iata_code === destination)) {
-      fetchAirports(destination);
-    }
-  }, [destination, fetchAirports]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -97,12 +98,7 @@ export const RouteSearch = ({
             fetchAirports(value);
             setShowOriginSuggestions(true);
           }}
-          onFocus={() => {
-            setShowOriginSuggestions(true);
-            if (origin) {
-              fetchAirports(origin);
-            }
-          }}
+          onFocus={() => setShowOriginSuggestions(true)}
           onBlur={() => {
             // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowOriginSuggestions(false), 200);
@@ -146,12 +142,7 @@ export const RouteSearch = ({
             fetchAirports(value);
             setShowDestinationSuggestions(true);
           }}
-          onFocus={() => {
-            setShowDestinationSuggestions(true);
-            if (destination) {
-              fetchAirports(destination);
-            }
-          }}
+          onFocus={() => setShowDestinationSuggestions(true)}
           onBlur={() => {
             // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowDestinationSuggestions(false), 200);
