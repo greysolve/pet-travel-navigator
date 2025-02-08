@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { 
   Dialog, 
@@ -16,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import { Database } from "@/integrations/supabase/types";
 import { documentTypes } from "./types/pet-profile.types";
+import { Loader2 } from "lucide-react";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 
