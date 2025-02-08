@@ -11,6 +11,20 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
 };
 
+// Helper to safely render potentially object values
+const renderObjectValue = (value: any): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value !== null) {
+    // Handle objects with description field
+    if ('description' in value) return value.description;
+    // Handle objects with region-based restrictions
+    return Object.entries(value)
+      .map(([key, val]) => `${key}: ${val}`)
+      .join(', ');
+  }
+  return '';
+};
+
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
   if (!policy) {
     return (
@@ -79,6 +93,20 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           </section>
         )}
 
+        {policy.fees && (
+          <section>
+            <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
+            <p className="text-gray-700 text-lg leading-relaxed">{renderObjectValue(policy.fees)}</p>
+          </section>
+        )}
+
+        {policy.restrictions && (
+          <section>
+            <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
+            <p className="text-gray-700 text-lg leading-relaxed">{renderObjectValue(policy.restrictions)}</p>
+          </section>
+        )}
+
         {policy.all_blood_tests && (
           <section>
             <div className="flex items-center gap-2 mb-4">
@@ -116,7 +144,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           </section>
         )}
 
-        {policy.additional_notes && typeof policy.additional_notes === 'string' && !policy.additional_notes.startsWith('{') && (
+        {policy.additional_notes && typeof policy.additional_notes === 'string' && (
           <section className="mt-8 p-6 bg-gray-50 rounded-lg">
             <p className="text-gray-600 text-lg leading-relaxed">{policy.additional_notes}</p>
           </section>
@@ -125,4 +153,3 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
-
