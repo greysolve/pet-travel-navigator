@@ -1,0 +1,115 @@
+
+import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
+import { SyncManager } from '../_shared/SyncManager.ts';
+import { processCountriesChunk } from './countryProcessor.ts';
+import { RequestBody, AnalysisResponse } from './types.ts';
+
+export async function handleAnalysisRequest(req: Request): Promise<Response> {
+  try {
+    const { mode, offset, resumeToken } = await parseRequestBody(req);
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    console.log(`Starting country policies analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
+
+    // Get total count for the full table - this sets our baseline
+    const { count: totalCount, error: countError } = await supabase
+      .from('countries')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Error getting count:', countError);
+      throw new Error(`Error getting count: ${countError.message}`);
+    }
+
+    console.log('Total count:', totalCount);
+
+    if (!totalCount) {
+      return createResponse({ 
+        success: true, 
+        message: 'No countries to process',
+        has_more: false 
+      });
+    }
+
+    // Check for existing sync in progress first
+    const currentProgress = await syncManager.getCurrentProgress();
+    
+    // Initialize sync progress only when starting from beginning
+    if (offset === 0 && !currentProgress) {
+      console.log(`Initializing sync progress with total count: ${totalCount}`);
+      await syncManager.initialize(totalCount);
+    } else if (offset === 0 && currentProgress) {
+      // If starting new sync but there's existing progress, check if it needs continuation
+      if (currentProgress.needs_continuation) {
+        console.log('Found incomplete sync:', currentProgress);
+        return await processCountriesChunk(supabase, syncManager, currentProgress.processed, mode);
+      } else {
+        // Reinitialize for new sync
+        console.log('Reinitializing sync progress');
+        await syncManager.initialize(totalCount);
+      }
+    } else {
+      // For non-zero offset, validate against existing progress
+      if (!currentProgress) {
+        throw new Error('No sync progress found for non-zero offset');
+      }
+      if (currentProgress.total !== totalCount) {
+        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
+      }
+      console.log('Continuing with existing progress:', currentProgress);
+    }
+
+    return await processCountriesChunk(supabase, syncManager, offset, mode);
+
+  } catch (error) {
+    console.error('Fatal error in analyze_countries_policies:', error);
+    return createResponse({ 
+      success: false, 
+      error: error.message 
+    }, 500);
+  }
+}
+
+async function parseRequestBody(req: Request): Promise<{ mode: string; offset: number; resumeToken: string | null }> {
+  let mode = 'clear';
+  let offset = 0;
+  let resumeToken = null;
+  
+  try {
+    const body = await req.text();
+    console.log('Received request body:', body);
+    
+    if (body) {
+      const parsedBody = JSON.parse(body) as RequestBody;
+      console.log('Parsed request body:', parsedBody);
+      
+      if (parsedBody.mode) mode = parsedBody.mode;
+      if (typeof parsedBody.offset === 'number') offset = parsedBody.offset;
+      if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
+    }
+  } catch (error) {
+    console.error('Error parsing request body:', error);
+    throw new Error('Invalid request body');
+  }
+
+  return { mode, offset, resumeToken };
+}
+
+export function createResponse(data: AnalysisResponse, status: number = 200): Response {
+  return new Response(
+    JSON.stringify(data),
+    { 
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
+}

@@ -1,0 +1,1 @@
+export type { CountryPolicy } from '../components/flight-results/types';

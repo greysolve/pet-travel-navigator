@@ -1,213 +1,274 @@
-import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/ui/use-toast";
-import { Database } from "@/integrations/supabase/types";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter 
+} from "@/components/ui/dialog";
 import { PetPhotoUpload } from "./PetPhotoUpload";
 import { PetDocumentUpload } from "./PetDocumentUpload";
 import { PetBasicInfo } from "./PetBasicInfo";
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
+import { Database } from "@/integrations/supabase/types";
+import { documentTypes } from "./types/pet-profile.types";
+import { Loader2, Pencil, Save } from "lucide-react";
 
 type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 
 interface PetProfileFormProps {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: PetProfile;
+  initialData?: PetProfile | null;
+  viewMode?: boolean;
+  onEdit?: () => void;
 }
 
-const documentTypes = [
-  { value: "health_certificate", label: "Health Certificate" },
-  { value: "international_health_certificate", label: "International Health Certificate" },
-  { value: "microchip_documentation", label: "Microchip Documentation" },
-  { value: "pet_passport", label: "Pet Passport" },
-  { value: "rabies_vaccination", label: "Rabies Vaccination" },
-  { value: "vaccinations", label: "Vaccinations" },
-  { value: "usda_endorsement", label: "USDA Endorsement" },
-  { value: "veterinary_certificate", label: "Veterinary Certificate" }
-];
-
-export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
+export const PetProfileForm = ({ 
+  isOpen, 
+  onClose, 
+  initialData,
+  viewMode = false,
+}: PetProfileFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [name, setName] = useState(initialData?.name || "");
-  const [type, setType] = useState(initialData?.type || "");
-  const [breed, setBreed] = useState(initialData?.breed || "");
-  const [age, setAge] = useState(initialData?.age?.toString() || "");
-  const [weight, setWeight] = useState(initialData?.weight?.toString() || "");
+  
+  // Form state
+  const [name, setName] = useState('');
+  const [type, setType] = useState('');
+  const [breed, setBreed] = useState('');
+  const [age, setAge] = useState('');
+  const [weight, setWeight] = useState('');
   const [selectedDocumentType, setSelectedDocumentType] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+  // Use useEffect to update form state when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setType(initialData.type || '');
+      setBreed(initialData.breed || '');
+      setAge(initialData.age?.toString() || '');
+      setWeight(initialData.weight?.toString() || '');
+      setPhotoUrls(initialData.images || []);
+    } else {
+      // Reset form when adding new pet
+      setName('');
+      setType('');
+      setBreed('');
+      setAge('');
+      setWeight('');
+      setPhotoUrls([]);
     }
-  };
+    // Reset edit mode when form is opened/closed
+    setIsEditMode(false);
+  }, [initialData, isOpen]);
 
-  const uploadPhotos = async (petId: string) => {
-    const uploadedUrls: string[] = [...photoUrls];
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("User must be authenticated");
 
-    for (const photo of photos) {
-      const fileExt = photo.name.split('.').pop();
-      const filePath = `${petId}/${crypto.randomUUID()}.${fileExt}`;
+      const petData = {
+        name,
+        type,
+        breed: breed || null,
+        age: age ? parseFloat(age) : null,
+        weight: weight ? parseFloat(weight) : null,
+        images: photoUrls,
+        user_id: user.id,
+      };
 
-      const { error: uploadError } = await supabase.storage
-        .from('pet-documents')
-        .upload(filePath, photo);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('pet-documents')
-        .getPublicUrl(filePath);
-
-      uploadedUrls.push(publicUrl);
-    }
-
-    return uploadedUrls;
-  };
-
-  const uploadFile = async (petId: string) => {
-    if (!file || !selectedDocumentType) return null;
-
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${petId}/${selectedDocumentType}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('pet-documents')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('pet-documents')
-      .getPublicUrl(filePath);
-
-    const updateData = {
-      [`${selectedDocumentType}_url`]: publicUrl
-    };
-
-    const { error: updateError } = await supabase
-      .from('pet_profiles')
-      .update(updateData)
-      .eq('id', petId);
-
-    if (updateError) throw updateError;
-  };
-
-  const mutation = useMutation({
-    mutationFn: async (data: Partial<PetProfile>) => {
-      const { data: result, error } = initialData
-        ? await supabase
-            .from('pet_profiles')
-            .update(data)
-            .eq('id', initialData.id)
-            .select()
-            .single()
-        : await supabase
-            .from('pet_profiles')
-            .insert([data])
-            .select()
-            .single();
-
-      if (error) throw error;
-
-      if (photos.length > 0) {
-        const uploadedUrls = await uploadPhotos(result.id);
-        const { error: updateError } = await supabase
+      if (initialData?.id) {
+        // Update existing pet
+        const { error } = await supabase
           .from('pet_profiles')
-          .update({ images: uploadedUrls })
-          .eq('id', result.id);
+          .update(petData)
+          .eq('id', initialData.id);
 
-        if (updateError) throw updateError;
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Pet profile updated successfully",
+        });
+      } else {
+        // Create new pet
+        const { error } = await supabase
+          .from('pet_profiles')
+          .insert([petData]);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Pet profile created successfully",
+        });
       }
 
-      if (file && selectedDocumentType) {
-        await uploadFile(result.id);
-      }
-
-      return result;
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pet-profiles'] });
-      toast({
-        title: `Pet profile ${initialData ? 'updated' : 'created'} successfully`,
-        description: `Your pet's profile has been ${initialData ? 'updated' : 'created'}.`,
-      });
-      onClose();
-    },
-    onError: (error) => {
+      setIsEditMode(false);
+      if (!initialData) onClose(); // Only close if it's a new pet
+    } catch (error) {
       console.error('Error saving pet profile:', error);
       toast({
         title: "Error",
-        description: `Failed to ${initialData ? 'update' : 'create'} pet profile. Please try again.`,
+        description: "Failed to save pet profile. Please try again.",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const data: Partial<PetProfile> = {
-      name,
-      type,
-      breed: breed || null,
-      age: age ? parseFloat(age) : null,
-      weight: weight ? parseFloat(weight) : null,
-      images: photoUrls,
-    };
+  const handleEdit = () => {
+    if (isEditMode) {
+      // If in edit mode, trigger form submission
+      const form = document.getElementById('pet-profile-form') as HTMLFormElement;
+      if (form) {
+        form.requestSubmit();
+      }
+    } else {
+      // If in view mode, enter edit mode
+      setIsEditMode(true);
+    }
+  };
 
-    mutation.mutate(data);
+  const handleCancel = () => {
+    if (initialData) {
+      // Reset form to initial data
+      setName(initialData.name || '');
+      setType(initialData.type || '');
+      setBreed(initialData.breed || '');
+      setAge(initialData.age?.toString() || '');
+      setWeight(initialData.weight?.toString() || '');
+      setPhotoUrls(initialData.images || []);
+      setIsEditMode(false);
+    } else {
+      onClose();
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{initialData ? 'Edit' : 'Add'} Pet Profile</DialogTitle>
+          <DialogTitle>
+            {initialData 
+              ? isEditMode 
+                ? 'Edit Pet Profile'
+                : initialData.name
+              : 'Add Pet Profile'}
+          </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <PetPhotoUpload
-            photoUrls={photoUrls}
-            onPhotoUrlsChange={setPhotoUrls}
-            photos={photos}
-            onPhotosChange={setPhotos}
-          />
+        <div className="flex-1 overflow-y-auto px-1">
+          <form id="pet-profile-form" onSubmit={handleSubmit} className="space-y-6">
+            <PetPhotoUpload
+              photoUrls={photoUrls}
+              onPhotoUrlsChange={setPhotoUrls}
+              photos={photos}
+              onPhotosChange={setPhotos}
+              petId={initialData?.id}
+              readOnly={!isEditMode && viewMode}
+            />
 
-          <PetBasicInfo
-            name={name}
-            type={type}
-            breed={breed}
-            age={age}
-            weight={weight}
-            onNameChange={setName}
-            onTypeChange={setType}
-            onBreedChange={setBreed}
-            onAgeChange={setAge}
-            onWeightChange={setWeight}
-          />
+            <PetBasicInfo
+              name={name}
+              type={type}
+              breed={breed}
+              age={age}
+              weight={weight}
+              onNameChange={setName}
+              onTypeChange={setType}
+              onBreedChange={setBreed}
+              onAgeChange={setAge}
+              onWeightChange={setWeight}
+              readOnly={!isEditMode && viewMode}
+            />
 
-          <PetDocumentUpload
-            documentTypes={documentTypes}
-            selectedDocumentType={selectedDocumentType}
-            onDocumentTypeChange={setSelectedDocumentType}
-            onFileChange={handleFileChange}
-          />
+            {(!viewMode || isEditMode) && (
+              <PetDocumentUpload
+                documentTypes={documentTypes}
+                selectedDocumentType={selectedDocumentType}
+                onDocumentTypeChange={setSelectedDocumentType}
+                onFileChange={(e) => console.log('File selected:', e.target.files?.[0])}
+              />
+            )}
+          </form>
+        </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {initialData ? 'Update' : 'Add'} Pet
-            </Button>
-          </div>
-        </form>
+        <DialogFooter className="mt-6">
+          {viewMode ? (
+            isEditMode ? (
+              <>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleEdit}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Close
+                </Button>
+                <Button onClick={handleEdit} type="button">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              </>
+            )
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                form="pet-profile-form"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {initialData ? 'Saving...' : 'Adding...'}
+                  </>
+                ) : (
+                  <>
+                    {initialData && <Save className="mr-2 h-4 w-4" />}
+                    {initialData ? 'Save Changes' : 'Add Pet'}
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

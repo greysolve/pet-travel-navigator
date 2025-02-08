@@ -1,262 +1,252 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+// Reduce chunk size further to prevent timeouts
+const CHUNK_SIZE = 5;
+const DELAY_BETWEEN_AIRLINES = 1000; // 1 second delay between airlines
 
-// Handle CORS preflight requests
-async function handleCorsRequest(req: Request) {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
         ...corsHeaders,
         'Access-Control-Max-Age': '86400',
       },
-    })
+    });
   }
-}
 
-Deno.serve(async (req) => {
   try {
-    // Handle CORS
-    const corsResponse = await handleCorsRequest(req);
-    if (corsResponse) return corsResponse;
-
     // Validate request method
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-        status: 405,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error(`Method ${req.method} not allowed`);
     }
 
-    // Validate API key
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) {
-      console.error('PERPLEXITY_API_KEY is not set');
-      return new Response(JSON.stringify({ error: 'API key configuration error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Validate Supabase configuration
+    // Get Supabase configuration
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase configuration missing');
-      return new Response(JSON.stringify({ error: 'Database configuration error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error('Missing Supabase configuration');
     }
 
+    // Initialize variables
+    let mode = 'clear';
+    let offset = 0;
+    let resumeToken = null;
+    
     // Parse request body
-    const { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime } = await req.json();
-    console.log('Received sync request with params:', { lastProcessedItem, currentProcessed, currentTotal, processedItems, errorItems, startTime });
+    try {
+      const body = await req.text();
+      console.log('Received request body:', body);
+      
+      if (body) {
+        const parsedBody = JSON.parse(body);
+        console.log('Parsed request body:', parsedBody);
+        
+        if (parsedBody.mode) mode = parsedBody.mode;
+        if (parsedBody.offset) offset = parsedBody.offset;
+        if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
+      }
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      throw new Error('Invalid request body');
+    }
 
-    // Initialize Supabase client
+    console.log(`Starting pet policy analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
+    
+    // Initialize clients
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'petPolicies');
 
-    try {
-      const { data: airlines, error: airlinesError } = await supabase
-        .from('airlines')
-        .select('*')
-        .eq('active', true)
-        .order('name');
-
-      if (airlinesError) {
-        throw airlinesError;
+    // Handle resume token
+    if (resumeToken) {
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress?.needs_continuation) {
+        throw new Error('Invalid resume token or no continuation needed');
       }
+      console.log('Resuming from previous state:', currentProgress);
+    }
 
-      console.log(`Processing ${airlines.length} airlines`);
-      await syncManager.initialize(airlines.length, false);
+    // Get total count
+    const { count: totalCount, error: countError } = mode === 'update' 
+      ? await supabase.from('missing_pet_policies').select('*', { count: 'exact', head: true })
+      : await supabase.from('airlines').select('*', { count: 'exact', head: true }).eq('active', true);
 
-      for (const airline of airlines) {
-        try {
-          if (await syncManager.shouldProcessItem(airline.name)) {
-            console.log(`Processing airline: ${airline.name}`);
-            
-            const petPolicy = await analyzePetPolicy(airline, perplexityKey);
-            
-            // Changed from insert to upsert
-            const { error: upsertError } = await supabase
-              .from('pet_policies')
-              .upsert({
-                airline_id: airline.id,
-                ...petPolicy
-              }, {
-                onConflict: 'airline_id'  // Specify the column to check for conflicts
-              });
+    if (countError) {
+      console.error('Error getting count:', countError);
+      throw new Error(`Error getting count: ${countError.message}`);
+    }
 
-            if (upsertError) {
-              throw upsertError;
-            }
+    console.log('Total count:', totalCount);
 
-            await syncManager.updateProgress({
-              processed: (await syncManager.getCurrentProgress())?.processed + 1 || 1,
-              last_processed: airline.name,
-              processed_items: [...((await syncManager.getCurrentProgress())?.processed_items || []), airline.name]
-            });
-            console.log(`Successfully processed ${airline.name}`);
-          }
-        } catch (error) {
-          console.error(`Error processing ${airline.name}:`, error);
-          await syncManager.updateProgress({
-            error_items: [...((await syncManager.getCurrentProgress())?.error_items || []), `${airline.name}: ${error.message}`]
-          });
-        }
+    if (!totalCount) {
+      console.log('No airlines to process');
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No airlines to process',
+          has_more: false 
+        }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize sync progress
+    if (offset === 0) {
+      console.log(`Initializing sync progress with total count: ${totalCount}`);
+      await syncManager.initialize(totalCount);
+    } else {
+      // For non-zero offset, validate against existing progress
+      const currentProgress = await syncManager.getCurrentProgress();
+      if (!currentProgress) {
+        throw new Error('No sync progress found for non-zero offset');
       }
+      if (currentProgress.total !== totalCount) {
+        console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
+      }
+    }
 
-      await syncManager.completeSync();
-      
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Get batch of airlines
+    const { data: airlines, error: batchError } = mode === 'update'
+      ? await supabase
+          .from('missing_pet_policies')
+          .select('*')
+          .range(offset, offset + CHUNK_SIZE - 1)
+      : await supabase
+          .from('airlines')
+          .select('*')
+          .eq('active', true)
+          .range(offset, offset + CHUNK_SIZE - 1);
+
+    if (batchError) {
+      console.error('Error fetching airlines batch:', batchError);
+      throw batchError;
+    }
+
+    if (!airlines || airlines.length === 0) {
+      console.log('No more airlines to process');
+      await syncManager.updateProgress({ 
+        is_complete: true,
+        needs_continuation: false
       });
-    } catch (error) {
-      console.error('Error in sync process:', error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No more airlines to process',
+          has_more: false 
+        }), 
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Processing chunk of ${airlines.length} airlines`);
+    
+    const results = [];
+    const errors = [];
+    const chunkStartTime = Date.now();
+
+    // Process airlines one at a time with delay
+    for (const airline of airlines) {
+      try {
+        console.log(`Processing airline: ${airline.name}`);
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ airlines: [airline] }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to process airline: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('Airline processing result:', result);
+
+        if (result.results?.length > 0) {
+          results.push(...result.results);
+        }
+        if (result.errors?.length > 0) {
+          errors.push(...result.errors);
+        }
+
+        // Update progress after each airline
+        const currentProgress = await syncManager.getCurrentProgress();
+        const processedInChunk = results.length + errors.length;
+        
+        await syncManager.updateProgress({
+          processed: currentProgress.processed + 1,
+          last_processed: airline.name,
+          processed_items: [...(currentProgress.processed_items || []), 
+            ...(result.results || []).map((r: any) => r.iata_code)],
+          error_items: [...(currentProgress.error_items || []),
+            ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)],
+          needs_continuation: true
+        });
+
+        // Add delay between airlines
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_AIRLINES));
+
+      } catch (error) {
+        console.error('Error processing airline:', airline.name, error);
+        errors.push({
+          airline_id: airline.id,
+          error: error.message,
+          iata_code: airline.iata_code
+        });
+      }
+    }
+
+    const nextOffset = offset + airlines.length;
+    const hasMore = nextOffset < totalCount;
+
+    if (!hasMore) {
+      await syncManager.updateProgress({ 
+        is_complete: true,
+        needs_continuation: false
       });
     }
+
+    const resumeData = hasMore ? {
+      offset: nextOffset,
+      mode,
+      timestamp: new Date().toISOString()
+    } : null;
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        results,
+        errors,
+        chunk_metrics: {
+          processed: airlines.length,
+          execution_time: Date.now() - chunkStartTime,
+          success_rate: (results.length / airlines.length) * 100
+        },
+        has_more: hasMore,
+        next_offset: hasMore ? nextOffset : null,
+        total_remaining: totalCount - nextOffset,
+        resume_token: resumeData ? btoa(JSON.stringify(resumeData)) : null
+      }), 
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
-    console.error('Fatal error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('Fatal error in analyze_pet_policies:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }), 
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 });
-
-async function analyzePetPolicy(airline: any, perplexityKey: string): Promise<any> {
-  console.log(`Analyzing pet policy for airline: ${airline.name}`);
-  
-  const systemPrompt = `You are a helpful assistant that analyzes airline pet policies and returns the information in a structured JSON format. Return ONLY the JSON object, nothing else.`;
-  
-  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}:
-  - Allowed pet types (in cabin and cargo)
-  - Size and weight restrictions
-  - Carrier requirements
-  - Required documentation
-  - Associated fees
-  - Temperature restrictions
-  - Breed restrictions
-  
-  If you find their website, include it in the response.
-  
-  Format the response as a JSON object with these fields:
-  {
-    "airline_info": {
-      "official_website": "url if found"
-    },
-    "pet_policy": {
-      "pet_types_allowed": ["list of allowed pets"],
-      "size_restrictions": {
-        "max_weight": "weight in kg/lbs",
-        "carrier_dimensions": "size limits"
-      },
-      "carrier_requirements": "description",
-      "documentation_needed": ["list of required documents"],
-      "fees": {
-        "in_cabin": "fee amount",
-        "cargo": "fee amount"
-      },
-      "temperature_restrictions": "description",
-      "breed_restrictions": ["list of restricted breeds"]
-    }
-  }`;
-
-  try {
-    console.log('Sending request to Perplexity API');
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: userMessage
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000,
-        top_p: 0.9,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Perplexity API error: ${response.status} ${response.statusText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('Received response from Perplexity API');
-
-    if (responseData.choices && responseData.choices[0]?.message?.content) {
-      try {
-        const rawContent = responseData.choices[0].message.content;
-        console.log('Raw API response content:', rawContent);
-        
-        // Strip markdown formatting
-        const cleanContent = rawContent.replace(/```json\n?|\n?```/g, '').trim();
-        console.log('Cleaned content:', cleanContent);
-        
-        // Parse the cleaned response
-        const content = JSON.parse(cleanContent);
-        console.log('Parsed content:', content);
-
-        // Update airline website if we got a valid one
-        if (content.airline_info?.official_website) {
-          console.log(`Updating website for airline ${airline.name}:`, content.airline_info.official_website);
-          
-          const supabase = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-          );
-
-          const { error: updateError } = await supabase
-            .from('airlines')
-            .update({ website: content.airline_info.official_website })
-            .eq('id', airline.id);
-
-          if (updateError) {
-            console.error('Error updating airline website:', updateError);
-          }
-        }
-
-        // Store the pet policy
-        const petPolicy = {
-          airline_id: airline.id,
-          pet_types_allowed: content.pet_policy.pet_types_allowed,
-          size_restrictions: content.pet_policy.size_restrictions,
-          carrier_requirements: content.pet_policy.carrier_requirements,
-          documentation_needed: content.pet_policy.documentation_needed,
-          fees: content.pet_policy.fees,
-          temperature_restrictions: content.pet_policy.temperature_restrictions,
-          breed_restrictions: content.pet_policy.breed_restrictions
-        };
-
-        return petPolicy;
-      } catch (error) {
-        console.error(`Error processing response for ${airline.name}:`, error);
-        throw new Error(`Failed to parse JSON: ${error.message}`);
-      }
-    } else {
-      throw new Error('Invalid response format from Perplexity API');
-    }
-  } catch (error) {
-    console.error(`Error analyzing pet policy for ${airline.name}:`, error);
-    throw error;
-  }
-}

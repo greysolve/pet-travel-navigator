@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { PetProfileCard } from "./PetProfileCard";
-import { Plus } from "lucide-react";
+import { Plus, PawPrint } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { PetProfileForm } from "./PetProfileForm";
@@ -13,17 +14,23 @@ type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
 export const PetTravelWallet = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedPet, setSelectedPet] = useState<PetProfile | null>(null);
+  const [isViewMode, setIsViewMode] = useState(true);
 
   const { data: pets, isLoading } = useQuery({
     queryKey: ['pet-profiles'],
     queryFn: async () => {
+      console.log('Fetching pet profiles...');
       const { data, error } = await supabase
         .from('pet_profiles')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pet profiles:', error);
+        throw error;
+      }
+      console.log('Fetched pet profiles:', data);
       return data;
     },
   });
@@ -54,55 +61,77 @@ export const PetTravelWallet = () => {
     },
   });
 
-  const handleEdit = (pet: PetProfile) => {
+  const handleView = (pet: PetProfile) => {
     setSelectedPet(pet);
-    setIsEditing(true);
+    setIsViewMode(true);
+    setIsFormOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsFormOpen(false);
+    setSelectedPet(null);
+    setIsViewMode(true);
   };
 
   const handleDelete = async (id: string) => {
     deleteMutation.mutate(id);
   };
 
-  const handleClose = () => {
-    setIsEditing(false);
+  const handleAdd = () => {
     setSelectedPet(null);
+    setIsViewMode(false);
+    setIsFormOpen(true);
   };
 
   if (isLoading) {
-    return <div>Loading pet profiles...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <PawPrint className="h-8 w-8 text-primary/50" />
+          <p className="text-muted-foreground">Loading pet profiles...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Pet Travel Wallet</h2>
-        <Button onClick={() => setIsEditing(true)}>
+    <div className="space-y-8 animate-fade-in w-full">
+      <div className="flex flex-col items-center gap-4">
+        <h2 className="text-2xl font-bold text-primary whitespace-nowrap">Pet Travel Wallet</h2>
+        <Button 
+          onClick={handleAdd}
+          className="bg-primary hover:bg-primary/90 text-white transition-colors w-full md:w-auto max-w-[250px]"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Pet
         </Button>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 w-full">
         {pets?.map((pet) => (
           <PetProfileCard
             key={pet.id}
             pet={pet}
-            onEdit={handleEdit}
+            onView={handleView}
             onDelete={handleDelete}
           />
         ))}
       </div>
 
       {pets?.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          No pets added yet. Click the "Add Pet" button to get started.
+        <div className="text-center py-12 bg-accent/50 rounded-lg">
+          <PawPrint className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+          <p className="text-muted-foreground">
+            No pets added yet. Click the "Add Pet" button to get started.
+          </p>
         </div>
       )}
 
       <PetProfileForm
-        isOpen={isEditing}
+        isOpen={isFormOpen}
         onClose={handleClose}
         initialData={selectedPet}
+        viewMode={isViewMode}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 export interface SyncState {
@@ -8,6 +9,13 @@ export interface SyncState {
   error_items: string[];
   start_time: string | null;
   is_complete: boolean;
+  error_details?: { [key: string]: string };
+  batch_metrics?: {
+    avg_time_per_item: number;
+    estimated_time_remaining: number;
+    success_rate: number;
+  };
+  needs_continuation: boolean;
 }
 
 export class SyncManager {
@@ -42,12 +50,22 @@ export class SyncManager {
       processed_items: data.processed_items || [],
       error_items: data.error_items || [],
       start_time: data.start_time,
-      is_complete: data.is_complete
+      is_complete: data.is_complete,
+      error_details: data.error_details,
+      batch_metrics: data.batch_metrics,
+      needs_continuation: data.needs_continuation
     };
   }
 
-  async initialize(total: number): Promise<void> {
-    console.log(`Initializing sync progress for ${this.type} with total: ${total}`);
+  async initialize(total: number, resume: boolean = false): Promise<void> {
+    console.log(`Initializing sync progress for ${this.type}, resume: ${resume}`);
+    
+    // Only initialize if we're not resuming or there's no existing progress
+    const currentProgress = await this.getCurrentProgress();
+    if (currentProgress && resume) {
+      console.log('Skipping initialization as we are resuming with existing progress');
+      return;
+    }
     
     const { error } = await this.supabase
       .from('sync_progress')
@@ -59,7 +77,14 @@ export class SyncManager {
         processed_items: [],
         error_items: [],
         start_time: new Date().toISOString(),
-        is_complete: false
+        is_complete: false,
+        error_details: {},
+        batch_metrics: {
+          avg_time_per_item: 0,
+          estimated_time_remaining: 0,
+          success_rate: 100
+        },
+        needs_continuation: false
       }, {
         onConflict: 'type'
       });
@@ -71,56 +96,36 @@ export class SyncManager {
   }
 
   async updateProgress(updates: Partial<SyncState>): Promise<void> {
-    console.log(`Updating sync progress for ${this.type}:`, updates);
+    console.log(`Updating progress for ${this.type}:`, updates);
     
+    // Get current state to properly handle processed count and preserve total
+    const currentState = await this.getCurrentProgress();
+    if (!currentState) {
+      console.error('No current state found when updating progress');
+      return;
+    }
+
+    // Ensure processed count doesn't exceed total and preserve the total
+    let processedCount = updates.processed ?? currentState.processed;
+    if (processedCount > currentState.total) {
+      console.warn(`Attempted to set processed count (${processedCount}) higher than total (${currentState.total}). Capping at total.`);
+      processedCount = currentState.total;
+    }
+
     const { error } = await this.supabase
       .from('sync_progress')
-      .upsert({
-        type: this.type,
+      .update({
         ...updates,
+        total: currentState.total, // Preserve the original total
+        processed: processedCount,
         updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'type'
-      });
+      })
+      .eq('type', this.type);
 
     if (error) {
-      console.error(`Error updating sync progress for ${this.type}:`, error);
+      console.error(`Error updating progress for ${this.type}:`, error);
       throw error;
     }
   }
-
-  async addProcessedItem(item: string): Promise<void> {
-    console.log(`Adding processed item for ${this.type}:`, item);
-    const current = await this.getCurrentProgress();
-    if (!current) throw new Error('No sync progress found');
-
-    await this.updateProgress({
-      processed: current.processed + 1,
-      last_processed: item,
-      processed_items: [...current.processed_items, item]
-    });
-  }
-
-  async addErrorItem(item: string, error: string): Promise<void> {
-    console.log(`Adding error item for ${this.type}:`, { item, error });
-    const current = await this.getCurrentProgress();
-    if (!current) throw new Error('No sync progress found');
-
-    await this.updateProgress({
-      error_items: [...current.error_items, `${item}: ${error}`]
-    });
-  }
-
-  async complete(): Promise<void> {
-    console.log(`Completing sync for ${this.type}`);
-    await this.updateProgress({
-      is_complete: true
-    });
-  }
-
-  async shouldProcessItem(item: string): Promise<boolean> {
-    const current = await this.getCurrentProgress();
-    if (!current) return true;
-    return !current.processed_items.includes(item);
-  }
 }
+

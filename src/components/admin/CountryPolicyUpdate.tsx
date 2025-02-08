@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,10 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { standardizeCountryName } from "@/utils/countryNameMappings";
 
 const CountryPolicyUpdate = () => {
   const [selectedCountry, setSelectedCountry] = useState<{
-    code: string;
     name: string;
   } | null>(null);
   const [jsonInput, setJsonInput] = useState("");
@@ -24,8 +25,9 @@ const CountryPolicyUpdate = () => {
       console.log('Fetching countries for search term:', searchTerm);
       const { data, error } = await supabase
         .from('countries')
-        .select('code, name')
-        .or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`)
+        .select('name')
+        .ilike('name', `%${searchTerm}%`)
+        .order('name')
         .limit(10);
 
       if (error) {
@@ -38,11 +40,47 @@ const CountryPolicyUpdate = () => {
         return [];
       }
 
-      console.log('Fetched countries:', data);
       return data || [];
     },
     enabled: searchTerm.length >= 2,
   });
+
+  const findCaseInsensitiveKey = (obj: any, targetKey: string): string | null => {
+    const lowerTargetKey = targetKey.toLowerCase();
+    const matchingKey = Object.keys(obj).find(
+      key => key.toLowerCase() === lowerTargetKey
+    );
+    return matchingKey || null;
+  };
+
+  const normalizePolicy = (policy: any) => {
+    const normalized: any = {};
+    const expectedFields = [
+      'policy_type',
+      'title',
+      'description',
+      'requirements',
+      'documentation_needed',
+      'fees',
+      'restrictions',
+      'quarantine_requirements',
+      'vaccination_requirements',
+      'additional_notes',
+      'policy_url',
+      'all_blood_tests',
+      'all_other_biological_tests',
+      'required_ports_of_entry'
+    ];
+
+    expectedFields.forEach(field => {
+      const matchingKey = findCaseInsensitiveKey(policy, field);
+      if (matchingKey !== null) {
+        normalized[field] = policy[matchingKey];
+      }
+    });
+
+    return normalized;
+  };
 
   const handleUpdate = async () => {
     if (!selectedCountry) {
@@ -62,40 +100,50 @@ const CountryPolicyUpdate = () => {
         throw new Error("Input must be an array of policies");
       }
 
+      const standardizedCountryName = standardizeCountryName(selectedCountry.name);
+      console.log('Attempting to update policies for country:', standardizedCountryName);
+      console.log('Original policies data:', policiesData);
+
       // Delete existing policies for this country
       const { error: deleteError } = await supabase
         .from("country_policies")
         .delete()
-        .eq("country_code", selectedCountry.code);
+        .eq("country_code", standardizedCountryName);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Error deleting existing policies:', deleteError);
+        throw deleteError;
+      }
 
-      // Insert new policies
+      // Insert new policies with normalized fields
       for (const policy of policiesData) {
+        const normalizedPolicy = normalizePolicy(policy);
+        const policyData = {
+          country_code: standardizedCountryName,
+          ...normalizedPolicy
+        };
+
+        console.log('Inserting normalized policy:', policyData);
+
         const { error: insertError } = await supabase
           .from("country_policies")
-          .insert({
-            country_code: selectedCountry.code,
-            policy_type: policy.policy_type,
-            title: policy.title,
-            description: policy.description,
-            requirements: policy.requirements,
-            documentation_needed: policy.documentation_needed,
-            fees: policy.fees,
-            restrictions: policy.restrictions,
-            quarantine_requirements: policy.quarantine_requirements,
-            vaccination_requirements: policy.vaccination_requirements,
-            additional_notes: policy.additional_notes,
-            policy_url: policy.policy_url,
-          });
+          .insert(policyData);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting policy:', insertError);
+          throw insertError;
+        }
       }
 
       toast({
         title: "Success",
         description: "Country policies updated successfully",
       });
+
+      // Clear form after successful update
+      setJsonInput("");
+      setSelectedCountry(null);
+      setSearchTerm("");
     } catch (error) {
       console.error("Error updating country policies:", error);
       toast({
@@ -115,7 +163,7 @@ const CountryPolicyUpdate = () => {
         <div className="relative">
           <Input
             type="text"
-            placeholder="Search for a country..."
+            placeholder="Search for a country by full name..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -135,7 +183,7 @@ const CountryPolicyUpdate = () => {
                 <ul className="max-h-60 overflow-auto py-1">
                   {countries.map((country) => (
                     <li
-                      key={country.code}
+                      key={country.name}
                       className="px-4 py-2 hover:bg-accent cursor-pointer"
                       onClick={() => {
                         setSelectedCountry(country);
@@ -143,7 +191,7 @@ const CountryPolicyUpdate = () => {
                         setShowCountrySuggestions(false);
                       }}
                     >
-                      {country.name} ({country.code})
+                      {country.name}
                     </li>
                   ))}
                 </ul>
@@ -155,6 +203,9 @@ const CountryPolicyUpdate = () => {
             </div>
           )}
         </div>
+        <p className="text-sm text-muted-foreground">
+          Please use the full official country name (e.g., "Hong Kong SAR" instead of "HK")
+        </p>
       </div>
 
       <div className="flex flex-col space-y-2">
@@ -165,6 +216,16 @@ const CountryPolicyUpdate = () => {
           placeholder="Paste the country policies JSON here..."
           className="min-h-[400px] font-mono"
         />
+        <p className="text-sm text-muted-foreground">
+          Expected fields (case-insensitive): policy_type, title, description, requirements, documentation_needed, 
+          fees, restrictions, quarantine_requirements, vaccination_requirements, additional_notes, 
+          policy_url, all_blood_tests, all_other_biological_tests, required_ports_of_entry
+        </p>
+        {selectedCountry && (
+          <p className="text-sm text-muted-foreground">
+            Selected country: {selectedCountry.name}
+          </p>
+        )}
       </div>
 
       <Button onClick={handleUpdate} className="w-full">
