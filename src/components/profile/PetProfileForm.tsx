@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Dialog, 
@@ -9,110 +10,39 @@ import {
 import { PetPhotoUpload } from "./PetPhotoUpload";
 import { PetDocumentUpload } from "./PetDocumentUpload";
 import { PetBasicInfo } from "./PetBasicInfo";
-import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase";
-import { useQueryClient } from "@tanstack/react-query";
-import { Database } from "@/integrations/supabase/types";
 import { documentTypes } from "./types/pet-profile.types";
-
-type PetProfile = Database['public']['Tables']['pet_profiles']['Row'];
+import { usePetProfileForm } from "./hooks/usePetProfileForm";
 
 interface PetProfileFormProps {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: PetProfile | null;
+  initialData?: any;
 }
 
 export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  console.log('2. Initial data when form renders:', initialData);
+  console.log('PetProfileForm render with initialData:', initialData);
   
-  // Form state
-  const [name, setName] = useState('');
-  const [type, setType] = useState('');
-  const [breed, setBreed] = useState('');
-  const [age, setAge] = useState('');
-  const [weight, setWeight] = useState('');
-  const [selectedDocumentType, setSelectedDocumentType] = useState("");
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-
-  // Use useEffect to update form state when initialData changes
-  useEffect(() => {
-    console.log('4. Setting form data from initialData:', initialData);
-    if (initialData) {
-      setName(initialData.name || '');
-      setType(initialData.type || '');
-      setBreed(initialData.breed || '');
-      setAge(initialData.age?.toString() || '');
-      setWeight(initialData.weight?.toString() || '');
-      setPhotoUrls(initialData.images || []);
-    } else {
-      // Reset form when adding new pet
-      setName('');
-      setType('');
-      setBreed('');
-      setAge('');
-      setWeight('');
-      setPhotoUrls([]);
-    }
-  }, [initialData]);
-
-  console.log('3. Current form state:', { name, type, breed, age, weight, photoUrls });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const petData = {
-        name,
-        type,
-        breed: breed || null,
-        age: age ? parseFloat(age) : null,
-        weight: weight ? parseFloat(weight) : null,
-        images: photoUrls,
-      };
-
-      if (initialData?.id) {
-        // Update existing pet
-        const { error } = await supabase
-          .from('pet_profiles')
-          .update(petData)
-          .eq('id', initialData.id);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Pet profile updated successfully",
-        });
-      } else {
-        // Create new pet
-        const { error } = await supabase
-          .from('pet_profiles')
-          .insert([petData]);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Pet profile created successfully",
-        });
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['pet-profiles'] });
-      onClose();
-    } catch (error) {
-      console.error('Error saving pet profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save pet profile. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  const {
+    name,
+    type,
+    breed,
+    age,
+    weight,
+    selectedDocumentType,
+    photos,
+    photoUrls,
+    isUploading,
+    setName,
+    setType,
+    setBreed,
+    setAge,
+    setWeight,
+    setSelectedDocumentType,
+    setFile,
+    setPhotos,
+    setPhotoUrls,
+    handleSubmit
+  } = usePetProfileForm(initialData, onClose);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,17 +77,17 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
               documentTypes={documentTypes}
               selectedDocumentType={selectedDocumentType}
               onDocumentTypeChange={setSelectedDocumentType}
-              onFileChange={(e) => console.log('File selected:', e.target.files?.[0])}
+              onFileChange={setFile}
             />
           </form>
         </div>
 
         <DialogFooter className="mt-6">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isUploading}>
             Cancel
           </Button>
-          <Button type="submit" form="pet-profile-form">
-            {initialData ? 'Update' : 'Add'} Pet
+          <Button type="submit" form="pet-profile-form" disabled={isUploading}>
+            {isUploading ? 'Uploading...' : initialData ? 'Update' : 'Add'} Pet
           </Button>
         </DialogFooter>
       </DialogContent>
