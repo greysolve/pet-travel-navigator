@@ -34,7 +34,11 @@ export const JsonRenderer: React.FC<JsonRendererProps> = ({
 }) => {
   // Handle null/undefined
   if (data === null || data === undefined) {
-    return null;
+    return (
+      <span className={cn("text-gray-500 italic", className)}>
+        (None specified)
+      </span>
+    );
   }
 
   // Handle arrays
@@ -89,3 +93,4 @@ export const JsonRenderer: React.FC<JsonRendererProps> = ({
     </span>
   );
 };
+
