@@ -22,6 +22,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 
+type SavedSearch = {
+  id: string;
+  name: string | null;
+  search_criteria: {
+    type: 'airline' | 'route';
+    airline_name?: string;
+    origin?: string;
+    destination?: string;
+    departure_date?: string;
+  };
+  created_at: string;
+}
+
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
   const [origin, setOrigin] = useState("");
@@ -33,18 +46,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { toast } = useToast();
   const { handleFlightSearch, isLoading } = useFlightSearch();
   const { user } = useAuth();
-  const [savedSearches, setSavedSearches] = useState<Array<{
-    id: string;
-    name: string | null;
-    search_criteria: {
-      type: 'airline' | 'route';
-      airline_name?: string;
-      origin?: string;
-      destination?: string;
-      departure_date?: string;
-    };
-    created_at: string;
-  }>>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
 
   const loadSavedSearches = async () => {
     if (!user) return;
@@ -65,10 +67,18 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       return;
     }
 
-    setSavedSearches(data);
+    // Transform the data to match our SavedSearch type
+    const transformedData: SavedSearch[] = data.map(item => ({
+      id: item.id,
+      name: item.name,
+      search_criteria: item.search_criteria as SavedSearch['search_criteria'],
+      created_at: item.created_at
+    }));
+
+    setSavedSearches(transformedData);
   };
 
-  const handleLoadSearch = (searchCriteria: any) => {
+  const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     if (searchCriteria.type === 'airline') {
       setPolicySearch(searchCriteria.airline_name || "");
       setOrigin("");
