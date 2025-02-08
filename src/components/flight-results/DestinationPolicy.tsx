@@ -12,12 +12,12 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
 };
 
 // Enhanced helper to render JSON structures with hierarchical bullet points
-const renderObjectValue = (value: any, depth: number = 0): any => {
+const renderObjectValue = (value: any, depth: number = 0): string => {
   // Handle null/undefined
   if (value == null) return '';
   
   // Handle primitive values
-  if (typeof value !== 'object') return value;
+  if (typeof value !== 'object') return String(value);
   
   // Handle arrays
   if (Array.isArray(value)) {
@@ -46,7 +46,7 @@ const renderObjectValue = (value: any, depth: number = 0): any => {
       // For objects/arrays with content, render hierarchically
       return `${indent}${bullet} ${key}\n${renderedValue.split('\n').map(line => `${indent}  ${line}`).join('\n')}`;
     })
-    .join('\n');
+    .join('\n'); // Crucial: Join the mapped array into a single string
 };
 
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
@@ -121,7 +121,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
             <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {String(renderObjectValue(policy.fees))}
+              {renderObjectValue(policy.fees)}
             </pre>
           </section>
         )}
@@ -130,7 +130,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
             <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {String(renderObjectValue(policy.restrictions))}
+              {renderObjectValue(policy.restrictions)}
             </pre>
           </section>
         )}
