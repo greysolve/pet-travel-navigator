@@ -1,6 +1,5 @@
 
 import { createBrowserRouter, Outlet } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
 import Profile from "@/pages/Profile";
@@ -12,11 +11,7 @@ import AuthCallback from "@/pages/AuthCallback";
 
 // Create a protected layout that wraps routes requiring authentication
 const ProtectedLayout = () => {
-  return (
-    <AuthProvider>
-      <Outlet />
-    </AuthProvider>
-  );
+  return <Outlet />;
 };
 
 // Create a root layout component that doesn't require authentication
@@ -77,3 +72,4 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
+
