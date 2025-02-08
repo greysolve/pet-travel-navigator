@@ -17,10 +17,10 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10">
-      <div className="flex flex-col md:flex-row md:items-center py-8 md:py-2">
+      <div className="flex items-center p-4">
         {/* Thumbnail Section */}
-        <div className="px-4 flex items-center justify-center md:justify-start flex-shrink-0">
-          <div className="w-[200px] h-[200px] md:w-[150px] md:h-[150px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
+        <div className="flex-shrink-0">
+          <div className="w-[120px] h-[120px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
             {thumbnailUrl ? (
               <img 
                 src={thumbnailUrl} 
@@ -28,63 +28,63 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
                 className="w-full h-full object-cover"
               />
             ) : (
-              <ImageIcon className="w-12 h-12 text-muted-foreground/50" />
+              <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
             )}
           </div>
         </div>
 
-        {/* Content Section */}
-        <div className="flex-grow px-4 md:px-2 flex flex-col justify-center">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 md:py-1">
-            <CardTitle className="text-xl font-bold flex items-center gap-2 text-primary mx-auto md:mx-0">
-              {pet.name}
-              <PawPrint className="h-5 w-5" />
-            </CardTitle>
-            <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(pet)}
-                className="hover:bg-accent"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(pet.id)}
-                className="hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
+        {/* Pet Name Section */}
+        <div className="ml-4 flex-shrink-0">
+          <CardTitle className="text-xl font-bold flex items-center gap-2 text-primary">
+            {pet.name}
+            <PawPrint className="h-5 w-5" />
+          </CardTitle>
+        </div>
+
+        {/* Info Section */}
+        <div className="ml-auto flex-grow flex flex-col items-end gap-1">
+          <div className="text-lg">
+            <span className="font-medium text-muted-foreground">Type:</span>{" "}
+            <span className="text-foreground capitalize">{pet.type}</span>
+          </div>
+          {pet.breed && (
+            <div className="text-sm">
+              <span className="font-medium text-muted-foreground">Breed:</span>{" "}
+              <span className="text-foreground">{pet.breed}</span>
             </div>
-          </CardHeader>
-          <CardContent className="md:py-1">
-            <div className="grid gap-4 md:gap-1 text-center md:text-right">
-              <div className="text-2xl">
-                <span className="font-medium text-muted-foreground">Type:</span>{" "}
-                <span className="text-foreground capitalize">{pet.type}</span>
-              </div>
-              {pet.breed && (
-                <div className="text-sm">
-                  <span className="font-medium text-muted-foreground">Breed:</span>{" "}
-                  <span className="text-foreground">{pet.breed}</span>
-                </div>
-              )}
-              {pet.age && (
-                <div className="text-sm">
-                  <span className="font-medium text-muted-foreground">Age:</span>{" "}
-                  <span className="text-foreground">{pet.age} years</span>
-                </div>
-              )}
-              {pet.weight && (
-                <div className="text-sm">
-                  <span className="font-medium text-muted-foreground">Weight:</span>{" "}
-                  <span className="text-foreground">{pet.weight} kg</span>
-                </div>
-              )}
+          )}
+          {pet.age && (
+            <div className="text-sm">
+              <span className="font-medium text-muted-foreground">Age:</span>{" "}
+              <span className="text-foreground">{pet.age} years</span>
             </div>
-          </CardContent>
+          )}
+          {pet.weight && (
+            <div className="text-sm">
+              <span className="font-medium text-muted-foreground">Weight:</span>{" "}
+              <span className="text-foreground">{pet.weight} kg</span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions Section */}
+        <div className="ml-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(pet)}
+            className="hover:bg-accent"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(pet.id)}
+            className="hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </Card>
