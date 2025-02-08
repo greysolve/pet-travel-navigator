@@ -1,4 +1,3 @@
-
 import { ExternalLink, TestTube, Microscope, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { CountryPolicy, PolicyType } from "./types";
@@ -16,12 +15,12 @@ const renderObjectValue = (value: any, depth: number = 0): string => {
   // Handle null/undefined
   if (value == null) return '';
   
-  // Handle primitive values
+  // Handle primitive values - ensure string conversion
   if (typeof value !== 'object') return String(value);
   
-  // Handle arrays
+  // Handle arrays - ensure each element is converted to string
   if (Array.isArray(value)) {
-    return value.map(item => renderObjectValue(item, depth)).join('\n');
+    return value.map(item => String(renderObjectValue(item, depth))).join('\n');
   }
 
   // Handle objects
@@ -32,9 +31,11 @@ const renderObjectValue = (value: any, depth: number = 0): string => {
     .map(([key, val]) => {
       const bullet = '•'.repeat(depth + 1);
       const indent = ' '.repeat(depth * 2);
-      const renderedValue = renderObjectValue(val, depth + 1);
       
-      // If the value is a primitive or empty, render on same line
+      // Ensure string conversion of the rendered value
+      const renderedValue = String(renderObjectValue(val, depth + 1));
+      
+      // If the value is a primitive or empty after rendering, show on same line
       if (typeof val !== 'object' || !val || 
           (Array.isArray(val) && val.length === 0) || 
           (typeof val === 'object' && Object.keys(val).length === 0)) {
@@ -119,7 +120,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
             <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderObjectValue(policy.fees)}
+              {String(renderObjectValue(policy.fees))}
             </pre>
           </section>
         )}
@@ -128,7 +129,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
             <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderObjectValue(policy.restrictions)}
+              {String(renderObjectValue(policy.restrictions))}
             </pre>
           </section>
         )}
