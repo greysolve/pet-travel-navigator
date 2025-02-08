@@ -1,9 +1,12 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/auth';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
 import { fetchOrCreateProfile } from '@/utils/profileManagement';
+import { useNavigate } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   session: Session | null;
@@ -24,36 +27,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const authOperations = useAuthOperations();
+  const navigate = useNavigate();
+
+  const handleAuthError = (error: any) => {
+    console.error('Auth error:', error);
+    // Clear all auth state
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    
+    // Show error toast
+    toast({
+      title: "Authentication Error",
+      description: "Please sign in again to continue.",
+      variant: "destructive",
+    });
+    
+    // Redirect to home
+    navigate('/');
+  };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
       console.log('Initial session:', session);
+      if (error) {
+        handleAuthError(error);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchOrCreateProfile(session.user.id).then(setProfile);
+        fetchOrCreateProfile(session.user.id)
+          .then(setProfile)
+          .catch(handleAuthError);
       }
+      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', session);
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        fetchOrCreateProfile(session.user.id).then(setProfile);
+        try {
+          const profile = await fetchOrCreateProfile(session.user.id);
+          setProfile(profile);
+        } catch (error) {
+          handleAuthError(error);
+        }
       } else {
         setProfile(null);
       }
+      
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (loading && session !== null) {
-      setLoading(false);
-    }
-  }, [session, loading]);
+  }, [navigate]);
 
   return (
     <AuthContext.Provider value={{ 
