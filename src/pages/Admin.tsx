@@ -6,14 +6,11 @@ import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
 import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
 import UserManagement from "@/components/admin/UserManagement";
 import SampleResultsManager from "@/components/admin/SampleResultsManager";
-import AuthDialog from "@/components/AuthDialog";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 const Admin = () => {
   return (
-    <div className="container mx-auto p-8">
-      <div className="flex justify-end mb-4">
-        <AuthDialog />
-      </div>
+    <PageLayout>
       <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue="sync" className="space-y-8">
@@ -50,7 +47,7 @@ const Admin = () => {
           <SampleResultsManager />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageLayout>
   );
 };
 

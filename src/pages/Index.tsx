@@ -19,7 +19,6 @@ const Index = () => {
     setPetPolicies(policies);
     setSearchPerformed(true);
 
-    // Scroll to results after a brief delay to ensure DOM update
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({ 
         behavior: 'smooth',
