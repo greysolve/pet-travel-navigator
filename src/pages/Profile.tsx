@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ContactInformation } from "@/components/profile/ContactInformation";
 import { AddressInformation } from "@/components/profile/AddressInformation";
@@ -125,10 +124,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="container max-w-[70%] mx-auto py-8 relative">
-      <div className="absolute top-4 right-4">
-        <AuthDialog />
-      </div>
+    <div className="container max-w-[70%] mx-auto py-8">
       <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">
