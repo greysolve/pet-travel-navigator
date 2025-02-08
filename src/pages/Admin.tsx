@@ -10,21 +10,23 @@ import AuthDialog from "@/components/AuthDialog";
 
 const Admin = () => {
   return (
-    <div className="container mx-auto p-8 relative">
+    <div className="container mx-auto p-4 md:p-8 relative">
       <div className="absolute top-4 right-4">
         <AuthDialog />
       </div>
       <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
       
       <Tabs defaultValue="sync" className="space-y-8">
-        <TabsList>
-          <TabsTrigger value="sync">Data Sync</TabsTrigger>
-          <TabsTrigger value="airlines">Airline Data</TabsTrigger>
-          <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
-          <TabsTrigger value="country-policies">Country Policies</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="sample-results">Sample Results</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-hidden">
+          <TabsList className="w-full">
+            <TabsTrigger value="sync">Data Sync</TabsTrigger>
+            <TabsTrigger value="airlines">Airline Data</TabsTrigger>
+            <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
+            <TabsTrigger value="country-policies">Country Policies</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="sample-results">Sample Results</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="sync">
           <SyncSection />
