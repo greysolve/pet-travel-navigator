@@ -1,16 +1,15 @@
 
 import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
-import AuthDialog from "@/components/AuthDialog";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 const Pets = () => {
   return (
-    <div className="container max-w-[70%] mx-auto py-8">
-      <div className="flex justify-end mb-4">
-        <AuthDialog />
+    <PageLayout>
+      <div className="container max-w-[70%] mx-auto py-8">
+        <h1 className="text-3xl font-bold text-center mb-8">My Pets</h1>
+        <PetTravelWallet />
       </div>
-      <h1 className="text-3xl font-bold text-center mb-8">My Pets</h1>
-      <PetTravelWallet />
-    </div>
+    </PageLayout>
   );
 };
 
