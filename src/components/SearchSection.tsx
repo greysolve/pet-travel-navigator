@@ -14,6 +14,13 @@ import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetch
 import { Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { format } from "date-fns";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -26,6 +33,54 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { toast } = useToast();
   const { handleFlightSearch, isLoading } = useFlightSearch();
   const { user } = useAuth();
+  const [savedSearches, setSavedSearches] = useState<Array<{
+    id: string;
+    name: string | null;
+    search_criteria: {
+      type: 'airline' | 'route';
+      airline_name?: string;
+      origin?: string;
+      destination?: string;
+      departure_date?: string;
+    };
+    created_at: string;
+  }>>([]);
+
+  const loadSavedSearches = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('saved_searches')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error loading saved searches:", error);
+      toast({
+        title: "Error loading saved searches",
+        description: "Could not load your saved searches. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavedSearches(data);
+  };
+
+  const handleLoadSearch = (searchCriteria: any) => {
+    if (searchCriteria.type === 'airline') {
+      setPolicySearch(searchCriteria.airline_name || "");
+      setOrigin("");
+      setDestination("");
+      setDate(undefined);
+    } else if (searchCriteria.type === 'route') {
+      setPolicySearch("");
+      setOrigin(searchCriteria.origin || "");
+      setDestination(searchCriteria.destination || "");
+      setDate(searchCriteria.departure_date ? new Date(searchCriteria.departure_date) : undefined);
+    }
+  };
 
   const handleSearch = async () => {
     if (policySearch && (origin || destination)) {
@@ -109,6 +164,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             title: "Search saved",
             description: "Your search has been saved successfully.",
           });
+          loadSavedSearches();
         }
       }
     } else if (origin && destination && date) {
@@ -146,6 +202,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                 title: "Search saved",
                 description: "Your search has been saved successfully.",
               });
+              loadSavedSearches();
             }
           }
         },
@@ -168,6 +225,38 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
+        {user && (
+          <div className="flex justify-end mb-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">My Searches</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[240px]">
+                {savedSearches.length === 0 ? (
+                  <DropdownMenuItem disabled>No saved searches</DropdownMenuItem>
+                ) : (
+                  savedSearches.map((search) => (
+                    <DropdownMenuItem
+                      key={search.id}
+                      onClick={() => handleLoadSearch(search.search_criteria)}
+                      className="flex flex-col items-start py-2"
+                    >
+                      <span className="font-medium">
+                        {search.search_criteria.type === 'airline'
+                          ? `Airline: ${search.search_criteria.airline_name}`
+                          : `${search.search_criteria.origin} → ${search.search_criteria.destination}`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(search.created_at), 'MMM d, yyyy')}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         <AirlinePolicySearch 
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
