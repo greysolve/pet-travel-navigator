@@ -17,7 +17,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10">
-      <div className="flex flex-col md:flex-row md:items-center py-8">
+      <div className="flex flex-col md:flex-row md:items-center py-8 md:py-4">
         {/* Thumbnail Section */}
         <div className="px-4 flex items-center justify-center md:justify-start flex-shrink-0">
           <div className="w-[200px] h-[200px] md:w-[150px] md:h-[150px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
@@ -35,7 +35,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
 
         {/* Content Section */}
         <div className="flex-grow px-4 md:px-0 flex flex-col justify-center">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 md:pt-2">
             <CardTitle className="text-xl font-bold flex items-center gap-2 text-primary mx-auto md:mx-0">
               {pet.name}
               <PawPrint className="h-5 w-5" />
@@ -60,7 +60,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 text-center md:text-right">
+            <div className="grid gap-4 md:gap-2 text-center md:text-right">
               <div className="text-2xl">
                 <span className="font-medium text-muted-foreground">Type:</span>{" "}
                 <span className="text-foreground capitalize">{pet.type}</span>
@@ -90,4 +90,3 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
     </Card>
   );
 };
-
