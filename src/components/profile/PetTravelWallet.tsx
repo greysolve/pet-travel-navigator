@@ -87,7 +87,7 @@ export const PetTravelWallet = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in mx-auto w-1/2">
+    <div className="space-y-8 animate-fade-in mx-auto w-[65%]">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-primary">Pet Travel Wallet</h2>
         <Button 
