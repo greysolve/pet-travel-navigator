@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
@@ -48,9 +48,21 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
 
+  // Add useEffect to load saved searches when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      console.log('Loading saved searches for user:', user.id);
+      loadSavedSearches();
+    } else {
+      console.log('No user logged in, clearing saved searches');
+      setSavedSearches([]);
+    }
+  }, [user]);
+
   const loadSavedSearches = async () => {
     if (!user) return;
     
+    console.log('Fetching saved searches from database...');
     const { data, error } = await supabase
       .from('saved_searches')
       .select('*')
@@ -67,6 +79,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       return;
     }
 
+    console.log('Received saved searches data:', data);
+
     // Transform the data to match our SavedSearch type
     const transformedData: SavedSearch[] = data.map(item => ({
       id: item.id,
@@ -75,10 +89,12 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       created_at: item.created_at
     }));
 
+    console.log('Transformed saved searches:', transformedData);
     setSavedSearches(transformedData);
   };
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
+    console.log('Loading saved search:', searchCriteria);
     if (searchCriteria.type === 'airline') {
       setPolicySearch(searchCriteria.airline_name || "");
       setOrigin("");
