@@ -4,7 +4,6 @@ import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
-import AuthDialog from "@/components/AuthDialog";
 
 const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
@@ -31,11 +30,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-[#F1F0FB]">
-      <div className="container mx-auto py-4">
-        <div className="flex justify-end">
-          <AuthDialog />
-        </div>
-      </div>
       <HeroSection />
       <SearchSection onSearchResults={handleSearchResults} />
       <div ref={resultsRef} className="scroll-mt-8">
