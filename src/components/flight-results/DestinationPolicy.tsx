@@ -11,38 +11,38 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
 };
 
-// Enhanced helper to safely render all possible JSON structures
-const renderObjectValue = (value: any): string => {
+// Enhanced helper to render JSON structures with hierarchical bullet points
+const renderObjectValue = (value: any, depth: number = 0): string => {
   // Handle null/undefined
-  if (!value) return '';
+  if (value == null) return '';
   
   // Handle primitive values
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return value.toString();
   if (typeof value !== 'object') return String(value);
   
   // Handle arrays
   if (Array.isArray(value)) {
-    return value.map(item => renderObjectValue(item)).join('\n');
+    return value.map(item => renderObjectValue(item, depth)).join('\n');
   }
 
-  // Special case: if the object has a description field, use that
-  if ('description' in value && typeof value.description === 'string') {
-    return value.description;
-  }
-
-  // Handle nested objects by creating a formatted string representation
+  // Handle objects
   const entries = Object.entries(value);
   if (entries.length === 0) return '';
 
   return entries
     .map(([key, val]) => {
-      const renderedValue = renderObjectValue(val);
-      // Format nested values with proper indentation
-      if (renderedValue.includes('\n')) {
-        return `${key}:\n  ${renderedValue.split('\n').join('\n  ')}`;
+      const bullet = '•'.repeat(depth + 1);
+      const indent = ' '.repeat(depth * 2);
+      const renderedValue = renderObjectValue(val, depth + 1);
+      
+      // If the value is a primitive or empty, render on same line
+      if (typeof val !== 'object' || !val || 
+          (Array.isArray(val) && val.length === 0) || 
+          (typeof val === 'object' && Object.keys(val).length === 0)) {
+        return `${indent}${bullet} ${key}: ${renderedValue}`;
       }
-      return `${key}: ${renderedValue}`;
+      
+      // For objects/arrays with content, render hierarchically
+      return `${indent}${bullet} ${key}\n${renderedValue.split('\n').map(line => `${indent}  ${line}`).join('\n')}`;
     })
     .join('\n');
 };
