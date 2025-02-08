@@ -29,7 +29,7 @@ const Index = () => {
   };
 
   return (
-    <PageLayout>
+    <PageLayout fullWidth>
       <div className="min-h-screen bg-[#F1F0FB]">
         <HeroSection />
         <SearchSection onSearchResults={handleSearchResults} />
