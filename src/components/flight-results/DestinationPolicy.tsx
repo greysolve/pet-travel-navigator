@@ -11,42 +11,31 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
 };
 
-// Enhanced helper to render JSON structures with hierarchical bullet points
-const renderObjectValue = (value: any, depth: number = 0): string => {
-  // Handle null/undefined
+// Simplified helper to render values as formatted strings
+const renderValue = (value: any): string => {
   if (value == null) return '';
   
-  // Handle primitive values
-  if (typeof value !== 'object') return String(value);
-  
-  // Handle arrays
+  // Handle arrays as bullet points
   if (Array.isArray(value)) {
-    return value.map(item => renderObjectValue(item, depth)).join('\n');
+    return value.map(item => `• ${item}`).join('\n');
   }
-
-  // For pure objects, use JSON.stringify if they're simple
-  if (Object.keys(value).length === 0) return '';
-
-  // Handle objects with hierarchical formatting
-  return Object.entries(value)
-    .map(([key, val]) => {
-      const bullet = '•'.repeat(depth + 1);
-      const indent = ' '.repeat(depth * 2);
-      
-      // For nested objects/arrays, continue recursion
-      const renderedValue = renderObjectValue(val, depth + 1);
-      
-      // If the value is a primitive or empty after rendering, show on same line
-      if (typeof val !== 'object' || !val || 
-          (Array.isArray(val) && val.length === 0) || 
-          (typeof val === 'object' && Object.keys(val).length === 0)) {
-        return `${indent}${bullet} ${key}: ${renderedValue}`;
-      }
-      
-      // For objects/arrays with content, render hierarchically
-      return `${indent}${bullet} ${key}\n${renderedValue.split('\n').map(line => `${indent}  ${line}`).join('\n')}`;
-    })
-    .join('\n'); // Crucial: Join the mapped array into a single string
+  
+  // Handle objects by mapping their key-value pairs
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, val]) => {
+        // If the value is an array, render it with bullet points
+        if (Array.isArray(val)) {
+          return `${key}:\n${val.map(item => `  • ${item}`).join('\n')}`;
+        }
+        // If the value is a simple type, render as key: value
+        return `${key}: ${val}`;
+      })
+      .join('\n');
+  }
+  
+  // For simple values, just convert to string
+  return String(value);
 };
 
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
@@ -121,7 +110,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
             <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderObjectValue(policy.fees)}
+              {renderValue(policy.fees)}
             </pre>
           </section>
         )}
@@ -130,7 +119,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
             <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderObjectValue(policy.restrictions)}
+              {renderValue(policy.restrictions)}
             </pre>
           </section>
         )}
@@ -181,3 +170,4 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
+
