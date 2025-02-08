@@ -42,25 +42,25 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
         </div>
 
         {/* Info Section */}
-        <div className="ml-auto flex-grow flex flex-col items-end gap-1 text-right">
-          <div className="text-lg">
+        <div className="ml-auto flex flex-col items-end gap-1">
+          <div className="text-lg text-right">
             <span className="font-medium text-muted-foreground">Type:</span>{" "}
             <span className="text-foreground capitalize">{pet.type}</span>
           </div>
           {pet.breed && (
-            <div className="text-sm">
+            <div className="text-sm text-right">
               <span className="font-medium text-muted-foreground">Breed:</span>{" "}
               <span className="text-foreground">{pet.breed}</span>
             </div>
           )}
           {pet.age && (
-            <div className="text-sm">
+            <div className="text-sm text-right">
               <span className="font-medium text-muted-foreground">Age:</span>{" "}
               <span className="text-foreground">{pet.age} years</span>
             </div>
           )}
           {pet.weight && (
-            <div className="text-sm">
+            <div className="text-sm text-right">
               <span className="font-medium text-muted-foreground">Weight:</span>{" "}
               <span className="text-foreground">{pet.weight} kg</span>
             </div>
