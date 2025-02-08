@@ -22,7 +22,7 @@ export const usePetProfileForm = (
   const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadPhotos = async () => {
+  const uploadPhotos = async (userId: string) => {
     try {
       const uploadedUrls: string[] = [];
       setIsUploading(true);
@@ -30,7 +30,7 @@ export const usePetProfileForm = (
 
       for (const photo of photos) {
         const fileExt = photo.name.split('.').pop();
-        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
         console.log(`Uploading photo: ${fileName}`);
 
         const { error: uploadError, data } = await supabase.storage
@@ -62,11 +62,11 @@ export const usePetProfileForm = (
     }
   };
 
-  const uploadFile = async (petId: string) => {
+  const uploadFile = async (petId: string, userId: string) => {
     if (!file || !selectedDocumentType) return null;
 
     const fileExt = file.name.split('.').pop();
-    const filePath = `${petId}/${selectedDocumentType}.${fileExt}`;
+    const filePath = `${userId}/${petId}/${selectedDocumentType}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from('pet-documents')
@@ -104,7 +104,7 @@ export const usePetProfileForm = (
         let finalPhotoUrls = photoUrls;
         if (photos.length > 0) {
           console.log('New photos detected, uploading...');
-          finalPhotoUrls = await uploadPhotos();
+          finalPhotoUrls = await uploadPhotos(user.id);
         }
 
         // Prepare the data with the final photo URLs
@@ -137,7 +137,7 @@ export const usePetProfileForm = (
 
         // Handle document upload if needed
         if (file && selectedDocumentType) {
-          await uploadFile(result.id);
+          await uploadFile(result.id, user.id);
         }
 
         return result;
