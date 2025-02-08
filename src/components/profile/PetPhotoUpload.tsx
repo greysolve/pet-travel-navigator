@@ -78,11 +78,6 @@ export const PetPhotoUpload = ({
 
           onPhotoUrlsChange([...photoUrls, publicUrl]);
         }
-
-        toast({
-          title: "Success",
-          description: "Photos uploaded successfully",
-        });
       } catch (error) {
         console.error('Error uploading photo:', error);
         toast({
@@ -205,3 +200,4 @@ export const PetPhotoUpload = ({
     </div>
   );
 };
+
