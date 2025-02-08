@@ -20,24 +20,60 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.pet_types_allowed?.length > 0 && (
         <p><span className="font-medium">Allowed pets:</span> {policy.pet_types_allowed.join(', ')}</p>
       )}
+
+      {/* Size Restrictions */}
+      {policy.size_restrictions && (
+        <div className="space-y-1">
+          <p className="font-medium">Size and Weight Restrictions:</p>
+          {policy.size_restrictions.max_weight_cabin && (
+            <p className="ml-4">• Maximum cabin weight: {policy.size_restrictions.max_weight_cabin}</p>
+          )}
+          {policy.size_restrictions.max_weight_cargo && (
+            <p className="ml-4">• Maximum cargo weight: {policy.size_restrictions.max_weight_cargo}</p>
+          )}
+          {policy.size_restrictions.carrier_dimensions_cabin && (
+            <p className="ml-4">• Carrier dimensions: {policy.size_restrictions.carrier_dimensions_cabin}</p>
+          )}
+        </div>
+      )}
+
+      {/* Carrier Requirements */}
       {policy.carrier_requirements && (
         <p><span className="font-medium">Carrier requirements:</span> {policy.carrier_requirements}</p>
       )}
-      {!policy.carrier_requirements && policy.carrier_requirements_cabin && (
+      {policy.carrier_requirements_cabin && (
         <p><span className="font-medium">Cabin carrier requirements:</span> {policy.carrier_requirements_cabin}</p>
       )}
-      {!policy.carrier_requirements && policy.carrier_requirements_cargo && (
+      {policy.carrier_requirements_cargo && (
         <p><span className="font-medium">Cargo carrier requirements:</span> {policy.carrier_requirements_cargo}</p>
       )}
+
+      {/* Documentation */}
       {policy.documentation_needed?.length > 0 && (
         <p><span className="font-medium">Required documentation:</span> {policy.documentation_needed.join(', ')}</p>
       )}
+
+      {/* Fees */}
+      {policy.fees && (Object.keys(policy.fees).length > 0) && (
+        <div className="space-y-1">
+          <p className="font-medium">Fees:</p>
+          {policy.fees.in_cabin && (
+            <p className="ml-4">• Cabin: {policy.fees.in_cabin}</p>
+          )}
+          {policy.fees.cargo && (
+            <p className="ml-4">• Cargo: {policy.fees.cargo}</p>
+          )}
+        </div>
+      )}
+
+      {/* Temperature and Breed Restrictions */}
       {policy.temperature_restrictions && (
         <p><span className="font-medium">Temperature restrictions:</span> {policy.temperature_restrictions}</p>
       )}
       {policy.breed_restrictions?.length > 0 && (
         <p><span className="font-medium">Breed restrictions:</span> {policy.breed_restrictions.join(', ')}</p>
       )}
+
       {policy.policy_url && (
         <a 
           href={policy.policy_url}
