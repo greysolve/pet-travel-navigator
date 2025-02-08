@@ -20,13 +20,14 @@ export const usePetProfileForm = (
   const [file, setFile] = useState<File | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
+  const [isUploading, setIsUploading] = useState(false);
 
   const uploadPhotos = async () => {
     try {
       const uploadedUrls: string[] = [];
-      console.log('Starting photo upload process...');
+      setIsUploading(true);
+      console.log('Starting photo upload process...', photos.length, 'photos to upload');
 
-      // Upload each new photo
       for (const photo of photos) {
         const fileExt = photo.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
@@ -56,6 +57,8 @@ export const usePetProfileForm = (
     } catch (error) {
       console.error('Error in uploadPhotos:', error);
       throw error;
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -89,54 +92,59 @@ export const usePetProfileForm = (
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<PetProfile>) => {
-      console.log('Starting mutation process...');
-      
-      // Get the current user's ID
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error("User must be authenticated to create/edit pet profiles");
+      try {
+        console.log('Starting mutation process...');
+        
+        // Get the current user's ID
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        if (!user) throw new Error("User must be authenticated to create/edit pet profiles");
 
-      // Upload photos first if there are any new ones
-      let finalPhotoUrls = photoUrls;
-      if (photos.length > 0) {
-        console.log('New photos detected, uploading...');
-        finalPhotoUrls = await uploadPhotos();
-      }
+        // Upload photos first if there are any new ones
+        let finalPhotoUrls = photoUrls;
+        if (photos.length > 0) {
+          console.log('New photos detected, uploading...');
+          finalPhotoUrls = await uploadPhotos();
+        }
 
-      // Prepare the data with the final photo URLs
-      const dataWithPhotos = {
-        ...data,
-        images: finalPhotoUrls,
-        user_id: user.id
-      };
+        // Prepare the data with the final photo URLs
+        const dataWithPhotos = {
+          ...data,
+          images: finalPhotoUrls,
+          user_id: user.id
+        };
 
-      console.log('Updating database with data:', dataWithPhotos);
+        console.log('Updating database with data:', dataWithPhotos);
 
-      // Update or create the pet profile
-      const { data: result, error } = initialData
-        ? await supabase
-            .from('pet_profiles')
-            .update(dataWithPhotos)
-            .eq('id', initialData.id)
-            .select()
-            .single()
-        : await supabase
-            .from('pet_profiles')
-            .insert([dataWithPhotos])
-            .select()
-            .single();
+        // Update or create the pet profile
+        const { data: result, error } = initialData
+          ? await supabase
+              .from('pet_profiles')
+              .update(dataWithPhotos)
+              .eq('id', initialData.id)
+              .select()
+              .single()
+          : await supabase
+              .from('pet_profiles')
+              .insert([dataWithPhotos])
+              .select()
+              .single();
 
-      if (error) {
-        console.error('Database operation failed:', error);
+        if (error) {
+          console.error('Database operation failed:', error);
+          throw error;
+        }
+
+        // Handle document upload if needed
+        if (file && selectedDocumentType) {
+          await uploadFile(result.id);
+        }
+
+        return result;
+      } catch (error) {
+        console.error('Error in mutation:', error);
         throw error;
       }
-
-      // Handle document upload if needed
-      if (file && selectedDocumentType) {
-        await uploadFile(result.id);
-      }
-
-      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pet-profiles'] });
@@ -187,6 +195,7 @@ export const usePetProfileForm = (
     file,
     photos,
     photoUrls,
+    isUploading,
     setName,
     setType,
     setBreed,
