@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
 import { RouteSearch } from "./search/RouteSearch";
 import { DateSelector } from "./search/DateSelector";
-import { SavedSearchesManager } from "./search/SavedSearchesManager";
 import { useFlightSearch } from "./search/FlightSearchHandler";
 import type { SearchSectionProps } from "./search/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +12,8 @@ import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
@@ -21,6 +22,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [date, setDate] = useState<Date>();
   const [destinationCountry, setDestinationCountry] = useState<string>();
   const [flights, setFlights] = useState<FlightData[]>([]);
+  const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
   const { toast } = useToast();
   const { handleFlightSearch, isLoading } = useFlightSearch();
   const { user } = useAuth();
@@ -83,38 +85,70 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       const results: FlightData[] = [];
       onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
       setFlights(results);
+
+      if (shouldSaveSearch && user) {
+        const { error: saveError } = await supabase
+          .from('saved_searches')
+          .insert({
+            user_id: user.id,
+            search_type: 'airline',
+            airline_name: policySearch,
+            created_at: new Date().toISOString()
+          });
+
+        if (saveError) {
+          console.error("Error saving search:", saveError);
+          toast({
+            title: "Error saving search",
+            description: "Could not save your search. Please try again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Search saved",
+            description: "Your search has been saved successfully.",
+          });
+        }
+      }
     } else if (origin && destination && date) {
       handleFlightSearch({
         origin,
         destination,
         date,
         destinationCountry,
-        onSearchResults: (results, policies) => {
+        onSearchResults: async (results, policies) => {
           onSearchResults(results, policies);
           setFlights(results);
+
+          if (shouldSaveSearch && user) {
+            const { error: saveError } = await supabase
+              .from('saved_searches')
+              .insert({
+                user_id: user.id,
+                search_type: 'route',
+                origin,
+                destination,
+                departure_date: date.toISOString(),
+                created_at: new Date().toISOString()
+              });
+
+            if (saveError) {
+              console.error("Error saving search:", saveError);
+              toast({
+                title: "Error saving search",
+                description: "Could not save your search. Please try again.",
+                variant: "destructive",
+              });
+            } else {
+              toast({
+                title: "Search saved",
+                description: "Your search has been saved successfully.",
+              });
+            }
+          }
         },
         onSearchComplete: () => {}
       });
-    }
-  };
-
-  const handleLoadSavedSearch = (searchCriteria: any) => {
-    if (searchCriteria.policySearch) {
-      setPolicySearch(searchCriteria.policySearch);
-    } else {
-      setPolicySearch("");
-    }
-    
-    if (searchCriteria.origin) {
-      setOrigin(searchCriteria.origin);
-    }
-    
-    if (searchCriteria.destination) {
-      setDestination(searchCriteria.destination);
-    }
-    
-    if (searchCriteria.date) {
-      setDate(new Date(searchCriteria.date));
     }
   };
 
@@ -132,16 +166,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
-        {user && (
-          <SavedSearchesManager
-            currentSearch={{ origin, destination, date, policySearch }}
-            flights={flights}
-            petPolicies={flightPetPolicies}
-            countryPolicies={countryPolicies}
-            onLoadSearch={handleLoadSavedSearch}
-          />
-        )}
-        
         <AirlinePolicySearch 
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
@@ -166,7 +190,26 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           setDestinationCountry={setDestinationCountry}
         />
 
-        <DateSelector date={date} setDate={setDate} />
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+          <div className="w-full md:flex-1">
+            <DateSelector date={date} setDate={setDate} />
+          </div>
+          {user && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="save-search"
+                checked={shouldSaveSearch}
+                onCheckedChange={(checked) => setShouldSaveSearch(checked as boolean)}
+              />
+              <Label
+                htmlFor="save-search"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Save this search
+              </Label>
+            </div>
+          )}
+        </div>
 
         <Button 
           className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
