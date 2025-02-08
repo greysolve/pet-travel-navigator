@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Dialog, 
@@ -27,7 +28,6 @@ interface PetProfileFormProps {
 export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  console.log('2. Initial data when form renders:', initialData);
   
   // Form state
   const [name, setName] = useState('');
@@ -38,10 +38,10 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
   const [selectedDocumentType, setSelectedDocumentType] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Use useEffect to update form state when initialData changes
   useEffect(() => {
-    console.log('4. Setting form data from initialData:', initialData);
     if (initialData) {
       setName(initialData.name || '');
       setType(initialData.type || '');
@@ -60,12 +60,15 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
     }
   }, [initialData]);
 
-  console.log('3. Current form state:', { name, type, breed, age, weight, photoUrls });
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("User must be authenticated");
+
       const petData = {
         name,
         type,
@@ -73,6 +76,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
         age: age ? parseFloat(age) : null,
         weight: weight ? parseFloat(weight) : null,
         images: photoUrls,
+        user_id: user.id,
       };
 
       if (initialData?.id) {
@@ -111,6 +115,8 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
         description: "Failed to save pet profile. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,6 +134,7 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
               onPhotoUrlsChange={setPhotoUrls}
               photos={photos}
               onPhotosChange={setPhotos}
+              petId={initialData?.id}
             />
 
             <PetBasicInfo
@@ -156,8 +163,19 @@ export const PetProfileForm = ({ isOpen, onClose, initialData }: PetProfileFormP
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="pet-profile-form">
-            {initialData ? 'Update' : 'Add'} Pet
+          <Button 
+            type="submit" 
+            form="pet-profile-form"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {initialData ? 'Updating...' : 'Adding...'}
+              </>
+            ) : (
+              initialData ? 'Update Pet' : 'Add Pet'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
