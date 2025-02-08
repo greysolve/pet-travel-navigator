@@ -117,32 +117,35 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
   };
 
-  const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
+  const handleLoadSearch = async (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
     if (searchCriteria.type === 'airline') {
       setPolicySearch(searchCriteria.airline_name || "");
       setOrigin("");
       setDestination("");
       setDate(undefined);
+      // Trigger airline search
+      await handleSearch(true, searchCriteria.airline_name || "");
     } else if (searchCriteria.type === 'route') {
       setPolicySearch("");
       setOrigin(searchCriteria.origin || "");
       setDestination(searchCriteria.destination || "");
       setDate(searchCriteria.departure_date ? new Date(searchCriteria.departure_date) : undefined);
+      // Trigger route search after state updates
+      if (searchCriteria.origin && searchCriteria.destination && searchCriteria.departure_date) {
+        await handleSearch(false, "", searchCriteria.origin, searchCriteria.destination, new Date(searchCriteria.departure_date));
+      }
     }
   };
 
-  const handleSearch = async () => {
-    if (policySearch && (origin || destination)) {
-      toast({
-        title: "Please choose one search method",
-        description: "You can either search by airline policy or by route, but not both at the same time.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (origin && destination && !date) {
+  const handleSearch = async (
+    isAirlineSearch: boolean = false, 
+    airlineName: string = policySearch,
+    searchOrigin: string = origin,
+    searchDestination: string = destination,
+    searchDate: Date | undefined = date
+  ) => {
+    if (!isAirlineSearch && (searchOrigin || searchDestination) && !searchDate) {
       toast({
         title: "Please select a date",
         description: "A departure date is required to search for flights.",
@@ -151,12 +154,12 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       return;
     }
     
-    if (policySearch) {
-      console.log("Searching for airline policy:", policySearch);
+    if (isAirlineSearch || airlineName) {
+      console.log("Searching for airline policy:", airlineName);
       const { data: airline, error: airlineError } = await supabase
         .from('airlines')
         .select('id')
-        .eq('name', policySearch)
+        .eq('name', airlineName)
         .maybeSingle();
 
       if (airlineError || !airline?.id) {
@@ -188,7 +191,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
       console.log("Found pet policy:", petPolicy);
       const results: FlightData[] = [];
-      onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
+      onSearchResults(results, { [airlineName]: petPolicy as PetPolicy });
       setFlights(results);
 
       if (shouldSaveSearch && user) {
@@ -198,7 +201,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             user_id: user.id,
             search_criteria: {
               type: 'airline',
-              airline_name: policySearch
+              airline_name: airlineName
             }
           });
 
@@ -217,11 +220,11 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           loadSavedSearches();
         }
       }
-    } else if (origin && destination && date) {
+    } else if (searchOrigin && searchDestination && searchDate) {
       handleFlightSearch({
-        origin,
-        destination,
-        date,
+        origin: searchOrigin,
+        destination: searchDestination,
+        date: searchDate,
         destinationCountry,
         onSearchResults: async (results, policies) => {
           onSearchResults(results, policies);
@@ -234,9 +237,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                 user_id: user.id,
                 search_criteria: {
                   type: 'route',
-                  origin,
-                  destination,
-                  departure_date: date.toISOString()
+                  origin: searchOrigin,
+                  destination: searchDestination,
+                  departure_date: searchDate.toISOString()
                 }
               });
 
@@ -364,7 +367,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
         <Button 
           className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           disabled={isLoading}
         >
           {isLoading ? (
