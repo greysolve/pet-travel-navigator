@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
+import { PageLayout } from "@/components/layout/PageLayout";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -28,17 +29,19 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F0FB]">
-      <HeroSection />
-      <SearchSection onSearchResults={handleSearchResults} />
-      <div ref={resultsRef} className="scroll-mt-8">
-        <ResultsSection 
-          searchPerformed={searchPerformed} 
-          flights={flights}
-          petPolicies={petPolicies} 
-        />
+    <PageLayout>
+      <div className="min-h-screen bg-[#F1F0FB]">
+        <HeroSection />
+        <SearchSection onSearchResults={handleSearchResults} />
+        <div ref={resultsRef} className="scroll-mt-8">
+          <ResultsSection 
+            searchPerformed={searchPerformed} 
+            flights={flights}
+            petPolicies={petPolicies} 
+          />
+        </div>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 
