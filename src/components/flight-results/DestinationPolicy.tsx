@@ -11,18 +11,28 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
 };
 
-// Helper to safely render potentially object values
+// Enhanced helper to safely render potentially complex object values
 const renderObjectValue = (value: any): string => {
   if (typeof value === 'string') return value;
-  if (typeof value === 'object' && value !== null) {
-    // Handle objects with description field
-    if ('description' in value) return value.description;
-    // Handle objects with region-based restrictions
-    return Object.entries(value)
-      .map(([key, val]) => `${key}: ${val}`)
-      .join(', ');
-  }
-  return '';
+  if (typeof value !== 'object' || value === null) return '';
+
+  // Handle object with description field (common case)
+  if ('description' in value) return value.description;
+
+  // Handle region-based or category-based restrictions/fees
+  const entries = Object.entries(value);
+  if (entries.length === 0) return '';
+
+  // Format as "region/category: value" pairs
+  return entries
+    .map(([key, val]) => {
+      // Handle nested objects
+      if (typeof val === 'object' && val !== null) {
+        return `${key}: ${renderObjectValue(val)}`;
+      }
+      return `${key}: ${val}`;
+    })
+    .join('\n');
 };
 
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
@@ -96,14 +106,18 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
         {policy.fees && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
-            <p className="text-gray-700 text-lg leading-relaxed">{renderObjectValue(policy.fees)}</p>
+            <div className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">
+              {renderObjectValue(policy.fees)}
+            </div>
           </section>
         )}
 
         {policy.restrictions && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
-            <p className="text-gray-700 text-lg leading-relaxed">{renderObjectValue(policy.restrictions)}</p>
+            <div className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">
+              {renderObjectValue(policy.restrictions)}
+            </div>
           </section>
         )}
 
