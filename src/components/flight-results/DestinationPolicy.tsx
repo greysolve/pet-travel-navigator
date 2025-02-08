@@ -11,31 +11,54 @@ const getPolicyTypeBadgeColor = (type: PolicyType) => {
   return type === 'pet_arrival' ? 'bg-primary' : 'bg-secondary';
 };
 
-// Simplified helper to render values as formatted strings
-const renderValue = (value: any): string => {
-  if (value == null) return '';
-  
-  // Handle arrays as bullet points
-  if (Array.isArray(value)) {
-    return value.map(item => `• ${item}`).join('\n');
-  }
-  
-  // Handle objects by mapping their key-value pairs
-  if (typeof value === 'object') {
-    return Object.entries(value)
-      .map(([key, val]) => {
-        // If the value is an array, render it with bullet points
-        if (Array.isArray(val)) {
-          return `${key}:\n${val.map(item => `  • ${item}`).join('\n')}`;
-        }
-        // If the value is a simple type, render as key: value
-        return `${key}: ${val}`;
-      })
-      .join('\n');
-  }
-  
-  // For simple values, just convert to string
-  return String(value);
+interface PolicyDataSectionProps {
+  title: string;
+  data: any;
+}
+
+const PolicyDataSection = ({ title, data }: PolicyDataSectionProps) => {
+  if (!data) return null;
+
+  const renderValue = (value: any, depth: number = 0): JSX.Element | null => {
+    if (value == null) return null;
+
+    // Handle arrays
+    if (Array.isArray(value)) {
+      return (
+        <ul className="list-disc list-inside space-y-2">
+          {value.map((item, index) => (
+            <li key={index} className="text-gray-700">
+              {typeof item === 'object' ? renderValue(item, depth + 1) : item}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    // Handle objects
+    if (typeof value === 'object') {
+      return (
+        <div className={`${depth > 0 ? 'ml-4' : ''} space-y-2`}>
+          {Object.entries(value).map(([key, val], index) => (
+            <div key={index}>
+              <h4 className="font-medium text-gray-900">{key}</h4>
+              {renderValue(val, depth + 1)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Handle primitive values
+    return <span className="text-gray-700">{String(value)}</span>;
+  };
+
+  return (
+    <section className="bg-gray-50 p-4 rounded-lg">
+      <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">{title}</h3>
+      {renderValue(data)}
+    </section>
+  );
 };
 
 export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null }) => {
@@ -107,21 +130,11 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
         )}
 
         {policy.fees && (
-          <section>
-            <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
-            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderValue(policy.fees)}
-            </pre>
-          </section>
+          <PolicyDataSection title="Fees" data={policy.fees} />
         )}
 
         {policy.restrictions && (
-          <section>
-            <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
-            <pre className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap font-sans bg-gray-50 p-4 rounded-lg">
-              {renderValue(policy.restrictions)}
-            </pre>
-          </section>
+          <PolicyDataSection title="Restrictions" data={policy.restrictions} />
         )}
 
         {policy.all_blood_tests && (
@@ -170,4 +183,3 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
-
