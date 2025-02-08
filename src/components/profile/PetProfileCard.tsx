@@ -40,7 +40,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-2">
+        <div className="grid gap-4 py-4">
           <div className="text-sm">
             <span className="font-medium text-muted-foreground">Type:</span>{" "}
             <span className="text-foreground capitalize">{pet.type}</span>
@@ -68,3 +68,4 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
     </Card>
   );
 };
+
