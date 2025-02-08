@@ -16,7 +16,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   const thumbnailUrl = pet.images?.[0];
   
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10">
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10 md:w-[60%] w-full">
       <div className="flex items-center p-4">
         {/* Thumbnail Section */}
         <div className="flex-shrink-0">
