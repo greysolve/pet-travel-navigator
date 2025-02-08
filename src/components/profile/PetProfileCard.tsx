@@ -17,7 +17,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10">
-      <div className="flex flex-col md:flex-row md:items-center py-4">
+      <div className="flex flex-col md:flex-row md:items-center py-8">
         {/* Thumbnail Section */}
         <div className="px-4 flex items-center justify-center md:justify-start flex-shrink-0">
           <div className="w-[200px] h-[200px] md:w-[150px] md:h-[150px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
@@ -90,3 +90,4 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
     </Card>
   );
 };
+

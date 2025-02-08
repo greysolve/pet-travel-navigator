@@ -92,7 +92,7 @@ export const PetTravelWallet = () => {
         <h2 className="text-2xl font-bold text-primary whitespace-nowrap">Pet Travel Wallet</h2>
         <Button 
           onClick={() => setIsFormOpen(true)}
-          className="bg-primary hover:bg-primary/90 text-white transition-colors w-full md:w-auto"
+          className="bg-primary hover:bg-primary/90 text-white transition-colors w-full md:w-auto max-w-[250px]"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Pet
@@ -127,3 +127,4 @@ export const PetTravelWallet = () => {
     </div>
   );
 };
+
