@@ -26,11 +26,9 @@ type SavedSearch = {
   id: string;
   name: string | null;
   search_criteria: {
-    type: 'airline' | 'route';
-    airline_name?: string;
-    origin?: string;
-    destination?: string;
-    departure_date?: string;
+    origin: string;
+    destination: string;
+    date?: string;
   };
   created_at: string;
 }
@@ -40,7 +38,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState<Date>();
-  const [destinationCountry, setDestinationCountry] = useState<string>();
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
   const { toast } = useToast();
@@ -48,7 +45,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
 
-  // Add useEffect to load saved searches when component mounts or user changes
   useEffect(() => {
     if (user) {
       console.log('Loading saved searches for user:', user.id);
@@ -80,32 +76,15 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
 
     console.log('Received saved searches data:', data);
-
-    // Transform the data to match our SavedSearch type
-    const transformedData: SavedSearch[] = data.map(item => ({
-      id: item.id,
-      name: item.name,
-      search_criteria: item.search_criteria as SavedSearch['search_criteria'],
-      created_at: item.created_at
-    }));
-
-    console.log('Transformed saved searches:', transformedData);
-    setSavedSearches(transformedData);
+    setSavedSearches(data as SavedSearch[]);
   };
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
-    if (searchCriteria.type === 'airline') {
-      setPolicySearch(searchCriteria.airline_name || "");
-      setOrigin("");
-      setDestination("");
-      setDate(undefined);
-    } else if (searchCriteria.type === 'route') {
-      setPolicySearch("");
-      setOrigin(searchCriteria.origin || "");
-      setDestination(searchCriteria.destination || "");
-      setDate(searchCriteria.departure_date ? new Date(searchCriteria.departure_date) : undefined);
-    }
+    setOrigin(searchCriteria.origin);
+    setDestination(searchCriteria.destination);
+    setDate(searchCriteria.date ? new Date(searchCriteria.date) : undefined);
+    setPolicySearch(""); // Clear any airline policy search when loading a route search
   };
 
   const handleSearch = async () => {
@@ -173,8 +152,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           .insert({
             user_id: user.id,
             search_criteria: {
-              type: 'airline',
-              airline_name: policySearch
+              policySearch
             }
           });
 
@@ -198,7 +176,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         origin,
         destination,
         date,
-        destinationCountry,
         onSearchResults: async (results, policies) => {
           onSearchResults(results, policies);
           setFlights(results);
@@ -209,10 +186,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
               .insert({
                 user_id: user.id,
                 search_criteria: {
-                  type: 'route',
                   origin,
                   destination,
-                  departure_date: date.toISOString()
+                  date: date.toISOString()
                 }
               });
 
@@ -268,9 +244,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                       className="flex flex-col items-start py-2"
                     >
                       <span className="font-medium">
-                        {search.search_criteria.type === 'airline'
-                          ? `Airline: ${search.search_criteria.airline_name}`
-                          : `${search.search_criteria.origin} → ${search.search_criteria.destination}`}
+                        {`${search.search_criteria.origin} → ${search.search_criteria.destination}`}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(search.created_at), 'MMM d, yyyy')}
@@ -304,7 +278,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           destination={destination}
           setOrigin={setOrigin}
           setDestination={setDestination}
-          setDestinationCountry={setDestinationCountry}
         />
 
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
