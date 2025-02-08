@@ -17,10 +17,10 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10">
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         {/* Thumbnail Section */}
-        <div className="p-4 flex items-center flex-shrink-0">
-          <div className="w-[150px] h-[150px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
+        <div className="p-4 flex items-center justify-center md:justify-start flex-shrink-0">
+          <div className="w-[200px] h-[200px] md:w-[150px] md:h-[150px] rounded-lg overflow-hidden bg-accent/20 flex items-center justify-center">
             {thumbnailUrl ? (
               <img 
                 src={thumbnailUrl} 
@@ -34,13 +34,13 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
         </div>
 
         {/* Content Section */}
-        <div className="flex-grow">
+        <div className="flex-grow px-4 md:px-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xl font-bold flex items-center gap-2 text-primary ml-auto">
+            <CardTitle className="text-xl font-bold flex items-center gap-2 text-primary mx-auto md:ml-auto md:mr-0">
               {pet.name}
               <PawPrint className="h-5 w-5" />
             </CardTitle>
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 variant="ghost"
                 size="icon"
@@ -60,8 +60,8 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 py-4 text-right">
-              <div className="text-lg">
+            <div className="grid gap-4 py-4 text-center md:text-right">
+              <div className="text-2xl">
                 <span className="font-medium text-muted-foreground">Type:</span>{" "}
                 <span className="text-foreground capitalize">{pet.type}</span>
               </div>
