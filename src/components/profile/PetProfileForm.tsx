@@ -133,7 +133,16 @@ export const PetProfileForm = ({
   };
 
   const handleEdit = () => {
-    setIsEditMode(true);
+    if (isEditMode) {
+      // If in edit mode, trigger form submission
+      const form = document.getElementById('pet-profile-form') as HTMLFormElement;
+      if (form) {
+        form.requestSubmit();
+      }
+    } else {
+      // If in view mode, enter edit mode
+      setIsEditMode(true);
+    }
   };
 
   const handleCancel = () => {
@@ -201,16 +210,40 @@ export const PetProfileForm = ({
         </div>
 
         <DialogFooter className="mt-6">
-          {viewMode && !isEditMode ? (
-            <>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Close
-              </Button>
-              <Button onClick={handleEdit} type="button">
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-            </>
+          {viewMode ? (
+            isEditMode ? (
+              <>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleEdit}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Close
+                </Button>
+                <Button onClick={handleEdit} type="button">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              </>
+            )
           ) : (
             <>
               <Button type="button" variant="outline" onClick={handleCancel}>
