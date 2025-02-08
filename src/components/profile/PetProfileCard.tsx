@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database } from "@/integrations/supabase/types";
 import { PawPrint, Pencil, Trash, ImageIcon } from "lucide-react";
 
@@ -16,7 +16,7 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
   const thumbnailUrl = pet.images?.[0];
   
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10 md:w-[60%] w-full">
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-accent/10 md:w-[60%] w-full mx-auto">
       <div className="flex items-center p-4">
         {/* Thumbnail Section */}
         <div className="flex-shrink-0">
@@ -43,24 +43,24 @@ export const PetProfileCard = ({ pet, onEdit, onDelete }: PetProfileCardProps) =
 
         {/* Info Section */}
         <div className="ml-auto flex-grow flex flex-col items-end gap-1">
-          <div className="text-lg">
+          <div className="text-lg text-right">
             <span className="font-medium text-muted-foreground">Type:</span>{" "}
             <span className="text-foreground capitalize">{pet.type}</span>
           </div>
           {pet.breed && (
-            <div className="text-sm">
+            <div className="text-sm text-right">
               <span className="font-medium text-muted-foreground">Breed:</span>{" "}
               <span className="text-foreground">{pet.breed}</span>
             </div>
           )}
           {pet.age && (
-            <div className="text-sm">
+            <div className="text-sm text-right">
               <span className="font-medium text-muted-foreground">Age:</span>{" "}
               <span className="text-foreground">{pet.age} years</span>
             </div>
           )}
           {pet.weight && (
-            <div className="text-sm">
+            <div className="text-sm text-right">
               <span className="font-medium text-muted-foreground">Weight:</span>{" "}
               <span className="text-foreground">{pet.weight} kg</span>
             </div>
