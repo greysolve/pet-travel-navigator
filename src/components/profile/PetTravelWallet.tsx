@@ -67,10 +67,6 @@ export const PetTravelWallet = () => {
     setIsFormOpen(true);
   };
 
-  const handleEdit = () => {
-    setIsViewMode(false);
-  };
-
   const handleClose = () => {
     setIsFormOpen(false);
     setSelectedPet(null);
@@ -136,7 +132,6 @@ export const PetTravelWallet = () => {
         onClose={handleClose}
         initialData={selectedPet}
         viewMode={isViewMode}
-        onEdit={handleEdit}
       />
     </div>
   );
