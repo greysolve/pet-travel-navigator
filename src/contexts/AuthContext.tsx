@@ -31,20 +31,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleAuthError = (error: any) => {
     console.error('Auth error:', error);
-    // Clear all auth state
-    setSession(null);
-    setUser(null);
-    setProfile(null);
     
-    // Show error toast
-    toast({
-      title: "Authentication Error",
-      description: "Please sign in again to continue.",
-      variant: "destructive",
-    });
+    // Only clear auth state and show error for actual auth errors
+    // Ignore refresh token errors when no user is logged in
+    if (error?.message !== "Invalid Refresh Token: Refresh Token Not Found") {
+      // Clear all auth state
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      
+      // Show error toast
+      toast({
+        title: "Authentication Error",
+        description: "Please sign in again to continue.",
+        variant: "destructive",
+      });
+      
+      // Only redirect if we were actually logged in before
+      if (session) {
+        navigate('/');
+      }
+    }
     
-    // Redirect to home
-    navigate('/');
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -88,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, session]);
 
   return (
     <AuthContext.Provider value={{ 
