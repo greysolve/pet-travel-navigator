@@ -22,29 +22,41 @@ export const usePetProfileForm = (
   const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
 
   const uploadPhotos = async () => {
-    const uploadedUrls: string[] = [...photoUrls];
+    try {
+      const uploadedUrls: string[] = [];
+      console.log('Starting photo upload process...');
 
-    for (const photo of photos) {
-      const fileExt = photo.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      // Upload each new photo
+      for (const photo of photos) {
+        const fileExt = photo.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        console.log(`Uploading photo: ${fileName}`);
 
-      const { error: uploadError, data } = await supabase.storage
-        .from('pet-photos')
-        .upload(fileName, photo);
+        const { error: uploadError, data } = await supabase.storage
+          .from('pet-photos')
+          .upload(fileName, photo);
 
-      if (uploadError) {
-        console.error('Error uploading photo:', uploadError);
-        throw uploadError;
+        if (uploadError) {
+          console.error('Error uploading photo:', uploadError);
+          throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('pet-photos')
+          .getPublicUrl(fileName);
+
+        uploadedUrls.push(publicUrl);
+        console.log(`Successfully uploaded photo: ${publicUrl}`);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('pet-photos')
-        .getPublicUrl(fileName);
-
-      uploadedUrls.push(publicUrl);
+      // Combine existing URLs with new ones
+      const allUrls = [...photoUrls, ...uploadedUrls];
+      console.log('Final photo URLs:', allUrls);
+      return allUrls;
+    } catch (error) {
+      console.error('Error in uploadPhotos:', error);
+      throw error;
     }
-
-    return uploadedUrls;
   };
 
   const uploadFile = async (petId: string) => {
@@ -77,23 +89,28 @@ export const usePetProfileForm = (
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<PetProfile>) => {
-      // First, upload any new photos
-      let finalPhotoUrls = photoUrls;
-      if (photos.length > 0) {
-        finalPhotoUrls = await uploadPhotos();
-      }
-
+      console.log('Starting mutation process...');
+      
       // Get the current user's ID
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
       if (!user) throw new Error("User must be authenticated to create/edit pet profiles");
 
-      // Add the user_id and updated photo URLs to the data
+      // Upload photos first if there are any new ones
+      let finalPhotoUrls = photoUrls;
+      if (photos.length > 0) {
+        console.log('New photos detected, uploading...');
+        finalPhotoUrls = await uploadPhotos();
+      }
+
+      // Prepare the data with the final photo URLs
       const dataWithPhotos = {
         ...data,
         images: finalPhotoUrls,
         user_id: user.id
       };
+
+      console.log('Updating database with data:', dataWithPhotos);
 
       // Update or create the pet profile
       const { data: result, error } = initialData
@@ -109,7 +126,10 @@ export const usePetProfileForm = (
             .select()
             .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database operation failed:', error);
+        throw error;
+      }
 
       // Handle document upload if needed
       if (file && selectedDocumentType) {
@@ -138,6 +158,7 @@ export const usePetProfileForm = (
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with photos:', photos.length, 'new photos');
     
     const data: Partial<PetProfile> = {
       name,
@@ -145,7 +166,6 @@ export const usePetProfileForm = (
       breed: breed || null,
       age: age ? parseFloat(age) : null,
       weight: weight ? parseFloat(weight) : null,
-      images: photoUrls,
     };
 
     mutation.mutate(data);
