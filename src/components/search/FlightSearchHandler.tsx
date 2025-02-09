@@ -72,14 +72,12 @@ export const useFlightSearch = () => {
       return;
     }
 
-    // Add debug logs for search limit check
     console.log('Checking search limits:', {
       userRole,
       searchCount: profile?.search_count,
       isPetCaddie: userRole === 'pet_caddie'
     });
 
-    // Check if user is a pet_caddie and has searches remaining
     if (userRole === 'pet_caddie' && profile?.search_count === 0) {
       console.log('Search limit reached:', {
         userRole,
@@ -107,13 +105,7 @@ export const useFlightSearch = () => {
     try {
       console.log('Sending search request with:', { origin, destination, date: date.toISOString() });
       
-      const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
-        body: { origin, destination, date: date.toISOString() }
-      });
-
-      if (error) throw error;
-
-      // Record the search in route_searches
+      // First, try to record the search
       const { error: searchError } = await supabase
         .from('route_searches')
         .insert({
@@ -124,8 +116,25 @@ export const useFlightSearch = () => {
         });
 
       if (searchError) {
-        console.error('Error recording search:', searchError);
+        // Check if this is a duplicate search error
+        if (searchError.code === '23505') {
+          toast({
+            title: "Duplicate search",
+            description: "You have already searched this route and date combination. Please try a different route or date.",
+            variant: "destructive",
+          });
+          onSearchComplete();
+          return;
+        }
+        throw searchError;
       }
+
+      // If search was recorded successfully, proceed with the flight search
+      const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
+        body: { origin, destination, date: date.toISOString() }
+      });
+
+      if (error) throw error;
       
       if (data?.connections) {
         console.log('Found connections:', data.connections);
@@ -142,11 +151,14 @@ export const useFlightSearch = () => {
         errorMessage = "You have reached your search limit. Please upgrade your plan to continue searching.";
       }
       
-      toast({
-        title: "Error searching flights",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Only show error toast if it wasn't already shown for duplicate search
+      if (error.code !== '23505') {
+        toast({
+          title: "Error searching flights",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
       onSearchComplete();
