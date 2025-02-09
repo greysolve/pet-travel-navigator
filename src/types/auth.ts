@@ -17,9 +17,11 @@ export interface UserProfile {
   postal_code?: string;
   country_id?: string;
   address_format?: string;
+  plan?: string;
+  search_count?: number;
   notification_preferences?: {
     travel_alerts: boolean;
     policy_changes: boolean;
     documentation_reminders: boolean;
-  };
+  } | null;
 }
