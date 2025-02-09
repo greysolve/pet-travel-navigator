@@ -1,4 +1,3 @@
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -21,7 +20,7 @@ export const ContactInformation = ({
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-primary text-center">Contact Information</h3>
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">First Name</Label>
             <Input

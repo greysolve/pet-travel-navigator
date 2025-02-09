@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +16,7 @@ interface RouteSearchProps {
   destination: string;
   setOrigin: (value: string) => void;
   setDestination: (value: string) => void;
+  setDestinationCountry: (value: string) => void;
 }
 
 export const RouteSearch = ({
@@ -24,6 +24,7 @@ export const RouteSearch = ({
   destination,
   setOrigin,
   setDestination,
+  setDestinationCountry,
 }: RouteSearchProps) => {
   const [airports, setAirports] = useState<Airport[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -161,6 +162,7 @@ export const RouteSearch = ({
                     className="px-4 py-2 hover:bg-accent cursor-pointer"
                     onClick={() => {
                       setDestination(airport.iata_code);
+                      setDestinationCountry(airport.country);
                       setShowDestinationSuggestions(false);
                     }}
                   >

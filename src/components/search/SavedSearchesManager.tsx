@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SaveSearchDialog } from "./saved-searches/SaveSearchDialog";
@@ -9,7 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { X } from "lucide-react";
 import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -125,32 +123,6 @@ export const SavedSearchesManager = ({
     });
   };
 
-  const handleDeleteSearch = async (e: React.MouseEvent, searchId: string, searchName: string) => {
-    e.stopPropagation(); // Prevent triggering the load search action
-    try {
-      const { error } = await supabase
-        .from('saved_searches')
-        .delete()
-        .eq('id', searchId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Search deleted",
-        description: `"${searchName}" has been deleted.`,
-      });
-
-      fetchSavedSearches(); // Refresh the list
-    } catch (error) {
-      console.error('Error deleting search:', error);
-      toast({
-        title: "Error deleting search",
-        description: "There was a problem deleting your search. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="flex justify-between gap-2">
       <div>
@@ -166,22 +138,12 @@ export const SavedSearchesManager = ({
                 <DropdownMenuItem
                   key={search.id}
                   onClick={() => handleLoadSearch(search.search_criteria)}
-                  className="flex items-center justify-between py-2 cursor-pointer group"
+                  className="flex flex-col items-start py-2 cursor-pointer"
                 >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{search.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(search.created_at), 'MMM d, yyyy')}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => handleDeleteSearch(e, search.id, search.name || 'Unnamed search')}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <span className="font-medium">{search.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(search.created_at), 'MMM d, yyyy')}
+                  </span>
                 </DropdownMenuItem>
               ))
             )}

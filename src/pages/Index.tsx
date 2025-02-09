@@ -1,9 +1,8 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
-import { useAuth } from "@/contexts/AuthContext";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -11,14 +10,6 @@ const Index = () => {
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
   const resultsRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
-
-  // Reset all search state when auth changes
-  useEffect(() => {
-    setSearchPerformed(false);
-    setFlights([]);
-    setPetPolicies(undefined);
-  }, [user]);
 
   const handleSearchResults = (
     results: FlightData[], 

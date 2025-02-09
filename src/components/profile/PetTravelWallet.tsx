@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { PetProfileCard } from "./PetProfileCard";
-import { Plus, PawPrint } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { PetProfileForm } from "./PetProfileForm";
@@ -15,8 +14,7 @@ export const PetTravelWallet = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<PetProfile | null>(null);
-  const [isViewMode, setIsViewMode] = useState(true);
+  const [editingPet, setEditingPet] = useState<PetProfile | null>(null);
 
   const { data: pets, isLoading } = useQuery({
     queryKey: ['pet-profiles'],
@@ -61,77 +59,56 @@ export const PetTravelWallet = () => {
     },
   });
 
-  const handleView = (pet: PetProfile) => {
-    setSelectedPet(pet);
-    setIsViewMode(true);
+  const handleEdit = (pet: PetProfile) => {
+    console.log('1. Pet data when clicking edit:', pet);
+    setEditingPet(pet);
     setIsFormOpen(true);
   };
 
   const handleClose = () => {
     setIsFormOpen(false);
-    setSelectedPet(null);
-    setIsViewMode(true);
+    setEditingPet(null);
   };
 
   const handleDelete = async (id: string) => {
     deleteMutation.mutate(id);
   };
 
-  const handleAdd = () => {
-    setSelectedPet(null);
-    setIsViewMode(false);
-    setIsFormOpen(true);
-  };
-
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <PawPrint className="h-8 w-8 text-primary/50" />
-          <p className="text-muted-foreground">Loading pet profiles...</p>
-        </div>
-      </div>
-    );
+    return <div>Loading pet profiles...</div>;
   }
 
   return (
-    <div className="space-y-8 animate-fade-in w-full">
-      <div className="flex flex-col items-center gap-4">
-        <h2 className="text-2xl font-bold text-primary whitespace-nowrap">Pet Travel Wallet</h2>
-        <Button 
-          onClick={handleAdd}
-          className="bg-primary hover:bg-primary/90 text-white transition-colors w-full md:w-auto max-w-[250px]"
-        >
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Pet Travel Wallet</h2>
+        <Button onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Pet
         </Button>
       </div>
       
-      <div className="grid gap-6 w-full">
+      <div className="grid gap-4 md:grid-cols-2">
         {pets?.map((pet) => (
           <PetProfileCard
             key={pet.id}
             pet={pet}
-            onView={handleView}
+            onEdit={handleEdit}
             onDelete={handleDelete}
           />
         ))}
       </div>
 
       {pets?.length === 0 && (
-        <div className="text-center py-12 bg-accent/50 rounded-lg">
-          <PawPrint className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            No pets added yet. Click the "Add Pet" button to get started.
-          </p>
+        <div className="text-center py-8 text-muted-foreground">
+          No pets added yet. Click the "Add Pet" button to get started.
         </div>
       )}
 
       <PetProfileForm
         isOpen={isFormOpen}
         onClose={handleClose}
-        initialData={selectedPet}
-        viewMode={isViewMode}
+        initialData={editingPet}
       />
     </div>
   );

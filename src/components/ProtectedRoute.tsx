@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,10 +21,17 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       console.log("Protected Route - Role Check:", {
         userId: user.id,
         requiredRole,
+        userMetadata: user.user_metadata,
         path: window.location.pathname
       });
 
-      // Check the user_roles table
+      // First check user metadata
+      if (user.user_metadata?.role === requiredRole) {
+        console.log("Role found in metadata, matches required role:", requiredRole);
+        return user.user_metadata.role;
+      }
+
+      // If not in metadata, check the user_roles table
       console.log("Checking user_roles table...");
       const { data, error } = await supabase
         .from("user_roles")
@@ -35,13 +41,13 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
       if (error) {
         console.error("Error fetching user role from DB:", error);
-        return "pet_caddie"; // Default to pet_caddie on error
+        return "pet_lover"; // Default to pet_lover on error
       }
 
-      // If no role found in database, default to pet_caddie
+      // If no role found in database, default to pet_lover
       if (!data) {
-        console.log("No role found in database, defaulting to pet_caddie");
-        return "pet_caddie";
+        console.log("No role found in database, defaulting to pet_lover");
+        return "pet_lover";
       }
 
       console.log("Role from database:", data.role);

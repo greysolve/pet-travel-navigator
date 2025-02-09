@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,19 +41,13 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => navigate("/")}>
-          Pet Flight Search
-        </DropdownMenuItem>
         {userRole === "site_manager" && (
           <DropdownMenuItem onClick={() => navigate("/admin")}>
             Manage
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => navigate("/profile")}>
-          My Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/pets")}>
-          My Pets
+          Profile
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut}>
           Sign Out
