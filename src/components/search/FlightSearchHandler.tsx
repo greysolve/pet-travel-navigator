@@ -77,24 +77,28 @@ export const useFlightSearch = () => {
       return;
     }
 
-    console.log('Checking search limits:', {
+    // Enhanced logging for debugging
+    console.log('Search attempt with profile:', {
       userRole: profile?.userRole,
       searchCount: profile?.search_count,
       isPetCaddie: profile?.userRole === 'pet_caddie'
     });
 
-    if (profile?.userRole === 'pet_caddie' && (profile?.search_count === 0 || profile?.search_count === undefined)) {
-      console.log('Search limit reached:', {
-        userRole: profile.userRole,
-        searchCount: profile.search_count
-      });
-      toast({
-        title: "Search limit reached",
-        description: "You have reached your search limit. Please upgrade your plan to continue searching.",
-        variant: "destructive",
-      });
-      onSearchComplete();
-      return;
+    // Strict search limit enforcement for pet_caddie users
+    if (profile?.userRole === 'pet_caddie') {
+      if (!profile.search_count || profile.search_count <= 0) {
+        console.log('Search blocked - no remaining searches:', {
+          userRole: profile.userRole,
+          searchCount: profile.search_count
+        });
+        toast({
+          title: "Search limit reached",
+          description: "You have no remaining searches. Please upgrade your plan to continue searching.",
+          variant: "destructive",
+        });
+        onSearchComplete();
+        return;
+      }
     }
 
     if (!origin || !destination || !date) {

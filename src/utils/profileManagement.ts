@@ -14,7 +14,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
   try {
     console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
-    const { data: profileWithRole, error: fetchError } = await supabase
+    const { data: profileData, error: fetchError } = await supabase
       .from('profiles')
       .select(`
         *,
@@ -30,24 +30,24 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       throw fetchError;
     }
 
-    if (!profileWithRole) {
+    if (!profileData) {
       console.log('Profile not found');
       return null;
     }
 
     // If we have a profile but no role yet, and we haven't exceeded max retries
-    if (!profileWithRole.user_roles?.[0]?.role && retryCount < MAX_RETRIES) {
+    if (!profileData.user_roles?.[0]?.role && retryCount < MAX_RETRIES) {
       console.log('Profile found but no role yet, retrying...');
       await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
       return fetchProfileWithRetry(userId, retryCount + 1);
     }
 
-    console.log('Successfully fetched profile with role:', profileWithRole);
+    console.log('Successfully fetched profile with role:', profileData);
     
     // Map the nested role to the userRole property expected by our types
     const mappedProfile: UserProfile = {
-      ...profileWithRole,
-      userRole: profileWithRole.user_roles?.[0]?.role || 'pet_lover' // Default to pet_lover if no role found
+      ...profileData,
+      userRole: profileData.user_roles?.[0]?.role || 'pet_lover'
     };
     
     console.log('Mapped profile with userRole:', mappedProfile);
