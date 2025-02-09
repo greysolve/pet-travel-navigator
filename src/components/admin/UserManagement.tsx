@@ -20,7 +20,8 @@ interface User {
   id: string;
   email: string;
   role?: UserRole;
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   plan?: SubscriptionPlan;
 }
 
@@ -33,12 +34,22 @@ const UserManagement = () => {
     e.preventDefault();
     if (!selectedUser) return;
 
-    const updateData: { id: string; full_name?: string; role?: UserRole; plan?: SubscriptionPlan } = {
+    const updateData: { 
+      id: string; 
+      first_name?: string;
+      last_name?: string;
+      role?: UserRole; 
+      plan?: SubscriptionPlan 
+    } = {
       id: selectedUser.id,
     };
 
-    if (selectedUser.full_name !== undefined) {
-      updateData.full_name = selectedUser.full_name;
+    if (selectedUser.first_name !== undefined) {
+      updateData.first_name = selectedUser.first_name;
+    }
+
+    if (selectedUser.last_name !== undefined) {
+      updateData.last_name = selectedUser.last_name;
     }
 
     if (selectedUser.role !== undefined) {
@@ -78,7 +89,11 @@ const UserManagement = () => {
         <TableBody>
           {users?.map((user: User) => (
             <TableRow key={user.id}>
-              <TableCell>{user.full_name || "No name"}</TableCell>
+              <TableCell>
+                {user.first_name && user.last_name 
+                  ? `${user.first_name} ${user.last_name}`
+                  : "No name"}
+              </TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
                 <Badge className={`${getRoleBadgeColor(user.role || '')}`}>

@@ -10,7 +10,8 @@ interface User {
   id: string;
   email: string;
   role?: UserRole;
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   plan?: SubscriptionPlan;
 }
 
@@ -37,16 +38,33 @@ export const EditUserDialog = ({
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="firstName">First Name</Label>
             <Input
-              id="name"
-              value={selectedUser?.full_name || ""}
+              id="firstName"
+              value={selectedUser?.first_name || ""}
               onChange={(e) =>
                 onUserChange(
                   selectedUser
                     ? {
                         ...selectedUser,
-                        full_name: e.target.value,
+                        first_name: e.target.value,
+                      }
+                    : null
+                )
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name</Label>
+            <Input
+              id="lastName"
+              value={selectedUser?.last_name || ""}
+              onChange={(e) =>
+                onUserChange(
+                  selectedUser
+                    ? {
+                        ...selectedUser,
+                        last_name: e.target.value,
                       }
                     : null
                 )

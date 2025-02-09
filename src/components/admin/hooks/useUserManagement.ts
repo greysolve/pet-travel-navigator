@@ -8,7 +8,8 @@ interface User {
   id: string;
   email: string;
   role?: UserRole;
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   plan?: SubscriptionPlan;
 }
 
@@ -35,7 +36,13 @@ export const useUserManagement = () => {
   });
 
   const updateUser = useMutation({
-    mutationFn: async (userData: { id: string; full_name?: string; role?: UserRole; plan?: SubscriptionPlan }) => {
+    mutationFn: async (userData: { 
+      id: string; 
+      first_name?: string;
+      last_name?: string;
+      role?: UserRole; 
+      plan?: SubscriptionPlan 
+    }) => {
       console.log("Updating user:", userData);
       const { error } = await supabase.functions.invoke('manage_users', {
         method: 'PATCH',
