@@ -41,27 +41,36 @@ export const useFlightSearch = () => {
   };
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
-    const { error: searchError } = await supabase
-      .from('route_searches')
-      .insert({
-        user_id: userId,
-        origin,
-        destination,
-        search_date: date
-      });
+    try {
+      const { error: searchError } = await supabase
+        .from('route_searches')
+        .insert({
+          user_id: userId,
+          origin,
+          destination,
+          search_date: date
+        });
 
-    if (searchError?.code === '23505') {
-      console.log('Duplicate search detected');
-      toast({
-        title: "Note",
-        description: "You have already searched this route and date combination.",
-      });
+      // If it's a duplicate search, this is fine - just let the user know
+      if (searchError?.code === '23505') {
+        console.log('Duplicate search detected');
+        toast({
+          title: "Note",
+          description: "You have already searched this route and date combination.",
+        });
+        return true;
+      } else if (searchError) {
+        console.error('Error recording search:', searchError);
+        throw searchError;
+      }
       return true;
-    } else if (searchError) {
-      console.error('Error recording search:', searchError);
-      throw searchError;
+    } catch (error) {
+      // Only throw if it's not a duplicate search error
+      if (error?.code !== '23505') {
+        throw error;
+      }
+      return true;
     }
-    return true;
   };
 
   const handleFlightSearch = async ({
@@ -117,16 +126,12 @@ export const useFlightSearch = () => {
       console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
       // Record the search first - this will trigger the search_count update
-      const searchRecorded = await recordSearch(
+      await recordSearch(
         user.id,
         origin,
         destination,
         date.toISOString().split('T')[0]
       );
-
-      if (!searchRecorded) {
-        throw new Error('Failed to record search');
-      }
 
       // Proceed with the flight search
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
