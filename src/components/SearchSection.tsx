@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +40,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
   const { toast } = useToast();
-  const { handleFlightSearch, isLoading } = useFlightSearch();
+  const { handleFlightSearch, isLoading, searchCount, isPetCaddie, isProfileLoading } = useFlightSearch();
   const { user } = useAuth();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
 
@@ -263,7 +262,14 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
         {user && (
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-muted-foreground">
+              {isPetCaddie && (
+                <span>
+                  Remaining searches: {searchCount ?? 0}
+                </span>
+              )}
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">My Searches</Button>
@@ -350,12 +356,17 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         <Button 
           className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
           onClick={handleSearch}
-          disabled={isLoading}
+          disabled={isLoading || isProfileLoading}
         >
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Searching...
+            </>
+          ) : isProfileLoading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading Profile...
             </>
           ) : (
             "Search"

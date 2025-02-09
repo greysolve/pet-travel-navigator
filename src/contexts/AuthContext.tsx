@@ -16,6 +16,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
+  profileLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,11 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const authOperations = useAuthOperations();
 
   // Debounced profile fetcher
   const fetchProfileDebounced = useCallback(async (userId: string) => {
     console.log('Fetching profile for user:', userId);
+    setProfileLoading(true);
     try {
       const profileData = await fetchOrCreateProfile(userId);
       if (profileData) {
@@ -42,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "Failed to load user profile. Please try refreshing the page.",
         variant: "destructive",
       });
+    } finally {
+      setProfileLoading(false);
     }
   }, []);
 
@@ -59,7 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         timeoutId = setTimeout(() => {
           fetchProfileDebounced(session.user.id);
         }, 100);
+      } else {
+        setProfileLoading(false);
       }
+      setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -76,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }, 100);
       } else {
         setProfile(null);
+        setProfileLoading(false);
       }
     });
 
@@ -85,18 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchProfileDebounced]);
 
-  useEffect(() => {
-    if (loading && session !== null) {
-      setLoading(false);
-    }
-  }, [session, loading]);
-
   return (
     <AuthContext.Provider value={{ 
       session, 
       user, 
       profile, 
       loading,
+      profileLoading,
       ...authOperations
     }}>
       {children}

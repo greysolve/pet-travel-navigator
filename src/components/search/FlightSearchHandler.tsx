@@ -16,7 +16,40 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, profileLoading } = useAuth();
+
+  const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
+    try {
+      const { error: searchError } = await supabase
+        .from('route_searches')
+        .insert({
+          user_id: userId,
+          origin,
+          destination,
+          search_date: date
+        });
+
+      if (searchError?.code === '23505') {
+        console.log('Duplicate search detected, continuing with search');
+        toast({
+          title: "Note",
+          description: "You have already searched this route and date combination.",
+        });
+        return true;
+      } else if (searchError) {
+        console.error('Error recording search:', searchError);
+        toast({
+          title: "Note",
+          description: "Unable to record search history, but proceeding with search.",
+        });
+        return true;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in recordSearch:', error);
+      return false;
+    }
+  };
 
   const handleFlightSearch = async ({
     origin,
@@ -35,13 +68,22 @@ export const useFlightSearch = () => {
       return;
     }
 
+    if (profileLoading) {
+      toast({
+        title: "Loading",
+        description: "Please wait while we load your profile.",
+      });
+      onSearchComplete();
+      return;
+    }
+
     console.log('Checking search limits:', {
       userRole: profile?.userRole,
       searchCount: profile?.search_count,
       isPetCaddie: profile?.userRole === 'pet_caddie'
     });
 
-    if (profile?.userRole === 'pet_caddie' && profile?.search_count === 0) {
+    if (profile?.userRole === 'pet_caddie' && (profile?.search_count === 0 || profile?.search_count === undefined)) {
       console.log('Search limit reached:', {
         userRole: profile.userRole,
         searchCount: profile.search_count
@@ -69,31 +111,18 @@ export const useFlightSearch = () => {
       console.log('Sending search request with:', { origin, destination, date: date.toISOString() });
       
       // First, try to record the search
-      const { error: searchError } = await supabase
-        .from('route_searches')
-        .insert({
-          user_id: user.id,
-          origin,
-          destination,
-          search_date: date.toISOString().split('T')[0]
-        });
+      const searchRecorded = await recordSearch(
+        user.id,
+        origin,
+        destination,
+        date.toISOString().split('T')[0]
+      );
 
-      // If there's a duplicate search, just notify the user but continue with the search
-      if (searchError?.code === '23505') {
-        toast({
-          title: "Duplicate search",
-          description: "You have already searched this route and date combination.",
-        });
-      } else if (searchError) {
-        // For any other errors recording the search, show an error but continue
-        console.error('Error recording search:', searchError);
-        toast({
-          title: "Note",
-          description: "Unable to record search history, but proceeding with search.",
-        });
+      if (!searchRecorded) {
+        throw new Error('Failed to record search');
       }
 
-      // Proceed with the flight search regardless of whether it's a duplicate
+      // Proceed with the flight search
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
       });
@@ -130,6 +159,7 @@ export const useFlightSearch = () => {
     handleFlightSearch, 
     isLoading,
     searchCount: profile?.search_count,
-    isPetCaddie: profile?.userRole === 'pet_caddie'
+    isPetCaddie: profile?.userRole === 'pet_caddie',
+    isProfileLoading: profileLoading
   };
 };
