@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
+import { useQuery } from "@tanstack/react-query";
 
 interface FlightSearchProps {
   origin: string;
@@ -13,14 +14,44 @@ interface FlightSearchProps {
   onSearchComplete: () => void;
 }
 
-const isUnlimitedPlan = (plan?: string) => {
-  return ['premium', 'vip', 'tester', 'enterprise'].includes(plan || '');
-};
-
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Get user's profile data including search count
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user
+  });
+
+  // Get user's role
+  const { data: userRole } = useQuery({
+    queryKey: ["userRole", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+    enabled: !!user
+  });
 
   const checkCache = async (origin: string, destination: string, date: Date) => {
     if (!user) {
@@ -111,6 +142,17 @@ export const useFlightSearch = () => {
       return;
     }
 
+    // Check if user is a pet_caddie and has searches remaining
+    if (userRole === 'pet_caddie' && profile?.search_count === 0) {
+      toast({
+        title: "Search limit reached",
+        description: "You have reached your search limit. Please upgrade your plan to continue searching.",
+        variant: "destructive",
+      });
+      onSearchComplete();
+      return;
+    }
+
     if (!origin || !destination || !date) {
       toast({
         title: "Missing search criteria",
@@ -168,5 +210,10 @@ export const useFlightSearch = () => {
     }
   };
 
-  return { handleFlightSearch, isLoading };
+  return { 
+    handleFlightSearch, 
+    isLoading,
+    searchCount: profile?.search_count,
+    isPetCaddie: userRole === 'pet_caddie'
+  };
 };
