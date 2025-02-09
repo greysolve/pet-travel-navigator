@@ -35,25 +35,30 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       return null;
     }
 
+    console.log('Raw profile data:', profileData);
+
+    // Get the role from the joined data - handle both array and single object cases
+    const userRoles = Array.isArray(profileData.user_roles) 
+      ? profileData.user_roles 
+      : [profileData.user_roles];
+    
+    const userRole = userRoles[0]?.role;
+
     // If we have a profile but no role yet, and we haven't exceeded max retries
-    if (!profileData.user_roles?.[0]?.role && retryCount < MAX_RETRIES) {
+    if (!userRole && retryCount < MAX_RETRIES) {
       console.log('Profile found but no role yet, retrying...');
       await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
       return fetchProfileWithRetry(userId, retryCount + 1);
     }
 
-    console.log('Successfully fetched profile with role:', profileData);
+    // Default to pet_caddie if no role is found after retries
+    const finalRole = userRole || 'pet_caddie';
+    console.log('Using role:', finalRole);
     
     // Create a clean UserProfile object with explicit mapping
-    const userRole = profileData.user_roles?.[0]?.role;
-    if (!userRole) {
-      console.error('No role found for user after retries');
-      throw new Error('No role found for user');
-    }
-
     const mappedProfile: UserProfile = {
       id: profileData.id,
-      userRole: userRole, // Explicitly set the role without fallback
+      userRole: finalRole,
       created_at: profileData.created_at,
       updated_at: profileData.updated_at,
       full_name: profileData.full_name,
@@ -71,11 +76,21 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       notification_preferences: profileData.notification_preferences
     };
     
-    console.log('Mapped profile with explicit userRole:', mappedProfile);
+    console.log('Mapped profile:', mappedProfile);
     return mappedProfile;
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
-    throw error;
+    // Instead of throwing, return a default profile with pet_caddie role
+    return {
+      id: userId,
+      userRole: 'pet_caddie',
+      search_count: 5,
+      notification_preferences: {
+        travel_alerts: true,
+        policy_changes: true,
+        documentation_reminders: true
+      }
+    };
   }
 }
 
@@ -121,10 +136,20 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
   } catch (error) {
     console.error('Error in profile management:', error);
     toast({
-      title: "Error",
-      description: "Failed to load or create user profile",
-      variant: "destructive",
+      title: "Warning",
+      description: "Using default profile settings",
+      variant: "default",
     });
-    return null;
+    // Return a default profile instead of null
+    return {
+      id: userId,
+      userRole: 'pet_caddie',
+      search_count: 5,
+      notification_preferences: {
+        travel_alerts: true,
+        policy_changes: true,
+        documentation_reminders: true
+      }
+    };
   }
 }
