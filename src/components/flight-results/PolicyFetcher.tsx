@@ -38,10 +38,20 @@ export const usePetPolicies = (flights: FlightData[]) => {
       // If user is a pet caddie, fetch summaries instead of full policies
       if (isPetCaddie) {
         console.log("Fetching pet policy summaries for pet_caddie user");
-        const { data: summaries } = await supabase
+        const { data: summaries, error } = await supabase
           .from('pet_policy_summaries')
-          .select('summary, airlines!inner(iata_code)')
+          .select(`
+            summary,
+            airlines!inner (
+              iata_code
+            )
+          `)
           .in('airline_id', airlines.map(a => a.id));
+
+        if (error) {
+          console.error("Error fetching summaries:", error);
+          return {};
+        }
 
         console.log("Found pet policy summaries:", summaries);
 
@@ -53,10 +63,20 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       // For other roles, fetch full policies
       console.log("Fetching full pet policies for non-pet_caddie user");
-      const { data: policies } = await supabase
+      const { data: policies, error } = await supabase
         .from('pet_policies')
-        .select('*, airlines!inner(iata_code)')
+        .select(`
+          *,
+          airlines!inner (
+            iata_code
+          )
+        `)
         .in('airline_id', airlines.map(a => a.id));
+
+      if (error) {
+        console.error("Error fetching policies:", error);
+        return {};
+      }
 
       console.log("Found pet policies:", policies);
 
