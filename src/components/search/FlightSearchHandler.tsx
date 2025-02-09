@@ -78,21 +78,22 @@ export const useFlightSearch = () => {
           search_date: date.toISOString().split('T')[0]
         });
 
-      if (searchError) {
-        // Check if this is a duplicate search error
-        if (searchError.code === '23505') {
-          toast({
-            title: "Duplicate search",
-            description: "You have already searched this route and date combination. Please try a different route or date.",
-            variant: "destructive",
-          });
-          onSearchComplete();
-          return;
-        }
-        throw searchError;
+      // If there's a duplicate search, just notify the user but continue with the search
+      if (searchError?.code === '23505') {
+        toast({
+          title: "Duplicate search",
+          description: "You have already searched this route and date combination.",
+        });
+      } else if (searchError) {
+        // For any other errors recording the search, show an error but continue
+        console.error('Error recording search:', searchError);
+        toast({
+          title: "Note",
+          description: "Unable to record search history, but proceeding with search.",
+        });
       }
 
-      // If search was recorded successfully, proceed with the flight search
+      // Proceed with the flight search regardless of whether it's a duplicate
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
       });
@@ -114,14 +115,11 @@ export const useFlightSearch = () => {
         errorMessage = "You have reached your search limit. Please upgrade your plan to continue searching.";
       }
       
-      // Only show error toast if it wasn't already shown for duplicate search
-      if (error.code !== '23505') {
-        toast({
-          title: "Error searching flights",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error searching flights",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
       onSearchComplete();
