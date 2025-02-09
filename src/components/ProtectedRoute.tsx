@@ -25,7 +25,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      // Check the user_roles table directly
+      // Fetch role directly from user_roles table
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")

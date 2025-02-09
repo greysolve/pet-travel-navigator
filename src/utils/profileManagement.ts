@@ -14,15 +14,22 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
   try {
     console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
-    // Updated query to use a proper join with user_roles
+    // Fetch user role first
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (roleError) {
+      console.error('Error fetching user role:', roleError);
+      throw roleError;
+    }
+
+    // Then fetch profile
     const { data: profileData, error: fetchError } = await supabase
       .from('profiles')
-      .select(`
-        *,
-        user_roles (
-          role
-        )
-      `)
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
 
@@ -37,9 +44,10 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
     }
 
     console.log('Raw profile data:', profileData);
+    console.log('Role data:', roleData);
 
-    // Extract role from the joined data, handle both array and single object cases
-    const userRole = profileData.user_roles?.[0]?.role || 'pet_caddie';
+    // Use role from separate query, default to pet_caddie if not found
+    const userRole = roleData?.role || 'pet_caddie';
     console.log('Using role:', userRole);
     
     // Create a clean UserProfile object with explicit mapping
