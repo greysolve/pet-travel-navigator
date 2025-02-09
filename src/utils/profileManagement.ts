@@ -7,7 +7,7 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
   try {
     console.log('Fetching profile for user:', userId);
     
-    // Updated the join to use the correct relationship based on user_id
+    // Updated the join to use the correct relationship
     const { data: profileWithRole, error: fetchError } = await supabase
       .from('profiles')
       .select(`
@@ -48,6 +48,7 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
 
 async function createNewProfile(userId: string): Promise<UserProfile | null> {
   console.log('No profile found, creating one...');
+  // Only create the profile - the role will be created by the database trigger
   const { data: newProfile, error: insertError } = await supabase
     .from('profiles')
     .insert([{ 
