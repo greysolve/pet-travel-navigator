@@ -20,6 +20,12 @@ export const useFlightSearch = () => {
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     try {
+      console.log('Recording search with profile:', {
+        userId,
+        userRole: profile?.userRole,
+        searchCount: profile?.search_count
+      });
+
       const { error: searchError } = await supabase
         .from('route_searches')
         .insert({
@@ -77,28 +83,29 @@ export const useFlightSearch = () => {
       return;
     }
 
-    // Enhanced logging for debugging
+    // Enhanced logging for debugging role and search count
     console.log('Search attempt with profile:', {
       userRole: profile?.userRole,
       searchCount: profile?.search_count,
       isPetCaddie: profile?.userRole === 'pet_caddie'
     });
 
-    // Strict search limit enforcement for pet_caddie users
-    if (profile?.userRole === 'pet_caddie') {
-      if (!profile.search_count || profile.search_count <= 0) {
-        console.log('Search blocked - no remaining searches:', {
-          userRole: profile.userRole,
-          searchCount: profile.search_count
-        });
-        toast({
-          title: "Search limit reached",
-          description: "You have no remaining searches. Please upgrade your plan to continue searching.",
-          variant: "destructive",
-        });
-        onSearchComplete();
-        return;
-      }
+    // Strict role-based search limit enforcement
+    const isPetCaddie = profile?.userRole === 'pet_caddie';
+    const searchCount = profile?.search_count ?? 0;
+
+    if (isPetCaddie && searchCount <= 0) {
+      console.log('Search blocked - no remaining searches:', {
+        userRole: profile?.userRole,
+        searchCount: searchCount
+      });
+      toast({
+        title: "Search limit reached",
+        description: "You have no remaining searches. Please upgrade your plan to continue searching.",
+        variant: "destructive",
+      });
+      onSearchComplete();
+      return;
     }
 
     if (!origin || !destination || !date) {

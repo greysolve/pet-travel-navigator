@@ -44,13 +44,28 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
 
     console.log('Successfully fetched profile with role:', profileData);
     
-    // Map the nested role to the userRole property expected by our types
+    // Create a clean UserProfile object with explicit mapping
     const mappedProfile: UserProfile = {
-      ...profileData,
-      userRole: profileData.user_roles?.[0]?.role || 'pet_lover'
+      id: profileData.id,
+      userRole: profileData.user_roles?.[0]?.role || 'pet_lover',
+      created_at: profileData.created_at,
+      updated_at: profileData.updated_at,
+      full_name: profileData.full_name,
+      avatar_url: profileData.avatar_url,
+      address_line1: profileData.address_line1,
+      address_line2: profileData.address_line2,
+      address_line3: profileData.address_line3,
+      locality: profileData.locality,
+      administrative_area: profileData.administrative_area,
+      postal_code: profileData.postal_code,
+      country_id: profileData.country_id,
+      address_format: profileData.address_format,
+      plan: profileData.plan,
+      search_count: profileData.search_count,
+      notification_preferences: profileData.notification_preferences
     };
     
-    console.log('Mapped profile with userRole:', mappedProfile);
+    console.log('Mapped profile with explicit userRole:', mappedProfile);
     return mappedProfile;
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
