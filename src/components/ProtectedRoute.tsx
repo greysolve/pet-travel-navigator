@@ -25,11 +25,12 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      // Updated query to use the correct relationship pattern with !inner for single object
+      // Updated query with correct foreign key relationship syntax
       const { data, error } = await supabase
         .from("profiles")
         .select(`
-          user_roles!inner!profiles_user_role_id_fkey (
+          *,
+          user_roles (
             role
           )
         `)
