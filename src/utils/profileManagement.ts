@@ -3,11 +3,17 @@ import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/types/auth";
 import { toast } from "@/components/ui/use-toast";
 
-export async function fetchOrCreateProfile(userId: string): Promise<UserProfile | null> {
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
+async function wait(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<UserProfile | null> {
   try {
-    console.log('Fetching profile for user:', userId);
+    console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
-    // Updated the join to use the correct relationship
     const { data: profileWithRole, error: fetchError } = await supabase
       .from('profiles')
       .select(`
@@ -24,17 +30,68 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
       throw fetchError;
     }
 
-    if (profileWithRole) {
-      console.log('Fetched existing profile with role:', profileWithRole);
-      // Transform the data to match UserProfile interface
-      const profile: UserProfile = {
-        ...profileWithRole,
-        userRole: profileWithRole.user_roles?.[0]?.role
-      };
-      return profile;
+    if (!profileWithRole) {
+      console.log('Profile not found');
+      return null;
     }
 
-    return await createNewProfile(userId);
+    // If we have a profile but no role yet, and we haven't exceeded max retries
+    if (!profileWithRole.user_roles?.[0]?.role && retryCount < MAX_RETRIES) {
+      console.log('Profile found but no role yet, retrying...');
+      await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
+      return fetchProfileWithRetry(userId, retryCount + 1);
+    }
+
+    console.log('Successfully fetched profile with role:', profileWithRole);
+    return {
+      ...profileWithRole,
+      userRole: profileWithRole.user_roles?.[0]?.role
+    };
+  } catch (error) {
+    console.error('Error in fetchProfileWithRetry:', error);
+    throw error;
+  }
+}
+
+export async function fetchOrCreateProfile(userId: string): Promise<UserProfile | null> {
+  try {
+    console.log('Starting fetchOrCreateProfile for user:', userId);
+    
+    // First, try to fetch existing profile
+    const existingProfile = await fetchProfileWithRetry(userId);
+    if (existingProfile) {
+      return existingProfile;
+    }
+
+    // If no profile exists, create one
+    console.log('No profile found, creating one...');
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert([{ 
+        id: userId,
+        notification_preferences: {
+          travel_alerts: true,
+          policy_changes: true,
+          documentation_reminders: true
+        }
+      }])
+      .select();
+
+    if (insertError) {
+      // Handle the case where profile was created by another concurrent request
+      if (insertError.code === '23505') {
+        console.log('Profile already exists (race condition), retrying fetch...');
+        return await fetchProfileWithRetry(userId);
+      }
+      console.error('Error creating profile:', insertError);
+      throw insertError;
+    }
+
+    // After creating the profile, wait briefly then fetch it with the role
+    // that should have been created by the database trigger
+    await wait(INITIAL_RETRY_DELAY);
+    return await fetchProfileWithRetry(userId);
+    
   } catch (error) {
     console.error('Error in profile management:', error);
     toast({
@@ -44,72 +101,4 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
     });
     return null;
   }
-}
-
-async function createNewProfile(userId: string): Promise<UserProfile | null> {
-  console.log('No profile found, creating one...');
-  // Only create the profile - the role will be created by the database trigger
-  const { data: newProfile, error: insertError } = await supabase
-    .from('profiles')
-    .insert([{ 
-      id: userId,
-      notification_preferences: {
-        travel_alerts: true,
-        policy_changes: true,
-        documentation_reminders: true
-      }
-    }])
-    .select(`
-      *,
-      user_roles!user_roles_user_id_fkey (
-        role
-      )
-    `)
-    .maybeSingle();
-
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return await handleDuplicateProfile(userId);
-    }
-    console.error('Error creating profile:', insertError);
-    throw insertError;
-  }
-
-  if (newProfile) {
-    console.log('Created new profile:', newProfile);
-    // Transform the data to match UserProfile interface
-    const profile: UserProfile = {
-      ...newProfile,
-      userRole: newProfile.user_roles?.[0]?.role
-    };
-    return profile;
-  }
-  
-  return null;
-}
-
-async function handleDuplicateProfile(userId: string): Promise<UserProfile | null> {
-  console.log('Profile already exists (race condition), fetching it...');
-  const { data: retryProfile, error: retryError } = await supabase
-    .from('profiles')
-    .select(`
-      *,
-      user_roles!user_roles_user_id_fkey (
-        role
-      )
-    `)
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (retryError) throw retryError;
-  if (retryProfile) {
-    console.log('Successfully fetched profile after retry:', retryProfile);
-    // Transform the data to match UserProfile interface
-    const profile: UserProfile = {
-      ...retryProfile,
-      userRole: retryProfile.user_roles?.[0]?.role
-    };
-    return profile;
-  }
-  return null;
 }
