@@ -28,16 +28,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import type { UserRole } from "@/types/auth";
 
 interface User {
   id: string;
   email: string;
-  role?: string;
+  role?: UserRole;
   full_name?: string;
 }
 
@@ -72,12 +80,12 @@ const UserManagement = () => {
   }
 
   const updateUser = useMutation({
-    mutationFn: async (userData: { id: string; full_name: string }) => {
+    mutationFn: async (userData: { id: string; full_name?: string; role?: UserRole }) => {
       console.log("Updating user:", userData);
-      const { error } = await supabase
-        .from("profiles")
-        .update({ full_name: userData.full_name })
-        .eq("id", userData.id);
+      const { error } = await supabase.functions.invoke('manage_users', {
+        method: 'PATCH',
+        body: userData
+      });
 
       if (error) throw error;
     },
@@ -136,10 +144,19 @@ const UserManagement = () => {
     e.preventDefault();
     if (!selectedUser) return;
 
-    updateUser.mutate({
+    const updateData: { id: string; full_name?: string; role?: UserRole } = {
       id: selectedUser.id,
-      full_name: selectedUser.full_name || "",
-    });
+    };
+
+    if (selectedUser.full_name !== undefined) {
+      updateData.full_name = selectedUser.full_name;
+    }
+
+    if (selectedUser.role !== undefined) {
+      updateData.role = selectedUser.role as UserRole;
+    }
+
+    updateUser.mutate(updateData);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -215,6 +232,30 @@ const UserManagement = () => {
                             )
                           }
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="role">Role</Label>
+                        <Select
+                          value={selectedUser?.role}
+                          onValueChange={(value: UserRole) =>
+                            setSelectedUser(
+                              selectedUser
+                                ? {
+                                    ...selectedUser,
+                                    role: value,
+                                  }
+                                : null
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pet_lover">Pet Lover</SelectItem>
+                            <SelectItem value="pet_caddie">Pet Caddie</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <Button type="submit">Save Changes</Button>
                     </form>

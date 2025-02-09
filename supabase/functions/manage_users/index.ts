@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -8,13 +9,19 @@ interface UserProfile {
   role: string;
 }
 
+interface UpdateUserData {
+  id: string;
+  full_name?: string;
+  role?: 'pet_lover' | 'pet_caddie';
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
       headers: {
         ...corsHeaders,
-        'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, DELETE, PATCH, OPTIONS',
       }
     });
   }
@@ -31,6 +38,65 @@ Deno.serve(async (req) => {
         },
       }
     );
+
+    // Handle PATCH request for user updates
+    if (req.method === 'PATCH') {
+      const updateData: UpdateUserData = await req.json();
+      console.log('Updating user:', updateData);
+
+      try {
+        // Update profile if full_name is provided
+        if (updateData.full_name !== undefined) {
+          const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .update({ full_name: updateData.full_name })
+            .eq('id', updateData.id);
+
+          if (profileError) {
+            console.error('Error updating profile:', profileError);
+            throw profileError;
+          }
+        }
+
+        // Update role if provided
+        if (updateData.role) {
+          // First, update or insert the role
+          const { error: roleError } = await supabaseAdmin
+            .from('user_roles')
+            .upsert({
+              user_id: updateData.id,
+              role: updateData.role
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (roleError) {
+            console.error('Error updating role:', roleError);
+            throw roleError;
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ message: 'User updated successfully' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          },
+        );
+      } catch (error) {
+        console.error('Error in update operation:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Error updating user', 
+            details: error.message 
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          },
+        );
+      }
+    }
 
     // Handle DELETE request for user deletion
     if (req.method === 'DELETE') {
