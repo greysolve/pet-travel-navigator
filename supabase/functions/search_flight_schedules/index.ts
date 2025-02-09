@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Check if user is pet_caddie
+    // Check if user is authorized
     const { data: userRole } = await supabase
       .from('user_roles')
       .select('role')
@@ -67,54 +67,11 @@ Deno.serve(async (req) => {
     const schedulesData = await schedulesResponse.json()
     const connectionsData = await connectionsResponse.json()
 
-    // Process flight data based on role
-    const isPetCaddie = userRole?.role === 'pet_caddie'
-
-    // Function to create summary for pet_caddie users
-    const createFlightSummary = (flight) => ({
-      departureTime: flight.departureTime,
-      arrivalTime: flight.arrivalTime,
-      carrierFsCode: flight.carrierFsCode,
-      flightNumber: flight.flightNumber,
-      stops: flight.stops || 0
-    })
-
     // Process non-stop flights
     const nonStopFlights = schedulesData.scheduledFlights
       ?.filter(flight => !flight.isCodeshare)
-      ?.map(flight => {
-        if (isPetCaddie) {
-          return createFlightSummary(flight)
-        }
-        return {
-          segments: [{
-            carrierFsCode: flight.carrierFsCode,
-            flightNumber: flight.flightNumber,
-            departureTime: flight.departureTime,
-            arrivalTime: flight.arrivalTime,
-            departureAirportFsCode: flight.departureAirportFsCode,
-            arrivalAirportFsCode: flight.arrivalAirportFsCode,
-            departureTerminal: flight.departureTerminal,
-            arrivalTerminal: flight.arrivalTerminal,
-            stops: flight.stops,
-            elapsedTime: 0,
-            isCodeshare: flight.isCodeshare,
-            codeshares: flight.codeshares,
-            departureCountry: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
-            arrivalCountry: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
-          }],
-          totalDuration: 0,
-          stops: 0
-        }
-      }) || []
-
-    // Process connecting flights
-    const connectingFlights = connectionsData.connections?.map(connection => {
-      if (isPetCaddie) {
-        return createFlightSummary(connection.scheduledFlight[0])
-      }
-      return {
-        segments: connection.scheduledFlight.map(flight => ({
+      ?.map(flight => ({
+        segments: [{
           carrierFsCode: flight.carrierFsCode,
           flightNumber: flight.flightNumber,
           departureTime: flight.departureTime,
@@ -123,24 +80,60 @@ Deno.serve(async (req) => {
           arrivalAirportFsCode: flight.arrivalAirportFsCode,
           departureTerminal: flight.departureTerminal,
           arrivalTerminal: flight.arrivalTerminal,
-          stops: flight.stops || 0,
-          elapsedTime: flight.elapsedTime || 0,
-          isCodeshare: flight.isCodeshare || false,
-          codeshares: flight.codeshares || [],
-          departureCountry: connectionsData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
-          arrivalCountry: connectionsData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
-        })),
-        totalDuration: connection.elapsedTime,
-        stops: connection.scheduledFlight.length - 1
+          stops: flight.stops,
+          elapsedTime: 0,
+          isCodeshare: flight.isCodeshare,
+          codeshares: flight.codeshares,
+          departureCountry: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
+          arrivalCountry: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
+        }],
+        totalDuration: 0,
+        stops: 0,
+        origin: {
+          country: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
+          code: flight.departureAirportFsCode
+        },
+        destination: {
+          country: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
+          code: flight.arrivalAirportFsCode
+        }
+      })) || []
+
+    // Process connecting flights
+    const connectingFlights = connectionsData.connections?.map(connection => ({
+      segments: connection.scheduledFlight.map(flight => ({
+        carrierFsCode: flight.carrierFsCode,
+        flightNumber: flight.flightNumber,
+        departureTime: flight.departureTime,
+        arrivalTime: flight.arrivalTime,
+        departureAirportFsCode: flight.departureAirportFsCode,
+        arrivalAirportFsCode: flight.arrivalAirportFsCode,
+        departureTerminal: flight.departureTerminal,
+        arrivalTerminal: flight.arrivalTerminal,
+        stops: flight.stops || 0,
+        elapsedTime: flight.elapsedTime || 0,
+        isCodeshare: flight.isCodeshare || false,
+        codeshares: flight.codeshares || [],
+        departureCountry: connectionsData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
+        arrivalCountry: connectionsData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
+      })),
+      totalDuration: connection.elapsedTime,
+      stops: connection.scheduledFlight.length - 1,
+      origin: {
+        country: connectionsData.appendix.airports.find(a => a.fs === connection.scheduledFlight[0].departureAirportFsCode)?.countryName,
+        code: connection.scheduledFlight[0].departureAirportFsCode
+      },
+      destination: {
+        country: connectionsData.appendix.airports.find(a => a.fs === connection.scheduledFlight[connection.scheduledFlight.length - 1].arrivalAirportFsCode)?.countryName,
+        code: connection.scheduledFlight[connection.scheduledFlight.length - 1].arrivalAirportFsCode
       }
-    }) || []
+    })) || []
 
     const allFlights = [...nonStopFlights, ...connectingFlights]
 
     return new Response(
       JSON.stringify({ 
         connections: allFlights,
-        isPetCaddie 
       }),
       { 
         headers: { 
@@ -164,3 +157,4 @@ Deno.serve(async (req) => {
     )
   }
 })
+
