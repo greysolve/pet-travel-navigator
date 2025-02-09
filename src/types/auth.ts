@@ -6,7 +6,7 @@ export type SubscriptionPlan = 'free' | 'premium' | 'teams';
 export interface UserProfile {
   id: string;
   user_id?: string;
-  role?: UserRole;
+  userRole?: UserRole; // Added this field to store the role
   created_at?: string;
   updated_at?: string;
   full_name?: string;
@@ -20,11 +20,10 @@ export interface UserProfile {
   country_id?: string;
   address_format?: string;
   plan?: SubscriptionPlan;
-  search_count?: number; // Defaults to 5 for pet_caddie users
+  search_count?: number;
   notification_preferences?: {
     travel_alerts: boolean;
     policy_changes: boolean;
     documentation_reminders: boolean;
   } | null;
 }
-

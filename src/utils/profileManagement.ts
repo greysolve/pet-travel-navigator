@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/types/auth";
 import { toast } from "@/components/ui/use-toast";
@@ -6,10 +7,15 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
   try {
     console.log('Fetching profile for user:', userId);
     
-    // Changed from user_id to id since that's the correct column name
-    const { data: existingProfile, error: fetchError } = await supabase
+    // Fetch profile with role in a single query using a join
+    const { data: profileWithRole, error: fetchError } = await supabase
       .from('profiles')
-      .select('*')
+      .select(`
+        *,
+        user_roles!inner (
+          role
+        )
+      `)
       .eq('id', userId)
       .maybeSingle();
 
@@ -18,9 +24,14 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
       throw fetchError;
     }
 
-    if (existingProfile) {
-      console.log('Fetched existing profile:', existingProfile);
-      return existingProfile;
+    if (profileWithRole) {
+      console.log('Fetched existing profile with role:', profileWithRole);
+      // Transform the data to match UserProfile interface
+      const profile: UserProfile = {
+        ...profileWithRole,
+        userRole: profileWithRole.user_roles?.role
+      };
+      return profile;
     }
 
     return await createNewProfile(userId);
@@ -37,7 +48,6 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
 
 async function createNewProfile(userId: string): Promise<UserProfile | null> {
   console.log('No profile found, creating one...');
-  // Changed to use id instead of user_id
   const { data: newProfile, error: insertError } = await supabase
     .from('profiles')
     .insert([{ 
@@ -48,7 +58,12 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
         documentation_reminders: true
       }
     }])
-    .select()
+    .select(`
+      *,
+      user_roles!inner (
+        role
+      )
+    `)
     .maybeSingle();
 
   if (insertError) {
@@ -61,7 +76,12 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
 
   if (newProfile) {
     console.log('Created new profile:', newProfile);
-    return newProfile;
+    // Transform the data to match UserProfile interface
+    const profile: UserProfile = {
+      ...newProfile,
+      userRole: newProfile.user_roles?.role
+    };
+    return profile;
   }
   
   return null;
@@ -69,17 +89,26 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
 
 async function handleDuplicateProfile(userId: string): Promise<UserProfile | null> {
   console.log('Profile already exists (race condition), fetching it...');
-  // Changed from user_id to id
   const { data: retryProfile, error: retryError } = await supabase
     .from('profiles')
-    .select('*')
+    .select(`
+      *,
+      user_roles!inner (
+        role
+      )
+    `)
     .eq('id', userId)
     .maybeSingle();
 
   if (retryError) throw retryError;
   if (retryProfile) {
     console.log('Successfully fetched profile after retry:', retryProfile);
-    return retryProfile;
+    // Transform the data to match UserProfile interface
+    const profile: UserProfile = {
+      ...retryProfile,
+      userRole: retryProfile.user_roles?.role
+    };
+    return profile;
   }
   return null;
 }

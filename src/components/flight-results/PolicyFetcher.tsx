@@ -11,7 +11,7 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
-  const isPetCaddie = profile?.role === 'pet_caddie';
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
