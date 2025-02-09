@@ -23,7 +23,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
       throw error;
     }
 
-    if (!profileData || !profileData.user_roles?.role) {
+    if (!profileData || !profileData.role) {
       console.error('Profile or role not found');
       throw new Error('Profile or role not found');
     }
@@ -31,7 +31,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
     console.log('Profile data:', profileData);
     
     // Create a clean UserProfile object with explicit mapping and role validation
-    const role = profileData.user_roles.role;
+    const role = profileData.role;
     if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
       throw new Error(`Invalid role: ${role}`);
     }
