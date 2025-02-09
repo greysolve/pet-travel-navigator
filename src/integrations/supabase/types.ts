@@ -413,7 +413,9 @@ export type Database = {
           id: string
           locality: string | null
           notification_preferences: Json | null
+          plan: string | null
           postal_code: string | null
+          search_count: number | null
           updated_at: string | null
         }
         Insert: {
@@ -429,7 +431,9 @@ export type Database = {
           id: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: string | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -445,7 +449,9 @@ export type Database = {
           id?: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: string | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
