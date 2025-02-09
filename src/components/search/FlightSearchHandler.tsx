@@ -31,6 +31,7 @@ export const useFlightSearch = () => {
         .single();
       
       if (error) throw error;
+      console.log('Profile data:', data); // Debug log
       return data;
     },
     enabled: !!user
@@ -48,6 +49,7 @@ export const useFlightSearch = () => {
         .single();
       
       if (error) throw error;
+      console.log('User role:', data); // Debug log
       return data?.role;
     },
     enabled: !!user
@@ -142,8 +144,19 @@ export const useFlightSearch = () => {
       return;
     }
 
+    // Add debug logs for search limit check
+    console.log('Checking search limits:', {
+      userRole,
+      searchCount: profile?.search_count,
+      isPetCaddie: userRole === 'pet_caddie'
+    });
+
     // Check if user is a pet_caddie and has searches remaining
     if (userRole === 'pet_caddie' && profile?.search_count === 0) {
+      console.log('Search limit reached:', {
+        userRole,
+        searchCount: profile?.search_count
+      });
       toast({
         title: "Search limit reached",
         description: "You have reached your search limit. Please upgrade your plan to continue searching.",
