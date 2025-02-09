@@ -11,7 +11,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       .from('profiles')
       .select(`
         *,
-        user_roles(role)
+        user_roles!inner(role)
       `)
       .eq('id', userId)
       .maybeSingle();
@@ -46,7 +46,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      role: profileData.user_roles?.[0]?.role || 'pet_caddie' // Access first role from the array
+      role: profileData.user_roles?.role || 'pet_caddie' // Access role directly from the join result
     };
     
     console.log('Mapped profile:', mappedProfile);
