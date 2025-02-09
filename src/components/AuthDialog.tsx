@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,12 +27,11 @@ const AuthDialog = () => {
         return "site_manager";
       }
 
-      // Updated query with correct foreign key relationship syntax
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select(`
           *,
-          user_roles (
+          user_roles!profiles_user_role_id_fkey (
             role
           )
         `)
