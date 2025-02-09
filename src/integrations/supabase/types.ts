@@ -505,37 +505,31 @@ export type Database = {
       }
       route_searches: {
         Row: {
-          cached_until: string | null
           created_at: string | null
           destination: string
           id: string
-          last_searched_at: string | null
           origin: string
           search_date: string
           updated_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
-          cached_until?: string | null
           created_at?: string | null
           destination: string
           id?: string
-          last_searched_at?: string | null
           origin: string
           search_date: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
-          cached_until?: string | null
           created_at?: string | null
           destination?: string
           id?: string
-          last_searched_at?: string | null
           origin?: string
           search_date?: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -31,7 +31,7 @@ export const useFlightSearch = () => {
         .single();
       
       if (error) throw error;
-      console.log('Profile data:', data); // Debug log
+      console.log('Profile data:', data);
       return data;
     },
     enabled: !!user
@@ -49,83 +49,11 @@ export const useFlightSearch = () => {
         .single();
       
       if (error) throw error;
-      console.log('User role:', data); // Debug log
+      console.log('User role:', data);
       return data?.role;
     },
     enabled: !!user
   });
-
-  const checkCache = async (origin: string, destination: string, date: Date) => {
-    if (!user) {
-      console.log('No authenticated user for cache check');
-      return null;
-    }
-
-    const searchDate = date.toISOString().split('T')[0];
-    console.log('Checking cache for:', { origin, destination, searchDate });
-
-    const { data: cachedSearch, error } = await supabase
-      .from('route_searches')
-      .select('*')
-      .eq('origin', origin)
-      .eq('destination', destination)
-      .eq('search_date', searchDate)
-      .gt('cached_until', new Date().toISOString())
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error checking cache:', error);
-      return null;
-    }
-
-    console.log('Cache check result:', cachedSearch);
-    return cachedSearch;
-  };
-
-  const updateCache = async (origin: string, destination: string, date: Date) => {
-    if (!user) {
-      console.log('No authenticated user for cache update');
-      return;
-    }
-
-    const searchDate = date.toISOString().split('T')[0];
-    const cacheExpiration = new Date();
-    cacheExpiration.setMinutes(cacheExpiration.getMinutes() + 5);
-
-    console.log('Updating cache with:', { 
-      origin, 
-      destination, 
-      searchDate,
-      cacheExpiration: cacheExpiration.toISOString()
-    });
-
-    try {
-      const { error } = await supabase
-        .from('route_searches')
-        .upsert(
-          {
-            origin,
-            destination,
-            search_date: searchDate,
-            last_searched_at: new Date().toISOString(),
-            cached_until: cacheExpiration.toISOString(),
-            user_id: user.id
-          },
-          {
-            onConflict: 'origin,destination,search_date'
-          }
-        );
-
-      if (error) {
-        console.error('Error updating cache:', error);
-        throw error;
-      }
-
-      console.log('Cache updated successfully');
-    } catch (error) {
-      console.error('Failed to update cache:', error);
-    }
-  };
 
   const handleFlightSearch = async ({
     origin,
@@ -177,13 +105,6 @@ export const useFlightSearch = () => {
 
     setIsLoading(true);
     try {
-      // Check cache first
-      const cachedResult = await checkCache(origin, destination, date);
-      
-      if (cachedResult) {
-        console.log('Cache hit! Using cached data');
-      }
-
       console.log('Sending search request with:', { origin, destination, date: date.toISOString() });
       
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
@@ -192,9 +113,18 @@ export const useFlightSearch = () => {
 
       if (error) throw error;
 
-      // Update cache after successful search if not a cache hit
-      if (!cachedResult) {
-        await updateCache(origin, destination, date);
+      // Record the search in route_searches
+      const { error: searchError } = await supabase
+        .from('route_searches')
+        .insert({
+          user_id: user.id,
+          origin,
+          destination,
+          search_date: date.toISOString().split('T')[0]
+        });
+
+      if (searchError) {
+        console.error('Error recording search:', searchError);
       }
       
       if (data?.connections) {
