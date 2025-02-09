@@ -1,4 +1,5 @@
-export type UserRole = 'pet_lover' | 'site_manager';
+
+export type UserRole = 'pet_lover' | 'site_manager' | 'pet_caddie';
 
 export interface UserProfile {
   id: string;

@@ -760,7 +760,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "site_manager" | "pet_lover"
+      app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
     }
     CompositeTypes: {

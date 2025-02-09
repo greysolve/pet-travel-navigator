@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -31,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface User {
   id: string;
@@ -50,7 +52,6 @@ const UserManagement = () => {
     queryKey: ["users"],
     queryFn: async () => {
       console.log("Starting user fetch request...");
-      // Use the supabase client instead of raw fetch
       const { data, error: functionError } = await supabase.functions.invoke('manage_users', {
         method: 'GET'
       });
@@ -103,7 +104,6 @@ const UserManagement = () => {
     mutationFn: async (userId: string) => {
       console.log("Deleting user:", userId);
       
-      // First delete the auth user using the Edge Function
       const { error: deleteAuthError } = await supabase.functions.invoke('manage_users', {
         method: 'DELETE',
         body: { userId }
@@ -114,7 +114,6 @@ const UserManagement = () => {
         throw deleteAuthError;
       }
 
-      // The profile and related data will be automatically deleted by the handle_deleted_user trigger
       toast({
         title: "Success",
         description: "User deleted successfully",
@@ -143,6 +142,17 @@ const UserManagement = () => {
     });
   };
 
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'site_manager':
+        return 'bg-red-500';
+      case 'pet_caddie':
+        return 'bg-purple-500';
+      default:
+        return 'bg-blue-500';
+    }
+  };
+
   if (isLoading) {
     return <div>Loading users...</div>;
   }
@@ -169,7 +179,11 @@ const UserManagement = () => {
             <TableRow key={user.id}>
               <TableCell>{user.full_name || "No name"}</TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>{user.role}</TableCell>
+              <TableCell>
+                <Badge className={`${getRoleBadgeColor(user.role)}`}>
+                  {user.role}
+                </Badge>
+              </TableCell>
               <TableCell className="space-x-2">
                 <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                   <DialogTrigger asChild>
