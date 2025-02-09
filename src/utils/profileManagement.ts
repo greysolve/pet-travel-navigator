@@ -16,7 +16,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
         )
       `)
       .eq('id', userId)
-      .single();
+      .maybeSingle();  // Changed from single() to maybeSingle()
 
     if (error) {
       console.error('Error fetching profile:', error);
@@ -24,8 +24,10 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
     }
 
     if (!profileData || !profileData.user_roles?.role) {
-      console.error('Profile or role not found');
-      throw new Error('Profile or role not found');
+      console.log('Profile or role not found, waiting for creation...');
+      // Wait a bit before retrying to allow the trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return fetchProfileWithRetry(userId);
     }
 
     console.log('Profile data:', profileData);
