@@ -45,22 +45,7 @@ const AuthDialog = () => {
         return "pet_lover";
       }
 
-      if (!profileData?.user_roles?.[0]?.role) {
-        console.log("No role found in database, creating default role");
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: user.id,
-            role: "pet_lover"
-          });
-
-        if (insertError) {
-          console.error("Error inserting default role:", insertError);
-        }
-        return "pet_lover";
-      }
-
-      const role = profileData.user_roles[0].role;
+      const role = profileData?.user_roles?.[0]?.role || "pet_lover";
       console.log("Role from database:", role);
       return role;
     },
