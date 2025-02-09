@@ -25,11 +25,11 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      // Updated query to use the correct relationship pattern
+      // Updated query to use the correct relationship pattern with !inner for single object
       const { data, error } = await supabase
         .from("profiles")
         .select(`
-          user_roles!profiles_user_role_id_fkey (
+          user_roles!inner!profiles_user_role_id_fkey (
             role
           )
         `)

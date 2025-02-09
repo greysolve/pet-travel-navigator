@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,11 +28,11 @@ const AuthDialog = () => {
         return "site_manager";
       }
 
-      // Updated query to use the correct relationship pattern
+      // Updated query to use the correct relationship pattern with !inner for single object
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select(`
-          user_roles!profiles_user_role_id_fkey (
+          user_roles!inner!profiles_user_role_id_fkey (
             role
           )
         `)
