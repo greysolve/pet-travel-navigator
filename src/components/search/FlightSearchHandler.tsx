@@ -51,13 +51,19 @@ export const useFlightSearch = () => {
           search_date: date
         });
 
-      // If it's a duplicate search, this is fine - just let the user know
+      // Show duplicate search warning only for pet_caddie users on free plan
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
-        toast({
-          title: "Note",
-          description: "You have already searched this route and date combination.",
-        });
+        
+        const isPetCaddieOnFreePlan = profile?.userRole === 'pet_caddie' && profile?.plan === 'free';
+        
+        if (isPetCaddieOnFreePlan) {
+          toast({
+            title: "Duplicate Search",
+            description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
+            variant: "warning"
+          });
+        }
         return true;
       } else if (searchError) {
         console.error('Error recording search:', searchError);
