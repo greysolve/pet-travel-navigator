@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -11,7 +10,7 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
-  const isPetCaddie = profile?.user_roles?.role === 'pet_caddie';
+  const isPetCaddie = profile?.role === 'pet_caddie';
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
@@ -26,7 +25,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
       ))];
       
       console.log("Fetching pet policies for airlines:", carrierCodes);
-      console.log("User role:", profile?.user_roles?.role);
+      console.log("User role:", profile?.role);
       
       const { data: airlines } = await supabase
         .from('airlines')

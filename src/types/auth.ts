@@ -25,7 +25,6 @@ export interface UserProfile {
     policy_changes: boolean;
     documentation_reminders: boolean;
   } | null;
-  user_roles?: {
-    role: UserRole;
-  };
+  role?: UserRole;
 }
+
