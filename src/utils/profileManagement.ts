@@ -7,6 +7,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
   try {
     console.log(`Fetching profile for user ${userId}`);
     
+    // Updated query to use the chained relationship
     const { data: profileData, error } = await supabase
       .from('profiles')
       .select(`
@@ -55,7 +56,6 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
     return mappedProfile;
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
-    // Don't return a default profile, let the error propagate
     throw error;
   }
 }

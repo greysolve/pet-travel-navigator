@@ -25,7 +25,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      // Fetch role directly from user_roles table
+      // Updated query to use the chained relationship
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
