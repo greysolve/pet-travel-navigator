@@ -41,17 +41,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfileLoading(true);
     try {
       const profileData = await fetchOrCreateProfile(user.id);
-      if (!profileData) {
-        throw new Error('Failed to load profile');
+      if (!profileData || !profileData.role) {
+        throw new Error('Invalid profile or missing role');
       }
       setProfile(profileData);
     } catch (error) {
       console.error('Error refreshing profile:', error);
       toast({
-        title: "Error",
-        description: "Failed to refresh user profile. Please try logging in again.",
+        title: "Authentication Error",
+        description: "Failed to load user profile. Please sign in again.",
         variant: "destructive",
       });
+      // Force sign out on profile/role fetch failure
       await supabase.auth.signOut();
     } finally {
       setProfileLoading(false);
@@ -59,7 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session:', session);
       setSession(session);
@@ -73,13 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', _event, session);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        refreshProfile();
+        await refreshProfile();
       } else {
         setProfile(null);
         setProfileLoading(false);

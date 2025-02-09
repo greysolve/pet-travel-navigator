@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: "site_manager" | "pet_lover";
+  requiredRole?: "site_manager" | "pet_lover" | "pet_caddie";
 }
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
@@ -20,15 +20,17 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     }
 
     if (!loading && !profileLoading && requiredRole) {
+      // Direct role check without optional chaining
+      const hasAccess = profile?.role === requiredRole;
+      
       console.log("Access check:", {
         userRole: profile?.role,
         requiredRole,
-        hasAccess: profile?.role === requiredRole,
+        hasAccess,
         path: window.location.pathname
       });
 
-      // If no role is found or role doesn't match required role, redirect
-      if (!profile?.role || profile.role !== requiredRole) {
+      if (!hasAccess) {
         console.log("Access denied, redirecting to home");
         navigate("/");
       }

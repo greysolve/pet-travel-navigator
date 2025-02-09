@@ -1,9 +1,9 @@
 
-import { supabase } from "@/lib/supabase";
-import { UserProfile } from "@/types/auth";
-import { toast } from "@/components/ui/use-toast";
+import { supabase } from '@/lib/supabase';
+import { UserProfile } from '@/types/auth';
+import { toast } from '@/components/ui/use-toast';
 
-async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null> {
+async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
   try {
     console.log(`Fetching profile for user ${userId}`);
     
@@ -11,19 +11,19 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       .from('profiles')
       .select(`
         *,
-        user_roles!profiles_user_role_id_fkey (
+        user_roles!inner (
           role
         )
       `)
       .eq('id', userId)
-      .maybeSingle();
+      .single();
 
     if (error) {
       console.error('Error fetching profile:', error);
       throw error;
     }
 
-    if (!profileData || !profileData.user_roles) {
+    if (!profileData || !profileData.user_roles?.role) {
       console.error('Profile or role not found');
       throw new Error('Profile or role not found');
     }
@@ -48,7 +48,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      role: profileData.user_roles.role // No optional chaining or fallback
+      role: profileData.user_roles.role
     };
     
     console.log('Mapped profile:', mappedProfile);
@@ -59,33 +59,19 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
   }
 }
 
-export async function fetchOrCreateProfile(userId: string): Promise<UserProfile | null> {
+export async function fetchOrCreateProfile(userId: string): Promise<UserProfile> {
   try {
     console.log('Starting fetchOrCreateProfile for user:', userId);
     
-    // Try to fetch existing profile
-    const existingProfile = await fetchProfileWithRetry(userId);
-    if (!existingProfile) {
-      // If no profile exists, we should not create one manually
-      // The profile should have been created by the trigger
-      console.error('No profile found for user:', userId);
-      toast({
-        title: "Authentication Error",
-        description: "Your profile could not be loaded. Please try logging in again.",
-        variant: "destructive",
-      });
-      return null;
+    const profile = await fetchProfileWithRetry(userId);
+    if (!profile || !profile.role) {
+      throw new Error('Invalid profile or missing role');
     }
 
-    return existingProfile;
+    return profile;
     
   } catch (error) {
     console.error('Error in profile management:', error);
-    toast({
-      title: "Authentication Error",
-      description: "There was an error loading your profile. Please try logging in again.",
-      variant: "destructive",
-    });
-    return null;
+    throw error;
   }
 }
