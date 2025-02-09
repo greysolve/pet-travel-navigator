@@ -45,9 +45,15 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
     console.log('Successfully fetched profile with role:', profileData);
     
     // Create a clean UserProfile object with explicit mapping
+    const userRole = profileData.user_roles?.[0]?.role;
+    if (!userRole) {
+      console.error('No role found for user after retries');
+      throw new Error('No role found for user');
+    }
+
     const mappedProfile: UserProfile = {
       id: profileData.id,
-      userRole: profileData.user_roles?.[0]?.role || 'pet_lover',
+      userRole: userRole, // Explicitly set the role without fallback
       created_at: profileData.created_at,
       updated_at: profileData.updated_at,
       full_name: profileData.full_name,

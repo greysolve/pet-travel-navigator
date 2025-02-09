@@ -18,43 +18,50 @@ export const useFlightSearch = () => {
   const { toast } = useToast();
   const { user, profile, profileLoading } = useAuth();
 
+  const checkSearchEligibility = () => {
+    if (!profile) return { eligible: false, message: "Profile not loaded" };
+    
+    const isPetCaddie = profile.userRole === 'pet_caddie';
+    const searchCount = profile.search_count ?? 0;
+    
+    console.log('Checking search eligibility:', {
+      userRole: profile.userRole,
+      searchCount,
+      isPetCaddie
+    });
+
+    if (isPetCaddie && searchCount <= 0) {
+      return {
+        eligible: false,
+        message: "You have no remaining searches. Please upgrade your plan to continue searching."
+      };
+    }
+
+    return { eligible: true };
+  };
+
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
-    try {
-      console.log('Recording search with profile:', {
-        userId,
-        userRole: profile?.userRole,
-        searchCount: profile?.search_count
+    const { error: searchError } = await supabase
+      .from('route_searches')
+      .insert({
+        user_id: userId,
+        origin,
+        destination,
+        search_date: date
       });
 
-      const { error: searchError } = await supabase
-        .from('route_searches')
-        .insert({
-          user_id: userId,
-          origin,
-          destination,
-          search_date: date
-        });
-
-      if (searchError?.code === '23505') {
-        console.log('Duplicate search detected, continuing with search');
-        toast({
-          title: "Note",
-          description: "You have already searched this route and date combination.",
-        });
-        return true;
-      } else if (searchError) {
-        console.error('Error recording search:', searchError);
-        toast({
-          title: "Note",
-          description: "Unable to record search history, but proceeding with search.",
-        });
-        return true;
-      }
+    if (searchError?.code === '23505') {
+      console.log('Duplicate search detected');
+      toast({
+        title: "Note",
+        description: "You have already searched this route and date combination.",
+      });
       return true;
-    } catch (error) {
-      console.error('Error in recordSearch:', error);
-      return false;
+    } else if (searchError) {
+      console.error('Error recording search:', searchError);
+      throw searchError;
     }
+    return true;
   };
 
   const handleFlightSearch = async ({
@@ -83,25 +90,13 @@ export const useFlightSearch = () => {
       return;
     }
 
-    // Enhanced logging for debugging role and search count
-    console.log('Search attempt with profile:', {
-      userRole: profile?.userRole,
-      searchCount: profile?.search_count,
-      isPetCaddie: profile?.userRole === 'pet_caddie'
-    });
-
-    // Strict role-based search limit enforcement
-    const isPetCaddie = profile?.userRole === 'pet_caddie';
-    const searchCount = profile?.search_count ?? 0;
-
-    if (isPetCaddie && searchCount <= 0) {
-      console.log('Search blocked - no remaining searches:', {
-        userRole: profile?.userRole,
-        searchCount: searchCount
-      });
+    // Check search eligibility before proceeding
+    const { eligible, message } = checkSearchEligibility();
+    if (!eligible) {
+      console.log('Search blocked - not eligible:', message);
       toast({
         title: "Search limit reached",
-        description: "You have no remaining searches. Please upgrade your plan to continue searching.",
+        description: message,
         variant: "destructive",
       });
       onSearchComplete();
@@ -119,9 +114,9 @@ export const useFlightSearch = () => {
 
     setIsLoading(true);
     try {
-      console.log('Sending search request with:', { origin, destination, date: date.toISOString() });
+      console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
-      // First, try to record the search
+      // Record the search first - this will trigger the search_count update
       const searchRecorded = await recordSearch(
         user.id,
         origin,
