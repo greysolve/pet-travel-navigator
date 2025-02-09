@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
@@ -8,7 +7,7 @@ import { useFlightSearch } from "./search/FlightSearchHandler";
 import { SearchFormHeader } from "./search/SearchFormHeader";
 import { SearchButton } from "./search/SearchButton";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
-import type { SearchSectionProps } from "./search/types";
+import type { SearchSectionProps, SavedSearch } from "./search/types";
 import { supabase } from "@/integrations/supabase/client";
 import type { PetPolicy, FlightData } from "./flight-results/types";
 import { useAuth } from "@/contexts/AuthContext";
