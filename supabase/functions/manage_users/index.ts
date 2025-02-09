@@ -60,15 +60,33 @@ Deno.serve(async (req) => {
 
         // Update role if provided
         if (updateData.role) {
-          // First, update or insert the role
-          const { error: roleError } = await supabaseAdmin
+          // First check if a role exists for this user
+          const { data: existingRole, error: fetchError } = await supabaseAdmin
             .from('user_roles')
-            .upsert({
-              user_id: updateData.id,
-              role: updateData.role
-            }, {
-              onConflict: 'user_id'
-            });
+            .select()
+            .eq('user_id', updateData.id)
+            .single();
+
+          if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found" error
+            console.error('Error fetching existing role:', fetchError);
+            throw fetchError;
+          }
+
+          let roleError;
+          if (existingRole) {
+            // Update existing role
+            const { error } = await supabaseAdmin
+              .from('user_roles')
+              .update({ role: updateData.role })
+              .eq('user_id', updateData.id);
+            roleError = error;
+          } else {
+            // Insert new role
+            const { error } = await supabaseAdmin
+              .from('user_roles')
+              .insert({ user_id: updateData.id, role: updateData.role });
+            roleError = error;
+          }
 
           if (roleError) {
             console.error('Error updating role:', roleError);
