@@ -11,7 +11,7 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
-  const isPetCaddie = profile?.userRole === 'pet_caddie';
+  const isPetCaddie = profile?.user_roles?.role === 'pet_caddie';
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
@@ -26,6 +26,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
       ))];
       
       console.log("Fetching pet policies for airlines:", carrierCodes);
+      console.log("User role:", profile?.user_roles?.role);
       
       const { data: airlines } = await supabase
         .from('airlines')
@@ -36,6 +37,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       // If user is a pet caddie, fetch summaries instead of full policies
       if (isPetCaddie) {
+        console.log("Fetching pet policy summaries for pet_caddie user");
         const { data: summaries } = await supabase
           .from('pet_policy_summaries')
           .select('summary, airlines!inner(iata_code)')
@@ -50,6 +52,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
       }
 
       // For other roles, fetch full policies
+      console.log("Fetching full pet policies for non-pet_caddie user");
       const { data: policies } = await supabase
         .from('pet_policies')
         .select('*, airlines!inner(iata_code)')

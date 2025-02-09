@@ -6,7 +6,6 @@ export type SubscriptionPlan = 'free' | 'premium' | 'teams';
 export interface UserProfile {
   id: string;
   user_id?: string;
-  userRole?: UserRole; // Added this field to store the role
   created_at?: string;
   updated_at?: string;
   full_name?: string;
@@ -26,4 +25,7 @@ export interface UserProfile {
     policy_changes: boolean;
     documentation_reminders: boolean;
   } | null;
+  user_roles?: {
+    role: UserRole;
+  };
 }
