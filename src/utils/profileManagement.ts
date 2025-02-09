@@ -11,12 +11,10 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       .from('profiles')
       .select(`
         *,
-        user_roles!user_roles_user_id_fkey (
-          role
-        )
+        user_roles!user_roles_user_id_fkey(role)
       `)
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching profile:', error);
@@ -48,7 +46,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      role: profileData.user_roles?.[0]?.role || 'pet_lover' // Map the role from the joined data
+      role: profileData.user_roles?.role || 'pet_caddie' // Default to pet_caddie since that's what the trigger creates
     };
     
     console.log('Mapped profile:', mappedProfile);
