@@ -51,7 +51,7 @@ export const useFlightSearch = () => {
           search_date: date
         });
 
-      // Show duplicate search warning only for pet_caddie users on free plan
+      // Show duplicate search info only for pet_caddie users on free plan
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
         
@@ -61,7 +61,6 @@ export const useFlightSearch = () => {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
-            variant: "warning"
           });
         }
         return true;
@@ -71,11 +70,8 @@ export const useFlightSearch = () => {
       }
       return true;
     } catch (error) {
-      // Only throw if it's not a duplicate search error
-      if (error?.code !== '23505') {
-        throw error;
-      }
-      return true;
+      console.error('Error in recordSearch:', error);
+      throw error;
     }
   };
 
