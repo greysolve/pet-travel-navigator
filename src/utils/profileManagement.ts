@@ -30,7 +30,12 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
 
     console.log('Profile data:', profileData);
     
-    // Create a clean UserProfile object with explicit mapping
+    // Create a clean UserProfile object with explicit mapping and role validation
+    const role = profileData.user_roles.role;
+    if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
+      throw new Error(`Invalid role: ${role}`);
+    }
+
     const mappedProfile: UserProfile = {
       id: profileData.id,
       created_at: profileData.created_at,
@@ -48,7 +53,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      role: profileData.user_roles.role
+      role: role
     };
     
     console.log('Mapped profile:', mappedProfile);
