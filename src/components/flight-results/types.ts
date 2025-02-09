@@ -45,7 +45,7 @@ export type PetPolicy = {
   carrier_requirements_cargo?: string;
   carrier_requirements?: string;
   documentation_needed: string[];
-  temperature_restrictions: string;
+  temperature_restrictions?: string;
   breed_restrictions: string[];
   policy_url?: string;
   size_restrictions?: {
