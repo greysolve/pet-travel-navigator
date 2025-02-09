@@ -11,7 +11,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       .from('profiles')
       .select(`
         *,
-        user_roles (
+        user_roles!user_roles_user_id_fkey (
           role
         )
       `)
