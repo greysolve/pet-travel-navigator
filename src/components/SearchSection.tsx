@@ -54,6 +54,16 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
   }, [user]);
 
+  useEffect(() => {
+    console.log('Auth state changed, resetting form state');
+    setPolicySearch("");
+    setOrigin("");
+    setDestination("");
+    setDate(undefined);
+    setFlights([]);
+    setShouldSaveSearch(false);
+  }, [user?.id]);
+
   const loadSavedSearches = async () => {
     if (!user) return;
     
