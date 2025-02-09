@@ -4,7 +4,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
-import { useQuery } from "@tanstack/react-query";
 
 interface FlightSearchProps {
   origin: string;
@@ -17,43 +16,7 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
-
-  // Get user's profile data including search count
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      
-      if (error) throw error;
-      console.log('Profile data:', data);
-      return data;
-    },
-    enabled: !!user
-  });
-
-  // Get user's role
-  const { data: userRole } = useQuery({
-    queryKey: ["userRole", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (error) throw error;
-      console.log('User role:', data);
-      return data?.role;
-    },
-    enabled: !!user
-  });
+  const { user, profile } = useAuth();
 
   const handleFlightSearch = async ({
     origin,
@@ -73,15 +36,15 @@ export const useFlightSearch = () => {
     }
 
     console.log('Checking search limits:', {
-      userRole,
+      userRole: profile?.userRole,
       searchCount: profile?.search_count,
-      isPetCaddie: userRole === 'pet_caddie'
+      isPetCaddie: profile?.userRole === 'pet_caddie'
     });
 
-    if (userRole === 'pet_caddie' && profile?.search_count === 0) {
+    if (profile?.userRole === 'pet_caddie' && profile?.search_count === 0) {
       console.log('Search limit reached:', {
-        userRole,
-        searchCount: profile?.search_count
+        userRole: profile.userRole,
+        searchCount: profile.search_count
       });
       toast({
         title: "Search limit reached",
@@ -169,6 +132,6 @@ export const useFlightSearch = () => {
     handleFlightSearch, 
     isLoading,
     searchCount: profile?.search_count,
-    isPetCaddie: userRole === 'pet_caddie'
+    isPetCaddie: profile?.userRole === 'pet_caddie'
   };
 };
