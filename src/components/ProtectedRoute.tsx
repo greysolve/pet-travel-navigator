@@ -25,8 +25,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      // Check the user_roles table
-      console.log("Checking user_roles table...");
+      // Check the user_roles table directly
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -34,18 +33,14 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user role from DB:", error);
-        return "pet_caddie"; // Default to pet_caddie on error
+        console.error("Error fetching user role:", error);
+        return null;
       }
 
       // If no role found in database, default to pet_caddie
-      if (!data) {
-        console.log("No role found in database, defaulting to pet_caddie");
-        return "pet_caddie";
-      }
-
-      console.log("Role from database:", data.role);
-      return data.role;
+      const role = data?.role || "pet_caddie";
+      console.log("Role from database:", role);
+      return role;
     },
     enabled: !!user && !!requiredRole,
   });
