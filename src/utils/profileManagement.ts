@@ -43,10 +43,15 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
     }
 
     console.log('Successfully fetched profile with role:', profileWithRole);
-    return {
+    
+    // Map the nested role to the userRole property expected by our types
+    const mappedProfile: UserProfile = {
       ...profileWithRole,
-      userRole: profileWithRole.user_roles?.[0]?.role
+      userRole: profileWithRole.user_roles?.[0]?.role || 'pet_lover' // Default to pet_lover if no role found
     };
+    
+    console.log('Mapped profile with userRole:', mappedProfile);
+    return mappedProfile;
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
     throw error;
