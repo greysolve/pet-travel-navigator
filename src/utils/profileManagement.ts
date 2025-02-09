@@ -49,7 +49,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      user_roles: profileData.user_roles
+      role: profileData.user_roles?.role || 'pet_lover' // Map the role directly from the joined data
     };
     
     console.log('Mapped profile:', mappedProfile);
