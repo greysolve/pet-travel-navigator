@@ -7,12 +7,11 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
   try {
     console.log(`Fetching profile for user ${userId}`);
     
-    // Updated query to use the correct relationship pattern
     const { data: profileData, error } = await supabase
       .from('profiles')
       .select(`
         *,
-        user_roles!profiles_user_role_id_fkey (
+        user_roles (
           role
         )
       `)
@@ -49,7 +48,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      role: profileData.user_roles?.role || 'pet_lover' // Map the role directly from the joined data
+      role: profileData.user_roles?.[0]?.role || 'pet_lover' // Map the role from the joined data
     };
     
     console.log('Mapped profile:', mappedProfile);
