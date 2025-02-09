@@ -1,6 +1,7 @@
 
 import { ExternalLink, TestTube, Microscope, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { JsonRenderer } from "@/components/ui/json-renderer";
 import type { CountryPolicy, PolicyType } from "./types";
 
 const getPolicyTypeLabel = (type: PolicyType) => {
@@ -49,33 +50,39 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
         {policy.vaccination_requirements?.length > 0 && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Vaccination Requirements</h3>
-            <ul className="list-disc list-inside space-y-3 ml-2">
-              {policy.vaccination_requirements.map((vac, index) => (
-                <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{vac}</li>
-              ))}
-            </ul>
+            <JsonRenderer data={policy.vaccination_requirements} className="ml-2" />
           </section>
         )}
 
         {policy.requirements?.length > 0 && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Requirements</h3>
-            <ul className="list-disc list-inside space-y-3 ml-2">
-              {policy.requirements.map((req, index) => (
-                <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{req}</li>
-              ))}
-            </ul>
+            <JsonRenderer data={policy.requirements} className="ml-2" />
           </section>
         )}
 
         {policy.documentation_needed?.length > 0 && (
           <section>
             <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Required Documentation</h3>
-            <ul className="list-disc list-inside space-y-3 ml-2">
-              {policy.documentation_needed.map((doc, index) => (
-                <li key={index} className="text-gray-700 text-lg leading-relaxed pl-2">{doc}</li>
-              ))}
-            </ul>
+            <JsonRenderer data={policy.documentation_needed} className="ml-2" />
+          </section>
+        )}
+
+        {policy.fees && (
+          <section>
+            <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Fees</h3>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <JsonRenderer data={policy.fees} />
+            </div>
+          </section>
+        )}
+
+        {policy.restrictions && (
+          <section>
+            <h3 className="text-xl font-semibold tracking-normal text-gray-900 mb-4">Restrictions</h3>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <JsonRenderer data={policy.restrictions} />
+            </div>
           </section>
         )}
 
@@ -116,7 +123,7 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
           </section>
         )}
 
-        {policy.additional_notes && typeof policy.additional_notes === 'string' && !policy.additional_notes.startsWith('{') && (
+        {policy.additional_notes && typeof policy.additional_notes === 'string' && (
           <section className="mt-8 p-6 bg-gray-50 rounded-lg">
             <p className="text-gray-600 text-lg leading-relaxed">{policy.additional_notes}</p>
           </section>
@@ -125,4 +132,3 @@ export const DestinationPolicy = ({ policy }: { policy?: CountryPolicy | null })
     </div>
   );
 };
-

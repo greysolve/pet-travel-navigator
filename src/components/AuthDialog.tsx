@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,34 +28,26 @@ const AuthDialog = () => {
         return "site_manager";
       }
 
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
+      // Use the same join pattern as profileManagement.ts
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          user_roles!user_roles_user_id_fkey (
+            role
+          )
+        `)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user role:", error);
+        console.error("Error fetching profile with role:", error);
         return "pet_lover";
       }
 
-      if (!data) {
-        console.log("No role found in database, creating default role");
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: user.id,
-            role: "pet_lover"
-          });
-
-        if (insertError) {
-          console.error("Error inserting default role:", insertError);
-        }
-        return "pet_lover";
-      }
-
-      console.log("Role from database:", data.role);
-      return data.role;
+      const role = profileData?.user_roles?.[0]?.role || "pet_lover";
+      console.log("Role from database:", role);
+      return role;
     },
     enabled: !!user,
   });

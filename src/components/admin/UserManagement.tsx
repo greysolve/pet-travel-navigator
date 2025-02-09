@@ -1,6 +1,5 @@
+
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import {
   Table,
   TableBody,
@@ -9,138 +8,60 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { EditUserDialog } from "./EditUserDialog";
+import { DeleteUserDialog } from "./DeleteUserDialog";
+import { useUserManagement } from "./hooks/useUserManagement";
+import { getRoleBadgeColor, getPlanBadgeColor } from "./utils/userUtils";
+import type { UserRole, SubscriptionPlan } from "@/types/auth";
 
 interface User {
   id: string;
   email: string;
-  role?: string;
-  full_name?: string;
+  role?: UserRole;
+  first_name?: string;
+  last_name?: string;
+  plan?: SubscriptionPlan;
 }
 
 const UserManagement = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
-  // Fetch users using the Edge Function
-  const { data: users, isLoading, error } = useQuery({
-    queryKey: ["users"],
-    queryFn: async () => {
-      console.log("Starting user fetch request...");
-      // Use the supabase client instead of raw fetch
-      const { data, error: functionError } = await supabase.functions.invoke('manage_users', {
-        method: 'GET'
-      });
-
-      if (functionError) {
-        console.error("Error in function:", functionError);
-        throw functionError;
-      }
-
-      console.log("Users data received:", data);
-      return data;
-    },
-  });
-
-  // Log error if present
-  if (error) {
-    console.error("Query error:", error);
-  }
-
-  const updateUser = useMutation({
-    mutationFn: async (userData: { id: string; full_name: string }) => {
-      console.log("Updating user:", userData);
-      const { error } = await supabase
-        .from("profiles")
-        .update({ full_name: userData.full_name })
-        .eq("id", userData.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast({
-        title: "Success",
-        description: "User updated successfully",
-      });
-      setIsEditDialogOpen(false);
-    },
-    onError: (error) => {
-      console.error("Error updating user:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update user",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Delete user mutation
-  const deleteUser = useMutation({
-    mutationFn: async (userId: string) => {
-      console.log("Deleting user:", userId);
-      
-      // First delete the auth user using the Edge Function
-      const { error: deleteAuthError } = await supabase.functions.invoke('manage_users', {
-        method: 'DELETE',
-        body: { userId }
-      });
-
-      if (deleteAuthError) {
-        console.error("Error deleting auth user:", deleteAuthError);
-        throw deleteAuthError;
-      }
-
-      // The profile and related data will be automatically deleted by the handle_deleted_user trigger
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: (error) => {
-      console.error("Error deleting user:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive",
-      });
-    },
-  });
+  const { users, isLoading, error, updateUser, deleteUser } = useUserManagement();
 
   const handleUpdateUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
 
-    updateUser.mutate({
+    const updateData: { 
+      id: string; 
+      first_name?: string;
+      last_name?: string;
+      role?: UserRole; 
+      plan?: SubscriptionPlan 
+    } = {
       id: selectedUser.id,
-      full_name: selectedUser.full_name || "",
-    });
+    };
+
+    if (selectedUser.first_name !== undefined) {
+      updateData.first_name = selectedUser.first_name;
+    }
+
+    if (selectedUser.last_name !== undefined) {
+      updateData.last_name = selectedUser.last_name;
+    }
+
+    if (selectedUser.role !== undefined) {
+      updateData.role = selectedUser.role as UserRole;
+    }
+
+    if (selectedUser.plan !== undefined) {
+      updateData.plan = selectedUser.plan;
+    }
+
+    updateUser.mutate(updateData);
+    setIsEditDialogOpen(false);
   };
 
   if (isLoading) {
@@ -148,7 +69,7 @@ const UserManagement = () => {
   }
 
   if (error) {
-    return <div>Error loading users: {error.message}</div>;
+    return <div>Error loading users: {(error as Error).message}</div>;
   }
 
   return (
@@ -161,79 +82,53 @@ const UserManagement = () => {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Plan</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users?.map((user) => (
+          {users?.map((user: User) => (
             <TableRow key={user.id}>
-              <TableCell>{user.full_name || "No name"}</TableCell>
+              <TableCell>
+                {user.first_name && user.last_name 
+                  ? `${user.first_name} ${user.last_name}`
+                  : "No name"}
+              </TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>{user.role}</TableCell>
+              <TableCell>
+                <Badge className={`${getRoleBadgeColor(user.role || '')}`}>
+                  {user.role || 'pet_lover'}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge className={`${getPlanBadgeColor(user.plan || '')}`}>
+                  {user.plan || 'free'}
+                </Badge>
+              </TableCell>
               <TableCell className="space-x-2">
-                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedUser(user)}
-                    >
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit User</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleUpdateUser} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Name</Label>
-                        <Input
-                          id="name"
-                          value={selectedUser?.full_name || ""}
-                          onChange={(e) =>
-                            setSelectedUser(
-                              selectedUser
-                                ? {
-                                    ...selectedUser,
-                                    full_name: e.target.value,
-                                  }
-                                : null
-                            )
-                          }
-                        />
-                      </div>
-                      <Button type="submit">Save Changes</Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">Delete</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete
-                        the user account and all associated data.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteUser.mutate(user.id)}
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setIsEditDialogOpen(true);
+                  }}
+                >
+                  Edit
+                </Button>
+                <DeleteUserDialog onDelete={() => deleteUser.mutate(user.id)} />
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <EditUserDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        selectedUser={selectedUser}
+        onUserChange={setSelectedUser}
+        onSubmit={handleUpdateUser}
+      />
     </div>
   );
 };

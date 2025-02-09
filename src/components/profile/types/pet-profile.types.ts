@@ -24,3 +24,6 @@ export const documentTypes: DocumentType[] = [
   { value: "usda_endorsement", label: "USDA Endorsement" },
   { value: "veterinary_certificate", label: "Veterinary Certificate" }
 ];
+
+export type PetProfileMode = 'default' | 'view';
+

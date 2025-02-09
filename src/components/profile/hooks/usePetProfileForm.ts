@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,8 +9,6 @@ export const usePetProfileForm = (
   initialData: PetProfile | undefined,
   onClose: () => void
 ) => {
-  console.log('Initializing form with data:', initialData);
-  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [name, setName] = useState(initialData?.name || "");
@@ -21,45 +20,53 @@ export const usePetProfileForm = (
   const [file, setFile] = useState<File | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>(initialData?.images || []);
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Log initial state values
-  console.log('Form initial state:', {
-    name,
-    type,
-    breed,
-    age,
-    weight,
-    photoUrls
-  });
+  const uploadPhotos = async (userId: string) => {
+    try {
+      const uploadedUrls: string[] = [];
+      setIsUploading(true);
+      console.log('Starting photo upload process...', photos.length, 'photos to upload');
 
-  const uploadPhotos = async (petId: string) => {
-    const uploadedUrls: string[] = [...photoUrls];
+      for (const photo of photos) {
+        const fileExt = photo.name.split('.').pop();
+        const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+        console.log(`Uploading photo: ${fileName}`);
 
-    for (const photo of photos) {
-      const fileExt = photo.name.split('.').pop();
-      const filePath = `${petId}/${crypto.randomUUID()}.${fileExt}`;
+        const { error: uploadError, data } = await supabase.storage
+          .from('pet-photos')
+          .upload(fileName, photo);
 
-      const { error: uploadError } = await supabase.storage
-        .from('pet-documents')
-        .upload(filePath, photo);
+        if (uploadError) {
+          console.error('Error uploading photo:', uploadError);
+          throw uploadError;
+        }
 
-      if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage
+          .from('pet-photos')
+          .getPublicUrl(fileName);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('pet-documents')
-        .getPublicUrl(filePath);
+        uploadedUrls.push(publicUrl);
+        console.log(`Successfully uploaded photo: ${publicUrl}`);
+      }
 
-      uploadedUrls.push(publicUrl);
+      // Combine existing URLs with new ones
+      const allUrls = [...photoUrls, ...uploadedUrls];
+      console.log('Final photo URLs:', allUrls);
+      return allUrls;
+    } catch (error) {
+      console.error('Error in uploadPhotos:', error);
+      throw error;
+    } finally {
+      setIsUploading(false);
     }
-
-    return uploadedUrls;
   };
 
-  const uploadFile = async (petId: string) => {
+  const uploadFile = async (petId: string, userId: string) => {
     if (!file || !selectedDocumentType) return null;
 
     const fileExt = file.name.split('.').pop();
-    const filePath = `${petId}/${selectedDocumentType}.${fileExt}`;
+    const filePath = `${userId}/${petId}/${selectedDocumentType}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from('pet-documents')
@@ -85,49 +92,59 @@ export const usePetProfileForm = (
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<PetProfile>) => {
-      console.log('Submitting form with data:', data);
-      
-      // Get the current user's ID
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error("User must be authenticated to create/edit pet profiles");
+      try {
+        console.log('Starting mutation process...');
+        
+        // Get the current user's ID
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        if (!user) throw new Error("User must be authenticated to create/edit pet profiles");
 
-      // Add the user_id to the data
-      const dataWithUserId = {
-        ...data,
-        user_id: user.id
-      };
+        // Upload photos first if there are any new ones
+        let finalPhotoUrls = photoUrls;
+        if (photos.length > 0) {
+          console.log('New photos detected, uploading...');
+          finalPhotoUrls = await uploadPhotos(user.id);
+        }
 
-      const { data: result, error } = initialData
-        ? await supabase
-            .from('pet_profiles')
-            .update(data)
-            .eq('id', initialData.id)
-            .select()
-            .single()
-        : await supabase
-            .from('pet_profiles')
-            .insert([dataWithUserId])
-            .select()
-            .single();
+        // Prepare the data with the final photo URLs
+        const dataWithPhotos = {
+          ...data,
+          images: finalPhotoUrls,
+          user_id: user.id
+        };
 
-      if (error) throw error;
+        console.log('Updating database with data:', dataWithPhotos);
 
-      if (photos.length > 0) {
-        const uploadedUrls = await uploadPhotos(result.id);
-        const { error: updateError } = await supabase
-          .from('pet_profiles')
-          .update({ images: uploadedUrls })
-          .eq('id', result.id);
+        // Update or create the pet profile
+        const { data: result, error } = initialData
+          ? await supabase
+              .from('pet_profiles')
+              .update(dataWithPhotos)
+              .eq('id', initialData.id)
+              .select()
+              .single()
+          : await supabase
+              .from('pet_profiles')
+              .insert([dataWithPhotos])
+              .select()
+              .single();
 
-        if (updateError) throw updateError;
+        if (error) {
+          console.error('Database operation failed:', error);
+          throw error;
+        }
+
+        // Handle document upload if needed
+        if (file && selectedDocumentType) {
+          await uploadFile(result.id, user.id);
+        }
+
+        return result;
+      } catch (error) {
+        console.error('Error in mutation:', error);
+        throw error;
       }
-
-      if (file && selectedDocumentType) {
-        await uploadFile(result.id);
-      }
-
-      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pet-profiles'] });
@@ -149,6 +166,7 @@ export const usePetProfileForm = (
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with photos:', photos.length, 'new photos');
     
     const data: Partial<PetProfile> = {
       name,
@@ -156,7 +174,6 @@ export const usePetProfileForm = (
       breed: breed || null,
       age: age ? parseFloat(age) : null,
       weight: weight ? parseFloat(weight) : null,
-      images: photoUrls,
     };
 
     mutation.mutate(data);
@@ -178,6 +195,7 @@ export const usePetProfileForm = (
     file,
     photos,
     photoUrls,
+    isUploading,
     setName,
     setType,
     setBreed,

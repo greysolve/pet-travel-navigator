@@ -327,6 +327,45 @@ export type Database = {
           },
         ]
       }
+      pet_policy_summaries: {
+        Row: {
+          airline_id: string | null
+          created_at: string | null
+          id: string
+          summary: Json
+          updated_at: string | null
+        }
+        Insert: {
+          airline_id?: string | null
+          created_at?: string | null
+          id?: string
+          summary: Json
+          updated_at?: string | null
+        }
+        Update: {
+          airline_id?: string | null
+          created_at?: string | null
+          id?: string
+          summary?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_policy_summaries_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: true
+            referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_policy_summaries_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: true
+            referencedRelation: "missing_pet_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pet_profiles: {
         Row: {
           age: number | null
@@ -413,7 +452,9 @@ export type Database = {
           id: string
           locality: string | null
           notification_preferences: Json | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code: string | null
+          search_count: number | null
           updated_at: string | null
         }
         Insert: {
@@ -429,7 +470,9 @@ export type Database = {
           id: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -445,7 +488,9 @@ export type Database = {
           id?: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -460,37 +505,31 @@ export type Database = {
       }
       route_searches: {
         Row: {
-          cached_until: string | null
           created_at: string | null
           destination: string
           id: string
-          last_searched_at: string | null
           origin: string
           search_date: string
           updated_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
-          cached_until?: string | null
           created_at?: string | null
           destination: string
           id?: string
-          last_searched_at?: string | null
           origin: string
           search_date: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
-          cached_until?: string | null
           created_at?: string | null
           destination?: string
           id?: string
-          last_searched_at?: string | null
           origin?: string
           search_date?: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -683,7 +722,22 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_profile_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -699,6 +753,10 @@ export type Database = {
       }
     }
     Functions: {
+      backfill_policy_summaries: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_airlines_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -760,8 +818,9 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "site_manager" | "pet_lover"
+      app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      subscription_plan: "free" | "premium" | "teams"
     }
     CompositeTypes: {
       [_ in never]: never
