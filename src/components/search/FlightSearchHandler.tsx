@@ -40,19 +40,36 @@ export const useFlightSearch = () => {
     return { eligible: true };
   };
 
+  const checkExistingSearch = async (userId: string, origin: string, destination: string, date: string) => {
+    try {
+      const { data: existingSearches, error } = await supabase
+        .from('route_searches')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('origin', origin)
+        .eq('destination', destination)
+        .eq('search_date', date)
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking for existing search:', error);
+        return false;
+      }
+
+      return existingSearches && existingSearches.length > 0;
+    } catch (error) {
+      console.error('Error in checkExistingSearch:', error);
+      return false;
+    }
+  };
+
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     try {
-      const { error: searchError } = await supabase
-        .from('route_searches')
-        .insert({
-          user_id: userId,
-          origin,
-          destination,
-          search_date: date
-        });
-
+      // Check for existing search
+      const isDuplicate = await checkExistingSearch(userId, origin, destination, date);
+      
       // Show duplicate search info only for pet_caddie users on free plan
-      if (searchError?.code === '23505') {
+      if (isDuplicate) {
         console.log('Duplicate search detected');
         
         const isPetCaddieOnFreePlan = profile?.userRole === 'pet_caddie' && profile?.plan === 'free';
@@ -63,11 +80,23 @@ export const useFlightSearch = () => {
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
           });
         }
-        return true;
-      } else if (searchError) {
+      }
+
+      // Always record the search
+      const { error: searchError } = await supabase
+        .from('route_searches')
+        .insert({
+          user_id: userId,
+          origin,
+          destination,
+          search_date: date
+        });
+
+      if (searchError) {
         console.error('Error recording search:', searchError);
         throw searchError;
       }
+      
       return true;
     } catch (error) {
       console.error('Error in recordSearch:', error);
