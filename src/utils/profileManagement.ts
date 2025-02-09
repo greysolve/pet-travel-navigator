@@ -34,7 +34,6 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
     // Create a clean UserProfile object with explicit mapping
     const mappedProfile: UserProfile = {
       id: profileData.id,
-      userRole: profileData.user_roles.role,
       created_at: profileData.created_at,
       updated_at: profileData.updated_at,
       full_name: profileData.full_name,
@@ -49,7 +48,8 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       address_format: profileData.address_format,
       plan: profileData.plan,
       search_count: profileData.search_count,
-      notification_preferences: profileData.notification_preferences
+      notification_preferences: profileData.notification_preferences,
+      user_roles: profileData.user_roles
     };
     
     console.log('Mapped profile:', mappedProfile);

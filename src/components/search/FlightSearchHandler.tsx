@@ -21,11 +21,11 @@ export const useFlightSearch = () => {
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
-    const isPetCaddie = profile.userRole === 'pet_caddie';
+    const isPetCaddie = profile.user_roles?.role === 'pet_caddie';
     const searchCount = profile.search_count ?? 0;
     
     console.log('Checking search eligibility:', {
-      userRole: profile.userRole,
+      role: profile.user_roles?.role,
       searchCount,
       isPetCaddie
     });
@@ -72,7 +72,7 @@ export const useFlightSearch = () => {
       if (isDuplicate) {
         console.log('Duplicate search detected');
         
-        const isPetCaddieOnFreePlan = profile?.userRole === 'pet_caddie' && profile?.plan === 'free';
+        const isPetCaddieOnFreePlan = profile?.user_roles?.role === 'pet_caddie' && profile?.plan === 'free';
         
         if (isPetCaddieOnFreePlan) {
           toast({
@@ -201,7 +201,7 @@ export const useFlightSearch = () => {
     handleFlightSearch, 
     isLoading,
     searchCount: profile?.search_count,
-    isPetCaddie: profile?.userRole === 'pet_caddie',
+    isPetCaddie: profile?.user_roles?.role === 'pet_caddie',
     isProfileLoading: profileLoading
   };
 };
