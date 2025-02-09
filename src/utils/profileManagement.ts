@@ -7,12 +7,12 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
   try {
     console.log('Fetching profile for user:', userId);
     
-    // Fetch profile with role using the new foreign key relationship
+    // Updated the join to use the correct relationship based on user_id
     const { data: profileWithRole, error: fetchError } = await supabase
       .from('profiles')
       .select(`
         *,
-        user_roles!user_roles_profile_id_fkey (
+        user_roles!user_roles_user_id_fkey (
           role
         )
       `)
@@ -60,7 +60,7 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
     }])
     .select(`
       *,
-      user_roles!user_roles_profile_id_fkey (
+      user_roles!user_roles_user_id_fkey (
         role
       )
     `)
@@ -93,7 +93,7 @@ async function handleDuplicateProfile(userId: string): Promise<UserProfile | nul
     .from('profiles')
     .select(`
       *,
-      user_roles!user_roles_profile_id_fkey (
+      user_roles!user_roles_user_id_fkey (
         role
       )
     `)
