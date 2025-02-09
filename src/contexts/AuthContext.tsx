@@ -30,6 +30,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const authOperations = useAuthOperations();
 
+  const handleAuthError = async (error: Error) => {
+    console.error('Authentication error:', error);
+    toast({
+      title: "Authentication Error",
+      description: "Failed to load user profile. Please sign in again.",
+      variant: "destructive",
+    });
+    await supabase.auth.signOut();
+    setProfile(null);
+    setUser(null);
+    setSession(null);
+  };
+
   const refreshProfile = useCallback(async () => {
     if (!user) {
       setProfile(null);
@@ -41,19 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfileLoading(true);
     try {
       const profileData = await fetchOrCreateProfile(user.id);
+      // Strict validation - no fallbacks
       if (!profileData || !profileData.role) {
         throw new Error('Invalid profile or missing role');
       }
       setProfile(profileData);
     } catch (error) {
-      console.error('Error refreshing profile:', error);
-      toast({
-        title: "Authentication Error",
-        description: "Failed to load user profile. Please sign in again.",
-        variant: "destructive",
-      });
-      // Force sign out on profile/role fetch failure
-      await supabase.auth.signOut();
+      await handleAuthError(error as Error);
     } finally {
       setProfileLoading(false);
     }
@@ -68,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         refreshProfile();
       } else {
+        setProfile(null);
         setProfileLoading(false);
       }
       setLoading(false);

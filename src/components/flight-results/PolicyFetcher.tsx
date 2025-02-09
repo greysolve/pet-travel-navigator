@@ -1,12 +1,8 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
 import { useAuth } from "@/contexts/AuthContext";
-
-const COUNTRY_MAPPINGS: Record<string, string> = {
-  'USA': 'United States',
-  'UK': 'United Kingdom'
-};
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();

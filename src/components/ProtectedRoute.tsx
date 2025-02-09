@@ -2,10 +2,11 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/auth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: "site_manager" | "pet_lover" | "pet_caddie";
+  requiredRole?: UserRole;
 }
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
@@ -19,8 +20,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       return;
     }
 
+    // Strict role check without optional chaining
     if (!loading && !profileLoading && requiredRole) {
-      // Direct role check without optional chaining
       const hasAccess = profile?.role === requiredRole;
       
       console.log("Access check:", {
@@ -37,11 +38,12 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     }
   }, [user, loading, navigate, requiredRole, profile, profileLoading]);
 
+  // Show loading state while checking auth or profile
   if (loading || profileLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  // Only render children if user has the required role
+  // Only render children if all conditions are met
   if (!user || !profile?.role || (requiredRole && profile.role !== requiredRole)) {
     return null;
   }
