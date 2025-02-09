@@ -25,11 +25,15 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
         path: window.location.pathname
       });
 
-      // Updated query to use the chained relationship
+      // Updated query to use the correct relationship pattern
       const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
+        .from("profiles")
+        .select(`
+          user_roles!profiles_user_role_id_fkey (
+            role
+          )
+        `)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (error) {
@@ -38,7 +42,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       }
 
       // If no role found in database, default to pet_caddie
-      const role = data?.role || "pet_caddie";
+      const role = data?.user_roles?.role || "pet_caddie";
       console.log("Role from database:", role);
       return role;
     },

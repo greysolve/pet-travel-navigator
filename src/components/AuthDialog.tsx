@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,12 +27,11 @@ const AuthDialog = () => {
         return "site_manager";
       }
 
-      // Use the same join pattern as profileManagement.ts
+      // Updated query to use the correct relationship pattern
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select(`
-          *,
-          user_roles!user_roles_user_id_fkey (
+          user_roles!profiles_user_role_id_fkey (
             role
           )
         `)
@@ -45,7 +43,7 @@ const AuthDialog = () => {
         return "pet_lover";
       }
 
-      const role = profileData?.user_roles?.[0]?.role || "pet_lover";
+      const role = profileData?.user_roles?.role || "pet_lover";
       console.log("Role from database:", role);
       return role;
     },

@@ -7,12 +7,12 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
   try {
     console.log(`Fetching profile for user ${userId}`);
     
-    // Updated query to use the chained relationship
+    // Updated query to use the correct relationship pattern
     const { data: profileData, error } = await supabase
       .from('profiles')
       .select(`
         *,
-        user_roles!inner (
+        user_roles!profiles_user_role_id_fkey (
           role
         )
       `)
