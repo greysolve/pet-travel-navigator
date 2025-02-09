@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
+import { useAuth } from "@/contexts/AuthContext";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
@@ -9,6 +10,9 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 };
 
 export const usePetPolicies = (flights: FlightData[]) => {
+  const { profile } = useAuth();
+  const isPetCaddie = profile?.role === 'pet_caddie';
+
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
       journey.segments?.map(segment => segment.carrierFsCode)
@@ -30,6 +34,22 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       if (!airlines?.length) return {};
 
+      // If user is a pet caddie, fetch summaries instead of full policies
+      if (isPetCaddie) {
+        const { data: summaries } = await supabase
+          .from('pet_policy_summaries')
+          .select('summary, airlines!inner(iata_code)')
+          .in('airline_id', airlines.map(a => a.id));
+
+        console.log("Found pet policy summaries:", summaries);
+
+        return summaries?.reduce((acc: Record<string, PetPolicy>, record: any) => {
+          acc[record.airlines.iata_code] = record.summary;
+          return acc;
+        }, {}) || {};
+      }
+
+      // For other roles, fetch full policies
       const { data: policies } = await supabase
         .from('pet_policies')
         .select('*, airlines!inner(iata_code)')
