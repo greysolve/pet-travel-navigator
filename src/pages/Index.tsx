@@ -1,8 +1,9 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
+import { useAuth } from "@/contexts/AuthContext";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -10,6 +11,15 @@ const Index = () => {
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+
+  // Reset all search states when auth changes
+  useEffect(() => {
+    console.log('Auth state changed, resetting search state');
+    setSearchPerformed(false);
+    setFlights([]);
+    setPetPolicies(undefined);
+  }, [user?.id]); // Use user.id as dependency to trigger on auth changes
 
   const handleSearchResults = (
     results: FlightData[], 
