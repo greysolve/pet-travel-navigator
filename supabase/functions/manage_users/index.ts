@@ -12,7 +12,8 @@ interface UserProfile {
 
 interface UpdateUserData {
   id: string;
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   role?: 'pet_lover' | 'pet_caddie';
   plan?: 'free' | 'basic' | 'premium' | 'enterprise';
 }
@@ -47,12 +48,26 @@ Deno.serve(async (req) => {
       console.log('Updating user:', updateData);
 
       try {
-        // Update profile if full_name or plan is provided
-        if (updateData.full_name !== undefined || updateData.plan !== undefined) {
+        // Update profile if first_name or last_name or plan is provided
+        if (updateData.first_name !== undefined || updateData.last_name !== undefined || updateData.plan !== undefined) {
           const updateObject: { full_name?: string; plan?: string } = {};
-          if (updateData.full_name !== undefined) {
-            updateObject.full_name = updateData.full_name;
+          
+          // Concatenate first and last name if either is provided
+          if (updateData.first_name !== undefined || updateData.last_name !== undefined) {
+            // Get current profile to preserve existing name parts
+            const { data: currentProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('full_name')
+              .eq('id', updateData.id)
+              .single();
+
+            let currentNames = currentProfile?.full_name ? currentProfile.full_name.split(' ') : ['', ''];
+            let firstName = updateData.first_name ?? currentNames[0];
+            let lastName = updateData.last_name ?? (currentNames.length > 1 ? currentNames.slice(1).join(' ') : '');
+            
+            updateObject.full_name = `${firstName} ${lastName}`.trim();
           }
+
           if (updateData.plan !== undefined) {
             updateObject.plan = updateData.plan;
           }
@@ -202,10 +217,17 @@ Deno.serve(async (req) => {
     const userProfiles: UserProfile[] = users.map((user) => {
       const profile = profiles?.find((p) => p.id === user.id);
       const userRole = roles?.find((r) => r.user_id === user.id);
+
+      // Split full name into first and last name
+      const nameParts = profile?.full_name?.split(' ') || ['', ''];
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+
       const userProfile = {
         id: user.id,
-        full_name: profile?.full_name || null,
         email: user.email || '',
+        first_name: firstName,
+        last_name: lastName,
         role: userRole?.role || 'pet_lover',
         plan: profile?.plan || 'free'
       };
