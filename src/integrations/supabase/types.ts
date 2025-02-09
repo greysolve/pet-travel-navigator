@@ -707,22 +707,30 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          profile_id: string
           role: Database["public"]["Enums"]["app_role"]
-          user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          profile_id: string
           role?: Database["public"]["Enums"]["app_role"]
-          user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          profile_id?: string
           role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
