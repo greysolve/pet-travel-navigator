@@ -7,12 +7,12 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
   try {
     console.log('Fetching profile for user:', userId);
     
-    // Fetch profile with role in a single query using a join
+    // Fetch profile with role using the new foreign key relationship
     const { data: profileWithRole, error: fetchError } = await supabase
       .from('profiles')
       .select(`
         *,
-        user_roles!user_roles_user_id_fkey (
+        user_roles!user_roles_profile_id_fkey (
           role
         )
       `)
@@ -29,7 +29,7 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
       // Transform the data to match UserProfile interface
       const profile: UserProfile = {
         ...profileWithRole,
-        userRole: profileWithRole.user_roles?.[0]?.role // Access first role since we now have an array
+        userRole: profileWithRole.user_roles?.[0]?.role
       };
       return profile;
     }
@@ -60,7 +60,7 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
     }])
     .select(`
       *,
-      user_roles!user_roles_user_id_fkey (
+      user_roles!user_roles_profile_id_fkey (
         role
       )
     `)
@@ -79,7 +79,7 @@ async function createNewProfile(userId: string): Promise<UserProfile | null> {
     // Transform the data to match UserProfile interface
     const profile: UserProfile = {
       ...newProfile,
-      userRole: newProfile.user_roles?.[0]?.role // Access first role since we now have an array
+      userRole: newProfile.user_roles?.[0]?.role
     };
     return profile;
   }
@@ -93,7 +93,7 @@ async function handleDuplicateProfile(userId: string): Promise<UserProfile | nul
     .from('profiles')
     .select(`
       *,
-      user_roles!user_roles_user_id_fkey (
+      user_roles!user_roles_profile_id_fkey (
         role
       )
     `)
@@ -106,7 +106,7 @@ async function handleDuplicateProfile(userId: string): Promise<UserProfile | nul
     // Transform the data to match UserProfile interface
     const profile: UserProfile = {
       ...retryProfile,
-      userRole: retryProfile.user_roles?.[0]?.role // Access first role since we now have an array
+      userRole: retryProfile.user_roles?.[0]?.role
     };
     return profile;
   }
