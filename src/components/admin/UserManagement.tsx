@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -177,12 +176,10 @@ const UserManagement = () => {
 
   const getPlanBadgeColor = (plan: string) => {
     switch (plan) {
-      case 'enterprise':
+      case 'teams':
         return 'bg-purple-500';
       case 'premium':
         return 'bg-yellow-500';
-      case 'basic':
-        return 'bg-green-500';
       default:
         return 'bg-gray-500';
     }
@@ -301,9 +298,8 @@ const UserManagement = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="free">Free</SelectItem>
-                            <SelectItem value="basic">Basic</SelectItem>
                             <SelectItem value="premium">Premium</SelectItem>
-                            <SelectItem value="enterprise">Enterprise</SelectItem>
+                            <SelectItem value="teams">Teams</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -1,7 +1,7 @@
 
 export type UserRole = 'pet_lover' | 'site_manager' | 'pet_caddie';
 
-export type SubscriptionPlan = 'free' | 'basic' | 'premium' | 'enterprise';
+export type SubscriptionPlan = 'free' | 'premium' | 'teams';
 
 export interface UserProfile {
   id: string;
