@@ -14,7 +14,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
   try {
     console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
-    // Fetch user role first
+    // First, fetch user role directly from user_roles table
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
@@ -26,16 +26,16 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       throw roleError;
     }
 
-    // Then fetch profile
-    const { data: profileData, error: fetchError } = await supabase
+    // Then fetch profile separately
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
 
-    if (fetchError) {
-      console.error('Error fetching profile:', fetchError);
-      throw fetchError;
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      throw profileError;
     }
 
     if (!profileData) {
@@ -43,7 +43,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       return null;
     }
 
-    console.log('Raw profile data:', profileData);
+    console.log('Profile data:', profileData);
     console.log('Role data:', roleData);
 
     // Use role from separate query, default to pet_caddie if not found
