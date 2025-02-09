@@ -11,7 +11,9 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       .from('profiles')
       .select(`
         *,
-        user_roles(role)
+        user_roles!profiles_user_role_id_fkey (
+          role
+        )
       `)
       .eq('id', userId)
       .maybeSingle();
@@ -21,9 +23,9 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       throw error;
     }
 
-    if (!profileData) {
-      console.log('Profile not found');
-      return null;
+    if (!profileData || !profileData.user_roles) {
+      console.error('Profile or role not found');
+      throw new Error('Profile or role not found');
     }
 
     console.log('Profile data:', profileData);
@@ -46,7 +48,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile | null
       plan: profileData.plan,
       search_count: profileData.search_count,
       notification_preferences: profileData.notification_preferences,
-      role: profileData.user_roles?.[0]?.role || 'pet_caddie' // Get the role from the first user_roles entry
+      role: profileData.user_roles.role // No optional chaining or fallback
     };
     
     console.log('Mapped profile:', mappedProfile);
@@ -63,19 +65,19 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
     
     // Try to fetch existing profile
     const existingProfile = await fetchProfileWithRetry(userId);
-    if (existingProfile) {
-      return existingProfile;
+    if (!existingProfile) {
+      // If no profile exists, we should not create one manually
+      // The profile should have been created by the trigger
+      console.error('No profile found for user:', userId);
+      toast({
+        title: "Authentication Error",
+        description: "Your profile could not be loaded. Please try logging in again.",
+        variant: "destructive",
+      });
+      return null;
     }
 
-    // If no profile exists, we should not create one manually
-    // The profile should have been created by the trigger
-    console.error('No profile found for user:', userId);
-    toast({
-      title: "Authentication Error",
-      description: "Your profile could not be loaded. Please try logging in again.",
-      variant: "destructive",
-    });
-    return null;
+    return existingProfile;
     
   } catch (error) {
     console.error('Error in profile management:', error);

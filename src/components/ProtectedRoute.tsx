@@ -2,8 +2,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,43 +9,8 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, profileLoading } = useAuth();
   const navigate = useNavigate();
-
-  const { data: userRole, isLoading: roleLoading } = useQuery({
-    queryKey: ["userRole", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      console.log("Protected Route - Role Check:", {
-        userId: user.id,
-        requiredRole,
-        path: window.location.pathname
-      });
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(`
-          *,
-          user_roles!profiles_user_role_id_fkey (
-            role
-          )
-        `)
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching user role:", error);
-        return null;
-      }
-
-      // If no role found in database, default to pet_caddie
-      const role = data?.user_roles?.role || "pet_caddie";
-      console.log("Role from database:", role);
-      return role;
-    },
-    enabled: !!user && !!requiredRole,
-  });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -56,28 +19,28 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       return;
     }
 
-    if (!loading && !roleLoading && requiredRole) {
+    if (!loading && !profileLoading && requiredRole) {
       console.log("Access check:", {
-        userRole,
+        userRole: profile?.role,
         requiredRole,
-        hasAccess: userRole === requiredRole,
+        hasAccess: profile?.role === requiredRole,
         path: window.location.pathname
       });
 
       // If no role is found or role doesn't match required role, redirect
-      if (!userRole || userRole !== requiredRole) {
+      if (!profile?.role || profile.role !== requiredRole) {
         console.log("Access denied, redirecting to home");
         navigate("/");
       }
     }
-  }, [user, loading, navigate, requiredRole, userRole, roleLoading]);
+  }, [user, loading, navigate, requiredRole, profile, profileLoading]);
 
-  if (loading || roleLoading) {
+  if (loading || profileLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   // Only render children if user has the required role
-  if (!user || !userRole || (requiredRole && userRole !== requiredRole)) {
+  if (!user || !profile?.role || (requiredRole && profile.role !== requiredRole)) {
     return null;
   }
 
