@@ -20,10 +20,11 @@ export interface UserProfile {
   country_id?: string;
   address_format?: string;
   plan?: SubscriptionPlan;
-  search_count?: number;
+  search_count?: number; // Defaults to 5 for pet_caddie users
   notification_preferences?: {
     travel_alerts: boolean;
     policy_changes: boolean;
     documentation_reminders: boolean;
   } | null;
 }
+
