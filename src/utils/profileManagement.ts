@@ -7,7 +7,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
   try {
     console.log(`Fetching profile for user ${userId}`);
     
-    const { data: profileData, error } = await supabase
+    const response = await supabase
       .from('profiles')
       .select(`
         *,
@@ -18,21 +18,26 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
       .eq('id', userId)
       .single();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
-      throw error;
+    // Log the entire response object
+    console.log('Raw Supabase Response:', JSON.stringify(response, null, 2));
+    
+    if (response.error) {
+      console.error('Error fetching profile:', response.error);
+      throw response.error;
     }
 
+    const profileData = response.data;
     if (!profileData || !profileData.role) {
-      console.error('Profile or role not found');
+      console.error('Profile or role not found. Profile data:', profileData);
       throw new Error('Profile or role not found');
     }
 
-    console.log('Profile data:', profileData);
+    console.log('Profile data before mapping:', profileData);
     
     // Create a clean UserProfile object with explicit mapping and role validation
     const role = profileData.role;
     if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
+      console.error('Invalid role detected:', role);
       throw new Error(`Invalid role: ${role}`);
     }
 
@@ -56,7 +61,7 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
       role: role
     };
     
-    console.log('Mapped profile:', mappedProfile);
+    console.log('Final mapped profile:', mappedProfile);
     return mappedProfile;
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
