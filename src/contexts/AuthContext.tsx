@@ -17,6 +17,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   loading: boolean;
   profileLoading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,7 +30,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const authOperations = useAuthOperations();
 
-  // Debounced profile fetcher
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+
+    console.log('Refreshing profile for user:', user.id);
+    setProfileLoading(true);
+    try {
+      const profileData = await fetchOrCreateProfile(user.id);
+      if (profileData) {
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh user profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user]);
+
+  // Debounced profile fetcher for initial load and auth state changes
   const fetchProfileDebounced = useCallback(async (userId: string) => {
     console.log('Fetching profile for user:', userId);
     setProfileLoading(true);
@@ -101,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile, 
       loading,
       profileLoading,
+      refreshProfile,
       ...authOperations
     }}>
       {children}
@@ -115,3 +139,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

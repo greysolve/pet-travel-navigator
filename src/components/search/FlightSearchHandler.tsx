@@ -16,7 +16,7 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, profileLoading } = useAuth();
+  const { user, profile, profileLoading, refreshProfile } = useAuth();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
@@ -96,6 +96,9 @@ export const useFlightSearch = () => {
         console.error('Error recording search:', searchError);
         throw searchError;
       }
+      
+      // After successfully recording the search, refresh the profile to get updated search count
+      await refreshProfile();
       
       return true;
     } catch (error) {
