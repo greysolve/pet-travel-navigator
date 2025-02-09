@@ -52,16 +52,26 @@ const Profile = () => {
       if (!userId) return null;
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          user_roles!inner (
+            role
+          )
+        `)
         .eq('id', userId)
         .single();
 
       if (error) throw error;
       
-      // Ensure notification_preferences is properly typed
+      if (!data || !data.user_roles?.role) {
+        throw new Error('Profile or role not found');
+      }
+
+      // Ensure notification_preferences is properly typed and include role
       const typedData: UserProfile = {
         ...data,
-        notification_preferences: data.notification_preferences as UserProfile['notification_preferences']
+        notification_preferences: data.notification_preferences as UserProfile['notification_preferences'],
+        role: data.user_roles.role
       };
       
       return typedData;
@@ -94,7 +104,7 @@ const Profile = () => {
   };
 
   const updateProfile = async () => {
-    if (!userId) return;
+    if (!userId || !profile) return;
     
     setIsUpdating(true);
     try {
