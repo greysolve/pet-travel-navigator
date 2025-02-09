@@ -40,13 +40,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import type { UserRole } from "@/types/auth";
+import type { UserRole, SubscriptionPlan } from "@/types/auth";
 
 interface User {
   id: string;
   email: string;
   role?: UserRole;
   full_name?: string;
+  plan?: SubscriptionPlan;
 }
 
 const UserManagement = () => {
@@ -80,7 +81,7 @@ const UserManagement = () => {
   }
 
   const updateUser = useMutation({
-    mutationFn: async (userData: { id: string; full_name?: string; role?: UserRole }) => {
+    mutationFn: async (userData: { id: string; full_name?: string; role?: UserRole; plan?: SubscriptionPlan }) => {
       console.log("Updating user:", userData);
       const { error } = await supabase.functions.invoke('manage_users', {
         method: 'PATCH',
@@ -144,7 +145,7 @@ const UserManagement = () => {
     e.preventDefault();
     if (!selectedUser) return;
 
-    const updateData: { id: string; full_name?: string; role?: UserRole } = {
+    const updateData: { id: string; full_name?: string; role?: UserRole; plan?: SubscriptionPlan } = {
       id: selectedUser.id,
     };
 
@@ -154,6 +155,10 @@ const UserManagement = () => {
 
     if (selectedUser.role !== undefined) {
       updateData.role = selectedUser.role as UserRole;
+    }
+
+    if (selectedUser.plan !== undefined) {
+      updateData.plan = selectedUser.plan;
     }
 
     updateUser.mutate(updateData);
@@ -167,6 +172,19 @@ const UserManagement = () => {
         return 'bg-purple-500';
       default:
         return 'bg-blue-500';
+    }
+  };
+
+  const getPlanBadgeColor = (plan: string) => {
+    switch (plan) {
+      case 'enterprise':
+        return 'bg-purple-500';
+      case 'premium':
+        return 'bg-yellow-500';
+      case 'basic':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 
@@ -188,17 +206,23 @@ const UserManagement = () => {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Plan</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users?.map((user) => (
+          {users?.map((user: User) => (
             <TableRow key={user.id}>
               <TableCell>{user.full_name || "No name"}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
-                <Badge className={`${getRoleBadgeColor(user.role)}`}>
-                  {user.role}
+                <Badge className={`${getRoleBadgeColor(user.role || '')}`}>
+                  {user.role || 'pet_lover'}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge className={`${getPlanBadgeColor(user.plan || '')}`}>
+                  {user.plan || 'free'}
                 </Badge>
               </TableCell>
               <TableCell className="space-x-2">
@@ -254,6 +278,32 @@ const UserManagement = () => {
                           <SelectContent>
                             <SelectItem value="pet_lover">Pet Lover</SelectItem>
                             <SelectItem value="pet_caddie">Pet Caddie</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="plan">Plan</Label>
+                        <Select
+                          value={selectedUser?.plan}
+                          onValueChange={(value: SubscriptionPlan) =>
+                            setSelectedUser(
+                              selectedUser
+                                ? {
+                                    ...selectedUser,
+                                    plan: value,
+                                  }
+                                : null
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a plan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="free">Free</SelectItem>
+                            <SelectItem value="basic">Basic</SelectItem>
+                            <SelectItem value="premium">Premium</SelectItem>
+                            <SelectItem value="enterprise">Enterprise</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

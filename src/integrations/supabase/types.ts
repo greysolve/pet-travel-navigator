@@ -413,7 +413,7 @@ export type Database = {
           id: string
           locality: string | null
           notification_preferences: Json | null
-          plan: string | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code: string | null
           search_count: number | null
           updated_at: string | null
@@ -431,7 +431,7 @@ export type Database = {
           id: string
           locality?: string | null
           notification_preferences?: Json | null
-          plan?: string | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
           search_count?: number | null
           updated_at?: string | null
@@ -449,7 +449,7 @@ export type Database = {
           id?: string
           locality?: string | null
           notification_preferences?: Json | null
-          plan?: string | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
           search_count?: number | null
           updated_at?: string | null
@@ -768,6 +768,7 @@ export type Database = {
     Enums: {
       app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      subscription_plan: "free" | "basic" | "premium" | "enterprise"
     }
     CompositeTypes: {
       [_ in never]: never

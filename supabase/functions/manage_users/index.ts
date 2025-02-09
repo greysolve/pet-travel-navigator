@@ -7,12 +7,14 @@ interface UserProfile {
   full_name: string | null;
   email: string;
   role: string;
+  plan: string;
 }
 
 interface UpdateUserData {
   id: string;
   full_name?: string;
   role?: 'pet_lover' | 'pet_caddie';
+  plan?: 'free' | 'basic' | 'premium' | 'enterprise';
 }
 
 Deno.serve(async (req) => {
@@ -45,11 +47,19 @@ Deno.serve(async (req) => {
       console.log('Updating user:', updateData);
 
       try {
-        // Update profile if full_name is provided
-        if (updateData.full_name !== undefined) {
+        // Update profile if full_name or plan is provided
+        if (updateData.full_name !== undefined || updateData.plan !== undefined) {
+          const updateObject: { full_name?: string; plan?: string } = {};
+          if (updateData.full_name !== undefined) {
+            updateObject.full_name = updateData.full_name;
+          }
+          if (updateData.plan !== undefined) {
+            updateObject.plan = updateData.plan;
+          }
+
           const { error: profileError } = await supabaseAdmin
             .from('profiles')
-            .update({ full_name: updateData.full_name })
+            .update(updateObject)
             .eq('id', updateData.id);
 
           if (profileError) {
@@ -197,6 +207,7 @@ Deno.serve(async (req) => {
         full_name: profile?.full_name || null,
         email: user.email || '',
         role: userRole?.role || 'pet_lover',
+        plan: profile?.plan || 'free'
       };
       console.log('Mapped user profile:', userProfile);
       return userProfile;
