@@ -38,10 +38,18 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       if (!airlines?.length) return {};
 
-      const { data: policies } = await supabase
+      const { data: policies, error } = await supabase
         .from('pet_policies')
-        .select('*, airlines!inner(iata_code)')
+        .select(`
+          *,
+          airlines!inner(iata_code)
+        `)
         .in('airline_id', airlines.map(a => a.id));
+
+      if (error) {
+        console.error("[usePetPolicies] Error fetching policies:", error);
+        return {};
+      }
 
       console.log("[usePetPolicies] Raw policies from database:", policies);
 
@@ -49,16 +57,16 @@ export const usePetPolicies = (flights: FlightData[]) => {
       
       for (const policy of policies || []) {
         const policyData: Partial<PetPolicy> = {
-          pet_types_allowed: policy.pet_types_allowed,
-          carrier_requirements: policy.carrier_requirements,
-          carrier_requirements_cabin: policy.carrier_requirements_cabin,
-          carrier_requirements_cargo: policy.carrier_requirements_cargo,
-          documentation_needed: policy.documentation_needed,
-          temperature_restrictions: policy.temperature_restrictions,
-          breed_restrictions: policy.breed_restrictions,
-          policy_url: policy.policy_url,
-          size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
-          fees: policy.fees as PetPolicy['fees']
+          pet_types_allowed: policy.pet_types_allowed || [],
+          carrier_requirements: policy.carrier_requirements || null,
+          carrier_requirements_cabin: policy.carrier_requirements_cabin || null,
+          carrier_requirements_cargo: policy.carrier_requirements_cargo || null,
+          documentation_needed: policy.documentation_needed || [],
+          temperature_restrictions: policy.temperature_restrictions || null,
+          breed_restrictions: policy.breed_restrictions || [],
+          policy_url: policy.policy_url || null,
+          size_restrictions: policy.size_restrictions || null,
+          fees: policy.fees || null
         };
 
         console.log(`[usePetPolicies] Processing policy for ${policy.airlines.iata_code}:`, {

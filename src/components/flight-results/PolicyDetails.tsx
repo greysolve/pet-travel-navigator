@@ -24,6 +24,10 @@ const isPremiumField = (value: any): value is PremiumFieldValue => {
 const renderValue = (value: any, label?: string): JSX.Element => {
   console.log('[PolicyDetails] Rendering value:', { value, label });
   
+  if (value === null || value === undefined) {
+    return <p className="text-gray-500 italic">(None specified)</p>;
+  }
+  
   if (isPremiumField(value)) {
     console.log('[PolicyDetails] Rendering premium field:', { value, label });
     return (
@@ -48,6 +52,10 @@ const renderValue = (value: any, label?: string): JSX.Element => {
     );
   }
 
+  if (Array.isArray(value) && value.length === 0) {
+    return <p className="text-gray-500 italic">(None specified)</p>;
+  }
+
   return <JsonRenderer data={value} />;
 };
 
@@ -65,7 +73,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
     label: string,
     value: any
   ) => {
-    if (!value) return null;
+    if (value === null || value === undefined) return null;
     
     return (
       <div>
