@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -12,14 +11,14 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 };
 
 interface SizeRestrictions {
-  max_weight_cabin?: string;
-  max_weight_cargo?: string;
-  carrier_dimensions_cabin?: string;
+  max_weight_cabin?: string | null;
+  max_weight_cargo?: string | null;
+  carrier_dimensions_cabin?: string | null;
 }
 
 interface Fees {
-  in_cabin?: string;
-  cargo?: string;
+  in_cabin?: string | null;
+  cargo?: string | null;
 }
 
 export const usePetPolicies = (flights: FlightData[]) => {
@@ -68,20 +67,16 @@ export const usePetPolicies = (flights: FlightData[]) => {
       
       for (const policy of policies || []) {
         const policyData: Partial<PetPolicy> = {
-          pet_types_allowed: policy.pet_types_allowed || [],
-          carrier_requirements: policy.carrier_requirements || null,
-          carrier_requirements_cabin: policy.carrier_requirements_cabin || null,
-          carrier_requirements_cargo: policy.carrier_requirements_cargo || null,
-          documentation_needed: policy.documentation_needed || [],
-          temperature_restrictions: policy.temperature_restrictions || null,
-          breed_restrictions: policy.breed_restrictions || [],
-          policy_url: policy.policy_url || null,
-          size_restrictions: typeof policy.size_restrictions === 'object' && policy.size_restrictions 
-            ? (policy.size_restrictions as SizeRestrictions)
-            : null,
-          fees: typeof policy.fees === 'object' && policy.fees
-            ? (policy.fees as Fees)
-            : null
+          pet_types_allowed: policy.pet_types_allowed ?? [],
+          carrier_requirements: policy.carrier_requirements ?? null,
+          carrier_requirements_cabin: policy.carrier_requirements_cabin ?? null,
+          carrier_requirements_cargo: policy.carrier_requirements_cargo ?? null,
+          documentation_needed: policy.documentation_needed ?? [],
+          temperature_restrictions: policy.temperature_restrictions ?? null,
+          breed_restrictions: policy.breed_restrictions ?? [],
+          policy_url: policy.policy_url ?? null,
+          size_restrictions: policy.size_restrictions as SizeRestrictions ?? null,
+          fees: policy.fees as Fees ?? null
         };
 
         console.log(`[usePetPolicies] Processing policy for ${policy.airlines.iata_code}:`, {

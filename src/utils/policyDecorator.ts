@@ -16,14 +16,15 @@ type DecoratedPetPolicy = {
   [K in keyof PetPolicy]: PremiumField<PetPolicy[K]>;
 };
 
-const flattenObject = (obj: Record<string, any>, prefix = ''): Record<string, any> => {
+const flattenObject = (obj: Record<string, any>, parentKey = ''): Record<string, any> => {
   return Object.keys(obj).reduce((acc: Record<string, any>, key: string) => {
-    const prefixedKey = prefix ? `${prefix}_${key}` : key;
+    const value = obj[key];
+    const finalKey = parentKey ? `${parentKey}_${key}` : key;
     
-    if (isObject(obj[key]) && !('isPremiumField' in obj[key])) {
-      Object.assign(acc, flattenObject(obj[key], prefixedKey));
+    if (isObject(value) && !('isPremiumField' in value)) {
+      Object.assign(acc, flattenObject(value, finalKey));
     } else {
-      acc[prefixedKey] = obj[key];
+      acc[finalKey] = value;
     }
     
     return acc;
@@ -32,19 +33,29 @@ const flattenObject = (obj: Record<string, any>, prefix = ''): Record<string, an
 
 const unflattenObject = (obj: Record<string, any>): Record<string, any> => {
   const result: Record<string, any> = {};
-  
+
   for (const key in obj) {
-    const keys = key.split('_');
-    let current = result;
+    const parts = key.split('_');
+    const mainKey = parts[0];
     
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      if (i === keys.length - 1) {
-        current[k] = obj[key];
+    if (parts.length === 1) {
+      result[key] = obj[key];
+      continue;
+    }
+
+    if (mainKey === 'fees') {
+      result.fees = result.fees || {};
+      if (parts[1] === 'in' && parts[2] === 'cabin') {
+        result.fees.in_cabin = obj[key];
       } else {
-        current[k] = current[k] || {};
-        current = current[k];
+        result.fees[parts[1]] = obj[key];
       }
+    } else if (mainKey === 'size_restrictions') {
+      result.size_restrictions = result.size_restrictions || {};
+      const fieldName = parts.slice(1).join('_');
+      result.size_restrictions[fieldName] = obj[key];
+    } else {
+      result[mainKey] = obj[key];
     }
   }
   
@@ -66,15 +77,17 @@ export const decorateWithPremiumFields = (
 
   // Decorate premium fields
   const decoratedFlat: Record<string, any> = {};
+  
+  // Process each field, preserving all values including empty strings
   for (const [key, value] of Object.entries(flattenedPolicy)) {
     if (premiumFields.includes(key)) {
       console.log(`[decorateWithPremiumFields] Marking as premium: ${key}`);
       decoratedFlat[key] = {
-        value,
+        value: value ?? null, // Preserve null/undefined as null
         isPremiumField: true
       };
     } else {
-      decoratedFlat[key] = value;
+      decoratedFlat[key] = value ?? null; // Preserve null/undefined as null
     }
   }
 
