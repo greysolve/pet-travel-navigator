@@ -1,10 +1,10 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/types/auth';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
-import { fetchOrCreateProfile } from '@/utils/profileManagement';
+import { fetchProfile, ProfileError } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
@@ -17,6 +17,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   loading: boolean;
   profileLoading: boolean;
+  profileError: ProfileError | null;
+  retryProfileLoad: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,34 +29,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const authOperations = useAuthOperations();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Profile fetch with retries
-  const loadProfile = useCallback(async (userId: string, retryCount = 0) => {
-    const maxRetries = 3;
-    const retryDelay = 1000;
+  // Profile fetch with improved error handling
+  const loadProfile = useCallback(async (userId: string) => {
+    // Clear any existing abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    
+    setProfileLoading(true);
+    setProfileError(null);
 
     try {
-      const profileData = await fetchOrCreateProfile(userId);
+      const profileData = await fetchProfile(userId);
       setProfile(profileData);
+      setProfileError(null);
     } catch (error) {
-      console.error(`Profile fetch attempt ${retryCount + 1} failed:`, error);
-      if (retryCount < maxRetries) {
-        setTimeout(() => {
-          loadProfile(userId, retryCount + 1);
-        }, retryDelay * Math.pow(2, retryCount));
-      } else {
-        console.error('Max retries reached for profile fetch');
+      console.error('Profile fetch failed:', error);
+      if (error instanceof ProfileError) {
+        setProfileError(error);
+        
+        // Show appropriate toast based on error type
+        const errorMessages = {
+          timeout: "Profile load timed out. Please try again.",
+          not_found: "Profile not found. Please sign out and back in.",
+          network: "Network error loading profile. Please check your connection.",
+          unknown: "Unexpected error loading profile. Please try again."
+        };
+        
         toast({
           title: "Error",
-          description: "Failed to load user profile. Please try signing in again.",
+          description: errorMessages[error.type],
           variant: "destructive",
         });
+      } else {
+        setProfileError(new ProfileError('Unexpected error', 'unknown'));
       }
     } finally {
       setProfileLoading(false);
     }
   }, []);
+
+  // Retry profile load
+  const retryProfileLoad = useCallback(async () => {
+    if (user?.id) {
+      await loadProfile(user.id);
+    }
+  }, [user?.id, loadProfile]);
 
   // Handle session recovery and auth state changes
   useEffect(() => {
@@ -69,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(null);
         setUser(null);
         setProfile(null);
+        setProfileError(null);
         setProfileLoading(false);
       }
     };
@@ -83,9 +111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
-    // Cleanup
+    // Cleanup function
     return () => {
       subscription.unsubscribe();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [loadProfile]);
 
@@ -96,6 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile, 
       loading,
       profileLoading,
+      profileError,
+      retryProfileLoad,
       ...authOperations
     }}>
       {children}
