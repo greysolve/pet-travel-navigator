@@ -150,9 +150,12 @@ export const useFlightSearch = () => {
       
       if (data?.connections) {
         console.log('Found connections:', data.connections);
-        if (data.petPolicies) {
-          // Decorate pet policies with premium field information
-          const decoratedPolicies = decorateWithPremiumFields(data.petPolicies, premiumFields);
+        console.log('Pet policies:', data.petPolicies);
+        
+        if (data.petPolicies && typeof data.petPolicies === 'object') {
+          // Ensure petPolicies is a Record<string, PetPolicy> before decorating
+          const policiesRecord = data.petPolicies as Record<string, PetPolicy>;
+          const decoratedPolicies = decorateWithPremiumFields(policiesRecord, premiumFields);
           onSearchResults(data.connections, decoratedPolicies);
         } else {
           onSearchResults(data.connections);
