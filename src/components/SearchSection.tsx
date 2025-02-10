@@ -14,7 +14,8 @@ import { DateSelector } from "./search/DateSelector";
 import { SearchButton } from "./search/SearchButton";
 import { SearchDivider } from "./search/SearchDivider";
 import { SaveSearch } from "./search/SaveSearch";
-import type { SearchSectionProps, PetPolicy } from "./search/types";
+import type { SearchSectionProps, SavedSearch } from "./search/types";
+import type { PetPolicy } from "./flight-results/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();

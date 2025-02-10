@@ -1,6 +1,8 @@
 
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
+export type { PetPolicy };  // Now properly exporting PetPolicy
+
 export interface SearchSectionProps {
   onSearchResults: (
     flights: FlightData[], 
@@ -15,13 +17,13 @@ export interface SearchFormHeaderProps {
   savedSearches: SavedSearch[];
   onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
   onDeleteSearch: (e: React.MouseEvent, searchId: string) => void;
-  isLoading?: boolean;
+  isLoading?: boolean;  // Added isLoading prop
 }
 
 export interface AirlinePolicySearchProps {
   policySearch: string;
   setPolicySearch: (value: string) => void;
-  isLoading?: boolean;
+  isLoading?: boolean;  // Added isLoading prop
 }
 
 export interface RouteSearchProps {
@@ -29,7 +31,7 @@ export interface RouteSearchProps {
   destination: string;
   setOrigin: (value: string) => void;
   setDestination: (value: string) => void;
-  isLoading?: boolean;
+  isLoading?: boolean;  // Added isLoading prop
 }
 
 export type SavedSearch = {
