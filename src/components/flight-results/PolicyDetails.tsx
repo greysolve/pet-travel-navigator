@@ -70,48 +70,48 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {/* Documentation */}
       {policy.documentation_needed?.length > 0 && (
         <div>
-          <p className="font-medium mb-2">Required documentation:</p>
-          {renderPolicyField(policy.documentation_needed, "Required documentation")}
+          <p className="font-medium mb-2">Required Documentation:</p>
+          {renderPolicyField(policy.documentation_needed, "Required Documentation")}
         </div>
       )}
 
       {/* Breed Restrictions */}
       {policy.breed_restrictions?.length > 0 && (
         <div>
-          <p className="font-medium mb-2">Breed restrictions:</p>
-          {renderPolicyField(policy.breed_restrictions, "Breed restrictions")}
+          <p className="font-medium mb-2">Breed Restrictions:</p>
+          {renderPolicyField(policy.breed_restrictions, "Breed Restrictions")}
         </div>
       )}
 
-      {/* Carrier Requirements */}
-      {policy.carrier_requirements && (
+      {/* Combined Carrier Requirements Section */}
+      {(policy.carrier_requirements || policy.carrier_requirements_cabin || policy.carrier_requirements_cargo) && (
         <div>
-          <p className="font-medium mb-2">Carrier requirements:</p>
-          {renderPolicyField(policy.carrier_requirements, "Carrier requirements")}
-        </div>
-      )}
-
-      {/* Cabin Carrier Requirements */}
-      {policy.carrier_requirements_cabin && (
-        <div>
-          <p className="font-medium mb-2">Cabin carrier requirements:</p>
-          {renderPolicyField(policy.carrier_requirements_cabin, "Cabin carrier requirements")}
-        </div>
-      )}
-
-      {/* Cargo Carrier Requirements */}
-      {policy.carrier_requirements_cargo && (
-        <div>
-          <p className="font-medium mb-2">Cargo carrier requirements:</p>
-          {renderPolicyField(policy.carrier_requirements_cargo, "Cargo carrier requirements")}
+          <p className="font-medium mb-2">Carrier Requirements:</p>
+          {policy.carrier_requirements && (
+            <div className="mb-2">
+              {renderPolicyField(policy.carrier_requirements, "General Carrier Requirements")}
+            </div>
+          )}
+          {policy.carrier_requirements_cabin && (
+            <div className="mb-2">
+              <p className="text-gray-600 mb-1">For Cabin:</p>
+              {renderPolicyField(policy.carrier_requirements_cabin, "Cabin Carrier Requirements")}
+            </div>
+          )}
+          {policy.carrier_requirements_cargo && (
+            <div>
+              <p className="text-gray-600 mb-1">For Cargo:</p>
+              {renderPolicyField(policy.carrier_requirements_cargo, "Cargo Carrier Requirements")}
+            </div>
+          )}
         </div>
       )}
 
       {/* Temperature Restrictions */}
       {policy.temperature_restrictions && (
         <div>
-          <p className="font-medium mb-2">Temperature restrictions:</p>
-          {renderPolicyField(policy.temperature_restrictions, "Temperature restrictions")}
+          <p className="font-medium mb-2">Temperature Restrictions:</p>
+          {renderPolicyField(policy.temperature_restrictions, "Temperature Restrictions")}
         </div>
       )}
 
@@ -119,7 +119,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.policy_url && (
         <div>
           {isPremiumField(policy.policy_url) ? (
-            <PremiumFeature title="Full policy:" className="inline-block">
+            <PremiumFeature title="Full Policy:" className="inline-block">
               <a 
                 href={policy.policy_url.value}
                 target="_blank"
