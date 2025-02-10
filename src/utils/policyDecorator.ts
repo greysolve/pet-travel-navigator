@@ -8,103 +8,91 @@ type PremiumContent = {
 
 type PremiumField<T> = T | PremiumContent;
 
+// Type guard to check if a value is a non-null object
 const isObject = (value: any): value is Record<string, any> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 };
 
-type DecoratedPetPolicy = {
-  [K in keyof PetPolicy]: PremiumField<PetPolicy[K]>;
+// Helper types for nested objects
+type SizeRestrictions = {
+  max_weight_cabin?: string;
+  max_weight_cargo?: string;
+  carrier_dimensions_cabin?: string;
 };
 
-const flattenObject = (obj: Record<string, any>, parentKey = ''): Record<string, any> => {
-  return Object.keys(obj).reduce((acc: Record<string, any>, key: string) => {
-    const value = obj[key];
-    const finalKey = parentKey ? `${parentKey}_${key}` : key;
-    
-    if (isObject(value) && !('isPremiumField' in value)) {
-      // For nested objects, recursively flatten
-      Object.assign(acc, flattenObject(value, finalKey));
-    } else if (Array.isArray(value)) {
-      // Preserve arrays as is
-      acc[finalKey] = value;
-    } else {
-      // Handle primitive values and null/undefined
-      acc[finalKey] = value;
-    }
-    
-    return acc;
-  }, {});
+type Fees = {
+  in_cabin?: string;
+  cargo?: string;
 };
 
-const unflattenObject = (obj: Record<string, any>): Record<string, any> => {
-  const result: Record<string, any> = {};
-
-  for (const key in obj) {
-    const value = obj[key];
-    const parts = key.split('_');
-    
-    if (parts.length === 1) {
-      // Handle top-level fields (including arrays and primitives)
-      result[key] = value;
-      continue;
-    }
-
-    // Handle nested structures
-    const mainKey = parts[0];
-    const nestedKey = parts.slice(1).join('_');
-
-    if (mainKey === 'fees') {
-      result.fees = result.fees || {};
-      if (parts[1] === 'in' && parts[2] === 'cabin') {
-        result.fees.in_cabin = value;
-      } else {
-        result.fees[parts[1]] = value;
-      }
-    } else if (mainKey === 'size_restrictions') {
-      result.size_restrictions = result.size_restrictions || {};
-      result.size_restrictions[nestedKey] = value;
-    } else {
-      result[mainKey] = value;
-    }
-  }
-  
-  return result;
+// Update PetPolicy to handle premium fields
+type DecoratedPetPolicy = Omit<PetPolicy, 'carrier_requirements'> & {
+  carrier_requirements?: PremiumField<string>;
 };
 
 export const decorateWithPremiumFields = (
   policy: Partial<PetPolicy>,
   premiumFields: string[]
 ): PetPolicy => {
-  console.log('[decorateWithPremiumFields] Starting decoration with:', { 
-    policy,
-    premiumFields
-  });
-
-  // Flatten the policy object
-  const flattenedPolicy = flattenObject(policy);
-  console.log('[decorateWithPremiumFields] Flattened policy:', flattenedPolicy);
-
-  // Decorate premium fields
-  const decoratedFlat: Record<string, any> = {};
+  console.log('Decorating policy with premium fields:', { policy, premiumFields });
   
-  // Process each field, preserving arrays and handling premium fields
-  for (const [key, value] of Object.entries(flattenedPolicy)) {
-    // Check if this field should be premium
-    if (premiumFields.includes(key)) {
-      console.log(`[decorateWithPremiumFields] Marking as premium: ${key}`);
-      decoratedFlat[key] = {
-        value: value, // Don't use nullish coalescing here to preserve empty arrays
+  const decoratedPolicy = { ...policy } as DecoratedPetPolicy;
+  
+  // First pass: handle all direct premium fields
+  for (const fieldName of premiumFields) {
+    const value = policy[fieldName as keyof PetPolicy];
+    if (value !== undefined) {
+      (decoratedPolicy[fieldName as keyof PetPolicy] as any) = {
+        value,
         isPremiumField: true
       };
-    } else {
-      // For non-premium fields, preserve arrays and other values as is
-      decoratedFlat[key] = value;
     }
   }
 
-  // Unflatten the decorated policy
-  const decoratedPolicy = unflattenObject(decoratedFlat);
-  console.log('[decorateWithPremiumFields] Final decorated policy:', decoratedPolicy);
+  // Second pass: handle nested objects
+  if (isObject(policy.size_restrictions)) {
+    const nestedObj: Record<string, any> = {};
+    for (const propKey in policy.size_restrictions) {
+      const fullPath = `size_restrictions_${propKey}`;
+      if (premiumFields.includes(fullPath)) {
+        nestedObj[propKey] = {
+          value: policy.size_restrictions[propKey as keyof SizeRestrictions],
+          isPremiumField: true
+        };
+      } else {
+        nestedObj[propKey] = policy.size_restrictions[propKey as keyof SizeRestrictions];
+      }
+    }
+    decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
+  }
 
-  return decoratedPolicy as PetPolicy;
+  if (isObject(policy.fees)) {
+    const nestedObj: Record<string, any> = {};
+    for (const propKey in policy.fees) {
+      const fullPath = `fees_${propKey}`;
+      if (premiumFields.includes(fullPath)) {
+        nestedObj[propKey] = {
+          value: policy.fees[propKey as keyof Fees],
+          isPremiumField: true
+        };
+      } else {
+        nestedObj[propKey] = policy.fees[propKey as keyof Fees];
+      }
+    }
+    decoratedPolicy.fees = nestedObj as Fees;
+  }
+
+  // Handle carrier_requirements as a premium field
+  if (premiumFields.includes('carrier_requirements') && policy.carrier_requirements) {
+    decoratedPolicy.carrier_requirements = {
+      value: policy.carrier_requirements,
+      isPremiumField: true
+    };
+  }
+
+  console.log('Decorated policy:', decoratedPolicy);
+  return {
+    ...decoratedPolicy,
+    isSummary: true
+  } as unknown as PetPolicy;
 };

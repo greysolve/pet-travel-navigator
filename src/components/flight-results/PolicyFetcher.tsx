@@ -10,23 +10,10 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
   'UK': 'United Kingdom'
 };
 
-interface SizeRestrictions {
-  max_weight_cabin?: string | null;
-  max_weight_cargo?: string | null;
-  carrier_dimensions_cabin?: string | null;
-}
-
-interface Fees {
-  in_cabin?: string | null;
-  cargo?: string | null;
-}
-
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
   const isPetCaddie = profile?.userRole === 'pet_caddie';
   const { data: premiumFields = [] } = usePremiumFields();
-
-  console.log('[usePetPolicies] Premium fields received:', premiumFields);
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
@@ -39,7 +26,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
         journey.segments?.map(segment => segment.carrierFsCode)
       ))];
       
-      console.log("[usePetPolicies] Fetching pet policies for airlines:", carrierCodes);
+      console.log("Fetching pet policies for airlines:", carrierCodes);
       
       const { data: airlines } = await supabase
         .from('airlines')
@@ -48,50 +35,32 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       if (!airlines?.length) return {};
 
-      const { data: policies, error } = await supabase
+      const { data: policies } = await supabase
         .from('pet_policies')
-        .select(`
-          *,
-          airlines!inner(iata_code)
-        `)
+        .select('*, airlines!inner(iata_code)')
         .in('airline_id', airlines.map(a => a.id));
 
-      if (error) {
-        console.error("[usePetPolicies] Error fetching policies:", error);
-        return {};
-      }
-
-      console.log("[usePetPolicies] Raw policies from database:", policies);
+      console.log("Found pet policies:", policies);
 
       const decoratedPolicies: Record<string, PetPolicy> = {};
       
       for (const policy of policies || []) {
         const policyData: Partial<PetPolicy> = {
-          pet_types_allowed: policy.pet_types_allowed ?? [],
-          carrier_requirements: policy.carrier_requirements ?? null,
-          carrier_requirements_cabin: policy.carrier_requirements_cabin ?? null,
-          carrier_requirements_cargo: policy.carrier_requirements_cargo ?? null,
-          documentation_needed: policy.documentation_needed ?? [],
-          temperature_restrictions: policy.temperature_restrictions ?? null,
-          breed_restrictions: policy.breed_restrictions ?? [],
-          policy_url: policy.policy_url ?? null,
-          size_restrictions: policy.size_restrictions as SizeRestrictions ?? null,
-          fees: policy.fees as Fees ?? null
+          pet_types_allowed: policy.pet_types_allowed,
+          carrier_requirements: policy.carrier_requirements,
+          carrier_requirements_cabin: policy.carrier_requirements_cabin,
+          carrier_requirements_cargo: policy.carrier_requirements_cargo,
+          documentation_needed: policy.documentation_needed,
+          temperature_restrictions: policy.temperature_restrictions,
+          breed_restrictions: policy.breed_restrictions,
+          policy_url: policy.policy_url,
+          size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
+          fees: policy.fees as PetPolicy['fees']
         };
-
-        console.log(`[usePetPolicies] Processing policy for ${policy.airlines.iata_code}:`, {
-          rawPolicy: policyData,
-          isPetCaddie,
-          premiumFields
-        });
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
           ? decorateWithPremiumFields(policyData, premiumFields)
           : policyData as PetPolicy;
-
-        console.log(`[usePetPolicies] Decorated policy for ${policy.airlines.iata_code}:`, 
-          decoratedPolicies[policy.airlines.iata_code]
-        );
       }
       
       return decoratedPolicies;
