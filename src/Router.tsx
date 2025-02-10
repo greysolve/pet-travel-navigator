@@ -1,3 +1,4 @@
+
 import { createBrowserRouter, Outlet } from "react-router-dom";
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
@@ -8,28 +9,32 @@ import Admin from "@/pages/Admin";
 import SampleResults from "@/pages/SampleResults";
 import AuthCallback from "@/pages/AuthCallback";
 import AuthDialog from "@/components/AuthDialog";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { Toaster } from "@/components/ui/toaster";
 
 // Create a protected layout that wraps routes requiring authentication
 const ProtectedLayout = () => {
   return <Outlet />;
 };
 
-// Create a root layout component that doesn't require authentication
-const RootLayout = () => {
+// Create an app layout that provides auth context
+const AppLayout = () => {
   return (
-    <div className="relative min-h-screen">
-      <div className="absolute top-4 right-4 z-50">
-        <AuthDialog />
+    <AuthProvider>
+      <div className="relative min-h-screen">
+        <div className="absolute top-4 right-4 z-50">
+          <AuthDialog />
+        </div>
+        <Outlet />
       </div>
-      <Outlet />
-    </div>
+      <Toaster />
+    </AuthProvider>
   );
 };
 
 const router = createBrowserRouter([
   {
-    path: "/",
-    element: <RootLayout />,
+    element: <AppLayout />,
     errorElement: <NotFound />,
     children: [
       {

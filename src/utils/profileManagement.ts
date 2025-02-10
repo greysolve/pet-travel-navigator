@@ -1,85 +1,101 @@
+
 import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/types/auth";
 import { toast } from "@/components/ui/use-toast";
 
-export async function fetchOrCreateProfile(userId: string): Promise<UserProfile | null> {
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
+async function wait(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<UserProfile> {
   try {
-    console.log('Fetching profile for user:', userId);
+    console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
-    // Changed from user_id to id since that's the correct column name
-    const { data: existingProfile, error: fetchError } = await supabase
+    // First, get the user's role - this MUST exist
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    if (roleError) {
+      console.error('Error fetching role:', roleError);
+      throw new Error('Failed to fetch user role');
+    }
+
+    if (!roleData) {
+      throw new Error('No role found for user');
+    }
+
+    // Then, get the profile data - this MUST exist
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .maybeSingle();
+      .single();
 
-    if (fetchError) {
-      console.error('Error fetching profile:', fetchError);
-      throw fetchError;
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      throw new Error('Failed to fetch user profile');
     }
 
-    if (existingProfile) {
-      console.log('Fetched existing profile:', existingProfile);
-      return existingProfile;
+    if (!profileData) {
+      throw new Error('No profile found for user');
     }
 
-    return await createNewProfile(userId);
+    // Log the raw data for debugging
+    console.log('Role data:', roleData);
+    console.log('Profile data:', profileData);
+
+    // Create the user profile object - no optional chaining, no defaults
+    const userProfile: UserProfile = {
+      id: userId,
+      userRole: roleData.role,
+      created_at: profileData.created_at,
+      updated_at: profileData.updated_at,
+      full_name: profileData.full_name,
+      avatar_url: profileData.avatar_url,
+      address_line1: profileData.address_line1,
+      address_line2: profileData.address_line2,
+      address_line3: profileData.address_line3,
+      locality: profileData.locality,
+      administrative_area: profileData.administrative_area,
+      postal_code: profileData.postal_code,
+      country_id: profileData.country_id,
+      address_format: profileData.address_format,
+      plan: profileData.plan,
+      search_count: profileData.search_count,
+      notification_preferences: profileData.notification_preferences
+    };
+
+    console.log('Mapped profile:', userProfile);
+    return userProfile;
+
+  } catch (error) {
+    if (retryCount < MAX_RETRIES) {
+      console.log('Retrying profile fetch...');
+      await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
+      return fetchProfileWithRetry(userId, retryCount + 1);
+    }
+    console.error('Error in fetchProfileWithRetry:', error);
+    throw error;
+  }
+}
+
+export async function fetchOrCreateProfile(userId: string): Promise<UserProfile> {
+  try {
+    console.log('Starting fetchOrCreateProfile for user:', userId);
+    return await fetchProfileWithRetry(userId);
   } catch (error) {
     console.error('Error in profile management:', error);
     toast({
       title: "Error",
-      description: "Failed to load or create user profile",
+      description: "Failed to load user profile. Please try signing in again.",
       variant: "destructive",
     });
-    return null;
+    throw error; // Re-throw to be handled by the auth context
   }
-}
-
-async function createNewProfile(userId: string): Promise<UserProfile | null> {
-  console.log('No profile found, creating one...');
-  // Changed to use id instead of user_id
-  const { data: newProfile, error: insertError } = await supabase
-    .from('profiles')
-    .insert([{ 
-      id: userId,
-      notification_preferences: {
-        travel_alerts: true,
-        policy_changes: true,
-        documentation_reminders: true
-      }
-    }])
-    .select()
-    .maybeSingle();
-
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return await handleDuplicateProfile(userId);
-    }
-    console.error('Error creating profile:', insertError);
-    throw insertError;
-  }
-
-  if (newProfile) {
-    console.log('Created new profile:', newProfile);
-    return newProfile;
-  }
-  
-  return null;
-}
-
-async function handleDuplicateProfile(userId: string): Promise<UserProfile | null> {
-  console.log('Profile already exists (race condition), fetching it...');
-  // Changed from user_id to id
-  const { data: retryProfile, error: retryError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (retryError) throw retryError;
-  if (retryProfile) {
-    console.log('Successfully fetched profile after retry:', retryProfile);
-    return retryProfile;
-  }
-  return null;
 }

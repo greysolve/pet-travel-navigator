@@ -1,20 +1,21 @@
+
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { AirlinePolicySearchProps } from "./types";
 
 type Airline = {
   name: string;
   iata_code: string | null;
 };
 
-interface AirlinePolicySearchProps {
-  policySearch: string;
-  setPolicySearch: (value: string) => void;
-}
-
-export const AirlinePolicySearch = ({ policySearch, setPolicySearch }: AirlinePolicySearchProps) => {
+export const AirlinePolicySearch = ({ 
+  policySearch, 
+  setPolicySearch,
+  isLoading 
+}: AirlinePolicySearchProps) => {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showAirlineSuggestions, setShowAirlineSuggestions] = useState(false);
@@ -73,6 +74,7 @@ export const AirlinePolicySearch = ({ policySearch, setPolicySearch }: AirlinePo
           setShowAirlineSuggestions(true);
         }}
         onFocus={() => setShowAirlineSuggestions(true)}
+        disabled={isLoading}
       />
       {showAirlineSuggestions && airlines.length > 0 && (
         <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">

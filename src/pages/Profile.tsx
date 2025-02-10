@@ -57,7 +57,14 @@ const Profile = () => {
         .single();
 
       if (error) throw error;
-      return data as UserProfile;
+      
+      // Ensure notification_preferences is properly typed
+      const typedData: UserProfile = {
+        ...data,
+        notification_preferences: data.notification_preferences as UserProfile['notification_preferences']
+      };
+      
+      return typedData;
     },
     enabled: !!userId,
   });

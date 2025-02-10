@@ -15,77 +15,64 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile, profileLoading } = useAuth();
 
-  const checkCache = async (origin: string, destination: string, date: Date) => {
-    if (!user) {
-      console.log('No authenticated user for cache check');
-      return null;
-    }
-
-    const searchDate = date.toISOString().split('T')[0];
-    console.log('Checking cache for:', { origin, destination, searchDate });
-
-    const { data: cachedSearch, error } = await supabase
-      .from('route_searches')
-      .select('*')
-      .eq('origin', origin)
-      .eq('destination', destination)
-      .eq('search_date', searchDate)
-      .gt('cached_until', new Date().toISOString())
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error checking cache:', error);
-      return null;
-    }
-
-    console.log('Cache check result:', cachedSearch);
-    return cachedSearch;
-  };
-
-  const updateCache = async (origin: string, destination: string, date: Date) => {
-    if (!user) {
-      console.log('No authenticated user for cache update');
-      return;
-    }
-
-    const searchDate = date.toISOString().split('T')[0];
-    const cacheExpiration = new Date();
-    cacheExpiration.setMinutes(cacheExpiration.getMinutes() + 5); // 5-minute cache
-
-    console.log('Updating cache with:', { 
-      origin, 
-      destination, 
-      searchDate,
-      cacheExpiration: cacheExpiration.toISOString()
+  const checkSearchEligibility = () => {
+    if (!profile) return { eligible: false, message: "Profile not loaded" };
+    
+    const isPetCaddie = profile.userRole === 'pet_caddie';
+    const searchCount = profile.search_count ?? 0;
+    
+    console.log('Checking search eligibility:', {
+      userRole: profile.userRole,
+      searchCount,
+      isPetCaddie
     });
 
-    try {
-      const { error } = await supabase
-        .from('route_searches')
-        .upsert(
-          {
-            origin,
-            destination,
-            search_date: searchDate,
-            last_searched_at: new Date().toISOString(),
-            cached_until: cacheExpiration.toISOString(),
-            user_id: user.id
-          },
-          {
-            onConflict: 'origin,destination,search_date'
-          }
-        );
+    if (isPetCaddie && searchCount <= 0) {
+      return {
+        eligible: false,
+        message: "You have no remaining searches. Please upgrade your plan to continue searching."
+      };
+    }
 
-      if (error) {
-        console.error('Error updating cache:', error);
+    return { eligible: true };
+  };
+
+  const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
+    try {
+      const { error: searchError } = await supabase
+        .from('route_searches')
+        .insert({
+          user_id: userId,
+          origin,
+          destination,
+          search_date: date
+        });
+
+      if (searchError?.code === '23505') {
+        console.log('Duplicate search detected');
+        
+        // Show duplicate search warning only for pet_caddie users
+        if (profile?.userRole === 'pet_caddie') {
+          toast({
+            title: "Duplicate Search",
+            description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
+            variant: "default"
+          });
+        }
+        return true;
+      } else if (searchError) {
+        console.error('Error recording search:', searchError);
+        throw searchError;
+      }
+      return true;
+    } catch (error: any) {
+      // Only throw if it's not a duplicate search error
+      if (error?.code !== '23505') {
         throw error;
       }
-
-      console.log('Cache updated successfully');
-    } catch (error) {
-      console.error('Failed to update cache:', error);
+      return true;
     }
   };
 
@@ -106,6 +93,28 @@ export const useFlightSearch = () => {
       return;
     }
 
+    if (profileLoading) {
+      toast({
+        title: "Loading",
+        description: "Please wait while we load your profile.",
+      });
+      onSearchComplete();
+      return;
+    }
+
+    // Check search eligibility before proceeding
+    const { eligible, message } = checkSearchEligibility();
+    if (!eligible) {
+      console.log('Search blocked - not eligible:', message);
+      toast({
+        title: "Search limit reached",
+        description: message,
+        variant: "destructive",
+      });
+      onSearchComplete();
+      return;
+    }
+
     if (!origin || !destination || !date) {
       toast({
         title: "Missing search criteria",
@@ -117,25 +126,22 @@ export const useFlightSearch = () => {
 
     setIsLoading(true);
     try {
-      // Check cache first
-      const cachedResult = await checkCache(origin, destination, date);
+      console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
-      if (cachedResult) {
-        console.log('Cache hit! Using cached data');
-      }
+      // Record the search first - this will trigger the search_count update via database trigger
+      await recordSearch(
+        user.id,
+        origin,
+        destination,
+        date.toISOString().split('T')[0]
+      );
 
-      console.log('Sending search request with:', { origin, destination, date: date.toISOString() });
-      
+      // Proceed with the flight search
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
       });
 
       if (error) throw error;
-
-      console.log('Full API response:', data);
-      
-      // Update cache after successful search
-      await updateCache(origin, destination, date);
       
       if (data?.connections) {
         console.log('Found connections:', data.connections);
@@ -144,11 +150,17 @@ export const useFlightSearch = () => {
         console.log('No flights found in response');
         onSearchResults([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error searching flights:', error);
+      let errorMessage = "There was an error searching for flights.";
+      
+      if (error.message?.includes('policy')) {
+        errorMessage = "You have reached your search limit. Please upgrade your plan to continue searching.";
+      }
+      
       toast({
         title: "Error searching flights",
-        description: "There was an error searching for flights. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -157,5 +169,11 @@ export const useFlightSearch = () => {
     }
   };
 
-  return { handleFlightSearch, isLoading };
+  return { 
+    handleFlightSearch, 
+    isLoading,
+    searchCount: profile?.search_count ?? 0,
+    isPetCaddie: profile?.userRole === 'pet_caddie',
+    isProfileLoading: profileLoading
+  };
 };

@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
+import { useAuth } from "@/contexts/AuthContext";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
@@ -9,6 +10,9 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 };
 
 export const usePetPolicies = (flights: FlightData[]) => {
+  const { profile } = useAuth();
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
+
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
       journey.segments?.map(segment => segment.carrierFsCode)
@@ -16,7 +20,6 @@ export const usePetPolicies = (flights: FlightData[]) => {
     queryFn: async () => {
       if (!flights.length) return {};
       
-      // Get all unique carrier codes from all segments
       const carrierCodes = [...new Set(flights.flatMap(journey => 
         journey.segments?.map(segment => segment.carrierFsCode)
       ))];
@@ -29,6 +32,24 @@ export const usePetPolicies = (flights: FlightData[]) => {
         .in('iata_code', carrierCodes);
 
       if (!airlines?.length) return {};
+
+      if (isPetCaddie) {
+        const { data: summaries } = await supabase
+          .from('pet_policy_summaries')
+          .select('summary, airlines!inner(iata_code)')
+          .in('airline_id', airlines.map(a => a.id));
+
+        console.log("Found pet policy summaries:", summaries);
+
+        return summaries?.reduce((acc: Record<string, PetPolicy>, record: any) => {
+          const summary = record.summary;
+          acc[record.airlines.iata_code] = {
+            ...summary,
+            isSummary: true  // Mark as summary
+          };
+          return acc;
+        }, {}) || {};
+      }
 
       const { data: policies } = await supabase
         .from('pet_policies')
@@ -48,7 +69,8 @@ export const usePetPolicies = (flights: FlightData[]) => {
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
           size_restrictions: policy.size_restrictions,
-          fees: policy.fees
+          fees: policy.fees,
+          isSummary: false  // Mark as full policy
         };
         return acc;
       }, {}) || {};

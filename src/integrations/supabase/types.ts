@@ -327,6 +327,45 @@ export type Database = {
           },
         ]
       }
+      pet_policy_summaries: {
+        Row: {
+          airline_id: string | null
+          created_at: string | null
+          id: string
+          summary: Json
+          updated_at: string | null
+        }
+        Insert: {
+          airline_id?: string | null
+          created_at?: string | null
+          id?: string
+          summary: Json
+          updated_at?: string | null
+        }
+        Update: {
+          airline_id?: string | null
+          created_at?: string | null
+          id?: string
+          summary?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_policy_summaries_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: true
+            referencedRelation: "airlines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_policy_summaries_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: true
+            referencedRelation: "missing_pet_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pet_profiles: {
         Row: {
           age: number | null
@@ -413,7 +452,9 @@ export type Database = {
           id: string
           locality: string | null
           notification_preferences: Json | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code: string | null
+          search_count: number | null
           updated_at: string | null
         }
         Insert: {
@@ -429,7 +470,9 @@ export type Database = {
           id: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -445,7 +488,9 @@ export type Database = {
           id?: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -456,41 +501,99 @@ export type Database = {
             referencedRelation: "countries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_user_role_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_roles"
+            referencedColumns: ["user_id"]
+          },
         ]
+      }
+      profiles_backup: {
+        Row: {
+          address_format: string | null
+          address_line1: string | null
+          address_line2: string | null
+          address_line3: string | null
+          administrative_area: string | null
+          avatar_url: string | null
+          country_id: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string | null
+          locality: string | null
+          notification_preferences: Json | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
+          postal_code: string | null
+          search_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          address_format?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_line3?: string | null
+          administrative_area?: string | null
+          avatar_url?: string | null
+          country_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          locality?: string | null
+          notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          postal_code?: string | null
+          search_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          address_format?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_line3?: string | null
+          administrative_area?: string | null
+          avatar_url?: string | null
+          country_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          locality?: string | null
+          notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          postal_code?: string | null
+          search_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       route_searches: {
         Row: {
-          cached_until: string | null
           created_at: string | null
           destination: string
           id: string
-          last_searched_at: string | null
           origin: string
           search_date: string
           updated_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
-          cached_until?: string | null
           created_at?: string | null
           destination: string
           id?: string
-          last_searched_at?: string | null
           origin: string
           search_date: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
-          cached_until?: string | null
           created_at?: string | null
           destination?: string
           id?: string
-          last_searched_at?: string | null
           origin?: string
           search_date?: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -699,6 +802,10 @@ export type Database = {
       }
     }
     Functions: {
+      backfill_policy_summaries: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_airlines_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -760,8 +867,9 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "site_manager" | "pet_lover"
+      app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      subscription_plan: "free" | "premium" | "teams"
     }
     CompositeTypes: {
       [_ in never]: never

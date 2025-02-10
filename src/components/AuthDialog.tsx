@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,39 +23,21 @@ const AuthDialog = () => {
       
       console.log("Fetching user role for:", user.id);
 
-      if (user.user_metadata?.role === "site_manager") {
-        console.log("Role found in metadata:", user.user_metadata.role);
-        return "site_manager";
-      }
+      // Use the same working method as profileManagement.ts
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
 
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching user role:", error);
+      if (roleError) {
+        console.error("Error fetching role:", roleError);
         return "pet_lover";
       }
 
-      if (!data) {
-        console.log("No role found in database, creating default role");
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: user.id,
-            role: "pet_lover"
-          });
-
-        if (insertError) {
-          console.error("Error inserting default role:", insertError);
-        }
-        return "pet_lover";
-      }
-
-      console.log("Role from database:", data.role);
-      return data.role;
+      const role = roleData?.role || "pet_lover";
+      console.log("Role from database:", role);
+      return role;
     },
     enabled: !!user,
   });

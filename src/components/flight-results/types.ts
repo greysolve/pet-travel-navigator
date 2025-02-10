@@ -1,4 +1,3 @@
-
 import type { Json } from "@/integrations/supabase/types";
 
 export type FlightLocation = {
@@ -45,7 +44,7 @@ export type PetPolicy = {
   carrier_requirements_cargo?: string;
   carrier_requirements?: string;
   documentation_needed: string[];
-  temperature_restrictions: string;
+  temperature_restrictions?: string;
   breed_restrictions: string[];
   policy_url?: string;
   size_restrictions?: {
@@ -57,6 +56,7 @@ export type PetPolicy = {
     in_cabin?: string;
     cargo?: string;
   };
+  isSummary?: boolean;
 };
 
 export type PolicyType = 'pet_arrival' | 'pet_transit';
@@ -81,4 +81,3 @@ export type CountryPolicy = {
   all_other_biological_tests?: string;
   required_ports_of_entry?: string;
 };
-
