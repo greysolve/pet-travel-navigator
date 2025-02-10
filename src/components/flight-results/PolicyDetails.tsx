@@ -21,22 +21,33 @@ const isPremiumField = (value: any): value is PremiumFieldValue => {
   return false;
 };
 
-const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
-  console.log('[PolicyDetails] Rendering premium field:', { value, label });
-  return (
-    <PremiumFeature title={label || ""}>
-      <div className="blur-sm select-none">
-        <JsonRenderer data={value.value} />
-      </div>
-    </PremiumFeature>
-  );
-};
-
-const renderPolicyField = (value: any, label?: string) => {
-  console.log('[PolicyDetails] Rendering policy field:', { value, label, isPremium: isPremiumField(value) });
+const renderValue = (value: any, label?: string): JSX.Element => {
+  console.log('[PolicyDetails] Rendering value:', { value, label });
+  
   if (isPremiumField(value)) {
-    return renderPremiumField(value, label);
+    console.log('[PolicyDetails] Rendering premium field:', { value, label });
+    return (
+      <PremiumFeature title={label || ""}>
+        <div className="blur-sm select-none">
+          <JsonRenderer data={value.value} />
+        </div>
+      </PremiumFeature>
+    );
   }
+
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    return (
+      <div className="space-y-2">
+        {Object.entries(value).map(([key, val]) => (
+          <div key={key} className="ml-4">
+            <p className="text-gray-600 text-sm">{key}:</p>
+            {renderValue(val, `${label} - ${key}`)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return <JsonRenderer data={value} />;
 };
 
@@ -49,81 +60,33 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
     );
   }
 
+  const renderSection = (
+    key: keyof PetPolicy,
+    label: string,
+    value: any
+  ) => {
+    if (!value) return null;
+    
+    return (
+      <div>
+        <p className="font-medium mb-2">{label}:</p>
+        {renderValue(value, label)}
+      </div>
+    );
+  };
+
   return (
     <div className="text-sm space-y-4 border-t pt-4">
-      {/* Pet Types */}
-      {policy.pet_types_allowed?.length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Allowed pets:</p>
-          {renderPolicyField(policy.pet_types_allowed, "Allowed pets")}
-        </div>
-      )}
+      {renderSection('pet_types_allowed', 'Allowed pets', policy.pet_types_allowed)}
+      {renderSection('size_restrictions', 'Size and Weight Restrictions', policy.size_restrictions)}
+      {renderSection('fees', 'Fees', policy.fees)}
+      {renderSection('documentation_needed', 'Required Documentation', policy.documentation_needed)}
+      {renderSection('breed_restrictions', 'Breed Restrictions', policy.breed_restrictions)}
+      {renderSection('carrier_requirements', 'General Carrier Requirements', policy.carrier_requirements)}
+      {renderSection('carrier_requirements_cabin', 'Cabin Carrier Requirements', policy.carrier_requirements_cabin)}
+      {renderSection('carrier_requirements_cargo', 'Cargo Carrier Requirements', policy.carrier_requirements_cargo)}
+      {renderSection('temperature_restrictions', 'Temperature Restrictions', policy.temperature_restrictions)}
 
-      {/* Size Restrictions */}
-      {policy.size_restrictions && (
-        <div>
-          <p className="font-medium mb-2">Size and Weight Restrictions:</p>
-          {renderPolicyField(policy.size_restrictions, "Size and Weight Restrictions")}
-        </div>
-      )}
-
-      {/* Fees */}
-      {policy.fees && Object.keys(policy.fees).length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Fees:</p>
-          {renderPolicyField(policy.fees, "Fees")}
-        </div>
-      )}
-
-      {/* Documentation */}
-      {policy.documentation_needed?.length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Required Documentation:</p>
-          {renderPolicyField(policy.documentation_needed, "Required Documentation")}
-        </div>
-      )}
-
-      {/* Breed Restrictions */}
-      {policy.breed_restrictions?.length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Breed Restrictions:</p>
-          {renderPolicyField(policy.breed_restrictions, "Breed Restrictions")}
-        </div>
-      )}
-
-      {/* Combined Carrier Requirements Section */}
-      {(policy.carrier_requirements || policy.carrier_requirements_cabin || policy.carrier_requirements_cargo) && (
-        <div>
-          <p className="font-medium mb-2">Carrier Requirements:</p>
-          {policy.carrier_requirements && (
-            <div className="mb-2">
-              {renderPolicyField(policy.carrier_requirements, "General Carrier Requirements")}
-            </div>
-          )}
-          {policy.carrier_requirements_cabin && (
-            <div className="mb-2">
-              <p className="text-gray-600 mb-1">For Cabin:</p>
-              {renderPolicyField(policy.carrier_requirements_cabin, "Cabin Carrier Requirements")}
-            </div>
-          )}
-          {policy.carrier_requirements_cargo && (
-            <div>
-              <p className="text-gray-600 mb-1">For Cargo:</p>
-              {renderPolicyField(policy.carrier_requirements_cargo, "Cargo Carrier Requirements")}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Temperature Restrictions */}
-      {policy.temperature_restrictions && (
-        <div>
-          <p className="font-medium mb-2">Temperature Restrictions:</p>
-          {renderPolicyField(policy.temperature_restrictions, "Temperature Restrictions")}
-        </div>
-      )}
-
-      {/* Policy URL - Now handled consistently with other premium fields */}
       {policy.policy_url && (
         <div>
           {isPremiumField(policy.policy_url) ? (
