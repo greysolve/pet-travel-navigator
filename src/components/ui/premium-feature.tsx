@@ -1,13 +1,7 @@
 
-import { Star } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PremiumFeatureProps {
   title: string;
@@ -24,20 +18,14 @@ export const PremiumFeature = ({ title, children, className }: PremiumFeaturePro
       <div className="flex items-center gap-2">
         <p className="font-medium">{title}</p>
         {showPremiumIndicator && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Star className="h-4 w-4 fill-[#F97316] text-[#F97316]" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Premium feature - Upgrade to access</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Badge 
+            className="bg-[#F97316] hover:bg-[#F97316]/90 text-white text-xs"
+          >
+            Upgrade To View
+          </Badge>
         )}
       </div>
       {children}
     </div>
   );
 };
-
