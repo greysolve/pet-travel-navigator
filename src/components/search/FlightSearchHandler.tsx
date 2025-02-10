@@ -173,8 +173,8 @@ export const useFlightSearch = () => {
   return { 
     handleFlightSearch, 
     isLoading,
-    searchCount: profile?.search_count,
-    isPetCaddie: profile?.userRole === 'pet_caddie',
+    searchCount: profile.search_count,
+    isPetCaddie: profile.userRole === 'pet_caddie',
     isProfileLoading: profileLoading
   };
 };
