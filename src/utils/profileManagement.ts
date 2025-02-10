@@ -2,98 +2,96 @@
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/auth';
 import { toast } from '@/components/ui/use-toast';
+import { hasData } from '@/types/supabase'; 
 
-async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
-  try {
-    console.log(`Fetching profile for user ${userId}`);
-    
-    const response = await supabase
-      .from('profiles')
-      .select(`
-        *,
-        user_roles!inner (
-          role
-        )
-      `)
-      .eq('id', userId)
-      .single();
+async function fetchProfileWithRetry(userId: string, retryCount = 3): Promise<UserProfile> {
+  for (let attempt = 1; attempt <= retryCount; attempt++) {
+    try {
+      console.log(`Fetching profile for user ${userId} - Attempt ${attempt}`);
+      
+      const response = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          created_at,
+          updated_at,
+          full_name,
+          avatar_url,
+          address_line1,
+          address_line2,
+          address_line3,
+          locality,
+          administrative_area,
+          postal_code,
+          country_id,
+          address_format,
+          plan,
+          search_count,
+          notification_preferences
+        `)
+        .eq('id', userId)
+        .single();
 
-    // Log the complete response object
-    console.log('Complete Supabase Response:', {
-      error: response.error,
-      status: response.status,
-      statusText: response.statusText,
-      data: response.data
-    });
-    
-    if (response.error) {
-      console.error('Error fetching profile:', response.error);
-      throw response.error;
+      if (response.error) {
+        console.error(`Error fetching profile attempt ${attempt}:`, response.error);
+        if (attempt === retryCount) throw response.error;
+        continue;
+      }
+
+      // Get user role in a separate query
+      const roleResponse = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (roleResponse.error) {
+        console.error(`Error fetching role attempt ${attempt}:`, roleResponse.error);
+        if (attempt === retryCount) throw roleResponse.error;
+        continue;
+      }
+
+      const profileData = response.data;
+      const role = roleResponse.data.role;
+
+      if (!profileData || !role) {
+        console.error('Profile or role not found. Profile data:', profileData);
+        throw new Error('Profile or role not found');
+      }
+      
+      // Log role details before validation
+      console.log('Role Details:', {
+        rawRole: role,
+        roleType: typeof role,
+        validRoles: ['pet_lover', 'site_manager', 'pet_caddie']
+      });
+
+      if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
+        console.error('Invalid role detected:', role);
+        throw new Error(`Invalid role: ${role}`);
+      }
+
+      const mappedProfile: UserProfile = {
+        ...profileData,
+        role
+      };
+      
+      // Log the final mapped profile validation
+      console.log('Mapped Profile Validation:', {
+        hasRole: !!mappedProfile.role,
+        roleValue: mappedProfile.role,
+        isRoleValid: ['pet_lover', 'site_manager', 'pet_caddie'].includes(mappedProfile.role)
+      });
+
+      return mappedProfile;
+    } catch (error) {
+      console.error(`Error in fetchProfileWithRetry attempt ${attempt}:`, error);
+      if (attempt === retryCount) throw error;
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
     }
-
-    const profileData = response.data;
-    
-    // Log the profile data structure
-    console.log('Profile Data Structure:', {
-      hasUserRoles: !!profileData?.user_roles,
-      userRolesType: profileData?.user_roles ? typeof profileData.user_roles : 'undefined',
-      userRolesValue: profileData?.user_roles,
-      directRole: profileData?.role, // Check if role exists at top level
-      nestedRole: profileData?.user_roles?.role // Check nested role
-    });
-
-    if (!profileData || !profileData.user_roles || !profileData.user_roles.role) {
-      console.error('Profile or role not found. Profile data:', profileData);
-      throw new Error('Profile or role not found');
-    }
-
-    // Create a clean UserProfile object with explicit mapping and role validation
-    const role = profileData.user_roles.role;
-    
-    // Log role details before validation
-    console.log('Role Details:', {
-      rawRole: role,
-      roleType: typeof role,
-      validRoles: ['pet_lover', 'site_manager', 'pet_caddie']
-    });
-
-    if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
-      console.error('Invalid role detected:', role);
-      throw new Error(`Invalid role: ${role}`);
-    }
-
-    const mappedProfile: UserProfile = {
-      id: profileData.id,
-      created_at: profileData.created_at,
-      updated_at: profileData.updated_at,
-      full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
-      address_line1: profileData.address_line1,
-      address_line2: profileData.address_line2,
-      address_line3: profileData.address_line3,
-      locality: profileData.locality,
-      administrative_area: profileData.administrative_area,
-      postal_code: profileData.postal_code,
-      country_id: profileData.country_id,
-      address_format: profileData.address_format,
-      plan: profileData.plan,
-      search_count: profileData.search_count,
-      notification_preferences: profileData.notification_preferences,
-      role: role
-    };
-    
-    // Log the final mapped profile validation
-    console.log('Mapped Profile Validation:', {
-      hasRole: !!mappedProfile.role,
-      roleValue: mappedProfile.role,
-      isRoleValid: ['pet_lover', 'site_manager', 'pet_caddie'].includes(mappedProfile.role)
-    });
-
-    return mappedProfile;
-  } catch (error) {
-    console.error('Error in fetchProfileWithRetry:', error);
-    throw error;
   }
+  throw new Error('Failed to fetch profile after all retry attempts');
 }
 
 export async function fetchOrCreateProfile(userId: string): Promise<UserProfile> {
@@ -109,6 +107,11 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile>
     
   } catch (error) {
     console.error('Error in profile management:', error);
+    toast({
+      title: "Error loading profile",
+      description: "Please try refreshing the page",
+      variant: "destructive",
+    });
     throw error;
   }
 }
