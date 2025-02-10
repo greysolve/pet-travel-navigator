@@ -1,75 +1,19 @@
 
 import type { PetPolicy } from "@/components/flight-results/types";
 
-type PremiumField = {
+type PremiumContent = {
   value: any;
   isPremiumField: true;
 };
+
+type PremiumField<T> = T | PremiumContent;
 
 const isObject = (value: any): value is Record<string, any> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 };
 
-// Improved field path formatting
 const formatFieldPath = (fieldName: string): string[] => {
-  const parts = fieldName.split('_');
-  const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'];
-  
-  // Check if this is a prefix with additional parts
-  for (const prefix of knownPrefixes) {
-    if (fieldName.startsWith(prefix)) {
-      const remaining = fieldName.slice(prefix.length + 1);
-      const path = [prefix];
-      if (remaining) {
-        path.push(remaining);
-      }
-      return path;
-    }
-  }
-  
-  return [fieldName];
-};
-
-const getNestedValue = (obj: any, path: string[]): any => {
-  return path.reduce((current, key) => current?.[key], obj);
-};
-
-const setNestedValue = (obj: any, path: string[], value: any): void => {
-  const lastKey = path[path.length - 1];
-  const parentPath = path.slice(0, -1);
-  
-  const parent = parentPath.reduce((current, key) => {
-    if (!current[key] || typeof current[key] !== 'object') {
-      current[key] = {};
-    }
-    return current[key];
-  }, obj);
-  
-  parent[lastKey] = value;
-};
-
-// New function to recursively decorate nested objects
-const decorateNestedObject = (obj: any, parentPath: string, premiumFields: string[]): Record<string, any> => {
-  if (!isObject(obj)) return obj;
-
-  const decoratedObj: Record<string, any> = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    const currentPath = parentPath ? `${parentPath}_${key}` : key;
-    
-    if (premiumFields.includes(currentPath)) {
-      decoratedObj[key] = {
-        value: value,
-        isPremiumField: true
-      };
-    } else if (isObject(value)) {
-      decoratedObj[key] = decorateNestedObject(value, currentPath, premiumFields);
-    } else {
-      decoratedObj[key] = value;
-    }
-  }
-
-  return decoratedObj;
+  return [fieldName]; // Return exact field name as single element array
 };
 
 export const decorateWithPremiumFields = (
@@ -79,35 +23,36 @@ export const decorateWithPremiumFields = (
   console.log('Decorating policy with premium fields:', { policy, premiumFields });
   
   const decoratedPolicy = { ...policy } as PetPolicy;
-
-  // Handle top-level premium fields first
+  
+  // First pass: handle all direct premium fields
   for (const fieldName of premiumFields) {
-    const path = formatFieldPath(fieldName);
-    console.log(`Processing field ${fieldName}, path:`, path);
-    
-    if (path.length === 1) {
-      const value = getNestedValue(policy, path);
-      console.log(`Value for ${fieldName}:`, value);
-      
-      if (value !== undefined) {
-        setNestedValue(decoratedPolicy, path, {
-          value: value,
-          isPremiumField: true
-        });
-      }
+    const value = policy[fieldName as keyof PetPolicy];
+    if (value !== undefined) {
+      (decoratedPolicy[fieldName as keyof PetPolicy] as any) = {
+        value,
+        isPremiumField: true
+      };
     }
   }
 
-  // Handle nested premium fields
-  const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'] as const;
-  for (const prefix of knownPrefixes) {
-    if (decoratedPolicy[prefix]) {
-      const decorated = decorateNestedObject(
-        decoratedPolicy[prefix],
-        prefix,
-        premiumFields
-      );
-      (decoratedPolicy[prefix] as any) = decorated;
+  // Second pass: handle nested objects
+  const objectFields = ['size_restrictions', 'carrier_requirements', 'fees'] as const;
+  for (const objField of objectFields) {
+    if (decoratedPolicy[objField]) {
+      const nestedObj = { ...decoratedPolicy[objField] };
+      
+      // Check each property in nested object
+      for (const propKey in nestedObj) {
+        const fullPath = `${objField}_${propKey}`;
+        if (premiumFields.includes(fullPath)) {
+          nestedObj[propKey] = {
+            value: nestedObj[propKey],
+            isPremiumField: true
+          };
+        }
+      }
+      
+      decoratedPolicy[objField] = nestedObj;
     }
   }
 
