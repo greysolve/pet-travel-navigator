@@ -40,7 +40,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
     }
 
     // Then, get the profile data - this MUST exist
-    const { data: profileData, error: profileError } = await supabase
+    let { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
