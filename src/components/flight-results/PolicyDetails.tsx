@@ -1,6 +1,7 @@
 
 import { ExternalLink } from "lucide-react";
 import { JsonRenderer } from "@/components/ui/json-renderer";
+import { PremiumFeature } from "@/components/ui/premium-feature";
 import type { PetPolicy } from "./types";
 
 type PolicyDetailsProps = {
@@ -33,26 +34,23 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Carrier Requirements */}
+      {/* Carrier Requirements - Premium Feature */}
       {policy.carrier_requirements && (
-        <div>
-          <p className="font-medium mb-2">Carrier requirements:</p>
+        <PremiumFeature title="Carrier requirements:">
           <JsonRenderer data={policy.carrier_requirements} />
-        </div>
+        </PremiumFeature>
       )}
 
       {policy.carrier_requirements_cabin && (
-        <div>
-          <p className="font-medium mb-2">Cabin carrier requirements:</p>
+        <PremiumFeature title="Cabin carrier requirements:">
           <JsonRenderer data={policy.carrier_requirements_cabin} />
-        </div>
+        </PremiumFeature>
       )}
 
       {policy.carrier_requirements_cargo && (
-        <div>
-          <p className="font-medium mb-2">Cargo carrier requirements:</p>
+        <PremiumFeature title="Cargo carrier requirements:">
           <JsonRenderer data={policy.carrier_requirements_cargo} />
-        </div>
+        </PremiumFeature>
       )}
 
       {/* Documentation */}
@@ -71,12 +69,11 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Temperature and Breed Restrictions */}
+      {/* Temperature Restrictions - Premium Feature */}
       {policy.temperature_restrictions && (
-        <div>
-          <p className="font-medium mb-2">Temperature restrictions:</p>
+        <PremiumFeature title="Temperature restrictions:">
           <JsonRenderer data={policy.temperature_restrictions} />
-        </div>
+        </PremiumFeature>
       )}
 
       {policy.breed_restrictions?.length > 0 && (
@@ -86,15 +83,18 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
+      {/* Policy URL - Premium Feature */}
       {policy.policy_url && (
-        <a 
-          href={policy.policy_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center text-primary hover:text-primary/80 mt-2"
-        >
-          View full policy <ExternalLink className="h-4 w-4 ml-1" />
-        </a>
+        <PremiumFeature title="Full policy:" className="inline-block">
+          <a 
+            href={policy.policy_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-primary hover:text-primary/80"
+          >
+            View full policy <ExternalLink className="h-4 w-4 ml-1" />
+          </a>
+        </PremiumFeature>
       )}
     </div>
   );
