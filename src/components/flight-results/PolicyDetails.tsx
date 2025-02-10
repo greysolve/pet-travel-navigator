@@ -3,12 +3,16 @@ import { ExternalLink } from "lucide-react";
 import { JsonRenderer } from "@/components/ui/json-renderer";
 import { PremiumFeature } from "@/components/ui/premium-feature";
 import type { PetPolicy } from "./types";
+import { useAuth } from "@/contexts/AuthContext";
 
 type PolicyDetailsProps = {
   policy?: PetPolicy;
 };
 
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
+  const { profile } = useAuth();
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
+
   if (!policy) {
     return (
       <p className="text-sm text-gray-500 border-t pt-4">
@@ -59,8 +63,8 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Premium Features */}
-      {!policy.isSummary && (
+      {/* Premium Features - Now shown for pet_caddie users regardless of isSummary */}
+      {(isPetCaddie || !policy.isSummary) && (
         <>
           {policy.carrier_requirements && (
             <PremiumFeature title="Carrier requirements:">
@@ -103,4 +107,3 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
     </div>
   );
 };
-
