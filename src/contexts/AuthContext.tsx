@@ -30,20 +30,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authOperations = useAuthOperations();
 
   // Profile fetch with retries
-  const fetchProfileWithRetries = useCallback(async (userId: string, retryCount = 0) => {
+  const loadProfile = useCallback(async (userId: string, retryCount = 0) => {
     const maxRetries = 3;
     const retryDelay = 1000;
 
     try {
       const profileData = await fetchOrCreateProfile(userId);
-      if (profileData) {
-        setProfile(profileData);
-      }
+      setProfile(profileData);
     } catch (error) {
       console.error(`Profile fetch attempt ${retryCount + 1} failed:`, error);
       if (retryCount < maxRetries) {
         setTimeout(() => {
-          fetchProfileWithRetries(userId, retryCount + 1);
+          loadProfile(userId, retryCount + 1);
         }, retryDelay * Math.pow(2, retryCount));
       } else {
         console.error('Max retries reached for profile fetch');
@@ -66,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await fetchProfileWithRetries(currentSession.user.id);
+        await loadProfile(currentSession.user.id);
       } else {
         setSession(null);
         setUser(null);
@@ -89,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfileWithRetries]);
+  }, [loadProfile]);
 
   return (
     <AuthContext.Provider value={{ 
