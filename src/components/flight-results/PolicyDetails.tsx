@@ -19,6 +19,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
 
   return (
     <div className="text-sm space-y-4 border-t pt-4">
+      {/* Basic Info (Always Visible) */}
       {policy.pet_types_allowed?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Allowed pets:</p>
@@ -26,7 +27,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Size Restrictions */}
+      {/* Basic Size Restrictions (Always Visible) */}
       {policy.size_restrictions && (
         <div>
           <p className="font-medium mb-2">Size and Weight Restrictions:</p>
@@ -34,34 +35,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Carrier Requirements - Premium Feature */}
-      {policy.carrier_requirements && (
-        <PremiumFeature title="Carrier requirements:">
-          <JsonRenderer data={policy.carrier_requirements} />
-        </PremiumFeature>
-      )}
-
-      {policy.carrier_requirements_cabin && (
-        <PremiumFeature title="Cabin carrier requirements:">
-          <JsonRenderer data={policy.carrier_requirements_cabin} />
-        </PremiumFeature>
-      )}
-
-      {policy.carrier_requirements_cargo && (
-        <PremiumFeature title="Cargo carrier requirements:">
-          <JsonRenderer data={policy.carrier_requirements_cargo} />
-        </PremiumFeature>
-      )}
-
-      {/* Documentation */}
-      {policy.documentation_needed?.length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Required documentation:</p>
-          <JsonRenderer data={policy.documentation_needed} />
-        </div>
-      )}
-
-      {/* Fees */}
+      {/* Basic Fees (Always Visible) */}
       {policy.fees && Object.keys(policy.fees).length > 0 && (
         <div>
           <p className="font-medium mb-2">Fees:</p>
@@ -69,13 +43,15 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Temperature Restrictions - Premium Feature */}
-      {policy.temperature_restrictions && (
-        <PremiumFeature title="Temperature restrictions:">
-          <JsonRenderer data={policy.temperature_restrictions} />
-        </PremiumFeature>
+      {/* Basic Documentation (Always Visible) */}
+      {policy.documentation_needed?.length > 0 && (
+        <div>
+          <p className="font-medium mb-2">Required documentation:</p>
+          <JsonRenderer data={policy.documentation_needed} />
+        </div>
       )}
 
+      {/* Breed Restrictions (Always Visible) */}
       {policy.breed_restrictions?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Breed restrictions:</p>
@@ -83,18 +59,46 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Policy URL - Premium Feature */}
-      {policy.policy_url && (
-        <PremiumFeature title="Full policy:" className="inline-block">
-          <a 
-            href={policy.policy_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-primary hover:text-primary/80"
-          >
-            View full policy <ExternalLink className="h-4 w-4 ml-1" />
-          </a>
-        </PremiumFeature>
+      {/* Premium Features */}
+      {!policy.isSummary && (
+        <>
+          {policy.carrier_requirements && (
+            <PremiumFeature title="Carrier requirements:">
+              <JsonRenderer data={policy.carrier_requirements} />
+            </PremiumFeature>
+          )}
+
+          {policy.carrier_requirements_cabin && (
+            <PremiumFeature title="Cabin carrier requirements:">
+              <JsonRenderer data={policy.carrier_requirements_cabin} />
+            </PremiumFeature>
+          )}
+
+          {policy.carrier_requirements_cargo && (
+            <PremiumFeature title="Cargo carrier requirements:">
+              <JsonRenderer data={policy.carrier_requirements_cargo} />
+            </PremiumFeature>
+          )}
+
+          {policy.temperature_restrictions && (
+            <PremiumFeature title="Temperature restrictions:">
+              <JsonRenderer data={policy.temperature_restrictions} />
+            </PremiumFeature>
+          )}
+
+          {policy.policy_url && (
+            <PremiumFeature title="Full policy:" className="inline-block">
+              <a 
+                href={policy.policy_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-primary hover:text-primary/80"
+              >
+                View full policy <ExternalLink className="h-4 w-4 ml-1" />
+              </a>
+            </PremiumFeature>
+          )}
+        </>
       )}
     </div>
   );
