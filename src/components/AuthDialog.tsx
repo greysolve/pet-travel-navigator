@@ -2,8 +2,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { AuthButtons } from "@/components/auth/AuthButtons";
@@ -15,41 +13,6 @@ const AuthDialog = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-
-  const { data: userRole } = useQuery({
-    queryKey: ["userRole", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      console.log("Fetching user role for:", user.id);
-
-      if (user.user_metadata?.role === "site_manager") {
-        console.log("Role found in metadata:", user.user_metadata.role);
-        return "site_manager";
-      }
-
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          user_roles!profiles_user_role_id_fkey (
-            role
-          )
-        `)
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching profile with role:", error);
-        return "pet_lover";
-      }
-
-      const role = profileData?.user_roles?.role || "pet_lover";
-      console.log("Role from database:", role);
-      return role;
-    },
-    enabled: !!user,
-  });
 
   const handleSignIn = async (email: string, password: string) => {
     setIsLoading(true);
@@ -119,7 +82,7 @@ const AuthDialog = () => {
       {user ? (
         <UserMenu
           profile={profile}
-          userRole={userRole}
+          userRole={profile?.role || null}
           onSignOut={handleSignOut}
         />
       ) : (
