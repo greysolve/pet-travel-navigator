@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile } from "@/types/auth";
+import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 
 const QUERY_TIMEOUT = 5000; // 5 seconds timeout
@@ -90,10 +90,10 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Create the user profile object
+    // Create the user profile object with proper type casting
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleResult.data.role,
+      userRole: roleResult.data.role as UserRole, // Type cast role string to UserRole
       created_at: profileResult.data.created_at,
       updated_at: profileResult.data.updated_at,
       full_name: profileResult.data.full_name ?? undefined,
@@ -106,7 +106,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       postal_code: profileResult.data.postal_code ?? undefined,
       country_id: profileResult.data.country_id ?? undefined,
       address_format: profileResult.data.address_format ?? undefined,
-      plan: profileResult.data.plan ?? undefined,
+      plan: (profileResult.data.plan as SubscriptionPlan) ?? undefined, // Type cast plan string to SubscriptionPlan
       search_count: profileResult.data.search_count ?? undefined,
       notification_preferences: profileResult.data.notification_preferences
     };

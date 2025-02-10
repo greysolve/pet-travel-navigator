@@ -19,6 +19,6 @@ export const usePremiumFields = () => {
       return data?.map(field => field.field_name) || [];
     },
     staleTime: 1000 * 60, // Consider data fresh for 1 minute
-    cacheTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes (previously cacheTime)
   });
 };
