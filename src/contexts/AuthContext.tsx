@@ -1,10 +1,11 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/types/auth';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
-import { fetchProfile, ProfileError } from '@/utils/profileManagement';
+import { useProfileQuery } from '@/hooks/useProfileQuery';
+import { ProfileError } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
@@ -26,109 +27,81 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const authOperations = useAuthOperations();
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Profile fetch with improved error handling
-  const loadProfile = useCallback(async (userId: string) => {
-    // Clear any existing abort controller
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    
-    setProfileLoading(true);
-    setProfileError(null);
+  // Use React Query for profile management
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: queryError,
+    refetch: retryProfileLoad
+  } = useProfileQuery(user?.id);
 
-    try {
-      const profileData = await fetchProfile(userId);
-      setProfile(profileData);
-      setProfileError(null);
-    } catch (error) {
-      console.error('Profile fetch failed:', error);
-      if (error instanceof ProfileError) {
-        setProfileError(error);
-        
-        // Show appropriate toast based on error type
-        const errorMessages = {
-          timeout: "Profile load timed out. Please try again.",
-          not_found: "Profile not found. Please sign out and back in.",
-          network: "Network error loading profile. Please check your connection.",
-          unknown: "Unexpected error loading profile. Please try again."
-        };
-        
-        toast({
-          title: "Error",
-          description: errorMessages[error.type],
-          variant: "destructive",
-        });
-      } else {
-        setProfileError(new ProfileError('Unexpected error', 'unknown'));
-      }
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
+  // Convert query error to ProfileError type for consistency
+  const profileError = queryError instanceof ProfileError
+    ? queryError
+    : queryError
+      ? new ProfileError('Unexpected error', 'unknown')
+      : null;
 
-  // Retry profile load
-  const retryProfileLoad = useCallback(async () => {
-    if (user?.id) {
-      await loadProfile(user.id);
-    }
-  }, [user?.id, loadProfile]);
-
-  // Handle session recovery and auth state changes
+  // Show error toast when profile fails to load
   useEffect(() => {
-    const handleAuthChange = async (event: string, currentSession: Session | null) => {
+    if (profileError) {
+      const errorMessages = {
+        timeout: "Profile load timed out. Please try again.",
+        not_found: "Profile not found. Please sign out and back in.",
+        network: "Network error loading profile. Please check your connection.",
+        unknown: "Unexpected error loading profile. Please try again."
+      };
+      
+      toast({
+        title: "Error",
+        description: errorMessages[profileError.type],
+        variant: "destructive",
+      });
+    }
+  }, [profileError]);
+
+  // Handle session changes
+  useEffect(() => {
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log('Initial session check:', initialSession?.user?.id);
+      if (initialSession?.user) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+      }
+      setLoading(false);
+    });
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await loadProfile(currentSession.user.id);
       } else {
         setSession(null);
         setUser(null);
-        setProfile(null);
-        setProfileError(null);
-        setProfileLoading(false);
       }
-    };
-
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('Initial session check:', initialSession?.user?.id);
-      handleAuthChange('INITIAL_SESSION', initialSession);
-      setLoading(false);
     });
 
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-
-    // Cleanup function
     return () => {
       subscription.unsubscribe();
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
     };
-  }, [loadProfile]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ 
       session, 
       user, 
-      profile, 
+      profile: profile || null,
       loading,
       profileLoading,
       profileError,
-      retryProfileLoad,
+      retryProfileLoad: () => retryProfileLoad(),
       ...authOperations
     }}>
       {children}
