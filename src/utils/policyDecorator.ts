@@ -13,7 +13,7 @@ const isObject = (value: any): value is Record<string, any> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 };
 
-// Helper type for nested objects
+// Helper types for nested objects
 type SizeRestrictions = {
   max_weight_cabin?: string;
   max_weight_cargo?: string;
@@ -45,33 +45,44 @@ export const decorateWithPremiumFields = (
   }
 
   // Second pass: handle nested objects
-  const objectFields = ['size_restrictions', 'carrier_requirements', 'fees'] as const;
-  for (const objField of objectFields) {
-    const nestedValue = decoratedPolicy[objField];
-    if (isObject(nestedValue)) {
-      const nestedObj: Record<string, any> = {};
-      
-      // Copy existing properties
-      for (const propKey in nestedValue) {
-        const fullPath = `${objField}_${propKey}`;
-        if (premiumFields.includes(fullPath)) {
-          nestedObj[propKey] = {
-            value: nestedValue[propKey],
-            isPremiumField: true
-          };
-        } else {
-          nestedObj[propKey] = nestedValue[propKey];
-        }
-      }
-      
-      if (objField === 'size_restrictions') {
-        decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
-      } else if (objField === 'fees') {
-        decoratedPolicy.fees = nestedObj as Fees;
+  if (isObject(policy.size_restrictions)) {
+    const nestedObj: Record<string, any> = {};
+    for (const propKey in policy.size_restrictions) {
+      const fullPath = `size_restrictions_${propKey}`;
+      if (premiumFields.includes(fullPath)) {
+        nestedObj[propKey] = {
+          value: policy.size_restrictions[propKey as keyof SizeRestrictions],
+          isPremiumField: true
+        };
       } else {
-        decoratedPolicy.carrier_requirements = nestedObj as string;
+        nestedObj[propKey] = policy.size_restrictions[propKey as keyof SizeRestrictions];
       }
     }
+    decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
+  }
+
+  if (isObject(policy.fees)) {
+    const nestedObj: Record<string, any> = {};
+    for (const propKey in policy.fees) {
+      const fullPath = `fees_${propKey}`;
+      if (premiumFields.includes(fullPath)) {
+        nestedObj[propKey] = {
+          value: policy.fees[propKey as keyof Fees],
+          isPremiumField: true
+        };
+      } else {
+        nestedObj[propKey] = policy.fees[propKey as keyof Fees];
+      }
+    }
+    decoratedPolicy.fees = nestedObj as Fees;
+  }
+
+  // Handle carrier_requirements as a string field
+  if (premiumFields.includes('carrier_requirements') && policy.carrier_requirements) {
+    decoratedPolicy.carrier_requirements = {
+      value: policy.carrier_requirements,
+      isPremiumField: true
+    };
   }
 
   console.log('Decorated policy:', decoratedPolicy);
