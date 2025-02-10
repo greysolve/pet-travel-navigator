@@ -20,7 +20,10 @@ const isPremiumField = (value: any): value is PremiumFieldValue => {
 const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
   return (
     <PremiumFeature title={label || ""}>
-      <JsonRenderer data={value.value} />
+      {/* Premium content is completely hidden */}
+      <div className="blur-sm select-none">
+        <JsonRenderer data={value.value} />
+      </div>
     </PremiumFeature>
   );
 };
@@ -115,19 +118,16 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
         </div>
       )}
 
-      {/* Policy URL */}
+      {/* Policy URL - Now handled consistently with other premium fields */}
       {policy.policy_url && (
         <div>
           {isPremiumField(policy.policy_url) ? (
-            <PremiumFeature title="Full Policy:" className="inline-block">
-              <a 
-                href={policy.policy_url.value}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-primary hover:text-primary/80"
-              >
-                View full policy <ExternalLink className="h-4 w-4 ml-1" />
-              </a>
+            <PremiumFeature title="Full Policy">
+              <div className="blur-sm select-none">
+                <span className="inline-flex items-center text-primary">
+                  View full policy <ExternalLink className="h-4 w-4 ml-1" />
+                </span>
+              </div>
             </PremiumFeature>
           ) : (
             <a 

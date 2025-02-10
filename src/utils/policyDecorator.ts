@@ -6,18 +6,24 @@ type PremiumField = {
   isPremiumField: true;
 };
 
+const isObject = (value: any): value is Record<string, any> => {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
+// Improved field path formatting
 const formatFieldPath = (fieldName: string): string[] => {
   const parts = fieldName.split('_');
-  const result: string[] = [];
-  
   const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'];
+  
+  // Check if this is a prefix with additional parts
   for (const prefix of knownPrefixes) {
     if (fieldName.startsWith(prefix)) {
       const remaining = fieldName.slice(prefix.length + 1);
+      const path = [prefix];
       if (remaining) {
-        return [prefix, remaining];
+        path.push(remaining);
       }
-      return [prefix];
+      return path;
     }
   }
   
@@ -42,6 +48,30 @@ const setNestedValue = (obj: any, path: string[], value: any): void => {
   parent[lastKey] = value;
 };
 
+// New function to recursively decorate nested objects
+const decorateNestedObject = (obj: any, parentPath: string, premiumFields: string[]): any => {
+  if (!isObject(obj)) return obj;
+
+  const decoratedObj: any = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    const currentPath = parentPath ? `${parentPath}_${key}` : key;
+    
+    if (premiumFields.includes(currentPath)) {
+      decoratedObj[key] = {
+        value: value,
+        isPremiumField: true
+      };
+    } else if (isObject(value)) {
+      decoratedObj[key] = decorateNestedObject(value, currentPath, premiumFields);
+    } else {
+      decoratedObj[key] = value;
+    }
+  }
+
+  return decoratedObj;
+};
+
 export const decorateWithPremiumFields = (
   policy: Partial<PetPolicy>,
   premiumFields: string[]
@@ -50,18 +80,33 @@ export const decorateWithPremiumFields = (
   
   const decoratedPolicy = { ...policy };
 
+  // Handle top-level premium fields first
   for (const fieldName of premiumFields) {
     const path = formatFieldPath(fieldName);
     console.log(`Processing field ${fieldName}, path:`, path);
     
-    const value = getNestedValue(policy, path);
-    console.log(`Value for ${fieldName}:`, value);
-    
-    if (value !== undefined) {
-      setNestedValue(decoratedPolicy, path, {
-        value: value,
-        isPremiumField: true
-      });
+    if (path.length === 1) {
+      const value = getNestedValue(policy, path);
+      console.log(`Value for ${fieldName}:`, value);
+      
+      if (value !== undefined) {
+        setNestedValue(decoratedPolicy, path, {
+          value: value,
+          isPremiumField: true
+        });
+      }
+    }
+  }
+
+  // Handle nested premium fields
+  const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'];
+  for (const prefix of knownPrefixes) {
+    if (decoratedPolicy[prefix as keyof PetPolicy]) {
+      decoratedPolicy[prefix as keyof PetPolicy] = decorateNestedObject(
+        decoratedPolicy[prefix as keyof PetPolicy],
+        prefix,
+        premiumFields
+      );
     }
   }
 
