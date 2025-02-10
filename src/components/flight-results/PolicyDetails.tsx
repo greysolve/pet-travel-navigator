@@ -17,15 +17,17 @@ const isPremiumField = (value: any): value is PremiumFieldValue => {
   return value && typeof value === 'object' && 'isPremiumField' in value;
 };
 
-const renderPolicyField = (value: any, title?: string) => {
-  if (isPremiumField(value)) {
-    return title ? (
-      <PremiumFeature title={title}>
-        <JsonRenderer data={value.value} />
-      </PremiumFeature>
-    ) : (
+const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
+  return (
+    <PremiumFeature title={label || ""}>
       <JsonRenderer data={value.value} />
-    );
+    </PremiumFeature>
+  );
+};
+
+const renderPolicyField = (value: any, label?: string) => {
+  if (isPremiumField(value)) {
+    return renderPremiumField(value, label);
   }
   return <JsonRenderer data={value} />;
 };
@@ -45,7 +47,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.pet_types_allowed?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Allowed pets:</p>
-          {renderPolicyField(policy.pet_types_allowed)}
+          {renderPolicyField(policy.pet_types_allowed, "Allowed pets")}
         </div>
       )}
 
@@ -53,7 +55,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.size_restrictions && (
         <div>
           <p className="font-medium mb-2">Size and Weight Restrictions:</p>
-          {renderPolicyField(policy.size_restrictions)}
+          {renderPolicyField(policy.size_restrictions, "Size and Weight Restrictions")}
         </div>
       )}
 
@@ -61,7 +63,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.fees && Object.keys(policy.fees).length > 0 && (
         <div>
           <p className="font-medium mb-2">Fees:</p>
-          {renderPolicyField(policy.fees)}
+          {renderPolicyField(policy.fees, "Fees")}
         </div>
       )}
 
@@ -69,7 +71,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.documentation_needed?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Required documentation:</p>
-          {renderPolicyField(policy.documentation_needed)}
+          {renderPolicyField(policy.documentation_needed, "Required documentation")}
         </div>
       )}
 
@@ -77,35 +79,39 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.breed_restrictions?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Breed restrictions:</p>
-          {renderPolicyField(policy.breed_restrictions)}
+          {renderPolicyField(policy.breed_restrictions, "Breed restrictions")}
         </div>
       )}
 
       {/* Carrier Requirements */}
       {policy.carrier_requirements && (
         <div>
-          {renderPolicyField(policy.carrier_requirements, "Carrier requirements:")}
+          <p className="font-medium mb-2">Carrier requirements:</p>
+          {renderPolicyField(policy.carrier_requirements, "Carrier requirements")}
         </div>
       )}
 
       {/* Cabin Carrier Requirements */}
       {policy.carrier_requirements_cabin && (
         <div>
-          {renderPolicyField(policy.carrier_requirements_cabin, "Cabin carrier requirements:")}
+          <p className="font-medium mb-2">Cabin carrier requirements:</p>
+          {renderPolicyField(policy.carrier_requirements_cabin, "Cabin carrier requirements")}
         </div>
       )}
 
       {/* Cargo Carrier Requirements */}
       {policy.carrier_requirements_cargo && (
         <div>
-          {renderPolicyField(policy.carrier_requirements_cargo, "Cargo carrier requirements:")}
+          <p className="font-medium mb-2">Cargo carrier requirements:</p>
+          {renderPolicyField(policy.carrier_requirements_cargo, "Cargo carrier requirements")}
         </div>
       )}
 
       {/* Temperature Restrictions */}
       {policy.temperature_restrictions && (
         <div>
-          {renderPolicyField(policy.temperature_restrictions, "Temperature restrictions:")}
+          <p className="font-medium mb-2">Temperature restrictions:</p>
+          {renderPolicyField(policy.temperature_restrictions, "Temperature restrictions")}
         </div>
       )}
 
