@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/types/auth';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
 import { fetchOrCreateProfile } from '@/utils/profileManagement';
@@ -29,70 +29,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const authOperations = useAuthOperations();
 
-  // Debounced profile fetcher
-  const fetchProfileDebounced = useCallback(async (userId: string) => {
-    console.log('Fetching profile for user:', userId);
-    setProfileLoading(true);
+  // Profile fetch with retries
+  const fetchProfileWithRetries = useCallback(async (userId: string, retryCount = 0) => {
+    const maxRetries = 3;
+    const retryDelay = 1000;
+
     try {
       const profileData = await fetchOrCreateProfile(userId);
       if (profileData) {
         setProfile(profileData);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load user profile. Please try refreshing the page.",
-        variant: "destructive",
-      });
+      console.error(`Profile fetch attempt ${retryCount + 1} failed:`, error);
+      if (retryCount < maxRetries) {
+        setTimeout(() => {
+          fetchProfileWithRetries(userId, retryCount + 1);
+        }, retryDelay * Math.pow(2, retryCount));
+      } else {
+        console.error('Max retries reached for profile fetch');
+        toast({
+          title: "Error",
+          description: "Failed to load user profile. Please try signing in again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setProfileLoading(false);
     }
   }, []);
 
+  // Handle session recovery and auth state changes
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
+    const handleAuthChange = async (event: string, currentSession: Session | null) => {
+      console.log('Auth state changed:', event, currentSession?.user?.id);
       
-      if (session?.user) {
-        // Add a small delay to allow any pending operations to complete
-        timeoutId = setTimeout(() => {
-          fetchProfileDebounced(session.user.id);
-        }, 100);
+      if (currentSession?.user) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await fetchProfileWithRetries(currentSession.user.id);
       } else {
-        setProfileLoading(false);
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event, session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Clear any pending timeout
-        if (timeoutId) clearTimeout(timeoutId);
-        // Set new timeout for profile fetch
-        timeoutId = setTimeout(() => {
-          fetchProfileDebounced(session.user.id);
-        }, 100);
-      } else {
+        setSession(null);
+        setUser(null);
         setProfile(null);
         setProfileLoading(false);
       }
+    };
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log('Initial session check:', initialSession?.user?.id);
+      handleAuthChange('INITIAL_SESSION', initialSession);
+      setLoading(false);
     });
 
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+
+    // Cleanup
     return () => {
       subscription.unsubscribe();
-      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [fetchProfileDebounced]);
+  }, [fetchProfileWithRetries]);
 
   return (
     <AuthContext.Provider value={{ 
