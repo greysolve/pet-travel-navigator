@@ -57,6 +57,13 @@ export const PremiumFieldsManager = () => {
     }
   };
 
+  const formatFieldName = (fieldName: string) => {
+    return fieldName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -85,7 +92,7 @@ export const PremiumFieldsManager = () => {
           {premiumFields?.map((field) => (
             <TableRow key={field.id}>
               <TableCell className="font-medium">
-                {field.field_name.replace(/_/g, ' ')}
+                {formatFieldName(field.field_name)}
               </TableCell>
               <TableCell>{field.description}</TableCell>
               <TableCell>

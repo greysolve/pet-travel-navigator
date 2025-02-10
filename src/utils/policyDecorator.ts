@@ -24,14 +24,7 @@ const getPremiumFields = async (): Promise<string[]> => {
 
   if (error) {
     console.error('Error fetching premium fields:', error);
-    // Fallback to default fields if there's an error
-    return [
-      'carrier_requirements',
-      'carrier_requirements_cabin',
-      'carrier_requirements_cargo',
-      'temperature_restrictions',
-      'policy_url'
-    ];
+    return [];
   }
 
   // Update cache
@@ -41,27 +34,34 @@ const getPremiumFields = async (): Promise<string[]> => {
   return cachedPremiumFields;
 };
 
+const getNestedValue = (obj: any, path: string[]): any => {
+  return path.reduce((current, key) => current?.[key], obj);
+};
+
+const setNestedValue = (obj: any, path: string[], value: any): void => {
+  const lastKey = path[path.length - 1];
+  const parentPath = path.slice(0, -1);
+  const parent = parentPath.reduce((current, key) => {
+    current[key] = current[key] || {};
+    return current[key];
+  }, obj);
+  parent[lastKey] = value;
+};
+
 export const decorateWithPremiumFields = async (policy: Partial<PetPolicy>): Promise<PetPolicy> => {
   const premiumFields = await getPremiumFields();
   const decoratedPolicy = { ...policy };
 
   // Mark premium fields
-  premiumFields.forEach(field => {
-    const fieldPath = field.replace(/_/g, '.');
-    const value = fieldPath.split('.').reduce((obj: any, key: string) => obj?.[key], policy);
+  premiumFields.forEach(fieldName => {
+    const paths = fieldName.split('_');
+    const value = getNestedValue(policy, paths);
     
     if (value !== undefined) {
-      const target = fieldPath.split('.').reduce((obj: any, key: string, index: number, array: string[]) => {
-        if (index === array.length - 1) {
-          obj[key] = {
-            value: value,
-            isPremiumField: true
-          };
-        } else {
-          obj[key] = obj[key] || {};
-        }
-        return obj[key];
-      }, decoratedPolicy);
+      setNestedValue(decoratedPolicy, paths, {
+        value: value,
+        isPremiumField: true
+      });
     }
   });
 

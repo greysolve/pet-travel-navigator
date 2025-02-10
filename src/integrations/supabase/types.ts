@@ -905,6 +905,12 @@ export type Database = {
         | "fees_cargo"
         | "fees_in_cabin"
         | "size_restrictions_cabin"
+        | "pet_types_allowed"
+        | "documentation_needed"
+        | "breed_restrictions"
+        | "size_restrictions_max_weight_cabin"
+        | "size_restrictions_max_weight_cargo"
+        | "size_restrictions_carrier_dimensions_cabin"
       subscription_plan: "free" | "premium" | "teams"
     }
     CompositeTypes: {
