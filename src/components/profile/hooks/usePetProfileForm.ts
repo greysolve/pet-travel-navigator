@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -106,40 +107,38 @@ export const usePetProfileForm = (
           finalPhotoUrls = await uploadPhotos(user.id);
         }
 
-        // Prepare the data with the final photo URLs
-        const dataWithPhotos = {
+        // Prepare the data for insertion/update
+        const petData = {
           ...data,
           images: finalPhotoUrls,
-          user_id: user.id
+          user_id: user.id,
+          name, // Add required fields
+          type  // Add required fields
         };
 
-        console.log('Updating database with data:', dataWithPhotos);
+        console.log('Updating database with data:', petData);
 
         // Update or create the pet profile
-        const { data: result, error } = initialData
-          ? await supabase
-              .from('pet_profiles')
-              .update(dataWithPhotos)
-              .eq('id', initialData.id)
-              .select()
-              .single()
-          : await supabase
-              .from('pet_profiles')
-              .insert([dataWithPhotos])
-              .select()
-              .single();
+        if (initialData?.id) {
+          const { data: result, error } = await supabase
+            .from('pet_profiles')
+            .update(petData)
+            .eq('id', initialData.id)
+            .select()
+            .single();
 
-        if (error) {
-          console.error('Database operation failed:', error);
-          throw error;
+          if (error) throw error;
+          return result;
+        } else {
+          const { data: result, error } = await supabase
+            .from('pet_profiles')
+            .insert([petData])
+            .select()
+            .single();
+
+          if (error) throw error;
+          return result;
         }
-
-        // Handle document upload if needed
-        if (file && selectedDocumentType) {
-          await uploadFile(result.id, user.id);
-        }
-
-        return result;
       } catch (error) {
         console.error('Error in mutation:', error);
         throw error;

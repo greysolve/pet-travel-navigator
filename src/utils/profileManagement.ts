@@ -50,6 +50,13 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
     console.log('Role data:', roleData);
     console.log('Profile data:', profileData);
 
+    // Parse notification preferences
+    const notificationPreferences = profileData.notification_preferences as {
+      travel_alerts: boolean;
+      policy_changes: boolean;
+      documentation_reminders: boolean;
+    } | null;
+
     // Create the user profile object - no optional chaining, no defaults
     const userProfile: UserProfile = {
       id: userId,
@@ -68,7 +75,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       address_format: profileData.address_format,
       plan: profileData.plan,
       search_count: profileData.search_count,
-      notification_preferences: profileData.notification_preferences
+      notification_preferences: notificationPreferences
     };
 
     console.log('Mapped profile:', userProfile);
