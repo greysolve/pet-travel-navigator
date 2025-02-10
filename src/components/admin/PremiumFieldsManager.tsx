@@ -67,7 +67,8 @@ export const PremiumFieldsManager = () => {
     }
   };
 
-  const formatFieldName = (fieldName: string) => {
+  const formatFieldName = (fieldName: string | undefined) => {
+    if (!fieldName) return '';
     return fieldName
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
