@@ -25,13 +25,18 @@ type Fees = {
   cargo?: string;
 };
 
+// Update PetPolicy to handle premium fields
+type DecoratedPetPolicy = Omit<PetPolicy, 'carrier_requirements'> & {
+  carrier_requirements?: PremiumField<string>;
+};
+
 export const decorateWithPremiumFields = (
   policy: Partial<PetPolicy>,
   premiumFields: string[]
 ): PetPolicy => {
   console.log('Decorating policy with premium fields:', { policy, premiumFields });
   
-  const decoratedPolicy = { ...policy } as PetPolicy;
+  const decoratedPolicy = { ...policy } as DecoratedPetPolicy;
   
   // First pass: handle all direct premium fields
   for (const fieldName of premiumFields) {
@@ -77,7 +82,7 @@ export const decorateWithPremiumFields = (
     decoratedPolicy.fees = nestedObj as Fees;
   }
 
-  // Handle carrier_requirements as a string field
+  // Handle carrier_requirements as a premium field
   if (premiumFields.includes('carrier_requirements') && policy.carrier_requirements) {
     decoratedPolicy.carrier_requirements = {
       value: policy.carrier_requirements,
@@ -89,5 +94,5 @@ export const decorateWithPremiumFields = (
   return {
     ...decoratedPolicy,
     isSummary: true
-  } as PetPolicy;
+  } as unknown as PetPolicy;
 };
