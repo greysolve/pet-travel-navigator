@@ -438,6 +438,33 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_field_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          field_name: Database["public"]["Enums"]["premium_field_type"]
+          id: string
+          is_premium: boolean
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          field_name: Database["public"]["Enums"]["premium_field_type"]
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          field_name?: Database["public"]["Enums"]["premium_field_type"]
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_format: string | null
@@ -869,6 +896,15 @@ export type Database = {
     Enums: {
       app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      premium_field_type:
+        | "carrier_requirements"
+        | "carrier_requirements_cabin"
+        | "carrier_requirements_cargo"
+        | "temperature_restrictions"
+        | "policy_url"
+        | "fees_cargo"
+        | "fees_in_cabin"
+        | "size_restrictions_cabin"
       subscription_plan: "free" | "premium" | "teams"
     }
     CompositeTypes: {

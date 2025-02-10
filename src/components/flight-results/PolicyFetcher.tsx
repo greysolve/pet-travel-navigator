@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -41,7 +40,9 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       console.log("Found pet policies:", policies);
 
-      return policies?.reduce((acc: Record<string, PetPolicy>, policy: any) => {
+      const decoratedPolicies: Record<string, PetPolicy> = {};
+      
+      for (const policy of policies || []) {
         const policyData = {
           pet_types_allowed: policy.pet_types_allowed,
           carrier_requirements: policy.carrier_requirements,
@@ -55,12 +56,12 @@ export const usePetPolicies = (flights: FlightData[]) => {
           fees: policy.fees
         };
         
-        acc[policy.airlines.iata_code] = isPetCaddie 
-          ? decorateWithPremiumFields(policyData)
+        decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
+          ? await decorateWithPremiumFields(policyData)
           : policyData;
-        
-        return acc;
-      }, {}) || {};
+      }
+      
+      return decoratedPolicies;
     },
     enabled: flights.length > 0,
   });
