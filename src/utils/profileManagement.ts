@@ -10,26 +10,29 @@ async function fetchProfileWithRetry(userId: string, retryCount = 3): Promise<Us
       console.log(`Fetching profile for user ${userId} - Attempt ${attempt}`);
       
       const response = await supabase
-        .from('profiles')
+        .from('user_roles')
         .select(`
-          id,
-          created_at,
-          updated_at,
-          full_name,
-          avatar_url,
-          address_line1,
-          address_line2,
-          address_line3,
-          locality,
-          administrative_area,
-          postal_code,
-          country_id,
-          address_format,
-          plan,
-          search_count,
-          notification_preferences
+          role,
+          profiles!user_roles_user_id_fkey (
+            id,
+            created_at,
+            updated_at,
+            full_name,
+            avatar_url,
+            address_line1,
+            address_line2,
+            address_line3,
+            locality,
+            administrative_area,
+            postal_code,
+            country_id,
+            address_format,
+            plan,
+            search_count,
+            notification_preferences
+          )
         `)
-        .eq('id', userId)
+        .eq('user_id', userId)
         .single();
 
       if (response.error) {
@@ -38,38 +41,27 @@ async function fetchProfileWithRetry(userId: string, retryCount = 3): Promise<Us
         continue;
       }
 
-      // Get user role in a separate query
-      const roleResponse = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-      if (roleResponse.error) {
-        console.error(`Error fetching role attempt ${attempt}:`, roleResponse.error);
-        if (attempt === retryCount) throw roleResponse.error;
-        continue;
-      }
-
-      const profileData = response.data;
-      const role = roleResponse.data.role;
-
-      if (!profileData || !role) {
-        console.error('Profile or role not found. Profile data:', profileData);
+      if (!response.data || !response.data.profiles || !response.data.role) {
+        console.error('Profile or role not found. Response data:', response.data);
         throw new Error('Profile or role not found');
       }
       
       // Log role details before validation
       console.log('Role Details:', {
-        rawRole: role,
-        roleType: typeof role,
+        rawRole: response.data.role,
+        roleType: typeof response.data.role,
         validRoles: ['pet_lover', 'site_manager', 'pet_caddie']
       });
 
-      if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
-        console.error('Invalid role detected:', role);
-        throw new Error(`Invalid role: ${role}`);
+      if (response.data.role !== 'pet_lover' && 
+          response.data.role !== 'site_manager' && 
+          response.data.role !== 'pet_caddie') {
+        console.error('Invalid role detected:', response.data.role);
+        throw new Error(`Invalid role: ${response.data.role}`);
       }
+
+      const profileData = response.data.profiles;
+      const role = response.data.role;
 
       const mappedProfile: UserProfile = {
         ...profileData,
