@@ -14,6 +14,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
   try {
     console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
+    // First, get the user's role directly from user_roles
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
@@ -25,6 +26,7 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       throw roleError;
     }
 
+    // Then, get the profile data
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -36,51 +38,48 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
       throw profileError;
     }
 
-    if (!profileData) {
-      console.log('Profile not found');
-      return null;
-    }
-
-    console.log('Raw profile data:', profileData);
+    // Log the raw data for debugging
     console.log('Role data:', roleData);
+    console.log('Profile data:', profileData);
 
     // If we have a profile but no role yet, and we haven't exceeded max retries
-    if (!roleData?.role && retryCount < MAX_RETRIES) {
-      console.log('Profile found but no role yet, retrying...');
+    if (!roleData && retryCount < MAX_RETRIES) {
+      console.log('No role found yet, retrying...');
       await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
       return fetchProfileWithRetry(userId, retryCount + 1);
     }
 
-    // Default to pet_caddie if no role is found after retries
-    const finalRole = roleData?.role || 'pet_caddie';
-    console.log('Using role:', finalRole);
-    
-    // Create a clean UserProfile object with explicit mapping
-    const mappedProfile: UserProfile = {
-      id: profileData.id,
-      userRole: finalRole,
-      created_at: profileData.created_at,
-      updated_at: profileData.updated_at,
-      full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
-      address_line1: profileData.address_line1,
-      address_line2: profileData.address_line2,
-      address_line3: profileData.address_line3,
-      locality: profileData.locality,
-      administrative_area: profileData.administrative_area,
-      postal_code: profileData.postal_code,
-      country_id: profileData.country_id,
-      address_format: profileData.address_format,
-      plan: profileData.plan,
-      search_count: profileData.search_count,
-      notification_preferences: profileData.notification_preferences
+    // Create the user profile object
+    const userProfile: UserProfile = {
+      id: userId,
+      userRole: roleData?.role || 'pet_caddie', // Default to pet_caddie if no role found
+      created_at: profileData?.created_at,
+      updated_at: profileData?.updated_at,
+      full_name: profileData?.full_name,
+      avatar_url: profileData?.avatar_url,
+      address_line1: profileData?.address_line1,
+      address_line2: profileData?.address_line2,
+      address_line3: profileData?.address_line3,
+      locality: profileData?.locality,
+      administrative_area: profileData?.administrative_area,
+      postal_code: profileData?.postal_code,
+      country_id: profileData?.country_id,
+      address_format: profileData?.address_format,
+      plan: profileData?.plan,
+      search_count: profileData?.search_count ?? 5,
+      notification_preferences: profileData?.notification_preferences || {
+        travel_alerts: true,
+        policy_changes: true,
+        documentation_reminders: true
+      }
     };
-    
-    console.log('Mapped profile:', mappedProfile);
-    return mappedProfile;
+
+    console.log('Mapped profile:', userProfile);
+    return userProfile;
+
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
-    // Instead of throwing, return a default profile with pet_caddie role
+    // Return a default profile with pet_caddie role
     return {
       id: userId,
       userRole: 'pet_caddie',
@@ -129,7 +128,6 @@ export async function fetchOrCreateProfile(userId: string): Promise<UserProfile 
     }
 
     // After creating the profile, wait briefly then fetch it with the role
-    // that should have been created by the database trigger
     await wait(INITIAL_RETRY_DELAY);
     return await fetchProfileWithRetry(userId);
     
