@@ -1,8 +1,8 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
 import { useAuth } from "@/contexts/AuthContext";
+import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
@@ -43,10 +43,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
         return summaries?.reduce((acc: Record<string, PetPolicy>, record: any) => {
           const summary = record.summary;
-          acc[record.airlines.iata_code] = {
-            ...summary,
-            isSummary: true  // Mark as summary
-          };
+          acc[record.airlines.iata_code] = decorateWithPremiumFields(summary);
           return acc;
         }, {}) || {};
       }
@@ -70,7 +67,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
           policy_url: policy.policy_url,
           size_restrictions: policy.size_restrictions,
           fees: policy.fees,
-          isSummary: false  // Mark as full policy
+          isSummary: false
         };
         return acc;
       }, {}) || {};
