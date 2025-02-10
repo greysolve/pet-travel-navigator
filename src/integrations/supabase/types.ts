@@ -501,7 +501,71 @@ export type Database = {
             referencedRelation: "countries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_user_role_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_roles"
+            referencedColumns: ["user_id"]
+          },
         ]
+      }
+      profiles_backup: {
+        Row: {
+          address_format: string | null
+          address_line1: string | null
+          address_line2: string | null
+          address_line3: string | null
+          administrative_area: string | null
+          avatar_url: string | null
+          country_id: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string | null
+          locality: string | null
+          notification_preferences: Json | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
+          postal_code: string | null
+          search_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          address_format?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_line3?: string | null
+          administrative_area?: string | null
+          avatar_url?: string | null
+          country_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          locality?: string | null
+          notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          postal_code?: string | null
+          search_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          address_format?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_line3?: string | null
+          administrative_area?: string | null
+          avatar_url?: string | null
+          country_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          locality?: string | null
+          notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          postal_code?: string | null
+          search_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       route_searches: {
         Row: {
@@ -722,22 +786,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_profile_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
