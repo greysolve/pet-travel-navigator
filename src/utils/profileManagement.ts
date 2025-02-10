@@ -2,15 +2,14 @@
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/auth';
 import { toast } from '@/components/ui/use-toast';
-import { Tables, hasData, handleQueryResult } from '@/types/supabase';
-import { AppRole } from '@/types/auth';
+import { hasData } from '@/types/supabase'; 
 
 async function fetchProfileWithRetry(userId: string, retryCount = 3): Promise<UserProfile> {
   for (let attempt = 1; attempt <= retryCount; attempt++) {
     try {
       console.log(`Fetching profile for user ${userId} - Attempt ${attempt}`);
       
-      const result = await supabase
+      const response = await supabase
         .from('user_roles')
         .select(`
           role,
@@ -36,37 +35,35 @@ async function fetchProfileWithRetry(userId: string, retryCount = 3): Promise<Us
         .eq('user_id', userId)
         .single();
 
-      if (result.error) {
-        console.error(`Error fetching profile attempt ${attempt}:`, result.error);
-        if (attempt === retryCount) throw result.error;
+      if (response.error) {
+        console.error(`Error fetching profile attempt ${attempt}:`, response.error);
+        if (attempt === retryCount) throw response.error;
         continue;
       }
 
-      if (!result.data || !result.data.profiles || !result.data.role) {
-        console.error('Profile or role not found. Response data:', result.data);
+      if (!response.data || !response.data.profiles || !response.data.role) {
+        console.error('Profile or role not found. Response data:', response.data);
         throw new Error('Profile or role not found');
       }
       
-      const role = result.data.role as AppRole;
-      
       // Log role details before validation
       console.log('Role Details:', {
-        rawRole: role,
-        roleType: typeof role,
+        rawRole: response.data.role,
+        roleType: typeof response.data.role,
         validRoles: ['pet_lover', 'site_manager', 'pet_caddie']
       });
 
-      if (role !== 'pet_lover' && 
-          role !== 'site_manager' && 
-          role !== 'pet_caddie') {
-        console.error('Invalid role detected:', role);
-        throw new Error(`Invalid role: ${role}`);
+      if (response.data.role !== 'pet_lover' && 
+          response.data.role !== 'site_manager' && 
+          response.data.role !== 'pet_caddie') {
+        console.error('Invalid role detected:', response.data.role);
+        throw new Error(`Invalid role: ${response.data.role}`);
       }
 
-      const profileData = result.data.profiles;
+      const profileData = response.data.profiles;
+      const role = response.data.role;
 
       const mappedProfile: UserProfile = {
-        id: profileData.id,
         ...profileData,
         role
       };
