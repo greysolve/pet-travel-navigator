@@ -61,7 +61,7 @@ export const useFlightSearch = () => {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
-            variant: "warning"
+            variant: "default"  // Changed from "warning" to "default"
           });
         }
         return true;
