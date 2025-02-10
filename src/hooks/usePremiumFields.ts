@@ -16,9 +16,11 @@ export const usePremiumFields = () => {
         throw error;
       }
 
+      // Log the premium fields being fetched
+      console.log('Fetched premium fields:', data?.map(field => field.field_name));
       return data?.map(field => field.field_name) || [];
     },
     staleTime: 1000 * 60, // Consider data fresh for 1 minute
-    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes (previously cacheTime)
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
   });
 };

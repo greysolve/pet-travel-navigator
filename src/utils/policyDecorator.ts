@@ -34,33 +34,43 @@ export const decorateWithPremiumFields = (
   policy: Partial<PetPolicy>,
   premiumFields: string[]
 ): PetPolicy => {
-  console.log('Decorating policy with premium fields:', { policy, premiumFields });
+  console.log('Raw policy data:', policy);
+  console.log('Premium fields:', premiumFields);
   
   const decoratedPolicy = { ...policy } as DecoratedPetPolicy;
   
+  // Always preserve these fields as non-premium arrays
+  const preservedArrayFields = ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'];
+  
   // First pass: handle all direct premium fields
-  for (const fieldName of premiumFields) {
-    const value = policy[fieldName as keyof PetPolicy];
-    if (value !== undefined) {
-      (decoratedPolicy[fieldName as keyof PetPolicy] as any) = {
-        value,
+  Object.keys(policy).forEach(key => {
+    // Skip null/undefined values and preserved array fields
+    if (policy[key as keyof PetPolicy] === undefined || preservedArrayFields.includes(key)) {
+      return;
+    }
+
+    if (premiumFields.includes(key)) {
+      console.log(`Decorating premium field: ${key}`);
+      (decoratedPolicy[key as keyof PetPolicy] as any) = {
+        value: policy[key as keyof PetPolicy],
         isPremiumField: true
       };
     }
-  }
+  });
 
-  // Second pass: handle nested objects
+  // Second pass: handle nested objects while preserving structure
   if (isObject(policy.size_restrictions)) {
     const nestedObj: Record<string, any> = {};
-    for (const propKey in policy.size_restrictions) {
-      const fullPath = `size_restrictions_${propKey}`;
+    for (const key in policy.size_restrictions) {
+      const fullPath = `size_restrictions.${key}`;
       if (premiumFields.includes(fullPath)) {
-        nestedObj[propKey] = {
-          value: policy.size_restrictions[propKey as keyof SizeRestrictions],
+        console.log(`Decorating nested premium field: ${fullPath}`);
+        nestedObj[key] = {
+          value: policy.size_restrictions[key as keyof SizeRestrictions],
           isPremiumField: true
         };
       } else {
-        nestedObj[propKey] = policy.size_restrictions[propKey as keyof SizeRestrictions];
+        nestedObj[key] = policy.size_restrictions[key as keyof SizeRestrictions];
       }
     }
     decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
@@ -68,31 +78,21 @@ export const decorateWithPremiumFields = (
 
   if (isObject(policy.fees)) {
     const nestedObj: Record<string, any> = {};
-    for (const propKey in policy.fees) {
-      const fullPath = `fees_${propKey}`;
+    for (const key in policy.fees) {
+      const fullPath = `fees.${key}`;
       if (premiumFields.includes(fullPath)) {
-        nestedObj[propKey] = {
-          value: policy.fees[propKey as keyof Fees],
+        console.log(`Decorating nested premium field: ${fullPath}`);
+        nestedObj[key] = {
+          value: policy.fees[key as keyof Fees],
           isPremiumField: true
         };
       } else {
-        nestedObj[propKey] = policy.fees[propKey as keyof Fees];
+        nestedObj[key] = policy.fees[key as keyof Fees];
       }
     }
     decoratedPolicy.fees = nestedObj as Fees;
   }
 
-  // Handle carrier_requirements as a premium field
-  if (premiumFields.includes('carrier_requirements') && policy.carrier_requirements) {
-    decoratedPolicy.carrier_requirements = {
-      value: policy.carrier_requirements,
-      isPremiumField: true
-    };
-  }
-
   console.log('Decorated policy:', decoratedPolicy);
-  return {
-    ...decoratedPolicy,
-    isSummary: true
-  } as unknown as PetPolicy;
+  return decoratedPolicy as PetPolicy;
 };

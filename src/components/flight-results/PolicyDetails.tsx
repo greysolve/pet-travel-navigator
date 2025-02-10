@@ -20,7 +20,6 @@ const isPremiumField = (value: any): value is PremiumFieldValue => {
 const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
   return (
     <PremiumFeature title={label || ""}>
-      {/* Premium content is completely hidden */}
       <div className="blur-sm select-none">
         <JsonRenderer data={value.value} />
       </div>
@@ -28,14 +27,36 @@ const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
   );
 };
 
+const renderValue = (value: any) => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? (
+      <ul className="list-disc list-inside">
+        {value.map((item, index) => (
+          <li key={index} className="text-gray-600">{item}</li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-gray-500 italic">None specified</p>
+    );
+  }
+  
+  if (typeof value === 'string') {
+    return <p className="text-gray-600">{value}</p>;
+  }
+  
+  return <JsonRenderer data={value} />;
+};
+
 const renderPolicyField = (value: any, label?: string) => {
   if (isPremiumField(value)) {
     return renderPremiumField(value, label);
   }
-  return <JsonRenderer data={value} />;
+  return renderValue(value);
 };
 
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
+  console.log('Rendering policy:', policy);
+
   if (!policy) {
     return (
       <p className="text-sm text-gray-500 border-t pt-4">
@@ -47,10 +68,10 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   return (
     <div className="text-sm space-y-4 border-t pt-4">
       {/* Pet Types */}
-      {policy.pet_types_allowed?.length > 0 && (
+      {policy.pet_types_allowed && (
         <div>
           <p className="font-medium mb-2">Allowed pets:</p>
-          {renderPolicyField(policy.pet_types_allowed, "Allowed pets")}
+          {renderValue(policy.pet_types_allowed)}
         </div>
       )}
 
@@ -58,7 +79,14 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.size_restrictions && (
         <div>
           <p className="font-medium mb-2">Size and Weight Restrictions:</p>
-          {renderPolicyField(policy.size_restrictions, "Size and Weight Restrictions")}
+          {Object.entries(policy.size_restrictions).map(([key, value]) => (
+            <div key={key} className="mb-2">
+              <p className="text-gray-600 capitalize mb-1">
+                {key.split('_').join(' ')}:
+              </p>
+              {renderPolicyField(value)}
+            </div>
+          ))}
         </div>
       )}
 
@@ -66,45 +94,52 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.fees && Object.keys(policy.fees).length > 0 && (
         <div>
           <p className="font-medium mb-2">Fees:</p>
-          {renderPolicyField(policy.fees, "Fees")}
+          {Object.entries(policy.fees).map(([key, value]) => (
+            <div key={key} className="mb-2">
+              <p className="text-gray-600 capitalize mb-1">
+                {key.split('_').join(' ')}:
+              </p>
+              {renderPolicyField(value)}
+            </div>
+          ))}
         </div>
       )}
 
       {/* Documentation */}
-      {policy.documentation_needed?.length > 0 && (
+      {policy.documentation_needed && (
         <div>
           <p className="font-medium mb-2">Required Documentation:</p>
-          {renderPolicyField(policy.documentation_needed, "Required Documentation")}
+          {renderValue(policy.documentation_needed)}
         </div>
       )}
 
       {/* Breed Restrictions */}
-      {policy.breed_restrictions?.length > 0 && (
+      {policy.breed_restrictions && (
         <div>
           <p className="font-medium mb-2">Breed Restrictions:</p>
-          {renderPolicyField(policy.breed_restrictions, "Breed Restrictions")}
+          {renderValue(policy.breed_restrictions)}
         </div>
       )}
 
-      {/* Combined Carrier Requirements Section */}
+      {/* Carrier Requirements */}
       {(policy.carrier_requirements || policy.carrier_requirements_cabin || policy.carrier_requirements_cargo) && (
         <div>
           <p className="font-medium mb-2">Carrier Requirements:</p>
           {policy.carrier_requirements && (
             <div className="mb-2">
-              {renderPolicyField(policy.carrier_requirements, "General Carrier Requirements")}
+              {renderPolicyField(policy.carrier_requirements, "General Requirements")}
             </div>
           )}
           {policy.carrier_requirements_cabin && (
             <div className="mb-2">
               <p className="text-gray-600 mb-1">For Cabin:</p>
-              {renderPolicyField(policy.carrier_requirements_cabin, "Cabin Carrier Requirements")}
+              {renderPolicyField(policy.carrier_requirements_cabin)}
             </div>
           )}
           {policy.carrier_requirements_cargo && (
             <div>
               <p className="text-gray-600 mb-1">For Cargo:</p>
-              {renderPolicyField(policy.carrier_requirements_cargo, "Cargo Carrier Requirements")}
+              {renderPolicyField(policy.carrier_requirements_cargo)}
             </div>
           )}
         </div>
@@ -114,11 +149,11 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.temperature_restrictions && (
         <div>
           <p className="font-medium mb-2">Temperature Restrictions:</p>
-          {renderPolicyField(policy.temperature_restrictions, "Temperature Restrictions")}
+          {renderPolicyField(policy.temperature_restrictions)}
         </div>
       )}
 
-      {/* Policy URL - Now handled consistently with other premium fields */}
+      {/* Policy URL */}
       {policy.policy_url && (
         <div>
           {isPremiumField(policy.policy_url) ? (
