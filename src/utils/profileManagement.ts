@@ -18,8 +18,13 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
       .eq('id', userId)
       .single();
 
-    // Log the entire response object
-    console.log('Raw Supabase Response:', JSON.stringify(response, null, 2));
+    // Log the complete response object
+    console.log('Complete Supabase Response:', {
+      error: response.error,
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data
+    });
     
     if (response.error) {
       console.error('Error fetching profile:', response.error);
@@ -27,15 +32,31 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
     }
 
     const profileData = response.data;
+    
+    // Log the profile data structure
+    console.log('Profile Data Structure:', {
+      hasUserRoles: !!profileData?.user_roles,
+      userRolesType: profileData?.user_roles ? typeof profileData.user_roles : 'undefined',
+      userRolesValue: profileData?.user_roles,
+      directRole: profileData?.role, // Check if role exists at top level
+      nestedRole: profileData?.user_roles?.role // Check nested role
+    });
+
     if (!profileData || !profileData.user_roles || !profileData.user_roles.role) {
       console.error('Profile or role not found. Profile data:', profileData);
       throw new Error('Profile or role not found');
     }
 
-    console.log('Profile data before mapping:', profileData);
-    
     // Create a clean UserProfile object with explicit mapping and role validation
     const role = profileData.user_roles.role;
+    
+    // Log role details before validation
+    console.log('Role Details:', {
+      rawRole: role,
+      roleType: typeof role,
+      validRoles: ['pet_lover', 'site_manager', 'pet_caddie']
+    });
+
     if (role !== 'pet_lover' && role !== 'site_manager' && role !== 'pet_caddie') {
       console.error('Invalid role detected:', role);
       throw new Error(`Invalid role: ${role}`);
@@ -61,7 +82,13 @@ async function fetchProfileWithRetry(userId: string): Promise<UserProfile> {
       role: role
     };
     
-    console.log('Final mapped profile:', mappedProfile);
+    // Log the final mapped profile validation
+    console.log('Mapped Profile Validation:', {
+      hasRole: !!mappedProfile.role,
+      roleValue: mappedProfile.role,
+      isRoleValid: ['pet_lover', 'site_manager', 'pet_caddie'].includes(mappedProfile.role)
+    });
+
     return mappedProfile;
   } catch (error) {
     console.error('Error in fetchProfileWithRetry:', error);
