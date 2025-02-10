@@ -20,7 +20,7 @@ export const usePremiumFields = () => {
       console.log('Fetched premium fields:', data?.map(field => field.field_name));
       return data?.map(field => field.field_name) || [];
     },
-    staleTime: 1000 * 60, // Consider data fresh for 1 minute
+    staleTime: 0, // Always fetch fresh data
     gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
   });
 };

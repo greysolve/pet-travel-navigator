@@ -15,7 +15,7 @@ export const ResultsSection = ({
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
 }) => {
-  const { data: flightPetPolicies } = usePetPolicies(flights);
+  const { data: flightPetPolicies, isLoading: isPoliciesLoading } = usePetPolicies(flights);
   
   // Get unique countries from flights if available
   const countriesFromFlights = flights.reduce((countries: Set<string>, journey) => {
@@ -36,7 +36,7 @@ export const ResultsSection = ({
 
   // Filter out undefined/null values and convert to array
   const uniqueCountries = Array.from(allCountries).filter(Boolean);
-  const { data: countryPolicies, isLoading: isPoliciesLoading } = useCountryPolicies(uniqueCountries);
+  const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
   if (!searchPerformed) return null;
 
@@ -61,7 +61,10 @@ export const ResultsSection = ({
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
       <div className="space-y-8">
         {flights.length > 0 && (
-          <FlightResults flights={flights} petPolicies={flightPetPolicies} />
+          <FlightResults 
+            flights={flights} 
+            petPolicies={isPoliciesLoading ? undefined : flightPetPolicies} 
+          />
         )}
         
         <div id="country-policies" className="space-y-6">
@@ -80,7 +83,7 @@ export const ResultsSection = ({
                 ))
               ) : (
                 <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
-                  {isPoliciesLoading ? (
+                  {isCountryPoliciesLoading ? (
                     <div className="space-y-4">
                       <Skeleton className="h-4 w-3/4" />
                       <Skeleton className="h-4 w-1/2" />
