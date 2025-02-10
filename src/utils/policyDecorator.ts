@@ -82,8 +82,5 @@ export const decorateWithPremiumFields = (
   const decoratedPolicy = unflattenObject(decoratedFlat);
   console.log('[decorateWithPremiumFields] Final decorated policy:', decoratedPolicy);
 
-  return {
-    ...decoratedPolicy,
-    isSummary: true
-  } as unknown as PetPolicy;
+  return decoratedPolicy as PetPolicy;
 };
