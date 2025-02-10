@@ -11,7 +11,6 @@ import AuthCallback from "@/pages/AuthCallback";
 import AuthDialog from "@/components/AuthDialog";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/toaster";
-import AppErrorBoundary from "@/components/AppErrorBoundary";
 
 // Create a protected layout that wraps routes requiring authentication
 const ProtectedLayout = () => {
@@ -36,13 +35,14 @@ const AppLayout = () => {
 const router = createBrowserRouter([
   {
     element: <AppLayout />,
-    errorElement: <AppErrorBoundary />,
+    errorElement: <NotFound />,
     children: [
       {
         path: "/",
         element: <Index />,
       },
       {
+        // Protected routes group
         element: <ProtectedLayout />,
         children: [
           {

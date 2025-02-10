@@ -1,11 +1,7 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSearchCountQuery } from "@/hooks/useSearchCountQuery";
-import { usePremiumFields } from "@/hooks/usePremiumFields";
-import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -20,13 +16,12 @@ export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user, profile, profileLoading } = useAuth();
-  const { data: searchCount, isLoading: searchCountLoading } = useSearchCountQuery(user?.id);
-  const { data: premiumFields = [] } = usePremiumFields();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
     const isPetCaddie = profile.userRole === 'pet_caddie';
+    const searchCount = profile.search_count ?? 0;
     
     console.log('Checking search eligibility:', {
       userRole: profile.userRole,
@@ -98,7 +93,7 @@ export const useFlightSearch = () => {
       return;
     }
 
-    if (profileLoading || searchCountLoading) {
+    if (profileLoading) {
       toast({
         title: "Loading",
         description: "Please wait while we load your profile.",
@@ -150,18 +145,7 @@ export const useFlightSearch = () => {
       
       if (data?.connections) {
         console.log('Found connections:', data.connections);
-        console.log('Pet policies:', data.petPolicies);
-        
-        if (data.petPolicies && typeof data.petPolicies === 'object') {
-          // Decorate each policy in the record with premium fields
-          const decoratedPolicies: Record<string, PetPolicy> = {};
-          Object.entries(data.petPolicies).forEach(([key, policy]) => {
-            decoratedPolicies[key] = decorateWithPremiumFields(policy as PetPolicy, premiumFields);
-          });
-          onSearchResults(data.connections, decoratedPolicies);
-        } else {
-          onSearchResults(data.connections);
-        }
+        onSearchResults(data.connections);
       } else {
         console.log('No flights found in response');
         onSearchResults([]);
@@ -188,8 +172,8 @@ export const useFlightSearch = () => {
   return { 
     handleFlightSearch, 
     isLoading,
-    searchCount: searchCount ?? 0,
+    searchCount: profile?.search_count ?? 0,
     isPetCaddie: profile?.userRole === 'pet_caddie',
-    isProfileLoading: profileLoading || searchCountLoading
+    isProfileLoading: profileLoading
   };
 };

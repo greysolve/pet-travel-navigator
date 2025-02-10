@@ -1,34 +1,15 @@
-
-import { useLocation, useRouteError, isRouteErrorResponse } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
 const NotFound = () => {
   const location = useLocation();
-  const error = useRouteError();
 
   useEffect(() => {
-    if (isRouteErrorResponse(error)) {
-      console.error(
-        "Route Error:",
-        error.status,
-        error.statusText,
-        "at path:",
-        location.pathname
-      );
-    } else if (error instanceof Error) {
-      console.error(
-        "Application Error:",
-        error.message,
-        "at path:",
-        location.pathname
-      );
-    } else {
-      console.error(
-        "404 Error: User attempted to access non-existent route:",
-        location.pathname
-      );
-    }
-  }, [location.pathname, error]);
+    console.error(
+      "404 Error: User attempted to access non-existent route:",
+      location.pathname
+    );
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
