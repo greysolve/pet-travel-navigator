@@ -44,8 +44,8 @@ export const decorateWithPremiumFields = (
   
   // First pass: handle all direct premium fields
   Object.keys(policy).forEach(key => {
-    // Skip null/undefined values and preserved array fields
-    if (policy[key as keyof PetPolicy] === undefined || preservedArrayFields.includes(key)) {
+    // Skip preserved array fields
+    if (preservedArrayFields.includes(key)) {
       return;
     }
 
@@ -57,6 +57,11 @@ export const decorateWithPremiumFields = (
       };
     }
   });
+
+  // Initialize size_restrictions if it doesn't exist
+  if (!decoratedPolicy.size_restrictions) {
+    decoratedPolicy.size_restrictions = {} as SizeRestrictions;
+  }
 
   // Second pass: handle nested objects while preserving structure
   if (isObject(policy.size_restrictions)) {
@@ -74,8 +79,29 @@ export const decorateWithPremiumFields = (
       }
     }
     decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
+  } else {
+    // If size_restrictions doesn't exist or is null, create it with premium fields
+    const nestedObj: Record<string, any> = {};
+    ['max_weight_cabin', 'max_weight_cargo', 'carrier_dimensions_cabin'].forEach(key => {
+      const fullPath = `size_restrictions.${key}`;
+      if (premiumFields.includes(fullPath)) {
+        nestedObj[key] = {
+          value: null,
+          isPremiumField: true
+        };
+      } else {
+        nestedObj[key] = null;
+      }
+    });
+    decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
   }
 
+  // Initialize fees if it doesn't exist
+  if (!decoratedPolicy.fees) {
+    decoratedPolicy.fees = {} as Fees;
+  }
+
+  // Handle fees object similarly
   if (isObject(policy.fees)) {
     const nestedObj: Record<string, any> = {};
     for (const key in policy.fees) {
@@ -91,8 +117,24 @@ export const decorateWithPremiumFields = (
       }
     }
     decoratedPolicy.fees = nestedObj as Fees;
+  } else {
+    // If fees doesn't exist or is null, create it with premium fields
+    const nestedObj: Record<string, any> = {};
+    ['in_cabin', 'cargo'].forEach(key => {
+      const fullPath = `fees.${key}`;
+      if (premiumFields.includes(fullPath)) {
+        nestedObj[key] = {
+          value: null,
+          isPremiumField: true
+        };
+      } else {
+        nestedObj[key] = null;
+      }
+    });
+    decoratedPolicy.fees = nestedObj as Fees;
   }
 
   console.log('Decorated policy:', decoratedPolicy);
   return decoratedPolicy as PetPolicy;
 };
+
