@@ -20,7 +20,6 @@ export const usePetPolicies = (flights: FlightData[]) => {
     queryFn: async () => {
       if (!flights.length) return {};
       
-      // Get all unique carrier codes from all segments
       const carrierCodes = [...new Set(flights.flatMap(journey => 
         journey.segments?.map(segment => segment.carrierFsCode)
       ))];
@@ -34,7 +33,6 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       if (!airlines?.length) return {};
 
-      // If user is a pet caddie, fetch summaries instead of full policies
       if (isPetCaddie) {
         const { data: summaries } = await supabase
           .from('pet_policy_summaries')
@@ -44,12 +42,15 @@ export const usePetPolicies = (flights: FlightData[]) => {
         console.log("Found pet policy summaries:", summaries);
 
         return summaries?.reduce((acc: Record<string, PetPolicy>, record: any) => {
-          acc[record.airlines.iata_code] = record.summary;
+          const summary = record.summary;
+          acc[record.airlines.iata_code] = {
+            ...summary,
+            isSummary: true  // Mark as summary
+          };
           return acc;
         }, {}) || {};
       }
 
-      // For other roles, fetch full policies
       const { data: policies } = await supabase
         .from('pet_policies')
         .select('*, airlines!inner(iata_code)')
@@ -68,7 +69,8 @@ export const usePetPolicies = (flights: FlightData[]) => {
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
           size_restrictions: policy.size_restrictions,
-          fees: policy.fees
+          fees: policy.fees,
+          isSummary: false  // Mark as full policy
         };
         return acc;
       }, {}) || {};

@@ -48,7 +48,9 @@ export const ResultsSection = ({
     return (
       <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Pet Policy for {airlineName}</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Pet Policy {policy.isSummary ? "Summary" : ""} for {airlineName}
+          </h2>
           <PolicyDetails policy={policy} />
         </div>
       </div>
