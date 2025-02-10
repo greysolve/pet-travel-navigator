@@ -14,20 +14,26 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
   try {
     console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
     
-    const { data: profileData, error: fetchError } = await supabase
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (roleError) {
+      console.error('Error fetching role:', roleError);
+      throw roleError;
+    }
+
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select(`
-        *,
-        user_roles!user_roles_user_id_fkey (
-          role
-        )
-      `)
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
 
-    if (fetchError) {
-      console.error('Error fetching profile:', fetchError);
-      throw fetchError;
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      throw profileError;
     }
 
     if (!profileData) {
@@ -36,23 +42,17 @@ async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<Us
     }
 
     console.log('Raw profile data:', profileData);
-
-    // Get the role from the joined data - handle both array and single object cases
-    const userRoles = Array.isArray(profileData.user_roles) 
-      ? profileData.user_roles 
-      : [profileData.user_roles];
-    
-    const userRole = userRoles[0]?.role;
+    console.log('Role data:', roleData);
 
     // If we have a profile but no role yet, and we haven't exceeded max retries
-    if (!userRole && retryCount < MAX_RETRIES) {
+    if (!roleData?.role && retryCount < MAX_RETRIES) {
       console.log('Profile found but no role yet, retrying...');
       await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
       return fetchProfileWithRetry(userId, retryCount + 1);
     }
 
     // Default to pet_caddie if no role is found after retries
-    const finalRole = userRole || 'pet_caddie';
+    const finalRole = roleData?.role || 'pet_caddie';
     console.log('Using role:', finalRole);
     
     // Create a clean UserProfile object with explicit mapping
