@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
@@ -125,6 +126,9 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                     
                     {petPolicies?.[segment.carrierFsCode] && (
                       <div className="mt-4">
+                        <h2 className="text-xl font-semibold mb-4">
+                          Pet Policy {petPolicies[segment.carrierFsCode].isSummary ? "Summary" : ""} for {airlineName || segment.carrierFsCode}
+                        </h2>
                         <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
                       </div>
                     )}
@@ -157,3 +161,4 @@ const calculateLayoverDuration = (arrivalTime: string, departureTime: string) =>
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
   return `${hours}h ${minutes}m`;
 };
+
