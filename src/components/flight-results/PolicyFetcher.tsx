@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -65,8 +64,15 @@ export const usePetPolicies = (flights: FlightData[]) => {
           temperature_restrictions: policy.temperature_restrictions || null,
           breed_restrictions: policy.breed_restrictions || [],
           policy_url: policy.policy_url || null,
-          size_restrictions: policy.size_restrictions || null,
-          fees: policy.fees || null
+          size_restrictions: typeof policy.size_restrictions === 'object' ? {
+            max_weight_cabin: policy.size_restrictions?.max_weight_cabin || undefined,
+            max_weight_cargo: policy.size_restrictions?.max_weight_cargo || undefined,
+            carrier_dimensions_cabin: policy.size_restrictions?.carrier_dimensions_cabin || undefined
+          } : null,
+          fees: typeof policy.fees === 'object' ? {
+            in_cabin: policy.fees?.in_cabin || undefined,
+            cargo: policy.fees?.cargo || undefined
+          } : null
         };
 
         console.log(`[usePetPolicies] Processing policy for ${policy.airlines.iata_code}:`, {
