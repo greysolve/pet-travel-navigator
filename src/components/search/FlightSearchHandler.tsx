@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -174,7 +173,7 @@ export const useFlightSearch = () => {
     handleFlightSearch, 
     isLoading,
     searchCount: profile?.search_count ?? 0,
-    isPetCaddie: profile?.userRole === 'pet_caddie' ?? false,
+    isPetCaddie: profile?.userRole === 'pet_caddie',
     isProfileLoading: profileLoading
   };
 };
