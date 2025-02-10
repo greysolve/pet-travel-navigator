@@ -2,16 +2,7 @@
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
-import type { SavedSearch } from "./types";
-
-interface SearchFormHeaderProps {
-  user: any;
-  isPetCaddie: boolean;
-  searchCount: number | undefined;
-  savedSearches: SavedSearch[];
-  onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
-  onDeleteSearch: (e: React.MouseEvent, searchId: string) => void;
-}
+import type { SearchFormHeaderProps } from "./types";
 
 export const SearchFormHeader = ({
   user,
@@ -19,7 +10,8 @@ export const SearchFormHeader = ({
   searchCount,
   savedSearches,
   onLoadSearch,
-  onDeleteSearch
+  onDeleteSearch,
+  isLoading
 }: SearchFormHeaderProps) => {
   if (!user) return null;
 
@@ -40,3 +32,4 @@ export const SearchFormHeader = ({
     </div>
   );
 };
+

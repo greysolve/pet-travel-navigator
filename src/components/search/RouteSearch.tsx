@@ -1,9 +1,9 @@
-
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { RouteSearchProps } from "./types";
 
 type Airport = {
   iata_code: string;
@@ -12,18 +12,12 @@ type Airport = {
   country: string;
 };
 
-interface RouteSearchProps {
-  origin: string;
-  destination: string;
-  setOrigin: (value: string) => void;
-  setDestination: (value: string) => void;
-}
-
 export const RouteSearch = ({
   origin,
   destination,
   setOrigin,
   setDestination,
+  isLoading
 }: RouteSearchProps) => {
   const [airports, setAirports] = useState<Airport[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -102,6 +96,7 @@ export const RouteSearch = ({
             // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowOriginSuggestions(false), 200);
           }}
+          disabled={isLoading}
         />
         {showOriginSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -146,6 +141,7 @@ export const RouteSearch = ({
             // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowDestinationSuggestions(false), 200);
           }}
+          disabled={isLoading}
         />
         {showDestinationSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">

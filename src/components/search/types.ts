@@ -45,3 +45,4 @@ export type SavedSearch = {
   };
   created_at: string;
 }
+
