@@ -38,17 +38,20 @@ export const decorateWithPremiumFields = (
   // Second pass: handle nested objects
   const objectFields = ['size_restrictions', 'carrier_requirements', 'fees'] as const;
   for (const objField of objectFields) {
-    if (decoratedPolicy[objField]) {
-      const nestedObj = { ...decoratedPolicy[objField] };
+    const nestedValue = decoratedPolicy[objField];
+    if (isObject(nestedValue)) {
+      const nestedObj: Record<string, any> = {};
       
-      // Check each property in nested object
-      for (const propKey in nestedObj) {
+      // Copy existing properties
+      for (const propKey in nestedValue) {
         const fullPath = `${objField}_${propKey}`;
         if (premiumFields.includes(fullPath)) {
           nestedObj[propKey] = {
-            value: nestedObj[propKey],
+            value: nestedValue[propKey],
             isPremiumField: true
           };
+        } else {
+          nestedObj[propKey] = nestedValue[propKey];
         }
       }
       
