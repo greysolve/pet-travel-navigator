@@ -4,6 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchCountQuery } from "@/hooks/useSearchCountQuery";
+import { usePremiumFields } from "@/hooks/usePremiumFields";
+import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -19,6 +21,7 @@ export const useFlightSearch = () => {
   const { toast } = useToast();
   const { user, profile, profileLoading } = useAuth();
   const { data: searchCount, isLoading: searchCountLoading } = useSearchCountQuery(user?.id);
+  const { data: premiumFields = [] } = usePremiumFields();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
@@ -147,7 +150,13 @@ export const useFlightSearch = () => {
       
       if (data?.connections) {
         console.log('Found connections:', data.connections);
-        onSearchResults(data.connections);
+        if (data.petPolicies) {
+          // Decorate pet policies with premium field information
+          const decoratedPolicies = decorateWithPremiumFields(data.petPolicies, premiumFields);
+          onSearchResults(data.connections, decoratedPolicies);
+        } else {
+          onSearchResults(data.connections);
+        }
       } else {
         console.log('No flights found in response');
         onSearchResults([]);
