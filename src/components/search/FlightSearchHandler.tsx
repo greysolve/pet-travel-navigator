@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchCountQuery } from "@/hooks/useSearchCountQuery";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -16,12 +18,12 @@ export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user, profile, profileLoading } = useAuth();
+  const { data: searchCount, isLoading: searchCountLoading } = useSearchCountQuery(user?.id);
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
     const isPetCaddie = profile.userRole === 'pet_caddie';
-    const searchCount = profile.search_count ?? 0;
     
     console.log('Checking search eligibility:', {
       userRole: profile.userRole,
@@ -93,7 +95,7 @@ export const useFlightSearch = () => {
       return;
     }
 
-    if (profileLoading) {
+    if (profileLoading || searchCountLoading) {
       toast({
         title: "Loading",
         description: "Please wait while we load your profile.",
@@ -172,8 +174,8 @@ export const useFlightSearch = () => {
   return { 
     handleFlightSearch, 
     isLoading,
-    searchCount: profile?.search_count ?? 0,
+    searchCount: searchCount ?? 0,
     isPetCaddie: profile?.userRole === 'pet_caddie',
-    isProfileLoading: profileLoading
+    isProfileLoading: profileLoading || searchCountLoading
   };
 };
