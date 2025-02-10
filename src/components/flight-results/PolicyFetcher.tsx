@@ -43,7 +43,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
       const decoratedPolicies: Record<string, PetPolicy> = {};
       
       for (const policy of policies || []) {
-        const policyData = {
+        const policyData: Partial<PetPolicy> = {
           pet_types_allowed: policy.pet_types_allowed,
           carrier_requirements: policy.carrier_requirements,
           carrier_requirements_cabin: policy.carrier_requirements_cabin,
@@ -52,13 +52,13 @@ export const usePetPolicies = (flights: FlightData[]) => {
           temperature_restrictions: policy.temperature_restrictions,
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
-          size_restrictions: policy.size_restrictions,
-          fees: policy.fees
+          size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
+          fees: policy.fees as PetPolicy['fees']
         };
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
           ? await decorateWithPremiumFields(policyData)
-          : policyData;
+          : policyData as PetPolicy;
       }
       
       return decoratedPolicies;
