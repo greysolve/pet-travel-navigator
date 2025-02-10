@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [policySearch, setPolicySearch] = useState("");
