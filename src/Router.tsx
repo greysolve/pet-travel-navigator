@@ -38,13 +38,13 @@ const router = createBrowserRouter([
     errorElement: <NotFound />,
     children: [
       {
-        path: "/",
-        element: <Index />,
-      },
-      {
         // Protected routes group
         element: <ProtectedLayout />,
         children: [
+          {
+            path: "/",
+            element: <Index />,
+          },
           {
             path: "/profile",
             element: (
