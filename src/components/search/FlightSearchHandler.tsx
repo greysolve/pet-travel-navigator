@@ -51,17 +51,15 @@ export const useFlightSearch = () => {
           search_date: date
         });
 
-      // Show duplicate search warning only for pet_caddie users on free plan
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
         
-        const isPetCaddieOnFreePlan = profile?.userRole === 'pet_caddie' && profile?.plan === 'free';
-        
-        if (isPetCaddieOnFreePlan) {
+        // Show duplicate search warning only for pet_caddie users
+        if (profile?.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
-            variant: "default"  // Changed from "warning" to "default"
+            variant: "default"
           });
         }
         return true;
@@ -70,7 +68,7 @@ export const useFlightSearch = () => {
         throw searchError;
       }
       return true;
-    } catch (error) {
+    } catch (error: any) {
       // Only throw if it's not a duplicate search error
       if (error?.code !== '23505') {
         throw error;
@@ -131,7 +129,7 @@ export const useFlightSearch = () => {
     try {
       console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
-      // Record the search first - this will trigger the search_count update
+      // Record the search first - this will trigger the search_count update via database trigger
       await recordSearch(
         user.id,
         origin,
