@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { SyncType, SyncProgress } from "@/types/sync";
 
 export async function initializeSyncProgress(type: SyncType, total: number): Promise<void> {

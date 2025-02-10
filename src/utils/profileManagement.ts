@@ -1,5 +1,5 @@
 
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/types/auth";
 import { toast } from "@/components/ui/use-toast";
 
