@@ -1,9 +1,9 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
 import { useAuth } from "@/contexts/AuthContext";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
+import { usePremiumFields } from "@/hooks/usePremiumFields";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
@@ -13,23 +13,12 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
   const isPetCaddie = profile?.userRole === 'pet_caddie';
-
-  // Add a query to fetch premium fields state
-  const { data: premiumFields } = useQuery({
-    queryKey: ['premiumFields'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('premium_field_settings')
-        .select('field_name')
-        .eq('is_premium', true);
-      return data || [];
-    },
-  });
+  const { data: premiumFields = [] } = usePremiumFields();
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
       journey.segments?.map(segment => segment.carrierFsCode)
-    ).flat(), premiumFields], // Include premiumFields in the query key
+    ).flat(), premiumFields],
     queryFn: async () => {
       if (!flights.length) return {};
       
@@ -70,7 +59,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
         };
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
-          ? await decorateWithPremiumFields(policyData)
+          ? decorateWithPremiumFields(policyData, premiumFields)
           : policyData as PetPolicy;
       }
       

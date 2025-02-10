@@ -1,6 +1,5 @@
 
 import type { PetPolicy } from "@/components/flight-results/types";
-import { supabase } from "@/integrations/supabase/client";
 
 type PremiumField = {
   value: any;
@@ -8,16 +7,13 @@ type PremiumField = {
 };
 
 const formatFieldPath = (fieldName: string): string[] => {
-  // Convert snake_case to nested path
-  // e.g., size_restrictions_max_weight_cabin -> ['size_restrictions', 'max_weight_cabin']
   const parts = fieldName.split('_');
   const result: string[] = [];
   
-  // Handle special cases for known prefixes
   const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'];
   for (const prefix of knownPrefixes) {
     if (fieldName.startsWith(prefix)) {
-      const remaining = fieldName.slice(prefix.length + 1); // +1 for the underscore
+      const remaining = fieldName.slice(prefix.length + 1);
       if (remaining) {
         return [prefix, remaining];
       }
@@ -25,22 +21,7 @@ const formatFieldPath = (fieldName: string): string[] => {
     }
   }
   
-  // Default handling for other fields
   return [fieldName];
-};
-
-const getPremiumFields = async (): Promise<string[]> => {
-  const { data, error } = await supabase
-    .from('premium_field_settings')
-    .select('field_name')
-    .eq('is_premium', true);
-
-  if (error) {
-    console.error('Error fetching premium fields:', error);
-    return [];
-  }
-
-  return data.map(field => field.field_name);
 };
 
 const getNestedValue = (obj: any, path: string[]): any => {
@@ -51,7 +32,6 @@ const setNestedValue = (obj: any, path: string[], value: any): void => {
   const lastKey = path[path.length - 1];
   const parentPath = path.slice(0, -1);
   
-  // Create parent objects if they don't exist
   const parent = parentPath.reduce((current, key) => {
     if (!current[key] || typeof current[key] !== 'object') {
       current[key] = {};
@@ -59,18 +39,17 @@ const setNestedValue = (obj: any, path: string[], value: any): void => {
     return current[key];
   }, obj);
   
-  // Set the value
   parent[lastKey] = value;
 };
 
-export const decorateWithPremiumFields = async (policy: Partial<PetPolicy>): Promise<PetPolicy> => {
-  console.log('Decorating policy:', policy);
-  const premiumFields = await getPremiumFields();
-  console.log('Premium fields:', premiumFields);
+export const decorateWithPremiumFields = (
+  policy: Partial<PetPolicy>,
+  premiumFields: string[]
+): PetPolicy => {
+  console.log('Decorating policy with premium fields:', { policy, premiumFields });
   
   const decoratedPolicy = { ...policy };
 
-  // Mark premium fields
   for (const fieldName of premiumFields) {
     const path = formatFieldPath(fieldName);
     console.log(`Processing field ${fieldName}, path:`, path);

@@ -1,5 +1,5 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Toggle } from "@/components/ui/toggle";
@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePremiumFields } from "@/hooks/usePremiumFields";
 
 type PremiumField = {
   id: string;
@@ -22,6 +23,7 @@ type PremiumField = {
 
 export const PremiumFieldsManager = () => {
   const [updatingField, setUpdatingField] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: premiumFields, isLoading, refetch } = useQuery({
     queryKey: ['premiumFields'],
@@ -49,7 +51,15 @@ export const PremiumFieldsManager = () => {
         .eq('id', fieldId);
 
       if (error) throw error;
-      await refetch();
+      
+      // Invalidate both the admin view and the centralized premium fields queries
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({ queryKey: ['premiumFields'] })
+      ]);
+      
+      // Also invalidate any queries that depend on premium fields
+      await queryClient.invalidateQueries({ queryKey: ['petPolicies'] });
     } catch (error) {
       console.error('Error updating premium status:', error);
     } finally {
