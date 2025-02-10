@@ -153,9 +153,11 @@ export const useFlightSearch = () => {
         console.log('Pet policies:', data.petPolicies);
         
         if (data.petPolicies && typeof data.petPolicies === 'object') {
-          // Ensure petPolicies is a Record<string, PetPolicy> before decorating
-          const policiesRecord = data.petPolicies as Record<string, PetPolicy>;
-          const decoratedPolicies = decorateWithPremiumFields(policiesRecord, premiumFields);
+          // Decorate each policy in the record with premium fields
+          const decoratedPolicies: Record<string, PetPolicy> = {};
+          Object.entries(data.petPolicies).forEach(([key, policy]) => {
+            decoratedPolicies[key] = decorateWithPremiumFields(policy as PetPolicy, premiumFields);
+          });
           onSearchResults(data.connections, decoratedPolicies);
         } else {
           onSearchResults(data.connections);
