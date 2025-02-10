@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -13,10 +14,22 @@ export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
   const isPetCaddie = profile?.userRole === 'pet_caddie';
 
+  // Add a query to fetch premium fields state
+  const { data: premiumFields } = useQuery({
+    queryKey: ['premiumFields'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('premium_field_settings')
+        .select('field_name')
+        .eq('is_premium', true);
+      return data || [];
+    },
+  });
+
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
       journey.segments?.map(segment => segment.carrierFsCode)
-    ).flat()],
+    ).flat(), premiumFields], // Include premiumFields in the query key
     queryFn: async () => {
       if (!flights.length) return {};
       

@@ -17,6 +17,19 @@ const isPremiumField = (value: any): value is PremiumFieldValue => {
   return value && typeof value === 'object' && 'isPremiumField' in value;
 };
 
+const renderPolicyField = (value: any, title?: string) => {
+  if (isPremiumField(value)) {
+    return title ? (
+      <PremiumFeature title={title}>
+        <JsonRenderer data={value.value} />
+      </PremiumFeature>
+    ) : (
+      <JsonRenderer data={value.value} />
+    );
+  }
+  return <JsonRenderer data={value} />;
+};
+
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   if (!policy) {
     return (
@@ -28,82 +41,99 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
 
   return (
     <div className="text-sm space-y-4 border-t pt-4">
-      {/* Basic Info (Always Visible) */}
+      {/* Pet Types */}
       {policy.pet_types_allowed?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Allowed pets:</p>
-          <JsonRenderer data={policy.pet_types_allowed} />
+          {renderPolicyField(policy.pet_types_allowed)}
         </div>
       )}
 
-      {/* Basic Size Restrictions (Always Visible) */}
+      {/* Size Restrictions */}
       {policy.size_restrictions && (
         <div>
           <p className="font-medium mb-2">Size and Weight Restrictions:</p>
-          <JsonRenderer data={policy.size_restrictions} />
+          {renderPolicyField(policy.size_restrictions)}
         </div>
       )}
 
-      {/* Basic Fees (Always Visible) */}
+      {/* Fees */}
       {policy.fees && Object.keys(policy.fees).length > 0 && (
         <div>
           <p className="font-medium mb-2">Fees:</p>
-          <JsonRenderer data={policy.fees} />
+          {renderPolicyField(policy.fees)}
         </div>
       )}
 
-      {/* Basic Documentation (Always Visible) */}
+      {/* Documentation */}
       {policy.documentation_needed?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Required documentation:</p>
-          <JsonRenderer data={policy.documentation_needed} />
+          {renderPolicyField(policy.documentation_needed)}
         </div>
       )}
 
-      {/* Breed Restrictions (Always Visible) */}
+      {/* Breed Restrictions */}
       {policy.breed_restrictions?.length > 0 && (
         <div>
           <p className="font-medium mb-2">Breed restrictions:</p>
-          <JsonRenderer data={policy.breed_restrictions} />
+          {renderPolicyField(policy.breed_restrictions)}
         </div>
       )}
 
-      {/* Premium Features */}
-      {isPremiumField(policy.carrier_requirements) && (
-        <PremiumFeature title="Carrier requirements:">
-          <JsonRenderer data={policy.carrier_requirements.value} />
-        </PremiumFeature>
+      {/* Carrier Requirements */}
+      {policy.carrier_requirements && (
+        <div>
+          {renderPolicyField(policy.carrier_requirements, "Carrier requirements:")}
+        </div>
       )}
 
-      {isPremiumField(policy.carrier_requirements_cabin) && (
-        <PremiumFeature title="Cabin carrier requirements:">
-          <JsonRenderer data={policy.carrier_requirements_cabin.value} />
-        </PremiumFeature>
+      {/* Cabin Carrier Requirements */}
+      {policy.carrier_requirements_cabin && (
+        <div>
+          {renderPolicyField(policy.carrier_requirements_cabin, "Cabin carrier requirements:")}
+        </div>
       )}
 
-      {isPremiumField(policy.carrier_requirements_cargo) && (
-        <PremiumFeature title="Cargo carrier requirements:">
-          <JsonRenderer data={policy.carrier_requirements_cargo.value} />
-        </PremiumFeature>
+      {/* Cargo Carrier Requirements */}
+      {policy.carrier_requirements_cargo && (
+        <div>
+          {renderPolicyField(policy.carrier_requirements_cargo, "Cargo carrier requirements:")}
+        </div>
       )}
 
-      {isPremiumField(policy.temperature_restrictions) && (
-        <PremiumFeature title="Temperature restrictions:">
-          <JsonRenderer data={policy.temperature_restrictions.value} />
-        </PremiumFeature>
+      {/* Temperature Restrictions */}
+      {policy.temperature_restrictions && (
+        <div>
+          {renderPolicyField(policy.temperature_restrictions, "Temperature restrictions:")}
+        </div>
       )}
 
-      {isPremiumField(policy.policy_url) && (
-        <PremiumFeature title="Full policy:" className="inline-block">
-          <a 
-            href={policy.policy_url.value}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-primary hover:text-primary/80"
-          >
-            View full policy <ExternalLink className="h-4 w-4 ml-1" />
-          </a>
-        </PremiumFeature>
+      {/* Policy URL */}
+      {policy.policy_url && (
+        <div>
+          {isPremiumField(policy.policy_url) ? (
+            <PremiumFeature title="Full policy:" className="inline-block">
+              <a 
+                href={policy.policy_url.value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-primary hover:text-primary/80"
+              >
+                View full policy <ExternalLink className="h-4 w-4 ml-1" />
+              </a>
+            </PremiumFeature>
+          ) : (
+            <a 
+              href={policy.policy_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-primary hover:text-primary/80"
+            >
+              View full policy <ExternalLink className="h-4 w-4 ml-1" />
+            </a>
+          )}
+        </div>
       )}
     </div>
   );
