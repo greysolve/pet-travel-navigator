@@ -8,12 +8,21 @@ type PremiumContent = {
 
 type PremiumField<T> = T | PremiumContent;
 
+// Type guard to check if a value is a non-null object
 const isObject = (value: any): value is Record<string, any> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 };
 
-const formatFieldPath = (fieldName: string): string[] => {
-  return [fieldName]; // Return exact field name as single element array
+// Helper type for nested objects
+type SizeRestrictions = {
+  max_weight_cabin?: string;
+  max_weight_cargo?: string;
+  carrier_dimensions_cabin?: string;
+};
+
+type Fees = {
+  in_cabin?: string;
+  cargo?: string;
 };
 
 export const decorateWithPremiumFields = (
@@ -55,7 +64,13 @@ export const decorateWithPremiumFields = (
         }
       }
       
-      decoratedPolicy[objField] = nestedObj;
+      if (objField === 'size_restrictions') {
+        decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
+      } else if (objField === 'fees') {
+        decoratedPolicy.fees = nestedObj as Fees;
+      } else {
+        decoratedPolicy.carrier_requirements = nestedObj as string;
+      }
     }
   }
 
