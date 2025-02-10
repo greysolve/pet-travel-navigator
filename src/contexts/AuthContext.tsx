@@ -19,7 +19,7 @@ interface AuthContextType {
   loading: boolean;
   profileLoading: boolean;
   profileError: ProfileError | null;
-  retryProfileLoad: () => Promise<void>;
+  retryProfileLoad: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     data: profile,
     isLoading: profileLoading,
     error: queryError,
-    refetch: retryProfileLoad
+    refetch
   } = useProfileQuery(user?.id);
 
   // Convert query error to ProfileError type for consistency
@@ -97,11 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{ 
       session, 
       user, 
-      profile: profile || null,
+      profile: profile ?? null,
       loading,
       profileLoading,
       profileError,
-      retryProfileLoad: () => retryProfileLoad(),
+      retryProfileLoad: () => refetch(),
       ...authOperations
     }}>
       {children}
