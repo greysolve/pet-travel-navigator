@@ -49,10 +49,10 @@ const setNestedValue = (obj: any, path: string[], value: any): void => {
 };
 
 // New function to recursively decorate nested objects
-const decorateNestedObject = (obj: any, parentPath: string, premiumFields: string[]): any => {
+const decorateNestedObject = (obj: any, parentPath: string, premiumFields: string[]): Record<string, any> => {
   if (!isObject(obj)) return obj;
 
-  const decoratedObj: any = {};
+  const decoratedObj: Record<string, any> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     const currentPath = parentPath ? `${parentPath}_${key}` : key;
@@ -78,7 +78,7 @@ export const decorateWithPremiumFields = (
 ): PetPolicy => {
   console.log('Decorating policy with premium fields:', { policy, premiumFields });
   
-  const decoratedPolicy = { ...policy };
+  const decoratedPolicy = { ...policy } as PetPolicy;
 
   // Handle top-level premium fields first
   for (const fieldName of premiumFields) {
@@ -99,14 +99,15 @@ export const decorateWithPremiumFields = (
   }
 
   // Handle nested premium fields
-  const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'];
+  const knownPrefixes = ['size_restrictions', 'carrier_requirements', 'fees'] as const;
   for (const prefix of knownPrefixes) {
-    if (decoratedPolicy[prefix as keyof PetPolicy]) {
-      decoratedPolicy[prefix as keyof PetPolicy] = decorateNestedObject(
-        decoratedPolicy[prefix as keyof PetPolicy],
+    if (decoratedPolicy[prefix]) {
+      const decorated = decorateNestedObject(
+        decoratedPolicy[prefix],
         prefix,
         premiumFields
       );
+      (decoratedPolicy[prefix] as any) = decorated;
     }
   }
 
