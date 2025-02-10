@@ -182,7 +182,10 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
-      <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
+      <div className={cn(
+        "bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4",
+        isProfileLoading && "opacity-75"
+      )}>
         <SearchFormHeader
           user={user}
           isPetCaddie={isPetCaddie}
@@ -193,11 +196,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             e.stopPropagation();
             handleDeleteSearch(id);
           }}
+          isLoading={isProfileLoading}
         />
 
         <AirlinePolicySearch 
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
+          isLoading={isProfileLoading}
         />
         
         <div className="relative">
@@ -216,11 +221,16 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           destination={destination}
           setOrigin={setOrigin}
           setDestination={setDestination}
+          isLoading={isProfileLoading}
         />
 
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
           <div className="w-full md:flex-1">
-            <DateSelector date={date} setDate={setDate} />
+            <DateSelector 
+              date={date} 
+              setDate={setDate}
+              isLoading={isProfileLoading}
+            />
           </div>
           {user && (
             <div className="flex items-center space-x-2">
@@ -228,10 +238,14 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
                 id="save-search"
                 checked={shouldSaveSearch}
                 onCheckedChange={(checked) => setShouldSaveSearch(checked as boolean)}
+                disabled={isProfileLoading}
               />
               <Label
                 htmlFor="save-search"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className={cn(
+                  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                  isProfileLoading && "opacity-50"
+                )}
               >
                 Save this search
               </Label>
