@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/types/auth";
+import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 
 const QUERY_TIMEOUT = 5000; // 5 seconds timeout
 
@@ -17,8 +18,8 @@ class ProfileError extends Error {
 async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
-  // Create a timeout promise
-  const timeout = new Promise((_, reject) => {
+  // Create a timeout promise that rejects after QUERY_TIMEOUT
+  const createTimeout = () => new Promise<never>((_, reject) => {
     setTimeout(() => {
       reject(new ProfileError('Profile fetch timed out', 'timeout'));
     }, QUERY_TIMEOUT);
@@ -32,17 +33,17 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       .eq('user_id', userId)
       .maybeSingle();
 
-    const { data: roleData, error: roleError } = await Promise.race([
+    const roleResult = await Promise.race([
       rolePromise,
-      timeout
-    ]) as Awaited<ReturnType<typeof rolePromise>>;
+      createTimeout()
+    ]) as PostgrestSingleResponse<{ role: string }>;
 
-    if (roleError) {
-      console.error('Error fetching role:', roleError);
+    if (roleResult.error) {
+      console.error('Error fetching role:', roleResult.error);
       throw new ProfileError('Failed to fetch user role', 'network');
     }
 
-    if (!roleData) {
+    if (!roleResult.data) {
       console.error('No role found for user');
       throw new ProfileError('User role not found', 'not_found');
     }
@@ -54,47 +55,60 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       .eq('id', userId)
       .maybeSingle();
 
-    const { data: profileData, error: profileError } = await Promise.race([
+    const profileResult = await Promise.race([
       profilePromise,
-      timeout
-    ]) as Awaited<ReturnType<typeof profilePromise>>;
+      createTimeout()
+    ]) as PostgrestSingleResponse<{
+      created_at: string;
+      updated_at: string;
+      full_name: string | null;
+      avatar_url: string | null;
+      address_line1: string | null;
+      address_line2: string | null;
+      address_line3: string | null;
+      locality: string | null;
+      administrative_area: string | null;
+      postal_code: string | null;
+      country_id: string | null;
+      address_format: string | null;
+      plan: string | null;
+      search_count: number | null;
+      notification_preferences: {
+        travel_alerts: boolean;
+        policy_changes: boolean;
+        documentation_reminders: boolean;
+      } | null;
+    }>;
 
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
+    if (profileResult.error) {
+      console.error('Error fetching profile:', profileResult.error);
       throw new ProfileError('Failed to fetch user profile', 'network');
     }
 
-    if (!profileData) {
+    if (!profileResult.data) {
       console.error('No profile found for user');
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Parse notification preferences
-    const notificationPreferences = profileData.notification_preferences as {
-      travel_alerts: boolean;
-      policy_changes: boolean;
-      documentation_reminders: boolean;
-    } | null;
-
     // Create the user profile object
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleData.role,
-      created_at: profileData.created_at,
-      updated_at: profileData.updated_at,
-      full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
-      address_line1: profileData.address_line1,
-      address_line2: profileData.address_line2,
-      address_line3: profileData.address_line3,
-      locality: profileData.locality,
-      administrative_area: profileData.administrative_area,
-      postal_code: profileData.postal_code,
-      country_id: profileData.country_id,
-      address_format: profileData.address_format,
-      plan: profileData.plan,
-      search_count: profileData.search_count,
-      notification_preferences: notificationPreferences
+      userRole: roleResult.data.role,
+      created_at: profileResult.data.created_at,
+      updated_at: profileResult.data.updated_at,
+      full_name: profileResult.data.full_name ?? undefined,
+      avatar_url: profileResult.data.avatar_url ?? undefined,
+      address_line1: profileResult.data.address_line1 ?? undefined,
+      address_line2: profileResult.data.address_line2 ?? undefined,
+      address_line3: profileResult.data.address_line3 ?? undefined,
+      locality: profileResult.data.locality ?? undefined,
+      administrative_area: profileResult.data.administrative_area ?? undefined,
+      postal_code: profileResult.data.postal_code ?? undefined,
+      country_id: profileResult.data.country_id ?? undefined,
+      address_format: profileResult.data.address_format ?? undefined,
+      plan: profileResult.data.plan ?? undefined,
+      search_count: profileResult.data.search_count ?? undefined,
+      notification_preferences: profileResult.data.notification_preferences
     };
 
     console.log('Successfully mapped profile:', userProfile);
