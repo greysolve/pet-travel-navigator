@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -15,6 +16,8 @@ export const usePetPolicies = (flights: FlightData[]) => {
   const isPetCaddie = profile?.userRole === 'pet_caddie';
   const { data: premiumFields = [] } = usePremiumFields();
 
+  console.log('[usePetPolicies] Premium fields received:', premiumFields);
+
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
       journey.segments?.map(segment => segment.carrierFsCode)
@@ -26,7 +29,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
         journey.segments?.map(segment => segment.carrierFsCode)
       ))];
       
-      console.log("Fetching pet policies for airlines:", carrierCodes);
+      console.log("[usePetPolicies] Fetching pet policies for airlines:", carrierCodes);
       
       const { data: airlines } = await supabase
         .from('airlines')
@@ -40,7 +43,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
         .select('*, airlines!inner(iata_code)')
         .in('airline_id', airlines.map(a => a.id));
 
-      console.log("Found pet policies:", policies);
+      console.log("[usePetPolicies] Raw policies from database:", policies);
 
       const decoratedPolicies: Record<string, PetPolicy> = {};
       
@@ -57,10 +60,20 @@ export const usePetPolicies = (flights: FlightData[]) => {
           size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
           fees: policy.fees as PetPolicy['fees']
         };
+
+        console.log(`[usePetPolicies] Processing policy for ${policy.airlines.iata_code}:`, {
+          rawPolicy: policyData,
+          isPetCaddie,
+          premiumFields
+        });
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
           ? decorateWithPremiumFields(policyData, premiumFields)
           : policyData as PetPolicy;
+
+        console.log(`[usePetPolicies] Decorated policy for ${policy.airlines.iata_code}:`, 
+          decoratedPolicies[policy.airlines.iata_code]
+        );
       }
       
       return decoratedPolicies;

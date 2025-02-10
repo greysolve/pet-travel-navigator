@@ -14,13 +14,17 @@ type PremiumFieldValue = {
 };
 
 const isPremiumField = (value: any): value is PremiumFieldValue => {
-  return value && typeof value === 'object' && 'isPremiumField' in value;
+  if (value && typeof value === 'object' && 'isPremiumField' in value) {
+    console.log('[PolicyDetails] Detected premium field:', value);
+    return true;
+  }
+  return false;
 };
 
 const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
+  console.log('[PolicyDetails] Rendering premium field:', { value, label });
   return (
     <PremiumFeature title={label || ""}>
-      {/* Premium content is completely hidden */}
       <div className="blur-sm select-none">
         <JsonRenderer data={value.value} />
       </div>
@@ -29,6 +33,7 @@ const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
 };
 
 const renderPolicyField = (value: any, label?: string) => {
+  console.log('[PolicyDetails] Rendering policy field:', { value, label, isPremium: isPremiumField(value) });
   if (isPremiumField(value)) {
     return renderPremiumField(value, label);
   }

@@ -16,9 +16,13 @@ export const usePremiumFields = () => {
         throw error;
       }
 
-      return data?.map(field => field.field_name) || [];
+      const fieldNames = data?.map(field => field.field_name) || [];
+      console.log('[usePremiumFields] Raw data from premium_field_settings:', data);
+      console.log('[usePremiumFields] Mapped premium field names:', fieldNames);
+      
+      return fieldNames;
     },
-    staleTime: 1000 * 60, // Consider data fresh for 1 minute
-    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes (previously cacheTime)
+    staleTime: 1000 * 60,
+    gcTime: 1000 * 60 * 5,
   });
 };
