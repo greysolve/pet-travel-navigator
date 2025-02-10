@@ -1,67 +1,52 @@
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
+
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
+import { useFlightSearch } from "./search/FlightSearchHandler";
+import { useSavedSearches } from "./search/hooks/useSavedSearches";
+import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
+import { useSearchValidation } from "./search/hooks/useSearchValidation";
+import { SearchFormHeader } from "./search/SearchFormHeader";
 import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
 import { RouteSearch } from "./search/RouteSearch";
 import { DateSelector } from "./search/DateSelector";
-import { useFlightSearch } from "./search/FlightSearchHandler";
-import { SearchFormHeader } from "./search/SearchFormHeader";
 import { SearchButton } from "./search/SearchButton";
-import { useSavedSearches } from "./search/hooks/useSavedSearches";
-import type { SearchSectionProps, SavedSearch } from "./search/types";
-import { supabase } from "@/integrations/supabase/client";
-import type { PetPolicy, FlightData } from "./flight-results/types";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { SearchDivider } from "./search/SearchDivider";
+import { SaveSearch } from "./search/SaveSearch";
+import type { SearchSectionProps, PetPolicy } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const [policySearch, setPolicySearch] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [date, setDate] = useState<Date>();
-  const [flights, setFlights] = useState<FlightData[]>([]);
-  const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
-  const { toast } = useToast();
-  const { handleFlightSearch, isLoading, searchCount, isPetCaddie, isProfileLoading } = useFlightSearch();
   const { user } = useAuth();
+  const { handleFlightSearch, isLoading, searchCount, isPetCaddie, isProfileLoading } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
-
-  useEffect(() => {
-    console.log('Auth state changed, resetting form state');
-    setPolicySearch("");
-    setOrigin("");
-    setDestination("");
-    setDate(undefined);
-    setFlights([]);
-    setShouldSaveSearch(false);
-  }, [user?.id]);
+  const { validateSearch } = useSearchValidation();
+  const {
+    policySearch,
+    setPolicySearch,
+    origin,
+    setOrigin,
+    destination,
+    setDestination,
+    date,
+    setDate,
+    flights,
+    setFlights,
+    shouldSaveSearch,
+    setShouldSaveSearch,
+    toast
+  } = useFlightSearchState(user?.id);
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
-    setOrigin(searchCriteria.origin);
-    setDestination(searchCriteria.destination);
+    setOrigin(searchCriteria.origin || "");
+    setDestination(searchCriteria.destination || "");
     setDate(searchCriteria.date ? new Date(searchCriteria.date) : undefined);
     setPolicySearch(""); // Clear any airline policy search when loading a route search
   };
 
   const handleSearch = async () => {
-    if (policySearch && (origin || destination)) {
-      toast({
-        title: "Please choose one search method",
-        description: "You can either search by airline policy or by route, but not both at the same time.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (origin && destination && !date) {
-      toast({
-        title: "Please select a date",
-        description: "A departure date is required to search for flights.",
-        variant: "destructive",
-      });
+    if (!validateSearch(policySearch, origin, destination, date)) {
       return;
     }
     
@@ -101,7 +86,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       }
 
       console.log("Found pet policy:", petPolicy);
-      const results: FlightData[] = [];
+      const results = [];
       onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
       setFlights(results);
 
@@ -206,16 +191,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           isLoading={isProfileLoading}
         />
         
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white/80 px-2 text-muted-foreground">
-              Or
-            </span>
-          </div>
-        </div>
+        <SearchDivider />
 
         <RouteSearch
           origin={origin}
@@ -233,25 +209,12 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
               isLoading={isProfileLoading}
             />
           </div>
-          {user && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="save-search"
-                checked={shouldSaveSearch}
-                onCheckedChange={(checked) => setShouldSaveSearch(checked as boolean)}
-                disabled={isProfileLoading}
-              />
-              <Label
-                htmlFor="save-search"
-                className={cn(
-                  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                  isProfileLoading && "opacity-50"
-                )}
-              >
-                Save this search
-              </Label>
-            </div>
-          )}
+          <SaveSearch
+            shouldSaveSearch={shouldSaveSearch}
+            setShouldSaveSearch={setShouldSaveSearch}
+            user={user}
+            isProfileLoading={isProfileLoading}
+          />
         </div>
 
         <SearchButton
