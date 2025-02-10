@@ -23,29 +23,19 @@ const AuthDialog = () => {
       
       console.log("Fetching user role for:", user.id);
 
-      if (user.user_metadata?.role === "site_manager") {
-        console.log("Role found in metadata:", user.user_metadata.role);
-        return "site_manager";
-      }
+      // Use the same working method as profileManagement.ts
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
 
-      // Use the same join pattern as profileManagement.ts
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          user_roles!user_roles_user_id_fkey (
-            role
-          )
-        `)
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching profile with role:", error);
+      if (roleError) {
+        console.error("Error fetching role:", roleError);
         return "pet_lover";
       }
 
-      const role = profileData?.user_roles?.[0]?.role || "pet_lover";
+      const role = roleData?.role || "pet_lover";
       console.log("Role from database:", role);
       return role;
     },
