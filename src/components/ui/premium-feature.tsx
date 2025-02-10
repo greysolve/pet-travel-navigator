@@ -17,8 +17,7 @@ interface PremiumFeatureProps {
 
 export const PremiumFeature = ({ title, children, className }: PremiumFeatureProps) => {
   const { profile } = useAuth();
-  const showContent = profile?.userRole === 'pet_caddie';
-  const showPremiumIndicator = !showContent;
+  const showPremiumIndicator = profile?.userRole === 'pet_caddie' || !profile?.userRole;
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -37,7 +36,8 @@ export const PremiumFeature = ({ title, children, className }: PremiumFeaturePro
           </TooltipProvider>
         )}
       </div>
-      {showContent && children}
+      {children}
     </div>
   );
 };
+
