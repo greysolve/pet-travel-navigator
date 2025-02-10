@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -51,8 +52,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
           size_restrictions: policy.size_restrictions,
-          fees: policy.fees,
-          isSummary: false
+          fees: policy.fees
         };
         
         acc[policy.airlines.iata_code] = isPetCaddie 
