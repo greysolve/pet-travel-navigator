@@ -33,21 +33,6 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       if (!airlines?.length) return {};
 
-      if (isPetCaddie) {
-        const { data: summaries } = await supabase
-          .from('pet_policy_summaries')
-          .select('summary, airlines!inner(iata_code)')
-          .in('airline_id', airlines.map(a => a.id));
-
-        console.log("Found pet policy summaries:", summaries);
-
-        return summaries?.reduce((acc: Record<string, PetPolicy>, record: any) => {
-          const summary = record.summary;
-          acc[record.airlines.iata_code] = decorateWithPremiumFields(summary);
-          return acc;
-        }, {}) || {};
-      }
-
       const { data: policies } = await supabase
         .from('pet_policies')
         .select('*, airlines!inner(iata_code)')
@@ -56,7 +41,7 @@ export const usePetPolicies = (flights: FlightData[]) => {
       console.log("Found pet policies:", policies);
 
       return policies?.reduce((acc: Record<string, PetPolicy>, policy: any) => {
-        acc[policy.airlines.iata_code] = {
+        const policyData = {
           pet_types_allowed: policy.pet_types_allowed,
           carrier_requirements: policy.carrier_requirements,
           carrier_requirements_cabin: policy.carrier_requirements_cabin,
@@ -69,6 +54,11 @@ export const usePetPolicies = (flights: FlightData[]) => {
           fees: policy.fees,
           isSummary: false
         };
+        
+        acc[policy.airlines.iata_code] = isPetCaddie 
+          ? decorateWithPremiumFields(policyData)
+          : policyData;
+        
         return acc;
       }, {}) || {};
     },
