@@ -16,16 +16,16 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, profileLoading, refreshProfile } = useAuth();
+  const { user, profile, profileLoading } = useAuth();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
-    const isPetCaddie = profile.role === 'pet_caddie';
+    const isPetCaddie = profile.userRole === 'pet_caddie';
     const searchCount = profile.search_count ?? 0;
     
     console.log('Checking search eligibility:', {
-      role: profile.role,
+      userRole: profile.userRole,
       searchCount,
       isPetCaddie
     });
@@ -40,49 +40,8 @@ export const useFlightSearch = () => {
     return { eligible: true };
   };
 
-  const checkExistingSearch = async (userId: string, origin: string, destination: string, date: string) => {
-    try {
-      const { data: existingSearches, error } = await supabase
-        .from('route_searches')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('origin', origin)
-        .eq('destination', destination)
-        .eq('search_date', date)
-        .limit(1);
-
-      if (error) {
-        console.error('Error checking for existing search:', error);
-        return false;
-      }
-
-      return existingSearches && existingSearches.length > 0;
-    } catch (error) {
-      console.error('Error in checkExistingSearch:', error);
-      return false;
-    }
-  };
-
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     try {
-      // Check for existing search
-      const isDuplicate = await checkExistingSearch(userId, origin, destination, date);
-      
-      // Show duplicate search info only for pet_caddie users on free plan
-      if (isDuplicate) {
-        console.log('Duplicate search detected');
-        
-        const isPetCaddieOnFreePlan = profile?.role === 'pet_caddie' && profile?.plan === 'free';
-        
-        if (isPetCaddieOnFreePlan) {
-          toast({
-            title: "Duplicate Search",
-            description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
-          });
-        }
-      }
-
-      // Always record the search
       const { error: searchError } = await supabase
         .from('route_searches')
         .insert({
@@ -92,18 +51,31 @@ export const useFlightSearch = () => {
           search_date: date
         });
 
-      if (searchError) {
+      // Show duplicate search warning only for pet_caddie users on free plan
+      if (searchError?.code === '23505') {
+        console.log('Duplicate search detected');
+        
+        const isPetCaddieOnFreePlan = profile?.userRole === 'pet_caddie' && profile?.plan === 'free';
+        
+        if (isPetCaddieOnFreePlan) {
+          toast({
+            title: "Duplicate Search",
+            description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
+            variant: "warning"
+          });
+        }
+        return true;
+      } else if (searchError) {
         console.error('Error recording search:', searchError);
         throw searchError;
       }
-      
-      // After successfully recording the search, refresh the profile to get updated search count
-      await refreshProfile();
-      
       return true;
     } catch (error) {
-      console.error('Error in recordSearch:', error);
-      throw error;
+      // Only throw if it's not a duplicate search error
+      if (error?.code !== '23505') {
+        throw error;
+      }
+      return true;
     }
   };
 
@@ -204,7 +176,7 @@ export const useFlightSearch = () => {
     handleFlightSearch, 
     isLoading,
     searchCount: profile?.search_count,
-    isPetCaddie: profile?.role === 'pet_caddie',
+    isPetCaddie: profile?.userRole === 'pet_caddie',
     isProfileLoading: profileLoading
   };
 };

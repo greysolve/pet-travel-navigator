@@ -1,10 +1,8 @@
-
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { hasData, ensureArray } from "@/types/supabase";
 
 type Airline = {
   name: string;
@@ -31,22 +29,24 @@ export const AirlinePolicySearch = ({ policySearch, setPolicySearch }: AirlinePo
     setIsSearching(true);
     try {
       console.log('Fetching airlines for search term:', searchTerm);
-      const response = await supabase
+      const { data, error } = await supabase
         .from('airlines')
         .select('name, iata_code')
         .or(`name.ilike.%${searchTerm}%,iata_code.ilike.%${searchTerm}%`)
         .limit(10);
 
-      if (response.error) throw response.error;
+      if (error) {
+        console.error('Error fetching airlines:', error);
+        toast({
+          title: "Error fetching airlines",
+          description: "Please try again",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Safely transform the response data into the correct type
-      const airlineData = ensureArray(response.data).map(airline => ({
-        name: airline.name,
-        iata_code: airline.iata_code
-      }));
-
-      console.log('Fetched airlines:', airlineData);
-      setAirlines(airlineData);
+      console.log('Fetched airlines:', data);
+      setAirlines(data || []);
     } catch (error) {
       console.error('Error fetching airlines:', error);
       toast({
@@ -54,7 +54,6 @@ export const AirlinePolicySearch = ({ policySearch, setPolicySearch }: AirlinePo
         description: "Please try again",
         variant: "destructive",
       });
-      setAirlines([]);
     } finally {
       setIsSearching(false);
     }

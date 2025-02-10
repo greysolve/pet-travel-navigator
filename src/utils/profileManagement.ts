@@ -1,109 +1,155 @@
 
-import { supabase } from '@/lib/supabase';
-import { UserProfile } from '@/types/auth';
-import { toast } from '@/components/ui/use-toast';
-import { hasData } from '@/types/supabase'; 
+import { supabase } from "@/lib/supabase";
+import { UserProfile } from "@/types/auth";
+import { toast } from "@/components/ui/use-toast";
 
-async function fetchProfileWithRetry(userId: string, retryCount = 3): Promise<UserProfile> {
-  for (let attempt = 1; attempt <= retryCount; attempt++) {
-    try {
-      console.log(`Fetching profile for user ${userId} - Attempt ${attempt}`);
-      
-      const response = await supabase
-        .from('user_roles')
-        .select(`
-          role,
-          profiles!user_roles_user_id_fkey (
-            id,
-            created_at,
-            updated_at,
-            full_name,
-            avatar_url,
-            address_line1,
-            address_line2,
-            address_line3,
-            locality,
-            administrative_area,
-            postal_code,
-            country_id,
-            address_format,
-            plan,
-            search_count,
-            notification_preferences
-          )
-        `)
-        .eq('user_id', userId)
-        .single();
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
 
-      if (response.error) {
-        console.error(`Error fetching profile attempt ${attempt}:`, response.error);
-        if (attempt === retryCount) throw response.error;
-        continue;
-      }
-
-      if (!response.data || !response.data.profiles || !response.data.role) {
-        console.error('Profile or role not found. Response data:', response.data);
-        throw new Error('Profile or role not found');
-      }
-      
-      // Log role details before validation
-      console.log('Role Details:', {
-        rawRole: response.data.role,
-        roleType: typeof response.data.role,
-        validRoles: ['pet_lover', 'site_manager', 'pet_caddie']
-      });
-
-      if (response.data.role !== 'pet_lover' && 
-          response.data.role !== 'site_manager' && 
-          response.data.role !== 'pet_caddie') {
-        console.error('Invalid role detected:', response.data.role);
-        throw new Error(`Invalid role: ${response.data.role}`);
-      }
-
-      const profileData = response.data.profiles;
-      const role = response.data.role;
-
-      const mappedProfile: UserProfile = {
-        ...profileData,
-        role
-      };
-      
-      // Log the final mapped profile validation
-      console.log('Mapped Profile Validation:', {
-        hasRole: !!mappedProfile.role,
-        roleValue: mappedProfile.role,
-        isRoleValid: ['pet_lover', 'site_manager', 'pet_caddie'].includes(mappedProfile.role)
-      });
-
-      return mappedProfile;
-    } catch (error) {
-      console.error(`Error in fetchProfileWithRetry attempt ${attempt}:`, error);
-      if (attempt === retryCount) throw error;
-      // Wait before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-    }
-  }
-  throw new Error('Failed to fetch profile after all retry attempts');
+async function wait(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function fetchOrCreateProfile(userId: string): Promise<UserProfile> {
+async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<UserProfile | null> {
+  try {
+    console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
+    
+    const { data: profileData, error: fetchError } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        user_roles!user_roles_user_id_fkey (
+          role
+        )
+      `)
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching profile:', fetchError);
+      throw fetchError;
+    }
+
+    if (!profileData) {
+      console.log('Profile not found');
+      return null;
+    }
+
+    console.log('Raw profile data:', profileData);
+
+    // Get the role from the joined data - handle both array and single object cases
+    const userRoles = Array.isArray(profileData.user_roles) 
+      ? profileData.user_roles 
+      : [profileData.user_roles];
+    
+    const userRole = userRoles[0]?.role;
+
+    // If we have a profile but no role yet, and we haven't exceeded max retries
+    if (!userRole && retryCount < MAX_RETRIES) {
+      console.log('Profile found but no role yet, retrying...');
+      await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
+      return fetchProfileWithRetry(userId, retryCount + 1);
+    }
+
+    // Default to pet_caddie if no role is found after retries
+    const finalRole = userRole || 'pet_caddie';
+    console.log('Using role:', finalRole);
+    
+    // Create a clean UserProfile object with explicit mapping
+    const mappedProfile: UserProfile = {
+      id: profileData.id,
+      userRole: finalRole,
+      created_at: profileData.created_at,
+      updated_at: profileData.updated_at,
+      full_name: profileData.full_name,
+      avatar_url: profileData.avatar_url,
+      address_line1: profileData.address_line1,
+      address_line2: profileData.address_line2,
+      address_line3: profileData.address_line3,
+      locality: profileData.locality,
+      administrative_area: profileData.administrative_area,
+      postal_code: profileData.postal_code,
+      country_id: profileData.country_id,
+      address_format: profileData.address_format,
+      plan: profileData.plan,
+      search_count: profileData.search_count,
+      notification_preferences: profileData.notification_preferences
+    };
+    
+    console.log('Mapped profile:', mappedProfile);
+    return mappedProfile;
+  } catch (error) {
+    console.error('Error in fetchProfileWithRetry:', error);
+    // Instead of throwing, return a default profile with pet_caddie role
+    return {
+      id: userId,
+      userRole: 'pet_caddie',
+      search_count: 5,
+      notification_preferences: {
+        travel_alerts: true,
+        policy_changes: true,
+        documentation_reminders: true
+      }
+    };
+  }
+}
+
+export async function fetchOrCreateProfile(userId: string): Promise<UserProfile | null> {
   try {
     console.log('Starting fetchOrCreateProfile for user:', userId);
     
-    const profile = await fetchProfileWithRetry(userId);
-    if (!profile || !profile.role) {
-      throw new Error('Invalid profile or missing role');
+    // First, try to fetch existing profile
+    const existingProfile = await fetchProfileWithRetry(userId);
+    if (existingProfile) {
+      return existingProfile;
     }
 
-    return profile;
+    // If no profile exists, create one
+    console.log('No profile found, creating one...');
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert([{ 
+        id: userId,
+        notification_preferences: {
+          travel_alerts: true,
+          policy_changes: true,
+          documentation_reminders: true
+        }
+      }])
+      .select();
+
+    if (insertError) {
+      // Handle the case where profile was created by another concurrent request
+      if (insertError.code === '23505') {
+        console.log('Profile already exists (race condition), retrying fetch...');
+        return await fetchProfileWithRetry(userId);
+      }
+      console.error('Error creating profile:', insertError);
+      throw insertError;
+    }
+
+    // After creating the profile, wait briefly then fetch it with the role
+    // that should have been created by the database trigger
+    await wait(INITIAL_RETRY_DELAY);
+    return await fetchProfileWithRetry(userId);
     
   } catch (error) {
     console.error('Error in profile management:', error);
     toast({
-      title: "Error loading profile",
-      description: "Please try refreshing the page",
-      variant: "destructive",
+      title: "Warning",
+      description: "Using default profile settings",
+      variant: "default",
     });
-    throw error;
+    // Return a default profile instead of null
+    return {
+      id: userId,
+      userRole: 'pet_caddie',
+      search_count: 5,
+      notification_preferences: {
+        travel_alerts: true,
+        policy_changes: true,
+        documentation_reminders: true
+      }
+    };
   }
 }

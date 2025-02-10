@@ -1,12 +1,17 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
 import { useAuth } from "@/contexts/AuthContext";
 
+const COUNTRY_MAPPINGS: Record<string, string> = {
+  'USA': 'United States',
+  'UK': 'United Kingdom'
+};
+
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useAuth();
-  const isPetCaddie = profile?.role === 'pet_caddie';
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
@@ -21,7 +26,6 @@ export const usePetPolicies = (flights: FlightData[]) => {
       ))];
       
       console.log("Fetching pet policies for airlines:", carrierCodes);
-      console.log("User role:", profile?.role);
       
       const { data: airlines } = await supabase
         .from('airlines')
@@ -32,21 +36,10 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       // If user is a pet caddie, fetch summaries instead of full policies
       if (isPetCaddie) {
-        console.log("Fetching pet policy summaries for pet_caddie user");
-        const { data: summaries, error } = await supabase
+        const { data: summaries } = await supabase
           .from('pet_policy_summaries')
-          .select(`
-            summary,
-            airlines!inner (
-              iata_code
-            )
-          `)
+          .select('summary, airlines!inner(iata_code)')
           .in('airline_id', airlines.map(a => a.id));
-
-        if (error) {
-          console.error("Error fetching summaries:", error);
-          return {};
-        }
 
         console.log("Found pet policy summaries:", summaries);
 
@@ -57,21 +50,10 @@ export const usePetPolicies = (flights: FlightData[]) => {
       }
 
       // For other roles, fetch full policies
-      console.log("Fetching full pet policies for non-pet_caddie user");
-      const { data: policies, error } = await supabase
+      const { data: policies } = await supabase
         .from('pet_policies')
-        .select(`
-          *,
-          airlines!inner (
-            iata_code
-          )
-        `)
+        .select('*, airlines!inner(iata_code)')
         .in('airline_id', airlines.map(a => a.id));
-
-      if (error) {
-        console.error("Error fetching policies:", error);
-        return {};
-      }
 
       console.log("Found pet policies:", policies);
 

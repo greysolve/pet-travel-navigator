@@ -17,7 +17,6 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   loading: boolean;
   profileLoading: boolean;
-  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,64 +29,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const authOperations = useAuthOperations();
 
-  const handleAuthError = async (error: Error) => {
-    console.error('Authentication error:', error);
-    toast({
-      title: "Authentication Error",
-      description: "Failed to load user profile. Please sign in again.",
-      variant: "destructive",
-    });
-    await supabase.auth.signOut();
-    setProfile(null);
-    setUser(null);
-    setSession(null);
-  };
-
-  const refreshProfile = useCallback(async () => {
-    if (!user) {
-      setProfile(null);
-      setProfileLoading(false);
-      return;
-    }
-
-    console.log('Refreshing profile for user:', user.id);
+  // Debounced profile fetcher
+  const fetchProfileDebounced = useCallback(async (userId: string) => {
+    console.log('Fetching profile for user:', userId);
     setProfileLoading(true);
     try {
-      const profileData = await fetchOrCreateProfile(user.id);
-      // Strict validation - no fallbacks
-      if (!profileData || !profileData.role) {
-        throw new Error('Invalid profile or missing role');
+      const profileData = await fetchOrCreateProfile(userId);
+      if (profileData) {
+        setProfile(profileData);
       }
-      setProfile(profileData);
     } catch (error) {
-      await handleAuthError(error as Error);
+      console.error('Error fetching profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load user profile. Please try refreshing the page.",
+        variant: "destructive",
+      });
     } finally {
       setProfileLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session:', session);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        refreshProfile();
+        // Add a small delay to allow any pending operations to complete
+        timeoutId = setTimeout(() => {
+          fetchProfileDebounced(session.user.id);
+        }, 100);
       } else {
-        setProfile(null);
         setProfileLoading(false);
       }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth state changed:', _event, session);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        await refreshProfile();
+        // Clear any pending timeout
+        if (timeoutId) clearTimeout(timeoutId);
+        // Set new timeout for profile fetch
+        timeoutId = setTimeout(() => {
+          fetchProfileDebounced(session.user.id);
+        }, 100);
       } else {
         setProfile(null);
         setProfileLoading(false);
@@ -96,8 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [refreshProfile]);
+  }, [fetchProfileDebounced]);
 
   return (
     <AuthContext.Provider value={{ 
@@ -106,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile, 
       loading,
       profileLoading,
-      refreshProfile,
       ...authOperations
     }}>
       {children}

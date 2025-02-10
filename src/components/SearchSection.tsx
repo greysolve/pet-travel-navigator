@@ -24,7 +24,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
   const { toast } = useToast();
   const { handleFlightSearch, isLoading, searchCount, isPetCaddie, isProfileLoading } = useFlightSearch();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
 
   useEffect(() => {
