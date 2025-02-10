@@ -99,3 +99,4 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
     </div>
   );
 };
+
