@@ -82,14 +82,14 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Then check if inner object exists
-    if (!data.get_profile_with_role) {
-      console.error('Invalid profile structure returned:', data);
-      throw new ProfileError('Invalid profile structure', 'not_found');
+    // Ensure data is an object type
+    if (typeof data !== 'object' || data === null) {
+      console.error('Invalid response type:', data);
+      throw new ProfileError('Invalid response format', 'unknown');
     }
 
-    // Now safely cast the inner object
-    const profileData = data.get_profile_with_role as ProfileWithRoleResponse;
+    // Now we can safely cast and access the profile data
+    const profileData = data as ProfileWithRoleResponse;
 
     // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
@@ -124,4 +124,3 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
-
