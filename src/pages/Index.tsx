@@ -4,7 +4,6 @@ import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -12,8 +11,7 @@ const Index = () => {
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
   const resultsRef = useRef<HTMLDivElement>(null);
-  const { user, profileError } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Reset all search states when auth changes
   useEffect(() => {
@@ -22,13 +20,6 @@ const Index = () => {
     setFlights([]);
     setPetPolicies(undefined);
   }, [user?.id]);
-
-  // Redirect to auth page if there's a profile error
-  useEffect(() => {
-    if (profileError) {
-      navigate('/auth');
-    }
-  }, [profileError, navigate]);
 
   const handleSearchResults = (
     results: FlightData[], 
