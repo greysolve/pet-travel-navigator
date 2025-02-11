@@ -17,6 +17,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   loading: boolean;
   profileLoading: boolean;
+  isRefreshing: boolean;
   profileError: ProfileError | null;
   retryProfileLoad: () => Promise<void>;
 }
@@ -24,28 +25,36 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PROFILE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const RETRY_DELAY = 1000; // 1 second initial retry delay
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const authOperations = useAuthOperations();
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  // Add refs for caching
+  // Add refs for caching and retry management
   const lastProfileFetchRef = useRef<number>(0);
   const lastFetchedUserIdRef = useRef<string | null>(null);
+  const retryCountRef = useRef<number>(0);
 
-  // Profile fetch with improved caching
-  const loadProfile = useCallback(async (userId: string, forceReload: boolean = false) => {
+  // Profile fetch with improved caching and background refresh
+  const loadProfile = useCallback(async (userId: string, options: { 
+    forceReload?: boolean,
+    isBackgroundRefresh?: boolean 
+  } = {}) => {
+    const { forceReload = false, isBackgroundRefresh = false } = options;
     const now = Date.now();
     const timeSinceLastFetch = now - lastProfileFetchRef.current;
     
     // Skip if we have a valid cached profile for this user
     if (!forceReload && 
+        !isBackgroundRefresh &&
         userId === lastFetchedUserIdRef.current && 
         profile?.id === userId &&
         timeSinceLastFetch < PROFILE_CACHE_DURATION) {
@@ -61,13 +70,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     
-    setProfileLoading(true);
-    setProfileError(null);
+    // Set loading state based on whether this is a background refresh
+    if (!isBackgroundRefresh) {
+      setProfileLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
+    if (!isBackgroundRefresh) {
+      setProfileError(null);
+    }
 
     try {
       const profileData = await fetchProfile(userId);
       setProfile(profileData);
       setProfileError(null);
+      retryCountRef.current = 0; // Reset retry count on success
       
       // Update cache metadata
       lastProfileFetchRef.current = now;
@@ -76,34 +94,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Profile loaded and cached for user:', userId);
     } catch (error) {
       console.error('Profile fetch failed:', error);
+      
       if (error instanceof ProfileError) {
-        setProfileError(error);
+        // Only set error state if this wasn't a background refresh
+        if (!isBackgroundRefresh) {
+          setProfileError(error);
+        }
         
         // Show appropriate toast based on error type
         const errorMessages = {
-          timeout: "Profile load timed out. Please try again.",
-          not_found: "Profile not found. Please sign out and back in.",
-          network: "Network error loading profile. Please check your connection.",
-          unknown: "Unexpected error loading profile. Please try again."
+          timeout: "Profile refresh timed out. Using cached data.",
+          not_found: "Could not refresh profile. Using cached data.",
+          network: "Network error refreshing profile. Using cached data.",
+          unknown: "Error refreshing profile. Using cached data."
         };
         
-        toast({
-          title: "Error",
-          description: errorMessages[error.type],
-          variant: "destructive",
-        });
-      } else {
-        setProfileError(new ProfileError('Unexpected error', 'unknown'));
+        if (isBackgroundRefresh) {
+          toast({
+            title: "Background Refresh Error",
+            description: errorMessages[error.type],
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.type === 'not_found' 
+              ? "Profile not found. Please sign out and back in."
+              : "Error loading profile. Please try again.",
+            variant: "destructive",
+          });
+        }
+
+        // Implement exponential backoff for retries
+        if (retryCountRef.current < 3) { // Max 3 retry attempts
+          const retryDelay = RETRY_DELAY * Math.pow(2, retryCountRef.current);
+          retryCountRef.current++;
+          setTimeout(() => {
+            loadProfile(userId, { isBackgroundRefresh: true });
+          }, retryDelay);
+        }
       }
     } finally {
-      setProfileLoading(false);
+      if (!isBackgroundRefresh) {
+        setProfileLoading(false);
+      }
+      setIsRefreshing(false);
     }
   }, [profile]);
 
   // Retry profile load with force reload
   const retryProfileLoad = useCallback(async () => {
     if (user?.id) {
-      await loadProfile(user.id, true);
+      retryCountRef.current = 0; // Reset retry count on manual retry
+      await loadProfile(user.id, { forceReload: true });
     }
   }, [user?.id, loadProfile]);
 
@@ -117,17 +160,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setUser(currentSession.user);
         
-        // Only load profile if:
-        // 1. It's a new session
-        // 2. We're signing in
-        // 3. We don't have a profile yet
-        // 4. The profile we have is for a different user
-        if (isNewSession || 
-            event === 'SIGNED_IN' || 
-            !profile || 
-            profile.id !== currentSession.user.id) {
+        // Initial sign in or new session
+        if (isNewSession || event === 'SIGNED_IN') {
           console.log('Loading profile for new session or sign in');
           await loadProfile(currentSession.user.id);
+        } 
+        // Check for cache expiration on page reload
+        else if (event === 'INITIAL_SESSION') {
+          const timeSinceLastFetch = Date.now() - lastProfileFetchRef.current;
+          if (timeSinceLastFetch >= PROFILE_CACHE_DURATION) {
+            console.log('Cache expired, refreshing profile in background');
+            loadProfile(currentSession.user.id, { isBackgroundRefresh: true });
+          }
         }
       } else {
         setSession(null);
@@ -135,7 +179,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setProfileError(null);
         setProfileLoading(false);
+        setIsRefreshing(false);
         lastFetchedUserIdRef.current = null;
+        retryCountRef.current = 0;
       }
     };
 
@@ -165,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile, 
       loading,
       profileLoading,
+      isRefreshing,
       profileError,
       retryProfileLoad,
       ...authOperations
