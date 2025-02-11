@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,13 +36,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const authOperations = useAuthOperations();
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  // Add refs for caching and retry management
   const lastProfileFetchRef = useRef<number>(0);
   const lastFetchedUserIdRef = useRef<string | null>(null);
   const retryCountRef = useRef<number>(0);
 
-  // Profile fetch with improved caching and background refresh
   const loadProfile = useCallback(async (userId: string, options: { 
     forceReload?: boolean,
     isBackgroundRefresh?: boolean 
@@ -52,7 +48,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const timeSinceLastFetch = now - lastProfileFetchRef.current;
     
-    // Skip if we have a valid cached profile for this user
     if (!forceReload && 
         !isBackgroundRefresh &&
         userId === lastFetchedUserIdRef.current && 
@@ -62,15 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Clear any existing abort controller
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     
-    // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     
-    // Set loading state based on whether this is a background refresh
     if (!isBackgroundRefresh) {
       setProfileLoading(true);
     } else {
@@ -85,9 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileData = await fetchProfile(userId);
       setProfile(profileData);
       setProfileError(null);
-      retryCountRef.current = 0; // Reset retry count on success
+      retryCountRef.current = 0;
       
-      // Update cache metadata
       lastProfileFetchRef.current = now;
       lastFetchedUserIdRef.current = userId;
       
@@ -96,12 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Profile fetch failed:', error);
       
       if (error instanceof ProfileError) {
-        // Only set error state if this wasn't a background refresh
         if (!isBackgroundRefresh) {
           setProfileError(error);
         }
         
-        // Show appropriate toast based on error type
         const errorMessages = {
           timeout: "Profile refresh timed out. Using cached data.",
           not_found: "Could not refresh profile. Using cached data.",
@@ -125,8 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
 
-        // Implement exponential backoff for retries
-        if (retryCountRef.current < 3) { // Max 3 retry attempts
+        if (retryCountRef.current < 3) {
           const retryDelay = RETRY_DELAY * Math.pow(2, retryCountRef.current);
           retryCountRef.current++;
           setTimeout(() => {
@@ -142,15 +130,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [profile]);
 
-  // Retry profile load with force reload
   const retryProfileLoad = useCallback(async () => {
     if (user?.id) {
-      retryCountRef.current = 0; // Reset retry count on manual retry
+      retryCountRef.current = 0;
       await loadProfile(user.id, { forceReload: true });
     }
   }, [user?.id, loadProfile]);
 
-  // Handle session recovery and auth state changes
   useEffect(() => {
     const handleAuthChange = async (event: string, currentSession: Session | null) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
@@ -160,18 +146,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setUser(currentSession.user);
         
-        // Initial sign in or new session
         if (isNewSession || event === 'SIGNED_IN') {
           console.log('Loading profile for new session or sign in');
           await loadProfile(currentSession.user.id);
-        } 
-        // Check for cache expiration on page reload
-        else if (event === 'INITIAL_SESSION') {
-          const timeSinceLastFetch = Date.now() - lastProfileFetchRef.current;
-          if (timeSinceLastFetch >= PROFILE_CACHE_DURATION) {
-            console.log('Cache expired, refreshing profile in background');
-            loadProfile(currentSession.user.id, { isBackgroundRefresh: true });
-          }
+        } else {
+          console.log('Using existing profile data');
         }
       } else {
         setSession(null);
@@ -185,17 +164,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Initial session check
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log('Initial session check:', initialSession?.user?.id);
       handleAuthChange('INITIAL_SESSION', initialSession);
       setLoading(false);
     });
 
-    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
-    // Cleanup function
     return () => {
       subscription.unsubscribe();
       if (abortControllerRef.current) {
