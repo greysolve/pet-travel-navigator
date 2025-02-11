@@ -858,7 +858,7 @@ export type Database = {
       }
       get_profile_with_role: {
         Args: {
-          user_id: string
+          p_user_id: string
         }
         Returns: Json
       }

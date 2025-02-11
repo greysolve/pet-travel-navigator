@@ -63,17 +63,16 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('Failed to fetch user profile', 'network');
     }
 
-    if (!data?.profile) {
+    if (!data) {
       console.error('No profile found for user');
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Create the user profile object
+    // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
-      ...data.profile,
-      userRole: data.role || 'pet_caddie',
-      plan: validatePlan(data.profile.plan),
-      notification_preferences: validateNotificationPreferences(data.profile.notification_preferences)
+      ...data,
+      plan: validatePlan(data.plan),
+      notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
     console.log('Successfully mapped profile:', userProfile);
@@ -88,4 +87,3 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
-
