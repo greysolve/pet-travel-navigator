@@ -23,6 +23,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PROFILE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -32,9 +34,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const authOperations = useAuthOperations();
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Add refs for caching
+  const lastProfileFetchRef = useRef<number>(0);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
-  // Profile fetch with improved error handling
-  const loadProfile = useCallback(async (userId: string) => {
+  // Profile fetch with improved caching
+  const loadProfile = useCallback(async (userId: string, forceReload: boolean = false) => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastProfileFetchRef.current;
+    
+    // Skip if we recently fetched this user's profile and it's not a forced reload
+    if (!forceReload && 
+        userId === lastFetchedUserIdRef.current && 
+        timeSinceLastFetch < PROFILE_CACHE_DURATION) {
+      console.log('Using cached profile for user:', userId);
+      return;
+    }
+
     // Clear any existing abort controller
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -50,6 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileData = await fetchProfile(userId);
       setProfile(profileData);
       setProfileError(null);
+      
+      // Update cache metadata
+      lastProfileFetchRef.current = now;
+      lastFetchedUserIdRef.current = userId;
+      
+      console.log('Profile loaded and cached for user:', userId);
     } catch (error) {
       console.error('Profile fetch failed:', error);
       if (error instanceof ProfileError) {
@@ -76,10 +99,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Retry profile load
+  // Retry profile load with force reload
   const retryProfileLoad = useCallback(async () => {
     if (user?.id) {
-      await loadProfile(user.id);
+      await loadProfile(user.id, true); // Force reload on retry
     }
   }, [user?.id, loadProfile]);
 
@@ -89,15 +112,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
       if (currentSession?.user) {
+        const isNewSession = !session || session.user.id !== currentSession.user.id;
         setSession(currentSession);
         setUser(currentSession.user);
-        await loadProfile(currentSession.user.id);
+        
+        // Only load profile if it's a new session or login event
+        if (isNewSession || event === 'SIGNED_IN') {
+          console.log('Loading profile for new session or sign in');
+          await loadProfile(currentSession.user.id, true);
+        }
       } else {
         setSession(null);
         setUser(null);
         setProfile(null);
         setProfileError(null);
         setProfileLoading(false);
+        lastFetchedUserIdRef.current = null;
       }
     };
 
@@ -118,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadProfile]);
+  }, [loadProfile, session]);
 
   return (
     <AuthContext.Provider value={{ 
