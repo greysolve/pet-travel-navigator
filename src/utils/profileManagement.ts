@@ -49,7 +49,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     });
 
     const fetchPromise = supabase.rpc('get_profile_with_role', {
-      user_id: userId
+      p_user_id: userId  // Updated parameter name to match the function signature
     });
 
     // Race between the fetch and the timeout
