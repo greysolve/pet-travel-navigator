@@ -2,30 +2,28 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-// Interface to type the RPC response
+// Interface to type the RPC response (just the inner object)
 interface ProfileWithRoleResponse {
-  get_profile_with_role: {
-    userRole: string;
-    created_at: string;
-    updated_at: string;
-    full_name: string | null;
-    avatar_url: string | null;
-    address_line1: string | null;
-    address_line2: string | null;
-    address_line3: string | null;
-    locality: string | null;
-    administrative_area: string | null;
-    postal_code: string | null;
-    country_id: string | null;
-    address_format: string | null;
-    plan: string | null;
-    search_count: number | null;
-    notification_preferences: {
-      travel_alerts: boolean;
-      policy_changes: boolean;
-      documentation_reminders: boolean;
-    } | null;
-  }
+  userRole: string;
+  created_at: string;
+  updated_at: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_line3: string | null;
+  locality: string | null;
+  administrative_area: string | null;
+  postal_code: string | null;
+  country_id: string | null;
+  address_format: string | null;
+  plan: string | null;
+  search_count: number | null;
+  notification_preferences: {
+    travel_alerts: boolean;
+    policy_changes: boolean;
+    documentation_reminders: boolean;
+  } | null;
 }
 
 class ProfileError extends Error {
@@ -78,14 +76,20 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('Failed to fetch user profile', 'network');
     }
 
+    // First check if data exists
     if (!data) {
       console.error('No profile found for user');
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Cast the data to our expected type
-    const response = data as unknown as ProfileWithRoleResponse;
-    const profileData = response.get_profile_with_role;
+    // Then check if inner object exists
+    if (!data.get_profile_with_role) {
+      console.error('Invalid profile structure returned:', data);
+      throw new ProfileError('Invalid profile structure', 'not_found');
+    }
+
+    // Now safely cast the inner object
+    const profileData = data.get_profile_with_role as ProfileWithRoleResponse;
 
     // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
@@ -120,3 +124,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
+
