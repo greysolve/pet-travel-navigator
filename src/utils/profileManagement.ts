@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, SubscriptionPlan } from "@/types/auth";
+import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
 // Interface to type the RPC response
 interface ProfileWithRoleResponse {
@@ -90,7 +90,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
       id: userId,
-      userRole: profileData.userRole,
+      userRole: profileData.userRole as UserRole, // Safe cast since SQL function guarantees valid role
       created_at: profileData.created_at,
       updated_at: profileData.updated_at,
       full_name: profileData.full_name ?? undefined,
