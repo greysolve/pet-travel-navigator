@@ -32,26 +32,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authOperations = useAuthOperations();
 
   const loadProfile = async (userId: string) => {
+    console.log('Starting profile load for user:', userId);
     setProfileLoading(true);
     setProfileError(null);
     
     try {
       const profileData = await fetchProfile(userId);
+      console.log('Profile loaded successfully:', profileData);
       setProfile(profileData);
-      console.log('Profile loaded:', profileData);
+      setProfileLoading(false); // Reset loading immediately after successful profile load
     } catch (error) {
       console.error('Error loading profile:', error);
       if (error instanceof ProfileError) {
         setProfileError(error);
-        // Removed automatic sign out, just show the error message
         toast({
           title: "Profile Error",
           description: "There was a problem loading your profile. You may want to try signing out and back in.",
           variant: "destructive",
         });
       }
-    } finally {
-      setProfileLoading(false);
+      setProfileLoading(false); // Reset loading on error
     }
   };
 
@@ -69,9 +69,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(initialSession);
           setUser(initialSession.user);
           await loadProfile(initialSession.user.id);
+        } else {
+          // Reset states when no session is found
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setProfileError(null);
+          setProfileLoading(false);
         }
       } catch (error) {
         console.error('Error during auth setup:', error);
+        if (mounted) {
+          setProfileLoading(false);
+        }
       } finally {
         if (mounted) {
           setLoading(false);
@@ -91,10 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentSession.user);
         await loadProfile(currentSession.user.id);
       } else {
+        // Reset all states when user signs out
         setSession(null);
         setUser(null);
         setProfile(null);
         setProfileError(null);
+        setProfileLoading(false);
       }
     });
 
