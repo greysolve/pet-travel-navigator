@@ -43,11 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error loading profile:', error);
       if (error instanceof ProfileError) {
         setProfileError(error);
-        // If profile loading fails, sign out the user
-        await authOperations.signOut();
+        // Removed automatic sign out, just show the error message
         toast({
-          title: "Authentication Error",
-          description: "There was a problem loading your profile. Please sign in again.",
+          title: "Profile Error",
+          description: "There was a problem loading your profile. You may want to try signing out and back in.",
           variant: "destructive",
         });
       }
