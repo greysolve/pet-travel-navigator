@@ -30,6 +30,11 @@ type DecoratedPetPolicy = Omit<PetPolicy, 'carrier_requirements'> & {
   carrier_requirements?: PremiumField<string>;
 };
 
+// Helper function to convert nested path to underscore format
+const toUnderscoreFormat = (path: string): string => {
+  return path.replace(/\./g, '_');
+};
+
 export const decorateWithPremiumFields = (
   policy: Partial<PetPolicy>,
   premiumFields: string[]
@@ -49,8 +54,10 @@ export const decorateWithPremiumFields = (
       return;
     }
 
-    if (premiumFields.includes(key)) {
-      console.log(`Decorating premium field: ${key}`);
+    // Convert key to underscore format for comparison
+    const underscoreKey = toUnderscoreFormat(key);
+    if (premiumFields.includes(underscoreKey)) {
+      console.log(`Decorating premium field: ${key} (${underscoreKey})`);
       (decoratedPolicy[key as keyof PetPolicy] as any) = {
         value: policy[key as keyof PetPolicy],
         isPremiumField: true
@@ -67,9 +74,9 @@ export const decorateWithPremiumFields = (
   if (isObject(policy.size_restrictions)) {
     const nestedObj: Record<string, any> = {};
     for (const key in policy.size_restrictions) {
-      const fullPath = `size_restrictions.${key}`;
-      if (premiumFields.includes(fullPath)) {
-        console.log(`Decorating nested premium field: ${fullPath}`);
+      const underscoreKey = `size_restrictions_${key}`;
+      if (premiumFields.includes(underscoreKey)) {
+        console.log(`Decorating nested premium field: ${underscoreKey}`);
         nestedObj[key] = {
           value: policy.size_restrictions[key as keyof SizeRestrictions],
           isPremiumField: true
@@ -83,8 +90,8 @@ export const decorateWithPremiumFields = (
     // If size_restrictions doesn't exist or is null, create it with premium fields
     const nestedObj: Record<string, any> = {};
     ['max_weight_cabin', 'max_weight_cargo', 'carrier_dimensions_cabin'].forEach(key => {
-      const fullPath = `size_restrictions.${key}`;
-      if (premiumFields.includes(fullPath)) {
+      const underscoreKey = `size_restrictions_${key}`;
+      if (premiumFields.includes(underscoreKey)) {
         nestedObj[key] = {
           value: null,
           isPremiumField: true
@@ -105,9 +112,9 @@ export const decorateWithPremiumFields = (
   if (isObject(policy.fees)) {
     const nestedObj: Record<string, any> = {};
     for (const key in policy.fees) {
-      const fullPath = `fees.${key}`;
-      if (premiumFields.includes(fullPath)) {
-        console.log(`Decorating nested premium field: ${fullPath}`);
+      const underscoreKey = `fees_${key}`;
+      if (premiumFields.includes(underscoreKey)) {
+        console.log(`Decorating nested premium field: ${underscoreKey}`);
         nestedObj[key] = {
           value: policy.fees[key as keyof Fees],
           isPremiumField: true
@@ -121,8 +128,8 @@ export const decorateWithPremiumFields = (
     // If fees doesn't exist or is null, create it with premium fields
     const nestedObj: Record<string, any> = {};
     ['in_cabin', 'cargo'].forEach(key => {
-      const fullPath = `fees.${key}`;
-      if (premiumFields.includes(fullPath)) {
+      const underscoreKey = `fees_${key}`;
+      if (premiumFields.includes(underscoreKey)) {
         nestedObj[key] = {
           value: null,
           isPremiumField: true
@@ -137,4 +144,3 @@ export const decorateWithPremiumFields = (
   console.log('Decorated policy:', decoratedPolicy);
   return decoratedPolicy as PetPolicy;
 };
-
