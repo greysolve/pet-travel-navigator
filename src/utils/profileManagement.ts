@@ -74,7 +74,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle(),
+          .maybeSingle()
+          .then(result => result),
         'Profile'
       ),
       executeQueryWithTimeout<{ role: string }>(
@@ -82,7 +83,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .maybeSingle(),
+          .maybeSingle()
+          .then(result => result),
         'Role'
       )
     ]);
