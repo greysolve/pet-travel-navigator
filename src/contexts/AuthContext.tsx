@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const lastProfileFetchRef = useRef<number>(0);
   const lastFetchedUserIdRef = useRef<string | null>(null);
   const retryCountRef = useRef<number>(0);
+  const initialLoadRef = useRef(true);
 
   const loadProfile = useCallback(async (userId: string, options: { 
     forceReload?: boolean,
@@ -48,6 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const timeSinceLastFetch = now - lastProfileFetchRef.current;
     
+    // Only use cache if:
+    // 1. Not forcing a reload
+    // 2. Not a background refresh
+    // 3. Same user as last fetch
+    // 4. Profile exists for this user
+    // 5. Within cache duration
     if (!forceReload && 
         !isBackgroundRefresh &&
         userId === lastFetchedUserIdRef.current && 
@@ -138,19 +146,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id, loadProfile]);
 
   useEffect(() => {
-    const handleAuthChange = async (event: string, currentSession: Session | null) => {
+    let mounted = true;
+    const setupAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (initialSession?.user) {
+          console.log('Initial session found:', initialSession.user.id);
+          setSession(initialSession);
+          setUser(initialSession.user);
+          await loadProfile(initialSession.user.id);
+        }
+      } catch (error) {
+        console.error('Error during auth setup:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          initialLoadRef.current = false;
+        }
+      }
+    };
+
+    setupAuth();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
+      if (!mounted) return;
+
       if (currentSession?.user) {
         const isNewSession = !session || session.user.id !== currentSession.user.id;
-        setSession(currentSession);
-        setUser(currentSession.user);
+        const isInitialLoad = initialLoadRef.current;
         
-        if (isNewSession || event === 'SIGNED_IN') {
-          console.log('Loading profile for new session or sign in');
-          await loadProfile(currentSession.user.id);
-        } else {
-          console.log('Using existing profile data');
+        // Only update session and user if there's actually a change
+        if (isNewSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          
+          // Only load profile for new sessions or explicit sign ins
+          if (!isInitialLoad || event === 'SIGNED_IN') {
+            console.log('Loading profile for new session or sign in');
+            await loadProfile(currentSession.user.id);
+          }
         }
       } else {
         setSession(null);
@@ -162,23 +203,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastFetchedUserIdRef.current = null;
         retryCountRef.current = 0;
       }
-    };
-
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('Initial session check:', initialSession?.user?.id);
-      handleAuthChange('INITIAL_SESSION', initialSession);
-      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadProfile, profile, session]);
+  }, [loadProfile, session]);
 
   return (
     <AuthContext.Provider value={{ 
