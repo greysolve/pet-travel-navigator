@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   profileLoading: boolean;
   profileError: ProfileError | null;
+  retryProfileLoad: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,12 +57,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const retryProfileLoad = async () => {
+    if (user) {
+      await loadProfile(user.id);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     
     const setupAuth = async () => {
       try {
-        // Get initial session
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -83,7 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setupAuth();
 
-    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
@@ -115,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       profileLoading,
       profileError,
+      retryProfileLoad,
       ...authOperations
     }}>
       {children}

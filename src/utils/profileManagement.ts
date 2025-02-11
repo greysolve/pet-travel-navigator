@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
-import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
+import { PostgrestError } from "@supabase/supabase-js";
 
 class ProfileError extends Error {
   constructor(
@@ -23,6 +23,23 @@ const validateRole = (role: string): UserRole => {
 const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
   const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
   return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+};
+
+// Helper to validate notification preferences
+const validateNotificationPreferences = (preferences: any) => {
+  if (!preferences || typeof preferences !== 'object') {
+    return {
+      travel_alerts: true,
+      policy_changes: true,
+      documentation_reminders: true
+    };
+  }
+
+  return {
+    travel_alerts: Boolean(preferences.travel_alerts),
+    policy_changes: Boolean(preferences.policy_changes),
+    documentation_reminders: Boolean(preferences.documentation_reminders)
+  };
 };
 
 async function fetchProfile(userId: string): Promise<UserProfile> {
@@ -78,7 +95,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       address_format: profileResult.data.address_format ?? undefined,
       plan: validatePlan(profileResult.data.plan),
       search_count: profileResult.data.search_count ?? undefined,
-      notification_preferences: profileResult.data.notification_preferences
+      notification_preferences: validateNotificationPreferences(profileResult.data.notification_preferences)
     };
 
     console.log('Successfully mapped profile:', userProfile);
