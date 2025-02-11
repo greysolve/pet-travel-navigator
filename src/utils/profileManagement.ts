@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, SubscriptionPlan } from "@/types/auth";
+import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
 // Interface to type the RPC response
 interface ProfileWithRoleResponse {
@@ -40,6 +40,12 @@ class ProfileError extends Error {
 const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
   const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
   return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+};
+
+// Helper to validate user role
+const validateUserRole = (role: string | null): UserRole => {
+  const validRoles: UserRole[] = ['pet_lover', 'site_manager', 'pet_caddie'];
+  return (role && validRoles.includes(role as UserRole)) ? (role as UserRole) : 'pet_caddie';
 };
 
 // Helper to validate notification preferences
@@ -87,7 +93,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
       id: userId,
-      userRole: profileData.userRole || 'pet_caddie',
+      userRole: validateUserRole(profileData.userRole),
       created_at: profileData.created_at,
       updated_at: profileData.updated_at,
       full_name: profileData.full_name ?? undefined,
