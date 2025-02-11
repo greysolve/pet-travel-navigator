@@ -43,26 +43,37 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
   try {
-    const { data, error } = await supabase.functions.invoke('get_user_profile', {
-      method: 'POST',
-      body: { userId }
+    // Set a timeout for the function call
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new ProfileError('Profile fetch timeout', 'network')), 10000);
     });
+
+    const fetchPromise = supabase.rpc('get_profile_with_role', {
+      user_id: userId
+    });
+
+    // Race between the fetch and the timeout
+    const { data, error } = await Promise.race([
+      fetchPromise,
+      timeoutPromise
+    ]) as any;
 
     if (error) {
       console.error('Error fetching profile:', error);
       throw new ProfileError('Failed to fetch user profile', 'network');
     }
 
-    if (!data) {
+    if (!data?.profile) {
       console.error('No profile found for user');
       throw new ProfileError('User profile not found', 'not_found');
     }
 
     // Create the user profile object
     const userProfile: UserProfile = {
-      ...data,
-      plan: validatePlan(data.plan),
-      notification_preferences: validateNotificationPreferences(data.notification_preferences)
+      ...data.profile,
+      userRole: data.role || 'pet_caddie',
+      plan: validatePlan(data.profile.plan),
+      notification_preferences: validateNotificationPreferences(data.profile.notification_preferences)
     };
 
     console.log('Successfully mapped profile:', userProfile);
@@ -77,3 +88,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
+
