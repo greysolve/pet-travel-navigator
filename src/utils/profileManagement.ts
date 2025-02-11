@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-// Interface to type the RPC response (just the inner object)
+// Interface to type the inner profile object
 interface ProfileWithRoleResponse {
   userRole: string;
   created_at: string;
@@ -24,6 +24,11 @@ interface ProfileWithRoleResponse {
     policy_changes: boolean;
     documentation_reminders: boolean;
   } | null;
+}
+
+// Interface to type the RPC response wrapper
+interface GetProfileWithRoleRPCResponse {
+  get_profile_with_role: ProfileWithRoleResponse;
 }
 
 class ProfileError extends Error {
@@ -69,7 +74,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   try {
     const { data, error } = await supabase.rpc('get_profile_with_role', {
       p_user_id: userId
-    });
+    }) as { data: GetProfileWithRoleRPCResponse | null, error: any };
 
     if (error) {
       console.error('Error fetching profile:', error);
@@ -82,14 +87,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Then check if inner object exists
-    if (!data.get_profile_with_role) {
-      console.error('Invalid profile structure returned:', data);
-      throw new ProfileError('Invalid profile structure', 'not_found');
-    }
-
-    // Now safely cast the inner object
-    const profileData = data.get_profile_with_role as ProfileWithRoleResponse;
+    // Access the inner profile data through the wrapper
+    const profileData = data.get_profile_with_role;
 
     // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
@@ -124,4 +123,3 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
-
