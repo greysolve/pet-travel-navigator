@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   profileLoading: boolean;
   profileError: ProfileError | null;
+  setSearchUpdateInProgress: (inProgress: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
+  const [searchUpdateInProgress, setSearchUpdateInProgress] = useState(false);
   const authOperations = useAuthOperations();
 
   const loadProfile = async (userId: string) => {
@@ -92,14 +94,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setupAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log('Auth state changed:', event, currentSession?.user?.id);
+      console.log('Auth state changed:', event, currentSession?.user?.id, 'Search update in progress:', searchUpdateInProgress);
       
       if (!mounted) return;
 
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await loadProfile(currentSession.user.id);
+        // Only reload profile if it's not a search update
+        if (!searchUpdateInProgress) {
+          await loadProfile(currentSession.user.id);
+        }
       } else {
         // Reset all states when user signs out
         setSession(null);
@@ -114,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [searchUpdateInProgress]);
 
   return (
     <AuthContext.Provider value={{ 
@@ -124,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       profileLoading,
       profileError,
+      setSearchUpdateInProgress,
       ...authOperations
     }}>
       {children}

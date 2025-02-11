@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +16,7 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, profileLoading } = useAuth();
+  const { user, profile, profileLoading, setSearchUpdateInProgress } = useAuth();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
@@ -41,6 +42,8 @@ export const useFlightSearch = () => {
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     try {
+      setSearchUpdateInProgress(true); // Set flag before database update
+      
       const { error: searchError } = await supabase
         .from('route_searches')
         .insert({
@@ -73,6 +76,9 @@ export const useFlightSearch = () => {
         throw error;
       }
       return true;
+    } finally {
+      // Reset the search update flag after the database operation
+      setSearchUpdateInProgress(false);
     }
   };
 
