@@ -69,20 +69,22 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   try {
     // Get profile and role data in parallel
     const [profileResult, roleResult] = await Promise.all([
-      executeQueryWithTimeout<DatabaseProfileResponse>(
+      executeQueryWithTimeout(
         supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle(),
+          .maybeSingle()
+          .then(),
         'Profile'
       ),
-      executeQueryWithTimeout<{ role: string }>(
+      executeQueryWithTimeout(
         supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .maybeSingle(),
+          .maybeSingle()
+          .then(),
         'Role'
       )
     ]);
