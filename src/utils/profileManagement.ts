@@ -15,6 +15,32 @@ class ProfileError extends Error {
   }
 }
 
+interface RoleResponse {
+  role: UserRole;
+}
+
+interface ProfileResponse {
+  created_at: string;
+  updated_at: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_line3: string | null;
+  locality: string | null;
+  administrative_area: string | null;
+  postal_code: string | null;
+  country_id: string | null;
+  address_format: string | null;
+  plan: SubscriptionPlan | null;
+  search_count: number | null;
+  notification_preferences: {
+    travel_alerts: boolean;
+    policy_changes: boolean;
+    documentation_reminders: boolean;
+  } | null;
+}
+
 // Helper function to create a query with its own timeout
 const executeQueryWithTimeout = async <T>(
   queryPromise: Promise<PostgrestSingleResponse<T>>,
@@ -35,7 +61,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   try {
     // Execute both queries in parallel, each with its own timeout
     const [roleResult, profileResult] = await Promise.all([
-      executeQueryWithTimeout(
+      executeQueryWithTimeout<RoleResponse>(
         supabase
           .from('user_roles')
           .select('role')
@@ -43,7 +69,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
           .maybeSingle(),
         'Role'
       ),
-      executeQueryWithTimeout(
+      executeQueryWithTimeout<ProfileResponse>(
         supabase
           .from('profiles')
           .select('*')
@@ -76,7 +102,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Create the user profile object with proper type casting
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleResult.data.role as UserRole,
+      userRole: roleResult.data.role,
       created_at: profileResult.data.created_at,
       updated_at: profileResult.data.updated_at,
       full_name: profileResult.data.full_name ?? undefined,
@@ -89,7 +115,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       postal_code: profileResult.data.postal_code ?? undefined,
       country_id: profileResult.data.country_id ?? undefined,
       address_format: profileResult.data.address_format ?? undefined,
-      plan: (profileResult.data.plan as SubscriptionPlan) ?? undefined,
+      plan: profileResult.data.plan ?? undefined,
       search_count: profileResult.data.search_count ?? undefined,
       notification_preferences: profileResult.data.notification_preferences
     };
@@ -106,3 +132,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
+
