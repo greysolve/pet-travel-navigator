@@ -43,20 +43,9 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
   try {
-    // Set a timeout for the function call
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new ProfileError('Profile fetch timeout', 'network')), 10000);
-    });
-
-    const fetchPromise = supabase.rpc('get_profile_with_role', {
+    const { data, error } = await supabase.rpc('get_profile_with_role', {
       p_user_id: userId
     });
-
-    // Race between the fetch and the timeout
-    const { data, error } = await Promise.race([
-      fetchPromise,
-      timeoutPromise
-    ]) as any;
 
     if (error) {
       console.error('Error fetching profile:', error);
@@ -101,3 +90,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
+
