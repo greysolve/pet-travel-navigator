@@ -1,8 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
-
-export class ProfileError extends Error {
+class ProfileError extends Error {
   constructor(
     message: string,
     public readonly type: 'not_found' | 'network' | 'unknown'
