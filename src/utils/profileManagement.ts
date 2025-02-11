@@ -49,7 +49,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     });
 
     const fetchPromise = supabase.rpc('get_profile_with_role', {
-      p_user_id: userId  // Updated parameter name to match the function signature
+      p_user_id: userId
     });
 
     // Race between the fetch and the timeout
@@ -70,8 +70,22 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 
     // Create the user profile object with the flat structure
     const userProfile: UserProfile = {
-      ...data,
+      id: userId,
+      userRole: data.userRole || 'pet_caddie',
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      full_name: data.full_name ?? undefined,
+      avatar_url: data.avatar_url ?? undefined,
+      address_line1: data.address_line1 ?? undefined,
+      address_line2: data.address_line2 ?? undefined,
+      address_line3: data.address_line3 ?? undefined,
+      locality: data.locality ?? undefined,
+      administrative_area: data.administrative_area ?? undefined,
+      postal_code: data.postal_code ?? undefined,
+      country_id: data.country_id ?? undefined,
+      address_format: data.address_format ?? undefined,
       plan: validatePlan(data.plan),
+      search_count: data.search_count ?? undefined,
       notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
