@@ -1,4 +1,7 @@
 
+import { supabase } from "@/integrations/supabase/client";
+import { UserProfile, SubscriptionPlan } from "@/types/auth";
+
 class ProfileError extends Error {
   constructor(
     message: string,
