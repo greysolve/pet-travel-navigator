@@ -15,56 +15,43 @@ class ProfileError extends Error {
   }
 }
 
-async function fetchProfile(userId: string): Promise<UserProfile> {
-  console.log('Fetching profile for user:', userId);
-  
-  // Create a timeout promise that rejects after QUERY_TIMEOUT
+// Helper function to create a query with its own timeout
+const executeQueryWithTimeout = async <T>(
+  queryPromise: Promise<PostgrestSingleResponse<T>>,
+  queryName: string
+): Promise<PostgrestSingleResponse<T>> => {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
-      reject(new ProfileError('Profile fetch timed out', 'timeout'));
+      reject(new ProfileError(`${queryName} query timed out`, 'timeout'));
     }, QUERY_TIMEOUT);
   });
 
+  return Promise.race([queryPromise, timeoutPromise]);
+};
+
+async function fetchProfile(userId: string): Promise<UserProfile> {
+  console.log('Fetching profile for user:', userId);
+  
   try {
-    // Run both queries in parallel
-    const [roleResult, profileResult] = await Promise.race([
-      Promise.all([
+    // Execute both queries in parallel, each with its own timeout
+    const [roleResult, profileResult] = await Promise.all([
+      executeQueryWithTimeout(
         supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
           .maybeSingle(),
+        'Role'
+      ),
+      executeQueryWithTimeout(
         supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle()
-      ]),
-      timeoutPromise
-    ]) as [
-      PostgrestSingleResponse<{ role: string }>,
-      PostgrestSingleResponse<{
-        created_at: string;
-        updated_at: string;
-        full_name: string | null;
-        avatar_url: string | null;
-        address_line1: string | null;
-        address_line2: string | null;
-        address_line3: string | null;
-        locality: string | null;
-        administrative_area: string | null;
-        postal_code: string | null;
-        country_id: string | null;
-        address_format: string | null;
-        plan: string | null;
-        search_count: number | null;
-        notification_preferences: {
-          travel_alerts: boolean;
-          policy_changes: boolean;
-          documentation_reminders: boolean;
-        } | null;
-      }>
-    ];
+          .maybeSingle(),
+        'Profile'
+      )
+    ]);
 
     if (roleResult.error) {
       console.error('Error fetching role:', roleResult.error);
