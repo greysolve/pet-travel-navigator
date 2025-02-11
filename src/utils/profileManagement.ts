@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
@@ -70,21 +69,23 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Get profile and role data in parallel
     const [profileResult, roleResult] = await Promise.all([
       executeQueryWithTimeout<ProfileResponse>(
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle()
-          .then(result => result),
+        Promise.resolve(
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle()
+        ),
         'Profile'
       ),
       executeQueryWithTimeout<{ role: string }>(
-        supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .maybeSingle()
-          .then(result => result),
+        Promise.resolve(
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId)
+            .maybeSingle()
+        ),
         'Role'
       )
     ]);
