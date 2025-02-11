@@ -44,9 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const timeSinceLastFetch = now - lastProfileFetchRef.current;
     
-    // Skip if we recently fetched this user's profile and it's not a forced reload
+    // Skip if we have a valid cached profile for this user
     if (!forceReload && 
         userId === lastFetchedUserIdRef.current && 
+        profile?.id === userId &&
         timeSinceLastFetch < PROFILE_CACHE_DURATION) {
       console.log('Using cached profile for user:', userId);
       return;
@@ -97,12 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setProfileLoading(false);
     }
-  }, []);
+  }, [profile]);
 
   // Retry profile load with force reload
   const retryProfileLoad = useCallback(async () => {
     if (user?.id) {
-      await loadProfile(user.id, true); // Force reload on retry
+      await loadProfile(user.id, true);
     }
   }, [user?.id, loadProfile]);
 
@@ -116,10 +117,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setUser(currentSession.user);
         
-        // Only load profile if it's a new session or login event
-        if (isNewSession || event === 'SIGNED_IN') {
+        // Only load profile if:
+        // 1. It's a new session
+        // 2. We're signing in
+        // 3. We don't have a profile yet
+        // 4. The profile we have is for a different user
+        if (isNewSession || 
+            event === 'SIGNED_IN' || 
+            !profile || 
+            profile.id !== currentSession.user.id) {
           console.log('Loading profile for new session or sign in');
-          await loadProfile(currentSession.user.id, true);
+          await loadProfile(currentSession.user.id);
         }
       } else {
         setSession(null);
@@ -148,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadProfile, session]);
+  }, [loadProfile, profile, session]);
 
   return (
     <AuthContext.Provider value={{ 

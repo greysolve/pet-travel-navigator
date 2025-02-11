@@ -19,24 +19,52 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
   // Create a timeout promise that rejects after QUERY_TIMEOUT
-  const createTimeout = () => new Promise<never>((_, reject) => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
       reject(new ProfileError('Profile fetch timed out', 'timeout'));
     }, QUERY_TIMEOUT);
   });
 
   try {
-    // Get the user's role with timeout
-    const rolePromise = supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    const roleResult = await Promise.race([
-      rolePromise,
-      createTimeout()
-    ]) as PostgrestSingleResponse<{ role: string }>;
+    // Run both queries in parallel
+    const [roleResult, profileResult] = await Promise.race([
+      Promise.all([
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle()
+      ]),
+      timeoutPromise
+    ]) as [
+      PostgrestSingleResponse<{ role: string }>,
+      PostgrestSingleResponse<{
+        created_at: string;
+        updated_at: string;
+        full_name: string | null;
+        avatar_url: string | null;
+        address_line1: string | null;
+        address_line2: string | null;
+        address_line3: string | null;
+        locality: string | null;
+        administrative_area: string | null;
+        postal_code: string | null;
+        country_id: string | null;
+        address_format: string | null;
+        plan: string | null;
+        search_count: number | null;
+        notification_preferences: {
+          travel_alerts: boolean;
+          policy_changes: boolean;
+          documentation_reminders: boolean;
+        } | null;
+      }>
+    ];
 
     if (roleResult.error) {
       console.error('Error fetching role:', roleResult.error);
@@ -47,38 +75,6 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       console.error('No role found for user');
       throw new ProfileError('User role not found', 'not_found');
     }
-
-    // Get the profile data with timeout
-    const profilePromise = supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    const profileResult = await Promise.race([
-      profilePromise,
-      createTimeout()
-    ]) as PostgrestSingleResponse<{
-      created_at: string;
-      updated_at: string;
-      full_name: string | null;
-      avatar_url: string | null;
-      address_line1: string | null;
-      address_line2: string | null;
-      address_line3: string | null;
-      locality: string | null;
-      administrative_area: string | null;
-      postal_code: string | null;
-      country_id: string | null;
-      address_format: string | null;
-      plan: string | null;
-      search_count: number | null;
-      notification_preferences: {
-        travel_alerts: boolean;
-        policy_changes: boolean;
-        documentation_reminders: boolean;
-      } | null;
-    }>;
 
     if (profileResult.error) {
       console.error('Error fetching profile:', profileResult.error);
@@ -93,7 +89,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Create the user profile object with proper type casting
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleResult.data.role as UserRole, // Type cast role string to UserRole
+      userRole: roleResult.data.role as UserRole,
       created_at: profileResult.data.created_at,
       updated_at: profileResult.data.updated_at,
       full_name: profileResult.data.full_name ?? undefined,
@@ -106,7 +102,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       postal_code: profileResult.data.postal_code ?? undefined,
       country_id: profileResult.data.country_id ?? undefined,
       address_format: profileResult.data.address_format ?? undefined,
-      plan: (profileResult.data.plan as SubscriptionPlan) ?? undefined, // Type cast plan string to SubscriptionPlan
+      plan: (profileResult.data.plan as SubscriptionPlan) ?? undefined,
       search_count: profileResult.data.search_count ?? undefined,
       notification_preferences: profileResult.data.notification_preferences
     };
