@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
+import { UserProfile } from "@/types/auth";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 
 const QUERY_TIMEOUT = 5000; // 5 seconds timeout
@@ -13,10 +13,6 @@ class ProfileError extends Error {
     super(message);
     this.name = 'ProfileError';
   }
-}
-
-interface RoleResponse {
-  role: UserRole;
 }
 
 interface ProfileResponse {
@@ -32,7 +28,7 @@ interface ProfileResponse {
   postal_code: string | null;
   country_id: string | null;
   address_format: string | null;
-  plan: SubscriptionPlan | null;
+  plan: string | null;
   search_count: number | null;
   notification_preferences: {
     travel_alerts: boolean;
@@ -59,17 +55,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
   try {
-    // Execute both queries in parallel, each with its own timeout
-    const [roleResult, profileResult] = await Promise.all([
-      executeQueryWithTimeout<RoleResponse>(
-        supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .maybeSingle()
-          .then(),
-        'Role'
-      ),
+    // Get profile and role data in parallel
+    const [profileResult, roleResult] = await Promise.all([
       executeQueryWithTimeout<ProfileResponse>(
         supabase
           .from('profiles')
@@ -78,18 +65,17 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
           .maybeSingle()
           .then(),
         'Profile'
+      ),
+      executeQueryWithTimeout<{ role: string }>(
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle()
+          .then(),
+        'Role'
       )
     ]);
-
-    if (roleResult.error) {
-      console.error('Error fetching role:', roleResult.error);
-      throw new ProfileError('Failed to fetch user role', 'network');
-    }
-
-    if (!roleResult.data) {
-      console.error('No role found for user');
-      throw new ProfileError('User role not found', 'not_found');
-    }
 
     if (profileResult.error) {
       console.error('Error fetching profile:', profileResult.error);
@@ -101,10 +87,15 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Create the user profile object with proper type casting
+    if (roleResult.error) {
+      console.error('Error fetching role:', roleResult.error);
+      throw new ProfileError('Failed to fetch user role', 'network');
+    }
+
+    // Create the user profile object
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleResult.data.role,
+      userRole: roleResult.data?.role || 'pet_caddie', // Default to pet_caddie if no role found
       created_at: profileResult.data.created_at,
       updated_at: profileResult.data.updated_at,
       full_name: profileResult.data.full_name ?? undefined,
