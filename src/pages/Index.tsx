@@ -4,8 +4,7 @@ import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -13,7 +12,8 @@ const Index = () => {
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
   const resultsRef = useRef<HTMLDivElement>(null);
-  const { user, profileError, profileLoading, retryProfileLoad } = useAuth();
+  const { user, profileError } = useAuth();
+  const navigate = useNavigate();
 
   // Reset all search states when auth changes
   useEffect(() => {
@@ -22,6 +22,13 @@ const Index = () => {
     setFlights([]);
     setPetPolicies(undefined);
   }, [user?.id]);
+
+  // Redirect to auth page if there's a profile error
+  useEffect(() => {
+    if (profileError) {
+      navigate('/auth');
+    }
+  }, [profileError, navigate]);
 
   const handleSearchResults = (
     results: FlightData[], 
@@ -39,28 +46,6 @@ const Index = () => {
       });
     }, 100);
   };
-
-  if (profileError) {
-    return (
-      <div className="min-h-screen bg-[#F1F0FB] flex items-center justify-center">
-        <div className="max-w-md p-6 bg-white rounded-lg shadow-lg">
-          <div className="flex items-center gap-2 text-red-500 mb-4">
-            <AlertCircle className="h-5 w-5" />
-            <h2 className="text-lg font-semibold">Profile Error</h2>
-          </div>
-          <p className="text-gray-600 mb-4">
-            {profileError.message}
-          </p>
-          <Button 
-            onClick={retryProfileLoad}
-            className="w-full"
-          >
-            Retry Loading Profile
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F1F0FB]">

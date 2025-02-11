@@ -18,7 +18,6 @@ interface AuthContextType {
   loading: boolean;
   profileLoading: boolean;
   profileError: ProfileError | null;
-  retryProfileLoad: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,22 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error loading profile:', error);
       if (error instanceof ProfileError) {
         setProfileError(error);
+        // If profile loading fails, sign out the user
+        await authOperations.signOut();
         toast({
-          title: "Error",
-          description: error.type === 'not_found' 
-            ? "Profile not found. Please sign out and back in."
-            : "Error loading profile. Please try again.",
+          title: "Authentication Error",
+          description: "There was a problem loading your profile. Please sign in again.",
           variant: "destructive",
         });
       }
     } finally {
       setProfileLoading(false);
-    }
-  };
-
-  const retryProfileLoad = async () => {
-    if (user) {
-      await loadProfile(user.id);
     }
   };
 
@@ -116,11 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{ 
       session, 
       user, 
-      profile, 
+      profile,
       loading,
       profileLoading,
       profileError,
-      retryProfileLoad,
       ...authOperations
     }}>
       {children}
