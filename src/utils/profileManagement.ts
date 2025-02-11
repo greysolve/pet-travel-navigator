@@ -3,53 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 
-const QUERY_TIMEOUT = 5000; // 5 seconds timeout
-
 class ProfileError extends Error {
   constructor(
     message: string,
-    public readonly type: 'timeout' | 'not_found' | 'network' | 'unknown'
+    public readonly type: 'not_found' | 'network' | 'unknown'
   ) {
     super(message);
     this.name = 'ProfileError';
   }
 }
-
-type DatabaseProfileResponse = {
-  created_at: string;
-  updated_at: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  address_line3: string | null;
-  locality: string | null;
-  administrative_area: string | null;
-  postal_code: string | null;
-  country_id: string | null;
-  address_format: string | null;
-  plan: string | null;
-  search_count: number | null;
-  notification_preferences: {
-    travel_alerts: boolean;
-    policy_changes: boolean;
-    documentation_reminders: boolean;
-  } | null;
-}
-
-// Helper function to create a query with its own timeout
-const executeQueryWithTimeout = async <T>(
-  queryPromise: Promise<PostgrestSingleResponse<T>>,
-  queryName: string
-): Promise<PostgrestSingleResponse<T>> => {
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new ProfileError(`${queryName} query timed out`, 'timeout'));
-    }, QUERY_TIMEOUT);
-  });
-
-  return Promise.race([queryPromise, timeoutPromise]);
-};
 
 // Helper to validate role
 const validateRole = (role: string): UserRole => {
@@ -69,24 +31,18 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   try {
     // Get profile and role data in parallel
     const [profileResult, roleResult] = await Promise.all([
-      executeQueryWithTimeout(
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle()
-          .then(),
-        'Profile'
-      ),
-      executeQueryWithTimeout(
-        supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .maybeSingle()
-          .then(),
-        'Role'
-      )
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+        .then(),
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle()
+        .then()
     ]);
 
     if (profileResult.error) {
