@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Initial session found:', initialSession.user.id);
           setSession(initialSession);
           setUser(initialSession.user);
+          setSearchUpdateInProgress(false); // Reset on initial auth setup
           await loadProfile(initialSession.user.id);
         } else {
           // Reset states when no session is found
@@ -78,11 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
           setProfileError(null);
           setProfileLoading(false);
+          setSearchUpdateInProgress(false); // Reset when no session
         }
       } catch (error) {
         console.error('Error during auth setup:', error);
         if (mounted) {
           setProfileLoading(false);
+          setSearchUpdateInProgress(false); // Reset on error
         }
       } finally {
         if (mounted) {
@@ -94,17 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setupAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log('Auth state changed:', event, currentSession?.user?.id, 'Search update in progress:', searchUpdateInProgress);
+      console.log('Auth state changed:', event, currentSession?.user?.id);
       
       if (!mounted) return;
+
+      // Always reset searchUpdateInProgress on auth state changes
+      setSearchUpdateInProgress(false);
 
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        // Only reload profile if it's not a search update
-        if (!searchUpdateInProgress) {
-          await loadProfile(currentSession.user.id);
-        }
+        await loadProfile(currentSession.user.id);
       } else {
         // Reset all states when user signs out
         setSession(null);
@@ -119,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [searchUpdateInProgress]);
+  }, []); // Remove searchUpdateInProgress from dependencies
 
   return (
     <AuthContext.Provider value={{ 
