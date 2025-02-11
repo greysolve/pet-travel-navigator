@@ -42,6 +42,10 @@ const router = createBrowserRouter([
         element: <Index />,
       },
       {
+        path: "/auth/callback",
+        element: <AuthCallback />,
+      },
+      {
         // Protected routes group
         element: <ProtectedLayout />,
         children: [
@@ -71,15 +75,12 @@ const router = createBrowserRouter([
           },
         ],
       },
+      // Move catch-all route to the end
       {
-        path: "/:route",
+        path: "*",
         element: <SampleResults />,
       },
     ],
-  },
-  {
-    path: "/auth/callback",
-    element: <AuthCallback />,
   },
 ]);
 

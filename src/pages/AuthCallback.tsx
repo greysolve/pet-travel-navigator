@@ -8,13 +8,15 @@ const AuthCallback = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let mounted = true;
+
     // First handle the immediate auth callback
     const handleAuthCallback = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
-        if (session) {
+        if (session && mounted) {
           console.log("Auth callback - session found, checking role");
           // Check if user has a role by attempting to fetch their profile
           const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
@@ -29,12 +31,12 @@ const AuthCallback = () => {
               description: "Unable to verify your user role. Please contact support.",
               variant: "destructive",
             });
-            navigate("/");
+            if (mounted) navigate("/");
             return;
           }
 
           console.log("Role verified, redirecting to home");
-          navigate("/");
+          if (mounted) navigate("/");
         }
       } catch (error) {
         console.error("Error in auth callback:", error);
@@ -43,7 +45,7 @@ const AuthCallback = () => {
           description: "There was a problem signing you in. Please try again.",
           variant: "destructive",
         });
-        navigate("/");
+        if (mounted) navigate("/");
       }
     };
 
@@ -54,9 +56,10 @@ const AuthCallback = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      
       console.log("Auth state changed:", event);
       if (event === "SIGNED_IN" && session) {
-        // Verify role on sign in
         const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
           p_user_id: session.user.id
         });
@@ -72,13 +75,16 @@ const AuthCallback = () => {
           return;
         }
 
-        console.log("Auth callback - signed in with valid role, redirecting to home");
-        navigate("/");
+        if (mounted) {
+          console.log("Auth callback - signed in with valid role, redirecting to home");
+          navigate("/");
+        }
       }
     });
 
-    // Cleanup subscription on unmount
+    // Cleanup subscription and prevent state updates after unmount
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [navigate]);
