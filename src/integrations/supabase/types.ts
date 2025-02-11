@@ -856,6 +856,12 @@ export type Database = {
           country: string
         }[]
       }
+      get_profile_with_role: {
+        Args: {
+          user_id: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           user_id: string
