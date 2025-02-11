@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile } from "@/types/auth";
+import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 
 const QUERY_TIMEOUT = 5000; // 5 seconds timeout
@@ -51,6 +51,18 @@ const executeQueryWithTimeout = async <T>(
   return Promise.race([queryPromise, timeoutPromise]);
 };
 
+// Helper to validate role
+const validateRole = (role: string): UserRole => {
+  const validRoles: UserRole[] = ['pet_lover', 'site_manager', 'pet_caddie'];
+  return validRoles.includes(role as UserRole) ? (role as UserRole) : 'pet_caddie';
+};
+
+// Helper to validate subscription plan
+const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
+  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
+  return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+};
+
 async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
@@ -62,8 +74,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle()
-          .then(),
+          .maybeSingle(),
         'Profile'
       ),
       executeQueryWithTimeout<{ role: string }>(
@@ -71,8 +82,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .maybeSingle()
-          .then(),
+          .maybeSingle(),
         'Role'
       )
     ]);
@@ -95,7 +105,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Create the user profile object
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleResult.data?.role || 'pet_caddie', // Default to pet_caddie if no role found
+      userRole: validateRole(roleResult.data?.role || 'pet_caddie'),
       created_at: profileResult.data.created_at,
       updated_at: profileResult.data.updated_at,
       full_name: profileResult.data.full_name ?? undefined,
@@ -108,7 +118,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       postal_code: profileResult.data.postal_code ?? undefined,
       country_id: profileResult.data.country_id ?? undefined,
       address_format: profileResult.data.address_format ?? undefined,
-      plan: profileResult.data.plan ?? undefined,
+      plan: validatePlan(profileResult.data.plan),
       search_count: profileResult.data.search_count ?? undefined,
       notification_preferences: profileResult.data.notification_preferences
     };
