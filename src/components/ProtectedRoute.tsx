@@ -22,7 +22,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     }
 
     // Only check role if a specific role is required
-    if (!loading && requiredRole && profile?.userRole !== requiredRole) {
+    if (!loading && requiredRole && profile.userRole !== requiredRole) {
       console.log("Access denied - incorrect role, redirecting to home");
       navigate("/");
       return;
@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   }
 
   // Only render children if user is authenticated and has correct role (if required)
-  if (!user || (requiredRole && profile?.userRole !== requiredRole)) {
+  if (!user || (requiredRole && profile.userRole !== requiredRole)) {
     return null;
   }
 

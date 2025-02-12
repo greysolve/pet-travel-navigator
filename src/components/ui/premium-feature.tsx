@@ -11,7 +11,7 @@ interface PremiumFeatureProps {
 
 export const PremiumFeature = ({ title, children, className }: PremiumFeatureProps) => {
   const { profile } = useProfile();
-  const showPremiumIndicator = profile?.userRole === 'pet_caddie' || !profile?.userRole;
+  const showPremiumIndicator = profile.userRole === 'pet_caddie';
 
   return (
     <div className={cn("space-y-2", className)}>
