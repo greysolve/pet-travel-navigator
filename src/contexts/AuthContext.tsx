@@ -93,10 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         console.log('Initial session check:', initialSession?.user?.id || 'No session');
         
-        // Just set session and user, don't load profile here
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
+          await loadProfile(initialSession.user.id);
         } else {
           setSession(null);
           setUser(null);
