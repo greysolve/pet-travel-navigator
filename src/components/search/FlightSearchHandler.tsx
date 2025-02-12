@@ -21,8 +21,9 @@ export const useFlightSearch = () => {
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
+    // Direct access to non-optional fields
     const isPetCaddie = profile.userRole === 'pet_caddie';
-    const searchCount = profile.search_count ?? 0;
+    const searchCount = profile.search_count;
     
     console.log('Checking search eligibility:', {
       userRole: profile.userRole,
@@ -42,7 +43,7 @@ export const useFlightSearch = () => {
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     try {
-      setSearchUpdateInProgress(true); // Set flag before database update
+      setSearchUpdateInProgress(true);
       
       const { error: searchError } = await supabase
         .from('route_searches')
@@ -57,7 +58,7 @@ export const useFlightSearch = () => {
         console.log('Duplicate search detected');
         
         // Show duplicate search warning only for pet_caddie users
-        if (profile?.userRole === 'pet_caddie') {
+        if (profile && profile.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
@@ -77,7 +78,6 @@ export const useFlightSearch = () => {
       }
       return true;
     } finally {
-      // Reset the search update flag after the database operation
       setSearchUpdateInProgress(false);
     }
   };
@@ -178,8 +178,9 @@ export const useFlightSearch = () => {
   return { 
     handleFlightSearch, 
     isLoading,
-    searchCount: profile?.search_count ?? 0,
-    isPetCaddie: profile?.userRole === 'pet_caddie',
+    // Direct access to non-optional fields
+    searchCount: profile ? profile.search_count : 0,
+    isPetCaddie: profile ? profile.userRole === 'pet_caddie' : false,
     isProfileLoading: profileLoading
   };
 };
