@@ -21,8 +21,6 @@ export const useFlightSearch = () => {
   const { profile } = useProfile();
 
   const checkSearchEligibility = () => {
-    if (!profile) return { eligible: false, message: "Profile not loaded" };
-    
     const isPetCaddie = profile.userRole === 'pet_caddie';
     
     console.log('Checking search eligibility:', {
@@ -42,10 +40,6 @@ export const useFlightSearch = () => {
   };
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
-    if (!profile) {
-      throw new Error("Profile not loaded");
-    }
-
     try {
       const { error: searchError } = await supabase
         .from('route_searches')
@@ -92,16 +86,6 @@ export const useFlightSearch = () => {
       toast({
         title: "Authentication required",
         description: "Please sign in to search for flights.",
-        variant: "destructive",
-      });
-      onSearchComplete();
-      return;
-    }
-
-    if (!profile) {
-      toast({
-        title: "Profile Error",
-        description: "Unable to load your profile. Please try signing out and back in.",
         variant: "destructive",
       });
       onSearchComplete();
@@ -175,7 +159,7 @@ export const useFlightSearch = () => {
   return {
     handleFlightSearch,
     isLoading,
-    searchCount: profile?.search_count,
-    isPetCaddie: profile?.userRole === 'pet_caddie'
+    searchCount: profile.search_count,
+    isPetCaddie: profile.userRole === 'pet_caddie'
   };
 };

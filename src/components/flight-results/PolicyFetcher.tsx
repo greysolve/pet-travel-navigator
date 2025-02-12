@@ -13,7 +13,7 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useProfile();
-  const isPetCaddie = profile?.userRole === 'pet_caddie';
+  const isPetCaddie = profile.userRole === 'pet_caddie';
   const { data: premiumFields = [] } = usePremiumFields();
 
   return useQuery({
@@ -101,3 +101,4 @@ export const useCountryPolicies = (countries: string[]) => {
     retryDelay: 2000,
   });
 };
+
