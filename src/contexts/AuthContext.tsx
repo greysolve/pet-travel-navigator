@@ -67,12 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const profileData = await fetchProfile(userId);
-      // Only update state if we still have a session
-      if (session?.user?.id === userId) {
-        console.log('Profile loaded successfully:', profileData);
-        setProfile(profileData);
-        setSearchCount(profileData.search_count);
-      }
+      console.log('Profile loaded successfully:', profileData);
+      setProfile(profileData);
+      setSearchCount(profileData.search_count);
     } catch (error) {
       console.error('Error loading profile:', error);
       if (error instanceof ProfileError) {
@@ -144,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setProfileError(null);
         setSearchCount(0);
+        setProfileLoading(false);  // Add this to fix loading state on sign out
         return;
       }
 
