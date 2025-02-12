@@ -74,7 +74,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   try {
     const { data, error } = await supabase.rpc('get_profile_with_role', {
       p_user_id: userId
-    }) as { data: GetProfileWithRoleRPCResponse | null, error: any };
+    });
 
     if (error) {
       console.error('Error fetching profile:', error);
@@ -83,12 +83,18 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 
     // First check if data exists
     if (!data) {
-      console.error('No profile found for user');
+      console.error('No profile data returned');
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Access the inner profile data through the wrapper
-    const profileData = data.get_profile_with_role;
+    // Then check if the wrapper property exists
+    if (!data.get_profile_with_role) {
+      console.error('Profile wrapper not found in response');
+      throw new ProfileError('Invalid profile data structure', 'unknown');
+    }
+
+    // Now we can safely cast and access the profile data
+    const profileData = (data as GetProfileWithRoleRPCResponse).get_profile_with_role;
 
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
