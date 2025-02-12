@@ -67,16 +67,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const profileData = await fetchProfile(userId);
-      console.log('Profile loaded successfully:', profileData);
-      setProfile(profileData);
-      setSearchCount(profileData.search_count);
+      // Only update state if we still have a session
+      if (session?.user?.id === userId) {
+        console.log('Profile loaded successfully:', profileData);
+        setProfile(profileData);
+        setSearchCount(profileData.search_count);
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
       if (error instanceof ProfileError) {
         setProfileError(error);
         toast({
           title: "Profile Error",
-          description: "There was a problem loading your profile. You may want to try signing out and back in.",
+          description: "There was a problem loading your profile. Please try signing out and back in.",
           variant: "destructive",
         });
       }
@@ -87,6 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle initial session check
   useEffect(() => {
+    setLoading(true);
+    
     const checkSession = async () => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
@@ -95,7 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
-          await loadProfile(initialSession.user.id);
+          try {
+            await loadProfile(initialSession.user.id);
+          } catch (error) {
+            console.error('Failed to load initial profile:', error);
+          }
         } else {
           // Clear all states immediately if no session
           setSession(null);
@@ -113,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfileError(null);
         setSearchCount(0);
       } finally {
-        // Always set loading and initialized to false when done
         setLoading(false);
         setInitialized(true);
       }
@@ -128,18 +136,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
-
-      if (currentSession?.user) {
-        setSession(currentSession);
-        setUser(currentSession.user);
-        await loadProfile(currentSession.user.id);
-      } else {
-        // Reset all states when user signs out
+      
+      // Clear states immediately on sign out
+      if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         setProfile(null);
         setProfileError(null);
         setSearchCount(0);
+        return;
+      }
+
+      if (currentSession?.user) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await loadProfile(currentSession.user.id);
       }
     });
 
@@ -148,11 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [initialized]);
 
-  // If we haven't completed initial load, show nothing
-  if (!initialized) {
-    return null;
-  }
-
+  // Return context provider
   return (
     <AuthContext.Provider value={{ 
       session, 
