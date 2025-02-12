@@ -10,11 +10,11 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ProfileProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <ProfileProvider>
           <RouterProvider router={router} />
-        </AuthProvider>
-      </ProfileProvider>
+        </ProfileProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
