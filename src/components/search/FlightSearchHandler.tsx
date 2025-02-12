@@ -21,7 +21,7 @@ export const useFlightSearch = () => {
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
-    // Direct access to non-optional fields
+    // Direct access since we know profile exists here
     const isPetCaddie = profile.userRole === 'pet_caddie';
     const searchCount = profile.search_count;
     
@@ -42,6 +42,10 @@ export const useFlightSearch = () => {
   };
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
+    if (!profile) {
+      throw new Error("Profile not loaded");
+    }
+
     try {
       setSearchUpdateInProgress(true);
       
@@ -58,7 +62,8 @@ export const useFlightSearch = () => {
         console.log('Duplicate search detected');
         
         // Show duplicate search warning only for pet_caddie users
-        if (profile && profile.userRole === 'pet_caddie') {
+        // Direct access since we validated profile exists
+        if (profile.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
@@ -175,12 +180,23 @@ export const useFlightSearch = () => {
     }
   };
 
+  // Don't expose any data if profile is still loading
+  if (profileLoading || !profile) {
+    return {
+      handleFlightSearch,
+      isLoading,
+      searchCount: 0,
+      isPetCaddie: false,
+      isProfileLoading: true
+    };
+  }
+
+  // When profile is loaded, use direct access to non-optional fields
   return { 
     handleFlightSearch, 
     isLoading,
-    // Direct access to non-optional fields
-    searchCount: profile ? profile.search_count : 0,
-    isPetCaddie: profile ? profile.userRole === 'pet_caddie' : false,
-    isProfileLoading: profileLoading
+    searchCount: profile.search_count,
+    isPetCaddie: profile.userRole === 'pet_caddie',
+    isProfileLoading: false
   };
 };
