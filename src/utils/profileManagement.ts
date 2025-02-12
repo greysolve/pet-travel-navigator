@@ -82,7 +82,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    const profileData = data as ProfileWithRoleResponse;
+    const profileData = data.get_profile_with_role as ProfileWithRoleResponse;
 
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
@@ -117,3 +117,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
+
