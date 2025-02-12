@@ -7,17 +7,16 @@ import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
 import { PasswordChange } from "@/components/profile/PasswordChange";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { UserProfile } from "@/types/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import AuthDialog from "@/components/AuthDialog";
-import { fetchProfile } from "@/utils/profileManagement";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Profile = () => {
   const { toast } = useToast();
-  const [userId, setUserId] = useState<string>("");
+  const { user } = useAuth();
+  const { profile, updateProfile: updateProfileContext } = useProfile();
   const [isUpdating, setIsUpdating] = useState(false);
 
   // State for contact information
@@ -34,35 +33,14 @@ const Profile = () => {
   const [postalCode, setPostalCode] = useState("");
   const [selectedCountryId, setSelectedCountryId] = useState("");
 
-  // Fetch user session and profile data
-  useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        setUserId(session.user.id);
-        setEmail(session.user.email || "");
-      }
-    };
-    fetchSession();
-  }, []);
-
-  // Fetch profile data using our profile management utility
-  const { data: profile, refetch: refetchProfile } = useQuery({
-    queryKey: ['profile', userId],
-    queryFn: async () => {
-      if (!userId) return null;
-      return await fetchProfile(userId);
-    },
-    enabled: !!userId,
-  });
-
-  // Update state when profile data is loaded
+  // Initialize form with profile data
   useEffect(() => {
     if (profile) {
       const fullName = profile.full_name || "";
       const [firstName = "", lastName = ""] = fullName.split(" ");
       setFirstName(firstName);
       setLastName(lastName);
+      setEmail(user?.email || "");
       setAddressLine1(profile.address_line1 || "");
       setAddressLine2(profile.address_line2 || "");
       setAddressLine3(profile.address_line3 || "");
@@ -71,7 +49,7 @@ const Profile = () => {
       setPostalCode(profile.postal_code || "");
       setSelectedCountryId(profile.country_id || "");
     }
-  }, [profile]);
+  }, [profile, user]);
 
   const handleAvatarUpdate = async () => {
     toast({
@@ -80,35 +58,22 @@ const Profile = () => {
     });
   };
 
-  const updateProfile = async () => {
-    if (!userId) return;
+  const handleProfileUpdate = async () => {
+    if (!profile?.id) return;
     
     setIsUpdating(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: `${firstName} ${lastName}`,
-          address_line1: addressLine1,
-          address_line2: addressLine2,
-          address_line3: addressLine3,
-          locality: locality,
-          administrative_area: administrativeArea,
-          postal_code: postalCode,
-          country_id: selectedCountryId,
-        })
-        .eq('id', userId);
+      await updateProfileContext({
+        full_name: `${firstName} ${lastName}`,
+        address_line1: addressLine1,
+        address_line2: addressLine2,
+        address_line3: addressLine3,
+        locality: locality,
+        administrative_area: administrativeArea,
+        postal_code: postalCode,
+        country_id: selectedCountryId,
+      });
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update profile.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await refetchProfile();
       toast({
         title: "Success",
         description: "Profile updated successfully.",
@@ -118,6 +83,10 @@ const Profile = () => {
     }
   };
 
+  if (!profile) {
+    return null;
+  }
+
   return (
     <div className="container mx-auto px-4 md:px-8 py-8 pt-[15vh] md:pt-8 max-w-full md:max-w-[70%]">
       <h1 className="text-3xl font-bold text-center">Profile</h1>
@@ -126,8 +95,8 @@ const Profile = () => {
         <Card>
           <CardContent className="pt-6">
             <ProfileAvatar 
-              userId={userId}
-              avatarUrl={profile?.avatar_url}
+              userId={user?.id || ""}
+              avatarUrl={profile.avatar_url}
               onAvatarUpdate={handleAvatarUpdate}
             />
           </CardContent>
@@ -171,7 +140,7 @@ const Profile = () => {
 
           <div className="flex justify-end">
             <Button 
-              onClick={updateProfile} 
+              onClick={handleProfileUpdate} 
               disabled={isUpdating}
               className="w-32"
             >

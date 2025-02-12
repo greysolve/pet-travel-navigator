@@ -11,7 +11,7 @@ import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 
 const AuthDialog = () => {
-  const { user, signInWithEmail, signUp, signOut, loading } = useAuth();
+  const { user, signInWithEmail, signUp, signOut } = useAuth();
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -40,12 +40,8 @@ const AuthDialog = () => {
       console.log("Role from database:", role);
       return role;
     },
-    enabled: !!user && !loading,
+    enabled: !!user,
   });
-
-  if (loading) {
-    return null;
-  }
 
   const handleSignIn = async (email: string, password: string) => {
     setIsLoading(true);
