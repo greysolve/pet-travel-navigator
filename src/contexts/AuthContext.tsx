@@ -16,7 +16,6 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
-  profileLoading: boolean;
   profileError: ProfileError | null;
   searchCount: number;
   updateSearchCount: () => Promise<void>;
@@ -29,7 +28,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const [searchCount, setSearchCount] = useState<number>(0);
   const [initialized, setInitialized] = useState(false);
@@ -62,7 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     console.log('Starting profile load for user:', userId);
-    setProfileLoading(true);
     setProfileError(null);
     
     try {
@@ -80,15 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           variant: "destructive",
         });
       }
-    } finally {
-      setProfileLoading(false);
+      // Clear profile data on error
+      setProfile(null);
+      setSearchCount(0);
     }
   };
 
   // Handle initial session check
   useEffect(() => {
-    setLoading(true);
-    
     const checkSession = async () => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
@@ -97,11 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
-          try {
-            await loadProfile(initialSession.user.id);
-          } catch (error) {
-            console.error('Failed to load initial profile:', error);
-          }
+          await loadProfile(initialSession.user.id);
         } else {
           // Clear all states immediately if no session
           setSession(null);
@@ -109,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
           setProfileError(null);
           setSearchCount(0);
-          setProfileLoading(false);  // Reset profile loading state when no session
         }
       } catch (error) {
         console.error('Error checking initial session:', error);
@@ -119,7 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setProfileError(null);
         setSearchCount(0);
-        setProfileLoading(false);  // Reset profile loading state on error
       } finally {
         setLoading(false);
         setInitialized(true);
@@ -136,21 +126,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
-      // Clear states immediately on sign out
       if (event === 'SIGNED_OUT') {
+        // Clear states immediately on sign out
         setSession(null);
         setUser(null);
         setProfile(null);
         setProfileError(null);
         setSearchCount(0);
-        setProfileLoading(false);
         return;
       }
 
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        await loadProfile(currentSession.user.id);
       }
     });
 
@@ -159,14 +147,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [initialized]);
 
-  // Return context provider
   return (
     <AuthContext.Provider value={{ 
       session, 
       user, 
       profile,
       loading,
-      profileLoading,
       profileError,
       searchCount,
       updateSearchCount,

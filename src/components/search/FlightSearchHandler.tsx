@@ -16,7 +16,7 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, profileLoading, searchCount, updateSearchCount } = useAuth();
+  const { user, profile, searchCount, updateSearchCount } = useAuth();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
@@ -70,7 +70,6 @@ export const useFlightSearch = () => {
         throw searchError;
       }
 
-      // Update search count after successful search recording
       await updateSearchCount();
       return true;
     } catch (error: any) {
@@ -98,10 +97,11 @@ export const useFlightSearch = () => {
       return;
     }
 
-    if (profileLoading) {
+    if (!profile) {
       toast({
-        title: "Loading",
-        description: "Please wait while we load your profile.",
+        title: "Profile Error",
+        description: "Unable to load your profile. Please try signing out and back in.",
+        variant: "destructive",
       });
       onSearchComplete();
       return;
@@ -171,23 +171,11 @@ export const useFlightSearch = () => {
     }
   };
 
-  // If profile is not loaded, return default values
-  if (!profile) {
-    return {
-      handleFlightSearch,
-      isLoading,
-      searchCount: 0,
-      isPetCaddie: false,
-      isProfileLoading: true
-    };
-  }
-
-  // When profile is loaded, use direct values
+  // Return simplified interface without profileLoading
   return {
     handleFlightSearch,
     isLoading,
     searchCount,
-    isPetCaddie: profile.userRole === 'pet_caddie',
-    isProfileLoading: profileLoading
+    isPetCaddie: profile?.userRole === 'pet_caddie'
   };
 };
