@@ -1,10 +1,8 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
-import { toast } from '@/components/ui/use-toast';
-import { useProfile } from './ProfileContext';
 
 interface AuthContextType {
   session: Session | null;
@@ -24,7 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const authOperations = useAuthOperations();
-  const { refreshProfile } = useProfile();
 
   // Handle initial session check
   useEffect(() => {
@@ -36,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
-          await refreshProfile(initialSession.user.id);
         } else {
           setSession(null);
           setUser(null);
@@ -52,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkSession();
-  }, [refreshProfile]);
+  }, []);
 
   // Handle auth state changes
   useEffect(() => {
@@ -70,17 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
-        
-        if (event === 'SIGNED_IN') {
-          await refreshProfile(currentSession.user.id);
-        }
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [initialized, refreshProfile]);
+  }, [initialized]);
 
   return (
     <AuthContext.Provider value={{ 
