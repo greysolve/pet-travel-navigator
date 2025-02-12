@@ -18,7 +18,7 @@ interface ProfileWithRoleResponse {
   country_id: string | null;
   address_format: string | null;
   plan: string | null;
-  search_count: number | null;
+  search_count: number;
   notification_preferences: {
     travel_alerts: boolean;
     policy_changes: boolean;
@@ -90,10 +90,10 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     // Access the inner profile data through the wrapper
     const profileData = data.get_profile_with_role;
 
-    // Create the user profile object with the flat structure
+    // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
       id: userId,
-      userRole: profileData.userRole as UserRole, // Safe cast since SQL function guarantees valid role
+      userRole: profileData.userRole as UserRole, // Direct mapping, we know it's valid from DB
       created_at: profileData.created_at,
       updated_at: profileData.updated_at,
       full_name: profileData.full_name ?? undefined,
@@ -107,7 +107,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       country_id: profileData.country_id ?? undefined,
       address_format: profileData.address_format ?? undefined,
       plan: validatePlan(profileData.plan),
-      search_count: profileData.search_count ?? undefined,
+      search_count: profileData.search_count, // Direct mapping, no transformation
       notification_preferences: validateNotificationPreferences(profileData.notification_preferences)
     };
 
