@@ -173,11 +173,23 @@ export const useFlightSearch = () => {
     }
   };
 
-  return { 
-    handleFlightSearch, 
+  // Early return if profile is not loaded
+  if (!profile) {
+    return {
+      handleFlightSearch,
+      isLoading,
+      searchCount: 0,
+      isPetCaddie: false,
+      isProfileLoading: true
+    };
+  }
+
+  // When profile is loaded, use direct non-nullable access
+  return {
+    handleFlightSearch,
     isLoading,
-    searchCount: profile?.search_count ?? 0,
-    isPetCaddie: profile?.userRole === 'pet_caddie',
+    searchCount: profile.search_count, // Direct access, no optional chaining
+    isPetCaddie: profile.userRole === 'pet_caddie', // Direct access, no optional chaining
     isProfileLoading: profileLoading
   };
 };
