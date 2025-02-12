@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,7 +15,6 @@ const AuthDialog = () => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Move useQuery before any conditional returns
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
     queryFn: async () => {
@@ -24,12 +22,11 @@ const AuthDialog = () => {
       
       console.log("Fetching user role for:", user.id);
 
-      // Use the same working method as profileManagement.ts
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (roleError) {
         console.error("Error fetching role:", roleError);
@@ -40,10 +37,9 @@ const AuthDialog = () => {
       console.log("Role from database:", role);
       return role;
     },
-    enabled: !!user,
+    enabled: !!user && !loading,
   });
 
-  // Don't render anything while the auth context is initializing
   if (loading) {
     return null;
   }
