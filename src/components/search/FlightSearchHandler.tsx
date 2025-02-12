@@ -21,7 +21,6 @@ export const useFlightSearch = () => {
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
-    // Direct access since we know profile exists here
     const isPetCaddie = profile.userRole === 'pet_caddie';
     const searchCount = profile.search_count;
     
@@ -61,8 +60,6 @@ export const useFlightSearch = () => {
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
         
-        // Show duplicate search warning only for pet_caddie users
-        // Direct access since we validated profile exists
         if (profile.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
@@ -77,7 +74,6 @@ export const useFlightSearch = () => {
       }
       return true;
     } catch (error: any) {
-      // Only throw if it's not a duplicate search error
       if (error?.code !== '23505') {
         throw error;
       }
@@ -113,7 +109,6 @@ export const useFlightSearch = () => {
       return;
     }
 
-    // Check search eligibility before proceeding
     const { eligible, message } = checkSearchEligibility();
     if (!eligible) {
       console.log('Search blocked - not eligible:', message);
@@ -139,7 +134,6 @@ export const useFlightSearch = () => {
     try {
       console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
-      // Record the search first - this will trigger the search_count update via database trigger
       await recordSearch(
         user.id,
         origin,
@@ -147,7 +141,6 @@ export const useFlightSearch = () => {
         date.toISOString().split('T')[0]
       );
 
-      // Proceed with the flight search
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
       });
@@ -180,23 +173,11 @@ export const useFlightSearch = () => {
     }
   };
 
-  // Don't expose any data if profile is still loading
-  if (profileLoading || !profile) {
-    return {
-      handleFlightSearch,
-      isLoading,
-      searchCount: 0,
-      isPetCaddie: false,
-      isProfileLoading: true
-    };
-  }
-
-  // When profile is loaded, use direct access to non-optional fields
   return { 
     handleFlightSearch, 
     isLoading,
-    searchCount: profile.search_count,
-    isPetCaddie: profile.userRole === 'pet_caddie',
-    isProfileLoading: false
+    searchCount: profile?.search_count ?? 0,
+    isPetCaddie: profile?.userRole === 'pet_caddie',
+    isProfileLoading: profileLoading
   };
 };
