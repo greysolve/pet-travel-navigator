@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
           setProfileError(null);
           setSearchCount(0);
+          setProfileLoading(false);  // Reset profile loading state when no session
         }
       } catch (error) {
         console.error('Error checking initial session:', error);
@@ -118,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setProfileError(null);
         setSearchCount(0);
+        setProfileLoading(false);  // Reset profile loading state on error
       } finally {
         setLoading(false);
         setInitialized(true);
@@ -141,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setProfileError(null);
         setSearchCount(0);
-        setProfileLoading(false);  // Add this to fix loading state on sign out
+        setProfileLoading(false);
         return;
       }
 
