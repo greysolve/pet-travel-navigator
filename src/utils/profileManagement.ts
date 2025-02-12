@@ -2,35 +2,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-// Interface to type the inner profile object
-interface ProfileWithRoleResponse {
-  userRole: string;
-  created_at: string;
-  updated_at: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  address_line3: string | null;
-  locality: string | null;
-  administrative_area: string | null;
-  postal_code: string | null;
-  country_id: string | null;
-  address_format: string | null;
-  plan: string | null;
-  search_count: number;
-  notification_preferences: {
-    travel_alerts: boolean;
-    policy_changes: boolean;
-    documentation_reminders: boolean;
-  } | null;
-}
-
-// Interface to type the RPC response wrapper
-interface GetProfileWithRoleRPCResponse {
-  get_profile_with_role: ProfileWithRoleResponse;
-}
-
 class ProfileError extends Error {
   constructor(
     message: string,
@@ -86,27 +57,25 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    const profileData = data.get_profile_with_role;
-
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
       id: userId,
-      userRole: profileData.userRole as UserRole, // Direct mapping, we know it's valid from DB
-      created_at: profileData.created_at,
-      updated_at: profileData.updated_at,
-      full_name: profileData.full_name ?? undefined,
-      avatar_url: profileData.avatar_url ?? undefined,
-      address_line1: profileData.address_line1 ?? undefined,
-      address_line2: profileData.address_line2 ?? undefined,
-      address_line3: profileData.address_line3 ?? undefined,
-      locality: profileData.locality ?? undefined,
-      administrative_area: profileData.administrative_area ?? undefined,
-      postal_code: profileData.postal_code ?? undefined,
-      country_id: profileData.country_id ?? undefined,
-      address_format: profileData.address_format ?? undefined,
-      plan: validatePlan(profileData.plan),
-      search_count: profileData.search_count, // Direct mapping, no transformation
-      notification_preferences: validateNotificationPreferences(profileData.notification_preferences)
+      userRole: data.userRole as UserRole, // Direct mapping from the combined data
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      full_name: data.full_name ?? undefined,
+      avatar_url: data.avatar_url ?? undefined,
+      address_line1: data.address_line1 ?? undefined,
+      address_line2: data.address_line2 ?? undefined,
+      address_line3: data.address_line3 ?? undefined,
+      locality: data.locality ?? undefined,
+      administrative_area: data.administrative_area ?? undefined,
+      postal_code: data.postal_code ?? undefined,
+      country_id: data.country_id ?? undefined,
+      address_format: data.address_format ?? undefined,
+      plan: validatePlan(data.plan),
+      search_count: data.search_count,
+      notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
     console.log('Successfully mapped profile:', userProfile);
