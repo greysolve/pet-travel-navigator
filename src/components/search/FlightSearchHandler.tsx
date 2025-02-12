@@ -171,7 +171,6 @@ export const useFlightSearch = () => {
     }
   };
 
-  // Return simplified interface without profileLoading
   return {
     handleFlightSearch,
     isLoading,

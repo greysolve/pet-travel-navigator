@@ -59,8 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loadProfile = async (userId: string) => {
-    console.log('Starting profile load for user:', userId);
+    console.log('Loading profile for user:', userId);
     setProfileError(null);
+    setLoading(true);
     
     try {
       const profileData = await fetchProfile(userId);
@@ -80,6 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear profile data on error
       setProfile(null);
       setSearchCount(0);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,12 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         console.log('Initial session check:', initialSession?.user?.id || 'No session');
         
+        // Just set session and user, don't load profile here
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
-          await loadProfile(initialSession.user.id);
         } else {
-          // Clear all states immediately if no session
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -139,6 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
+        
+        // Load profile only on SIGNED_IN event
+        if (event === 'SIGNED_IN') {
+          await loadProfile(currentSession.user.id);
+        }
       }
     });
 
