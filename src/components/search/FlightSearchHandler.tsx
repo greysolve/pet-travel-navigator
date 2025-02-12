@@ -18,28 +18,31 @@ export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
 
   const checkSearchEligibility = () => {
-    // If there's no profile but user exists, we're in an error state
-    if (!profile && user) {
-      throw new Error('Profile not found for authenticated user');
-    }
-
-    // Return eligible if there's no profile (unauthenticated user)
-    if (!profile) {
+    // Return eligible if profile is still loading or there's no user (unauthenticated)
+    if (profileLoading || !user) {
       return { eligible: true };
     }
 
-    const isPetCaddie = profile.userRole === 'pet_caddie';
+    // If there's no profile but user exists, we're in a loading or error state
+    if (!profile && user) {
+      return {
+        eligible: false,
+        message: "Please wait while we load your profile."
+      };
+    }
+
+    const isPetCaddie = profile?.userRole === 'pet_caddie';
     
     console.log('Checking search eligibility:', {
-      userRole: profile.userRole,
-      searchCount: profile.search_count,
+      userRole: profile?.userRole,
+      searchCount: profile?.search_count,
       isPetCaddie
     });
 
-    if (isPetCaddie && profile.search_count <= 0) {
+    if (isPetCaddie && profile?.search_count <= 0) {
       return {
         eligible: false,
         message: "You have no remaining searches. Please upgrade your plan to continue searching."
@@ -51,7 +54,8 @@ export const useFlightSearch = () => {
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     if (!profile) {
-      throw new Error('Cannot record search without a profile');
+      console.log('Cannot record search without a profile');
+      return true; // Allow search to continue even if we can't record it
     }
 
     try {
@@ -83,7 +87,7 @@ export const useFlightSearch = () => {
       return true;
     } catch (error: any) {
       if (error?.code !== '23505') {
-        throw error;
+        console.error('Unexpected error recording search:', error);
       }
       return true;
     }
@@ -96,22 +100,12 @@ export const useFlightSearch = () => {
     onSearchResults,
     onSearchComplete,
   }: FlightSearchProps) => {
-    // Only check user auth if trying to record the search
-    if (user && !profile) {
-      toast({
-        title: "Profile loading",
-        description: "Please wait while we load your profile.",
-        variant: "default",
-      });
-      onSearchComplete();
-      return;
-    }
-
     const { eligible, message } = checkSearchEligibility();
+    
     if (!eligible) {
       console.log('Search blocked - not eligible:', message);
       toast({
-        title: "Search limit reached",
+        title: "Search unavailable",
         description: message,
         variant: "destructive",
       });
@@ -173,19 +167,22 @@ export const useFlightSearch = () => {
     }
   };
 
-  // If we have a profile, both userRole and search_count are guaranteed to exist
-  // If we don't have a profile but have a user, something is wrong and we should throw
-  // If we don't have a profile or user, return null for both values
+  // Get profile data safely
   const getProfileData = () => {
+    if (profileLoading) {
+      return {
+        searchCount: null,
+        isPetCaddie: false
+      };
+    }
+    
     if (profile) {
       return {
         searchCount: profile.search_count,
         isPetCaddie: profile.userRole === 'pet_caddie'
       };
     }
-    if (user) {
-      throw new Error('Profile not found for authenticated user');
-    }
+
     return {
       searchCount: null,
       isPetCaddie: false

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
@@ -17,7 +16,7 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ProfileError | null>(null);
   const [initialized, setInitialized] = useState(false);
 
@@ -30,17 +29,18 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       const profileData = await fetchProfile(userId);
       console.log('Profile refreshed successfully:', profileData);
       setProfile(profileData);
+      setError(null);
     } catch (error) {
       console.error('Error refreshing profile:', error);
       if (error instanceof ProfileError) {
         setError(error);
+        setProfile(null);
         toast({
           title: "Profile Error",
-          description: "There was a problem loading your profile. Please try again.",
+          description: error.message,
           variant: "destructive",
         });
       }
-      setProfile(null);
     } finally {
       setLoading(false);
       setInitialized(true);
@@ -55,11 +55,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true);
     try {
-      // Optimistically update the local state
-      const optimisticProfile = { ...profile, ...updates };
-      setProfile(optimisticProfile);
-
-      // Perform the actual update
       const updatedProfile = await updateProfile(profile.id, updates);
       setProfile(updatedProfile);
       
@@ -70,7 +65,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error updating profile:', error);
       
-      // Revert to the original profile on error
+      // Keep the original profile on error
       if (profile) {
         setProfile(profile);
       }

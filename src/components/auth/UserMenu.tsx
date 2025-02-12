@@ -16,12 +16,12 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
   const navigate = useNavigate();
 
   const getFirstName = () => {
-    if (!profile.full_name) return "";
+    if (!profile?.full_name) return "User";
     return profile.full_name.split(" ")[0];
   };
 
   const getInitials = () => {
-    if (!profile.full_name) return "";
+    if (!profile?.full_name) return "U";
     const names = profile.full_name.split(" ");
     return names.map(name => name[0]).join("").toUpperCase();
   };
@@ -34,7 +34,7 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
           className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
         >
           <Avatar className="h-6 w-6">
-            <AvatarImage src={profile.avatar_url} />
+            <AvatarImage src={profile?.avatar_url} />
             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
           {getFirstName()}
