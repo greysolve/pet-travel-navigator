@@ -2,28 +2,29 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-// Interface to type the inner profile object
+// Interface to type the exact response from get_profile_with_role function
 interface ProfileWithRoleResponse {
-  userRole: string;
-  created_at: string;
-  updated_at: string;
+  id: string;
   full_name: string | null;
   avatar_url: string | null;
+  notification_preferences: {
+    travel_alerts: boolean;
+    policy_changes: boolean;
+    documentation_reminders: boolean;
+  } | null;
+  created_at: string;
+  updated_at: string;
   address_line1: string | null;
   address_line2: string | null;
   address_line3: string | null;
   locality: string | null;
   administrative_area: string | null;
   postal_code: string | null;
-  country_id: string | null;
   address_format: string | null;
-  plan: string | null;
+  country_id: string | null;
   search_count: number;
-  notification_preferences: {
-    travel_alerts: boolean;
-    policy_changes: boolean;
-    documentation_reminders: boolean;
-  } | null;
+  plan: SubscriptionPlan | null;
+  userRole: string;
 }
 
 class ProfileError extends Error {
