@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
@@ -22,6 +22,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<ProfileError | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const currentUserId = useRef<string | null>(null);
+  const isRefreshing = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -30,23 +32,30 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
 
       if (event === 'SIGNED_OUT') {
+        currentUserId.current = null;
         setProfile(null);
         setError(null);
+        setLoading(false);
         return;
       }
 
-      if (session?.user?.id) {
-        await refreshProfile(session.user.id);
+      const userId = session?.user?.id;
+      if (userId && userId !== currentUserId.current) {
+        currentUserId.current = userId;
+        await refreshProfile(userId);
       }
     };
 
-    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id && mounted) {
-        refreshProfile(session.user.id);
+      if (!mounted) return;
+      
+      const userId = session?.user?.id;
+      if (userId) {
+        currentUserId.current = userId;
+        refreshProfile(userId);
       } else {
         setLoading(false);
         setInitialized(true);
@@ -60,6 +69,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (userId: string) => {
+    // Prevent concurrent refreshes and duplicate refreshes for the same user
+    if (isRefreshing.current || (profile?.id === userId && !error)) {
+      console.log('Skipping profile refresh - already refreshing or profile already loaded');
+      return;
+    }
+
     if (retryCount >= 3) {
       console.log('Max retry attempts reached for profile refresh');
       setLoading(false);
@@ -67,6 +82,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
 
     console.log('Refreshing profile for user:', userId, 'attempt:', retryCount + 1);
+    isRefreshing.current = true;
     setLoading(true);
     setError(null);
     
@@ -75,13 +91,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (!profileData) {
         throw new ProfileError('Profile data is null', 'not_found');
       }
-      console.log('Profile refreshed successfully:', profileData);
-      setProfile(profileData);
-      setError(null);
-      setRetryCount(0);
+      
+      // Only update state if the user hasn't changed
+      if (currentUserId.current === userId) {
+        console.log('Profile refreshed successfully:', profileData);
+        setProfile(profileData);
+        setError(null);
+        setRetryCount(0);
+      }
     } catch (error) {
       console.error('Error refreshing profile:', error);
-      if (error instanceof ProfileError) {
+      if (error instanceof ProfileError && currentUserId.current === userId) {
         setError(error);
         setProfile(null);
         
@@ -98,8 +118,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } finally {
-      setLoading(false);
-      setInitialized(true);
+      isRefreshing.current = false;
+      if (currentUserId.current === userId) {
+        setLoading(false);
+        setInitialized(true);
+      }
     }
   };
 
@@ -112,26 +135,28 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const updatedProfile = await updateProfile(profile.id, updates);
-      setProfile(updatedProfile);
-      
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      });
+      if (currentUserId.current === profile.id) {
+        setProfile(updatedProfile);
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+        });
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
       
-      if (profile) {
+      if (profile && currentUserId.current === profile.id) {
         setProfile(profile);
+        toast({
+          title: "Error",
+          description: "Failed to update profile",
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Error",
-        description: "Failed to update profile",
-        variant: "destructive",
-      });
     } finally {
-      setLoading(false);
+      if (currentUserId.current === profile.id) {
+        setLoading(false);
+      }
     }
   };
 
