@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -16,7 +17,8 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, searchCount, updateSearchCount } = useAuth();
+  const { user } = useAuth();
+  const { profile } = useProfile();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
@@ -25,11 +27,11 @@ export const useFlightSearch = () => {
     
     console.log('Checking search eligibility:', {
       userRole: profile.userRole,
-      searchCount,
+      searchCount: profile.search_count,
       isPetCaddie
     });
 
-    if (isPetCaddie && searchCount <= 0) {
+    if (isPetCaddie && profile.search_count <= 0) {
       return {
         eligible: false,
         message: "You have no remaining searches. Please upgrade your plan to continue searching."
@@ -70,7 +72,6 @@ export const useFlightSearch = () => {
         throw searchError;
       }
 
-      await updateSearchCount();
       return true;
     } catch (error: any) {
       if (error?.code !== '23505') {
@@ -174,7 +175,7 @@ export const useFlightSearch = () => {
   return {
     handleFlightSearch,
     isLoading,
-    searchCount,
+    searchCount: profile?.search_count,
     isPetCaddie: profile?.userRole === 'pet_caddie'
   };
 };

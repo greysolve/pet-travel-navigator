@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
-import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
 
@@ -12,7 +12,7 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 };
 
 export const usePetPolicies = (flights: FlightData[]) => {
-  const { profile } = useAuth();
+  const { profile } = useProfile();
   const isPetCaddie = profile?.userRole === 'pet_caddie';
   const { data: premiumFields = [] } = usePremiumFields();
 

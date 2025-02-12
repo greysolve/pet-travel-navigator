@@ -1,7 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 
 interface PremiumFeatureProps {
   title: string;
@@ -10,7 +10,7 @@ interface PremiumFeatureProps {
 }
 
 export const PremiumFeature = ({ title, children, className }: PremiumFeatureProps) => {
-  const { profile } = useAuth();
+  const { profile } = useProfile();
   const showPremiumIndicator = profile?.userRole === 'pet_caddie' || !profile?.userRole;
 
   return (
