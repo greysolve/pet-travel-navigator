@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
@@ -19,9 +20,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ProfileError | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const refreshProfile = async (userId: string) => {
-    console.log('Refreshing profile for user:', userId);
+    // Prevent retries if we've already tried 3 times
+    if (retryCount >= 3) {
+      console.log('Max retry attempts reached for profile refresh');
+      setLoading(false);
+      return;
+    }
+
+    console.log('Refreshing profile for user:', userId, 'attempt:', retryCount + 1);
     setLoading(true);
     setError(null);
     
@@ -30,16 +39,27 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       console.log('Profile refreshed successfully:', profileData);
       setProfile(profileData);
       setError(null);
+      // Reset retry count on success
+      setRetryCount(0);
     } catch (error) {
       console.error('Error refreshing profile:', error);
       if (error instanceof ProfileError) {
         setError(error);
         setProfile(null);
-        toast({
-          title: "Profile Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        
+        // Only show toast for network errors or after max retries
+        if (error.type === 'network' || retryCount >= 2) {
+          toast({
+            title: "Profile Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+        
+        // Increment retry count only for network errors
+        if (error.type === 'network') {
+          setRetryCount(prev => prev + 1);
+        }
       }
     } finally {
       setLoading(false);

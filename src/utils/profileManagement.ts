@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-// Interface to type the exact response from get_profile_with_role function
+// Interface for the direct RPC response
 interface ProfileWithRoleResponse {
   id: string;
   full_name: string | null;
@@ -27,12 +27,7 @@ interface ProfileWithRoleResponse {
   userRole: string;
 }
 
-// Interface for the RPC response wrapper
-interface ProfileRPCResponse {
-  get_profile_with_role: ProfileWithRoleResponse;
-}
-
-class ProfileError extends Error {
+export class ProfileError extends Error {
   constructor(
     message: string,
     public readonly type: 'not_found' | 'network' | 'unknown'
@@ -125,36 +120,37 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
     }
 
     // Type guard to verify the response structure
-    const isProfileResponse = (response: any): response is ProfileRPCResponse => {
-      return response && typeof response === 'object' && 'get_profile_with_role' in response;
+    const isValidProfileResponse = (response: any): response is ProfileWithRoleResponse => {
+      return response 
+        && typeof response === 'object'
+        && 'id' in response
+        && 'userRole' in response;
     };
 
-    if (!isProfileResponse(data)) {
+    if (!isValidProfileResponse(data)) {
       console.error('Invalid response structure:', data);
       throw new ProfileError('Invalid profile data structure', 'unknown');
     }
 
-    const profileData = data.get_profile_with_role;
-
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
       id: userId,
-      userRole: profileData.userRole as UserRole,
-      created_at: profileData.created_at,
-      updated_at: profileData.updated_at,
-      full_name: profileData.full_name ?? undefined,
-      avatar_url: profileData.avatar_url ?? undefined,
-      address_line1: profileData.address_line1 ?? undefined,
-      address_line2: profileData.address_line2 ?? undefined,
-      address_line3: profileData.address_line3 ?? undefined,
-      locality: profileData.locality ?? undefined,
-      administrative_area: profileData.administrative_area ?? undefined,
-      postal_code: profileData.postal_code ?? undefined,
-      country_id: profileData.country_id ?? undefined,
-      address_format: profileData.address_format ?? undefined,
-      plan: validatePlan(profileData.plan),
-      search_count: profileData.search_count,
-      notification_preferences: validateNotificationPreferences(profileData.notification_preferences)
+      userRole: data.userRole as UserRole,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      full_name: data.full_name ?? undefined,
+      avatar_url: data.avatar_url ?? undefined,
+      address_line1: data.address_line1 ?? undefined,
+      address_line2: data.address_line2 ?? undefined,
+      address_line3: data.address_line3 ?? undefined,
+      locality: data.locality ?? undefined,
+      administrative_area: data.administrative_area ?? undefined,
+      postal_code: data.postal_code ?? undefined,
+      country_id: data.country_id ?? undefined,
+      address_format: data.address_format ?? undefined,
+      plan: validatePlan(data.plan),
+      search_count: data.search_count,
+      notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
     console.log('Successfully mapped profile:', userProfile);
