@@ -16,11 +16,7 @@ const AuthDialog = () => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Don't render anything while the auth context is initializing
-  if (loading) {
-    return null;
-  }
-
+  // Move useQuery before any conditional returns
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
     queryFn: async () => {
@@ -46,6 +42,11 @@ const AuthDialog = () => {
     },
     enabled: !!user,
   });
+
+  // Don't render anything while the auth context is initializing
+  if (loading) {
+    return null;
+  }
 
   const handleSignIn = async (email: string, password: string) => {
     setIsLoading(true);
@@ -147,4 +148,3 @@ const AuthDialog = () => {
 };
 
 export default AuthDialog;
-
