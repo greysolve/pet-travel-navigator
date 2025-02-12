@@ -10,11 +10,16 @@ import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 
 const AuthDialog = () => {
-  const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
+  const { user, profile, signInWithEmail, signUp, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+
+  // Don't render anything while the auth context is initializing
+  if (loading) {
+    return null;
+  }
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
@@ -142,3 +147,4 @@ const AuthDialog = () => {
 };
 
 export default AuthDialog;
+
