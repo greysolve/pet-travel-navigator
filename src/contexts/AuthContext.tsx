@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
   const [searchCount, setSearchCount] = useState<number>(0);
+  const [initialized, setInitialized] = useState(false);
   const authOperations = useAuthOperations();
 
   const updateSearchCount = async () => {
@@ -46,7 +48,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       if (data) {
         setSearchCount(data.search_count);
-        // Also update the profile state to keep it in sync
         if (profile) {
           setProfile({
             ...profile,
@@ -84,22 +85,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Handle initial session check
   useEffect(() => {
-    let mounted = true;
-    
-    const setupAuth = async () => {
+    const checkSession = async () => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
+        console.log('Initial session check:', initialSession?.user?.id || 'No session');
         
         if (initialSession?.user) {
-          console.log('Initial session found:', initialSession.user.id);
           setSession(initialSession);
           setUser(initialSession.user);
           await loadProfile(initialSession.user.id);
         } else {
-          // Reset states when no session is found
+          // Clear all states immediately if no session
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -107,27 +105,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSearchCount(0);
         }
       } catch (error) {
-        console.error('Error during auth setup:', error);
-        if (mounted) {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setProfileError(null);
-          setSearchCount(0);
-        }
+        console.error('Error checking initial session:', error);
+        // Reset states on error
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setProfileError(null);
+        setSearchCount(0);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        // Always set loading and initialized to false when done
+        setLoading(false);
+        setInitialized(true);
       }
     };
 
-    setupAuth();
+    checkSession();
+  }, []);
+
+  // Handle auth state changes
+  useEffect(() => {
+    if (!initialized) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
-      
-      if (!mounted) return;
 
       if (currentSession?.user) {
         setSession(currentSession);
@@ -144,10 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [initialized]);
+
+  // If we haven't completed initial load, show nothing
+  if (!initialized) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider value={{ 
