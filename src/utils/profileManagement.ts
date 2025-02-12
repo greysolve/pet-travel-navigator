@@ -69,6 +69,43 @@ const validateNotificationPreferences = (preferences: unknown) => {
   };
 };
 
+async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+  console.log('Updating profile for user:', userId, 'with updates:', updates);
+
+  try {
+    // Filter out undefined values and prepare the update object
+    const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Remove id and userRole from updates as they shouldn't be modified
+    delete updateData.id;
+    delete updateData.userRole;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      throw new ProfileError('Failed to update user profile', 'network');
+    }
+
+    // Fetch the updated profile
+    return await fetchProfile(userId);
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      throw error;
+    }
+    console.error('Unexpected error updating profile:', error);
+    throw new ProfileError('Unexpected error updating profile', 'unknown');
+  }
+}
+
 async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
@@ -131,5 +168,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   }
 }
 
-export { fetchProfile, ProfileError };
-
+export { fetchProfile, updateProfile, ProfileError };

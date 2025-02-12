@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { UserProfile } from '@/types/auth';
-import { ProfileError, fetchProfile } from '@/utils/profileManagement';
+import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
 
 interface ProfileContextType {
@@ -47,7 +47,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const handleProfileUpdate = async (updates: Partial<UserProfile>) => {
     if (!profile?.id) {
       console.error('Cannot update profile: No profile ID');
       return;
@@ -55,15 +55,26 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true);
     try {
-      // For now, we'll just update the local state
-      // In the next steps, we'll implement the actual update logic
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      // Optimistically update the local state
+      const optimisticProfile = { ...profile, ...updates };
+      setProfile(optimisticProfile);
+
+      // Perform the actual update
+      const updatedProfile = await updateProfile(profile.id, updates);
+      setProfile(updatedProfile);
+      
       toast({
         title: "Success",
         description: "Profile updated successfully",
       });
     } catch (error) {
       console.error('Error updating profile:', error);
+      
+      // Revert to the original profile on error
+      if (profile) {
+        setProfile(profile);
+      }
+      
       toast({
         title: "Error",
         description: "Failed to update profile",
@@ -81,7 +92,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         initialized,
-        updateProfile,
+        updateProfile: handleProfileUpdate,
         refreshProfile,
       }}
     >
