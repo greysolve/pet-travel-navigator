@@ -1,6 +1,8 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -9,7 +11,8 @@ import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 
 const AuthDialog = () => {
-  const { user, profile, signInWithEmail, signUp, signOut, loading } = useAuth();
+  const { user, signInWithEmail, signUp, signOut, loading } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
