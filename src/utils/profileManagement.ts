@@ -82,7 +82,13 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    const profileData = (data as { get_profile_with_role: ProfileWithRoleResponse }).get_profile_with_role;
+    // The data is returned directly from the function now
+    const profileData = data as ProfileWithRoleResponse;
+
+    if (!profileData.userRole) {
+      console.error('No user role returned from database');
+      throw new ProfileError('User role not found', 'not_found');
+    }
 
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
@@ -117,3 +123,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 export { fetchProfile, ProfileError };
+
