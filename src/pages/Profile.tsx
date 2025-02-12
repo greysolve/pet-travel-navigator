@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import AuthDialog from "@/components/AuthDialog";
+import { fetchProfile } from "@/utils/profileManagement";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -45,26 +46,12 @@ const Profile = () => {
     fetchSession();
   }, []);
 
-  // Fetch profile data
-  const { data: profile, refetch: refetchProfile } = useQuery<UserProfile>({
+  // Fetch profile data using our profile management utility
+  const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ['profile', userId],
     queryFn: async () => {
       if (!userId) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      
-      // Ensure notification_preferences is properly typed
-      const typedData: UserProfile = {
-        ...data,
-        notification_preferences: data.notification_preferences as UserProfile['notification_preferences']
-      };
-      
-      return typedData;
+      return await fetchProfile(userId);
     },
     enabled: !!userId,
   });
