@@ -13,7 +13,8 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useProfile();
-  const isPetCaddie = profile?.userRole === 'pet_caddie';
+  // If we have a profile, userRole is guaranteed to exist
+  const isPetCaddie = profile ? profile.userRole === 'pet_caddie' : false;
   const { data: premiumFields = [] } = usePremiumFields();
 
   return useQuery({

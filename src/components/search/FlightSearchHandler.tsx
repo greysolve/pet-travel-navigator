@@ -21,6 +21,11 @@ export const useFlightSearch = () => {
   const { profile } = useProfile();
 
   const checkSearchEligibility = () => {
+    // If there's no profile but user exists, we're in an error state
+    if (!profile && user) {
+      throw new Error('Profile not found for authenticated user');
+    }
+
     // Return eligible if there's no profile (unauthenticated user)
     if (!profile) {
       return { eligible: true };
@@ -45,6 +50,10 @@ export const useFlightSearch = () => {
   };
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
+    if (!profile) {
+      throw new Error('Cannot record search without a profile');
+    }
+
     try {
       const { error: searchError } = await supabase
         .from('route_searches')
@@ -58,7 +67,7 @@ export const useFlightSearch = () => {
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
         
-        if (profile?.userRole === 'pet_caddie') {
+        if (profile.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
@@ -164,10 +173,31 @@ export const useFlightSearch = () => {
     }
   };
 
+  // If we have a profile, both userRole and search_count are guaranteed to exist
+  // If we don't have a profile but have a user, something is wrong and we should throw
+  // If we don't have a profile or user, return null for both values
+  const getProfileData = () => {
+    if (profile) {
+      return {
+        searchCount: profile.search_count,
+        isPetCaddie: profile.userRole === 'pet_caddie'
+      };
+    }
+    if (user) {
+      throw new Error('Profile not found for authenticated user');
+    }
+    return {
+      searchCount: null,
+      isPetCaddie: false
+    };
+  };
+
+  const { searchCount, isPetCaddie } = getProfileData();
+
   return {
     handleFlightSearch,
     isLoading,
-    searchCount: profile?.search_count ?? null,
-    isPetCaddie: profile?.userRole === 'pet_caddie'
+    searchCount,
+    isPetCaddie
   };
 };
