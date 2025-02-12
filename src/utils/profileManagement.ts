@@ -27,6 +27,11 @@ interface ProfileWithRoleResponse {
   userRole: string;
 }
 
+// Interface for the RPC response wrapper
+interface ProfileRPCResponse {
+  get_profile_with_role: ProfileWithRoleResponse;
+}
+
 class ProfileError extends Error {
   constructor(
     message: string,
@@ -82,7 +87,17 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    const profileData = (data as { get_profile_with_role: ProfileWithRoleResponse }).get_profile_with_role;
+    // Type guard to verify the response structure
+    const isProfileResponse = (response: any): response is ProfileRPCResponse => {
+      return response && typeof response === 'object' && 'get_profile_with_role' in response;
+    };
+
+    if (!isProfileResponse(data)) {
+      console.error('Invalid response structure:', data);
+      throw new ProfileError('Invalid profile data structure', 'unknown');
+    }
+
+    const profileData = data.get_profile_with_role;
 
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
