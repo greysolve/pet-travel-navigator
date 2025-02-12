@@ -21,6 +21,11 @@ export const useFlightSearch = () => {
   const { profile } = useProfile();
 
   const checkSearchEligibility = () => {
+    // Return eligible if there's no profile (unauthenticated user)
+    if (!profile) {
+      return { eligible: true };
+    }
+
     const isPetCaddie = profile.userRole === 'pet_caddie';
     
     console.log('Checking search eligibility:', {
@@ -53,7 +58,7 @@ export const useFlightSearch = () => {
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
         
-        if (profile.userRole === 'pet_caddie') {
+        if (profile?.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
@@ -82,11 +87,12 @@ export const useFlightSearch = () => {
     onSearchResults,
     onSearchComplete,
   }: FlightSearchProps) => {
-    if (!user) {
+    // Only check user auth if trying to record the search
+    if (user && !profile) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to search for flights.",
-        variant: "destructive",
+        title: "Profile loading",
+        description: "Please wait while we load your profile.",
+        variant: "default",
       });
       onSearchComplete();
       return;
@@ -117,12 +123,14 @@ export const useFlightSearch = () => {
     try {
       console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
-      await recordSearch(
-        user.id,
-        origin,
-        destination,
-        date.toISOString().split('T')[0]
-      );
+      if (user) {
+        await recordSearch(
+          user.id,
+          origin,
+          destination,
+          date.toISOString().split('T')[0]
+        );
+      }
 
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
@@ -159,7 +167,7 @@ export const useFlightSearch = () => {
   return {
     handleFlightSearch,
     isLoading,
-    searchCount: profile.search_count,
-    isPetCaddie: profile.userRole === 'pet_caddie'
+    searchCount: profile?.search_count ?? null,
+    isPetCaddie: profile?.userRole === 'pet_caddie'
   };
 };
