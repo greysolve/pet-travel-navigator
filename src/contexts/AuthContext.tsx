@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +17,8 @@ interface AuthContextType {
   loading: boolean;
   profileLoading: boolean;
   profileError: ProfileError | null;
-  setSearchUpdateInProgress: (inProgress: boolean) => void;
+  searchCount: number;
+  updateSearchCount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,8 +30,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<ProfileError | null>(null);
-  const [searchUpdateInProgress, setSearchUpdateInProgress] = useState(false);
+  const [searchCount, setSearchCount] = useState<number>(0);
   const authOperations = useAuthOperations();
+
+  const updateSearchCount = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('search_count')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setSearchCount(data.search_count);
+        // Also update the profile state to keep it in sync
+        if (profile) {
+          setProfile({
+            ...profile,
+            search_count: data.search_count
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating search count:', error);
+    }
+  };
 
   const loadProfile = async (userId: string) => {
     console.log('Starting profile load for user:', userId);
@@ -42,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileData = await fetchProfile(userId);
       console.log('Profile loaded successfully:', profileData);
       setProfile(profileData);
-      setProfileLoading(false); // Reset loading immediately after successful profile load
+      setSearchCount(profileData.search_count);
     } catch (error) {
       console.error('Error loading profile:', error);
       if (error instanceof ProfileError) {
@@ -53,7 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           variant: "destructive",
         });
       }
-      setProfileLoading(false); // Reset loading on error
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -70,7 +97,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Initial session found:', initialSession.user.id);
           setSession(initialSession);
           setUser(initialSession.user);
-          setSearchUpdateInProgress(false); // Reset on initial auth setup
           await loadProfile(initialSession.user.id);
         } else {
           // Reset states when no session is found
@@ -78,14 +104,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setProfile(null);
           setProfileError(null);
-          setProfileLoading(false);
-          setSearchUpdateInProgress(false); // Reset when no session
+          setSearchCount(0);
         }
       } catch (error) {
         console.error('Error during auth setup:', error);
         if (mounted) {
-          setProfileLoading(false);
-          setSearchUpdateInProgress(false); // Reset on error
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setProfileError(null);
+          setSearchCount(0);
         }
       } finally {
         if (mounted) {
@@ -101,9 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!mounted) return;
 
-      // Always reset searchUpdateInProgress on auth state changes
-      setSearchUpdateInProgress(false);
-
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
@@ -114,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfile(null);
         setProfileError(null);
-        setProfileLoading(false);
+        setSearchCount(0);
       }
     });
 
@@ -122,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Remove searchUpdateInProgress from dependencies
+  }, []);
 
   return (
     <AuthContext.Provider value={{ 
@@ -132,7 +157,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       profileLoading,
       profileError,
-      setSearchUpdateInProgress,
+      searchCount,
+      updateSearchCount,
       ...authOperations
     }}>
       {children}

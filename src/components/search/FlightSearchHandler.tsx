@@ -16,13 +16,12 @@ interface FlightSearchProps {
 export const useFlightSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, profileLoading, setSearchUpdateInProgress } = useAuth();
+  const { user, profile, profileLoading, searchCount, updateSearchCount } = useAuth();
 
   const checkSearchEligibility = () => {
     if (!profile) return { eligible: false, message: "Profile not loaded" };
     
     const isPetCaddie = profile.userRole === 'pet_caddie';
-    const searchCount = profile.search_count;
     
     console.log('Checking search eligibility:', {
       userRole: profile.userRole,
@@ -46,8 +45,6 @@ export const useFlightSearch = () => {
     }
 
     try {
-      setSearchUpdateInProgress(true);
-      
       const { error: searchError } = await supabase
         .from('route_searches')
         .insert({
@@ -72,14 +69,15 @@ export const useFlightSearch = () => {
         console.error('Error recording search:', searchError);
         throw searchError;
       }
+
+      // Update search count after successful search recording
+      await updateSearchCount();
       return true;
     } catch (error: any) {
       if (error?.code !== '23505') {
         throw error;
       }
       return true;
-    } finally {
-      setSearchUpdateInProgress(false);
     }
   };
 
@@ -173,7 +171,7 @@ export const useFlightSearch = () => {
     }
   };
 
-  // Early return if profile is not loaded
+  // If profile is not loaded, return default values
   if (!profile) {
     return {
       handleFlightSearch,
@@ -184,12 +182,12 @@ export const useFlightSearch = () => {
     };
   }
 
-  // When profile is loaded, use direct non-nullable access
+  // When profile is loaded, use direct values
   return {
     handleFlightSearch,
     isLoading,
-    searchCount: profile.search_count, // Direct access, no optional chaining
-    isPetCaddie: profile.userRole === 'pet_caddie', // Direct access, no optional chaining
+    searchCount,
+    isPetCaddie: profile.userRole === 'pet_caddie',
     isProfileLoading: profileLoading
   };
 };
