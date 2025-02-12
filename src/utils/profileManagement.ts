@@ -27,8 +27,8 @@ interface ProfileWithRoleResponse {
   userRole: string;
 }
 
-// Export the class once, at its declaration
-export class ProfileError extends Error {
+// Define the class without export keyword
+class ProfileError extends Error {
   constructor(
     message: string,
     public readonly type: 'not_found' | 'network' | 'unknown'
@@ -165,5 +165,5 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   }
 }
 
-// Export only the functions, since ProfileError is already exported above
-export { fetchProfile, updateProfile };
+// Export everything once at the bottom
+export { ProfileError, fetchProfile, updateProfile };
