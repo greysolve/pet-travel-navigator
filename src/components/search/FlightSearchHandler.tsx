@@ -15,18 +15,16 @@ interface FlightSearchProps {
 }
 
 export const useFlightSearch = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
 
   const checkSearchEligibility = () => {
-    // Return eligible if profile is still loading or there's no user (unauthenticated)
     if (profileLoading || !user) {
       return { eligible: true };
     }
 
-    // If there's no profile but user exists, we're in a loading or error state
     if (!profile && user) {
       return {
         eligible: false,
@@ -55,7 +53,7 @@ export const useFlightSearch = () => {
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
     if (!profile) {
       console.log('Cannot record search without a profile');
-      return true; // Allow search to continue even if we can't record it
+      return true;
     }
 
     try {
@@ -122,7 +120,7 @@ export const useFlightSearch = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSearchLoading(true);
     try {
       console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
@@ -162,38 +160,22 @@ export const useFlightSearch = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSearchLoading(false);
       onSearchComplete();
     }
   };
 
-  // Get profile data safely
-  const getProfileData = () => {
-    if (profileLoading) {
-      return {
-        searchCount: null,
-        isPetCaddie: false
-      };
-    }
-    
-    if (profile) {
-      return {
-        searchCount: profile.search_count,
-        isPetCaddie: profile.userRole === 'pet_caddie'
-      };
-    }
-
-    return {
-      searchCount: null,
-      isPetCaddie: false
-    };
+  const { searchCount, isPetCaddie } = profile ? {
+    searchCount: profile.search_count,
+    isPetCaddie: profile.userRole === 'pet_caddie'
+  } : {
+    searchCount: null,
+    isPetCaddie: false
   };
-
-  const { searchCount, isPetCaddie } = getProfileData();
 
   return {
     handleFlightSearch,
-    isLoading,
+    isSearchLoading,
     searchCount,
     isPetCaddie
   };

@@ -20,7 +20,7 @@ import type { PetPolicy } from "./flight-results/types";
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
   const { loading: profileLoading, initialized } = useProfile();
-  const { handleFlightSearch, isSearching: searchInProgress, searchCount, isPetCaddie } = useFlightSearch();
+  const { handleFlightSearch, isSearchLoading, searchCount, isPetCaddie } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   const {
@@ -39,7 +39,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     toast
   } = useFlightSearchState(user?.id);
 
-  const isLoading = authLoading || profileLoading || !initialized || searchInProgress;
+  const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
