@@ -28,17 +28,10 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
 
   const handleNavigation = (path: string) => {
     try {
-      // Clean and validate the path
-      const cleanPath = path.trim();
-      if (!cleanPath) {
-        console.error('Invalid path provided');
-        return;
-      }
-
-      // Ensure path starts with a single forward slash and has no trailing slashes
-      const normalizedPath = `/${cleanPath.replace(/^\/+|\/+$/g, '')}`;
-      console.log('Navigating to:', normalizedPath);
-      navigate(normalizedPath);
+      // Always navigate to absolute paths
+      const absolutePath = path === 'home' ? '/' : `/${path}`;
+      console.log('Navigating to:', absolutePath);
+      navigate(absolutePath);
     } catch (error) {
       console.error('Navigation error:', error);
     }
