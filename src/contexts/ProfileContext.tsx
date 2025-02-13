@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
@@ -15,6 +14,7 @@ interface ProfileContextType {
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+const MAX_RETRIES = 2; // 3 total attempts including first try
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,6 +23,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const currentUserId = useRef<string | null>(null);
   const isRefreshing = useRef(false);
+  const retryCount = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -82,49 +83,71 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       currentUserId: currentUserId.current,
       isRefreshing: isRefreshing.current,
       initialized,
-      hasProfile: !!profile
+      hasProfile: !!profile,
+      retryCount: retryCount.current
     });
+
+    // Reset retry count for new refresh attempts
+    if (!isRefreshing.current) {
+      retryCount.current = 0;
+    }
 
     isRefreshing.current = true;
     setLoading(true);
-    setError(null);
     
-    try {
-      const profileData = await fetchProfile(userId);
-      
-      // Only update state if the user hasn't changed
-      if (currentUserId.current === userId) {
-        console.log('Profile refreshed successfully:', profileData);
-        setProfile(profileData);
-        setError(null);
-        setInitialized(true);
-      }
-    } catch (error) {
-      console.error('Error refreshing profile:', error);
-      
-      if (error instanceof ProfileError && currentUserId.current === userId) {
-        if (error.type === 'not_found') {
-          // Clear everything like sign out for auth errors
-          console.log('Auth error detected, clearing profile state');
-          currentUserId.current = null;
-          setProfile(null);
+    // Keep existing profile during retries
+    const existingProfile = profile;
+
+    while (retryCount.current <= MAX_RETRIES) {
+      try {
+        console.log(`Attempt ${retryCount.current + 1}/${MAX_RETRIES + 1} to fetch profile`);
+        const profileData = await fetchProfile(userId);
+        
+        // Only update state if the user hasn't changed
+        if (currentUserId.current === userId) {
+          console.log('Profile refreshed successfully:', profileData);
+          setProfile(profileData);
           setError(null);
-          setInitialized(false);
-        } else {
-          // For other errors, set error state but maintain profile if we have it
-          setError(error);
-          toast({
-            title: "Profile Error",
-            description: "There was a problem loading your profile. Please try again later.",
-            variant: "destructive",
-          });
+          setInitialized(true);
         }
-      }
-    } finally {
-      isRefreshing.current = false;
-      if (currentUserId.current === userId) {
+        isRefreshing.current = false;
         setLoading(false);
+        return;
+      } catch (error) {
+        console.error(`Profile refresh attempt ${retryCount.current + 1} failed:`, error);
+        
+        if (!(error instanceof ProfileError)) {
+          console.error('Unexpected error type:', error);
+          setError(new ProfileError('Unexpected error occurred', 'unknown'));
+          break;
+        }
+
+        retryCount.current++;
+
+        if (retryCount.current > MAX_RETRIES) {
+          console.log('Max retries reached, keeping existing profile if available');
+          if (existingProfile && currentUserId.current === userId) {
+            setProfile(existingProfile);
+            setError(error);
+            toast({
+              title: "Profile Error",
+              description: "There was a problem refreshing your profile. Please try again later.",
+              variant: "destructive",
+            });
+          }
+          break;
+        }
+
+        // Wait before retry with exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, retryCount.current), 8000);
+        console.log(`Waiting ${delay}ms before retry`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
+    }
+
+    if (currentUserId.current === userId) {
+      isRefreshing.current = false;
+      setLoading(false);
     }
   };
 
@@ -135,11 +158,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
 
     console.log('ProfileContext - Starting profile update:', {
-      profileId: profile?.id,
+      profileId: profile.id,
       updates: updates
     });
 
     setLoading(true);
+    const existingProfile = profile; // Keep reference to existing profile
+
     try {
       const updatedProfile = await updateProfile(profile.id, updates);
       if (currentUserId.current === profile.id) {
@@ -153,7 +178,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('ProfileContext - Error updating profile:', error);
       
-      if (profile && currentUserId.current === profile.id) {
+      if (currentUserId.current === profile.id) {
+        // Restore existing profile on error
+        setProfile(existingProfile);
         toast({
           title: "Error",
           description: "Failed to update profile. Please try again later.",
