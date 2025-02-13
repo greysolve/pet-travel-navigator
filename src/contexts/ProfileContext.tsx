@@ -132,10 +132,16 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    console.log('ProfileContext - Starting profile update:', {
+      profileId: profile?.id,
+      updates: updates
+    });
+
     setLoading(true);
     try {
       const updatedProfile = await updateProfile(profile.id, updates);
       if (currentUserId.current === profile.id) {
+        console.log('ProfileContext - Profile updated successfully:', updatedProfile);
         setProfile(updatedProfile);
         toast({
           title: "Success",
@@ -143,7 +149,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('ProfileContext - Error updating profile:', error);
       
       if (profile && currentUserId.current === profile.id) {
         setProfile(profile);

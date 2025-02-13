@@ -66,7 +66,7 @@ const validateNotificationPreferences = (preferences: unknown) => {
 };
 
 async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
-  console.log('Updating profile for user:', userId, 'with updates:', updates);
+  console.log('profileManagement - Starting update:', { userId, updates });
 
   try {
     // Filter out undefined values and prepare the update object
@@ -81,23 +81,26 @@ async function updateProfile(userId: string, updates: Partial<UserProfile>): Pro
     delete updateData.id;
     delete updateData.userRole;
     
+    console.log('profileManagement - Sending update to Supabase:', updateData);
+    
     const { error } = await supabase
       .from('profiles')
       .update(updateData)
       .eq('id', userId);
 
     if (error) {
-      console.error('Error updating profile:', error);
+      console.error('profileManagement - Supabase update error:', error);
       throw new ProfileError('Failed to update user profile', 'network');
     }
 
+    console.log('profileManagement - Update successful, fetching updated profile');
     // Fetch the updated profile
     return await fetchProfile(userId);
   } catch (error) {
     if (error instanceof ProfileError) {
       throw error;
     }
-    console.error('Unexpected error updating profile:', error);
+    console.error('profileManagement - Unexpected error updating profile:', error);
     throw new ProfileError('Unexpected error updating profile', 'unknown');
   }
 }

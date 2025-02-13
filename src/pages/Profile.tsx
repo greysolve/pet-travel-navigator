@@ -41,6 +41,7 @@ const Profile = () => {
   const handleProfileUpdate = async (updates: any) => {
     if (!profile?.id) return;
     
+    console.log('Profile page - Updating profile with:', updates);
     try {
       await updateProfileContext(updates);
       toast({
@@ -48,6 +49,7 @@ const Profile = () => {
         description: "Profile updated successfully.",
       });
     } catch (error) {
+      console.error('Profile page - Update failed:', error);
       toast({
         title: "Error",
         description: "Failed to update profile.",

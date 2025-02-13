@@ -28,6 +28,7 @@ export const ProfileForm = ({ email, initialData, onSubmit }: ProfileFormProps) 
   const [formData, setFormData] = useState(initialData);
 
   const handleSubmit = async () => {
+    console.log('ProfileForm - Starting submit with data:', formData);
     setIsUpdating(true);
     try {
       await onSubmit({
