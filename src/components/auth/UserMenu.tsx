@@ -27,8 +27,9 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
   };
 
   const handleNavigation = (path: string) => {
-    // Ensure we're using absolute paths
-    navigate(path.startsWith('/') ? path : `/${path}`);
+    // Ensure path starts with forward slash and remove any trailing slashes
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    navigate(normalizedPath.replace(/\/+$/, ''));
   };
 
   return (
