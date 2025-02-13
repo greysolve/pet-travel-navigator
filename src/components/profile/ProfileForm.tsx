@@ -11,8 +11,7 @@ import { UserProfile } from "@/types/auth";
 interface ProfileFormProps {
   email: string;
   initialData: {
-    firstName: string;
-    lastName: string;
+    fullName: string;
     addressLine1: string;
     addressLine2: string;
     addressLine3: string;
@@ -32,7 +31,7 @@ export const ProfileForm = ({ email, initialData, onSubmit }: ProfileFormProps) 
     setIsUpdating(true);
     try {
       await onSubmit({
-        full_name: `${formData.firstName} ${formData.lastName}`,
+        full_name: formData.fullName,
         address_line1: formData.addressLine1,
         address_line2: formData.addressLine2,
         address_line3: formData.addressLine3,
@@ -51,11 +50,9 @@ export const ProfileForm = ({ email, initialData, onSubmit }: ProfileFormProps) 
       <Card>
         <CardContent className="pt-6">
           <ContactInformation
-            firstName={formData.firstName}
-            lastName={formData.lastName}
+            fullName={formData.fullName}
             email={email}
-            onFirstNameChange={(value) => setFormData(prev => ({ ...prev, firstName: value }))}
-            onLastNameChange={(value) => setFormData(prev => ({ ...prev, lastName: value }))}
+            onFullNameChange={(value) => setFormData(prev => ({ ...prev, fullName: value }))}
           />
         </CardContent>
       </Card>

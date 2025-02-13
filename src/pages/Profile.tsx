@@ -13,8 +13,7 @@ const Profile = () => {
   const { user } = useAuth();
   const { profile, updateProfile: updateProfileContext } = useProfile();
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    fullName: "",
     addressLine1: "",
     addressLine2: "",
     addressLine3: "",
@@ -26,11 +25,8 @@ const Profile = () => {
 
   useEffect(() => {
     if (profile) {
-      const fullName = profile.full_name || "";
-      const [firstName = "", lastName = ""] = fullName.split(" ");
       setFormData({
-        firstName,
-        lastName,
+        fullName: profile.full_name || "",
         addressLine1: profile.address_line1 || "",
         addressLine2: profile.address_line2 || "",
         addressLine3: profile.address_line3 || "",
