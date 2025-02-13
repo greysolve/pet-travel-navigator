@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
@@ -45,6 +46,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       const userId = session?.user?.id;
       if (userId && userId !== currentUserId.current) {
+        setInitialized(false); // Reset initialized state for new user
         currentUserId.current = userId;
         await refreshProfile(userId);
       }
@@ -62,7 +64,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         refreshProfile(userId);
       } else {
         setLoading(false);
-        setInitialized(true);
+        // Don't set initialized=true when there's no session
+        // The system isn't truly initialized until we have both auth and profile
       }
     });
 
@@ -73,7 +76,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (userId: string) => {
-    // Only skip if we're already refreshing for the same user
     if (isRefreshing.current && currentUserId.current === userId) {
       console.log('Skipping profile refresh - already refreshing for this user');
       return;
@@ -94,6 +96,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     isRefreshing.current = true;
     setLoading(true);
+    setInitialized(false); // Ensure system is marked as not initialized during refresh
     
     // Keep existing profile during retries
     const existingProfile = profile;
@@ -108,10 +111,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           console.log('Profile refreshed successfully:', profileData);
           setProfile(profileData);
           setError(null);
-          setInitialized(true);
+          setInitialized(true); // Mark as initialized only after successful profile fetch
+          isRefreshing.current = false;
+          setLoading(false);
         }
-        isRefreshing.current = false;
-        setLoading(false);
         return;
       } catch (error) {
         console.error(`Profile refresh attempt ${retryCount.current + 1} failed:`, error);
@@ -129,6 +132,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           if (existingProfile && currentUserId.current === userId) {
             setProfile(existingProfile);
             setError(error);
+            // Don't set initialized=true on error, system isn't properly initialized
             toast({
               title: "Profile Error",
               description: "There was a problem refreshing your profile. Please try again later.",
@@ -163,6 +167,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     });
 
     setLoading(true);
+    setInitialized(false); // Mark as not initialized during update
     const existingProfile = profile; // Keep reference to existing profile
 
     try {
@@ -170,6 +175,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (currentUserId.current === profile.id) {
         console.log('ProfileContext - Profile updated successfully:', updatedProfile);
         setProfile(updatedProfile);
+        setInitialized(true); // Re-initialize after successful update
         toast({
           title: "Success",
           description: "Profile updated successfully",
@@ -181,6 +187,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (currentUserId.current === profile.id) {
         // Restore existing profile on error
         setProfile(existingProfile);
+        setInitialized(true); // Re-initialize with existing profile
         toast({
           title: "Error",
           description: "Failed to update profile. Please try again later.",
@@ -217,3 +224,4 @@ export function useProfile() {
   }
   return context;
 }
+
