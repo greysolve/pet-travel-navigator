@@ -69,9 +69,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (userId: string) => {
-    // Prevent concurrent refreshes and duplicate refreshes for the same user
-    if (isRefreshing.current || (profile?.id === userId && !error)) {
-      console.log('Skipping profile refresh - already refreshing or profile already loaded');
+    // Only prevent concurrent refreshes, but allow post-update refreshes
+    if (isRefreshing.current) {
+      console.log('Skipping profile refresh - already refreshing');
       return;
     }
 
