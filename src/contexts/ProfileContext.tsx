@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
@@ -69,6 +68,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (userId: string) => {
+    if (!userId) {
+      console.error('Cannot refresh profile: No user ID provided');
+      return;
+    }
+
     // Prevent concurrent refreshes and duplicate refreshes for the same user
     if (isRefreshing.current || (profile?.id === userId && !error)) {
       console.log('Skipping profile refresh - already refreshing or profile already loaded');
@@ -129,6 +133,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const handleProfileUpdate = async (updates: Partial<UserProfile>) => {
     if (!profile?.id) {
       console.error('Cannot update profile: No profile ID');
+      toast({
+        title: "Error",
+        description: "Cannot update profile: No profile ID found",
+        variant: "destructive",
+      });
       return;
     }
 
