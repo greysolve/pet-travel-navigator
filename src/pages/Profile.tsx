@@ -45,8 +45,22 @@ const Profile = () => {
   const handleProfileUpdate = async (updates: any) => {
     if (!profile?.id) return;
     
+    // If firstName or lastName is being updated, combine them into full_name
+    const fullNameUpdate = updates.firstName !== undefined || updates.lastName !== undefined
+      ? {
+          full_name: `${updates.firstName || formData.firstName} ${updates.lastName || formData.lastName}`.trim()
+        }
+      : {};
+    
+    // Remove firstName and lastName from updates and add full_name if needed
+    const { firstName, lastName, ...otherUpdates } = updates;
+    const profileUpdates = {
+      ...otherUpdates,
+      ...fullNameUpdate
+    };
+
     try {
-      await updateProfileContext(updates);
+      await updateProfileContext(profileUpdates);
       toast({
         title: "Success",
         description: "Profile updated successfully.",
