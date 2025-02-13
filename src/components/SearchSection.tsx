@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +18,7 @@ import type { PetPolicy } from "./flight-results/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
+  const { loading: profileLoading, initialized } = useProfile();
   const { handleFlightSearch, isLoading, searchCount, isPetCaddie } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
@@ -37,6 +37,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setShouldSaveSearch,
     toast
   } = useFlightSearchState(user?.id);
+
+  const isLoading = authLoading || profileLoading || !initialized;
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
@@ -171,7 +173,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className={cn(
         "bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4",
-        authLoading && "opacity-75"
+        isLoading && "opacity-75"
       )}>
         <SearchFormHeader
           user={user}
@@ -183,13 +185,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             e.stopPropagation();
             handleDeleteSearch(id);
           }}
-          isLoading={authLoading}
+          isLoading={isLoading}
         />
 
         <AirlinePolicySearch 
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
-          isLoading={authLoading}
+          isLoading={isLoading}
         />
         
         <SearchDivider />
@@ -199,7 +201,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           destination={destination}
           setOrigin={setOrigin}
           setDestination={setDestination}
-          isLoading={authLoading}
+          isLoading={isLoading}
         />
 
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
@@ -207,20 +209,20 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             <DateSelector 
               date={date} 
               setDate={setDate}
-              isLoading={authLoading}
+              isLoading={isLoading}
             />
           </div>
           <SaveSearch
             shouldSaveSearch={shouldSaveSearch}
             setShouldSaveSearch={setShouldSaveSearch}
             user={user}
-            isProfileLoading={authLoading}
+            isProfileLoading={isLoading}
           />
         </div>
 
         <SearchButton
           isLoading={isLoading}
-          isProfileLoading={authLoading}
+          isProfileLoading={isLoading}
           onClick={handleSearch}
         />
       </div>
