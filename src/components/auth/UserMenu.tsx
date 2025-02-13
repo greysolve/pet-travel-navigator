@@ -27,9 +27,21 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
   };
 
   const handleNavigation = (path: string) => {
-    // Ensure path starts with forward slash and remove any trailing slashes
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    navigate(normalizedPath.replace(/\/+$/, ''));
+    try {
+      // Clean and validate the path
+      const cleanPath = path.trim();
+      if (!cleanPath) {
+        console.error('Invalid path provided');
+        return;
+      }
+
+      // Ensure path starts with a single forward slash and has no trailing slashes
+      const normalizedPath = `/${cleanPath.replace(/^\/+|\/+$/g, '')}`;
+      console.log('Navigating to:', normalizedPath);
+      navigate(normalizedPath);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   };
 
   return (
@@ -48,18 +60,18 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => handleNavigation("/")}>
+        <DropdownMenuItem onClick={() => handleNavigation("home")}>
           Pet Flight Search
         </DropdownMenuItem>
         {userRole === "site_manager" && (
-          <DropdownMenuItem onClick={() => handleNavigation("/admin")}>
+          <DropdownMenuItem onClick={() => handleNavigation("admin")}>
             Manage
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => handleNavigation("/profile")}>
+        <DropdownMenuItem onClick={() => handleNavigation("profile")}>
           My Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleNavigation("/pets")}>
+        <DropdownMenuItem onClick={() => handleNavigation("pets")}>
           My Pets
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut}>

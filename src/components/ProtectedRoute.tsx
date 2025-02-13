@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,20 +21,20 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       return;
     }
 
-    // Only check role if a specific role is required
-    if (!loading && requiredRole && profile.userRole !== requiredRole) {
+    // Only check role if a specific role is required and profile is loaded
+    if (!loading && !profileLoading && requiredRole && profile?.userRole !== requiredRole) {
       console.log("Access denied - incorrect role, redirecting to home");
       navigate("/");
       return;
     }
-  }, [user, loading, navigate, requiredRole, profile]);
+  }, [user, loading, navigate, requiredRole, profile, profileLoading]);
 
-  if (loading) {
+  if (loading || profileLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   // Only render children if user is authenticated and has correct role (if required)
-  if (!user || (requiredRole && profile.userRole !== requiredRole)) {
+  if (!user || (requiredRole && profile?.userRole !== requiredRole)) {
     return null;
   }
 
