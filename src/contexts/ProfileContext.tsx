@@ -21,7 +21,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ProfileError | null>(null);
   const [initialized, setInitialized] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
   const currentUserId = useRef<string | null>(null);
   const isRefreshing = useRef(false);
 
@@ -31,7 +30,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const handleAuthChange = async (event: string, session: any) => {
       if (!mounted) return;
 
+      console.log('Auth state changed:', { event, userId: session?.user?.id });
+
       if (event === 'SIGNED_OUT') {
+        console.log('User signed out, clearing profile state');
         currentUserId.current = null;
         setProfile(null);
         setError(null);
@@ -70,54 +72,52 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (userId: string) => {
-    if (isRefreshing.current || (profile?.id === userId && !error)) {
-      console.log('Skipping profile refresh - already refreshing or profile already loaded');
+    // Only skip if we're already refreshing for the same user
+    if (isRefreshing.current && currentUserId.current === userId) {
+      console.log('Skipping profile refresh - already refreshing for this user');
       return;
     }
 
-    if (retryCount >= 3) {
-      console.log('Max retry attempts reached for profile refresh');
-      setLoading(false);
-      setInitialized(false);
-      return;
-    }
+    console.log('Starting profile refresh for user:', userId, {
+      currentUserId: currentUserId.current,
+      isRefreshing: isRefreshing.current,
+      initialized,
+      hasProfile: !!profile
+    });
 
-    console.log('Refreshing profile for user:', userId, 'attempt:', retryCount + 1);
     isRefreshing.current = true;
     setLoading(true);
     setError(null);
     
     try {
       const profileData = await fetchProfile(userId);
-      if (!profileData) {
-        throw new ProfileError('Profile data is null', 'not_found');
-      }
       
       // Only update state if the user hasn't changed
       if (currentUserId.current === userId) {
         console.log('Profile refreshed successfully:', profileData);
         setProfile(profileData);
         setError(null);
-        setRetryCount(0);
-        setInitialized(true); // Only set initialized on success
+        setInitialized(true);
       }
     } catch (error) {
       console.error('Error refreshing profile:', error);
+      
       if (error instanceof ProfileError && currentUserId.current === userId) {
-        setError(error);
-        setProfile(null);
-        setInitialized(false); // Ensure initialized is false on error
-        
-        if (error.type === 'network' || retryCount >= 2) {
+        if (error.type === 'not_found') {
+          // Clear everything like sign out for auth errors
+          console.log('Auth error detected, clearing profile state');
+          currentUserId.current = null;
+          setProfile(null);
+          setError(null);
+          setInitialized(false);
+        } else {
+          // For other errors, set error state but maintain profile if we have it
+          setError(error);
           toast({
             title: "Profile Error",
-            description: error.message,
+            description: "There was a problem loading your profile. Please try again later.",
             variant: "destructive",
           });
-        }
-        
-        if (error.type === 'network') {
-          setRetryCount(prev => prev + 1);
         }
       }
     } finally {
@@ -154,10 +154,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       console.error('ProfileContext - Error updating profile:', error);
       
       if (profile && currentUserId.current === profile.id) {
-        setProfile(profile);
         toast({
           title: "Error",
-          description: "Failed to update profile",
+          description: "Failed to update profile. Please try again later.",
           variant: "destructive",
         });
       }
