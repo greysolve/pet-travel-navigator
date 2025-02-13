@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pendingAuthChanges = useRef<Array<() => void>>([]);
   const abortController = useRef<AbortController | null>(null);
 
-  // Validate session token
+  // Simplified session validation
   const validateSession = async (session: Session | null): Promise<boolean> => {
     if (!session?.access_token) return false;
     
@@ -95,13 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Session validation failed:', error);
         return false;
       }
-      
-      // Check token expiration
-      if (session.expires_at && session.expires_at * 1000 < Date.now()) {
-        console.error('Session token expired');
-        return false;
-      }
-      
       return true;
     } catch (error) {
       console.error('Error validating session:', error);
@@ -119,40 +112,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
-      // Create new abort controller for this initialization
       abortController.current = new AbortController();
       
       try {
         dispatch({ type: 'START_LOADING' });
         
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error('Session initialization error:', error);
-          throw error;
+        if (sessionError) {
+          console.error('Session initialization error:', sessionError);
+          throw sessionError;
         }
 
         if (session) {
-          const isValid = await validateSession(session);
+          // Attempt to refresh the session
+          const { data: { session: refreshedSession }, error: refreshError } = 
+            await supabase.auth.refreshSession();
+
+          if (refreshError) {
+            console.error('Session refresh failed:', refreshError);
+            await supabase.auth.signOut();
+            safeDispatch({ type: 'SIGN_OUT' });
+            return;
+          }
+
+          const isValid = await validateSession(refreshedSession || session);
           if (!isValid) {
             console.log('Invalid session detected, signing out');
             await supabase.auth.signOut();
-            dispatch({ type: 'SIGN_OUT' });
+            safeDispatch({ type: 'SIGN_OUT' });
             return;
           }
           
           safeDispatch({
             type: 'SET_AUTH_STATE',
-            payload: { session, user: session.user },
+            payload: { 
+              session: refreshedSession || session, 
+              user: (refreshedSession || session).user 
+            },
           });
         } else {
           safeDispatch({ type: 'SET_AUTH_STATE', payload: { session: null, user: null } });
         }
 
-        // Only mark as initialized after successful session check
         safeDispatch({ type: 'INITIALIZE_SUCCESS' });
         
-        // Process any pending auth changes
         while (pendingAuthChanges.current.length > 0) {
           const change = pendingAuthChanges.current.shift();
           change?.();
@@ -169,7 +174,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
-    // Cleanup function
     return () => {
       mounted.current = false;
       abortController.current?.abort();
