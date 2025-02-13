@@ -26,6 +26,11 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
     return names.map(name => name[0]).join("").toUpperCase();
   };
 
+  const handleNavigation = (path: string) => {
+    // Ensure we're using absolute paths
+    navigate(path.startsWith('/') ? path : `/${path}`);
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -42,18 +47,18 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => navigate("/")}>
+        <DropdownMenuItem onClick={() => handleNavigation("/")}>
           Pet Flight Search
         </DropdownMenuItem>
         {userRole === "site_manager" && (
-          <DropdownMenuItem onClick={() => navigate("/admin")}>
+          <DropdownMenuItem onClick={() => handleNavigation("/admin")}>
             Manage
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => navigate("/profile")}>
+        <DropdownMenuItem onClick={() => handleNavigation("/profile")}>
           My Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/pets")}>
+        <DropdownMenuItem onClick={() => handleNavigation("/pets")}>
           My Pets
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut}>

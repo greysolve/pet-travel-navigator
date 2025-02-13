@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
+import { toast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   session: Session | null;
@@ -27,7 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session check error:', error);
+          // Clear any invalid session data
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          return;
+        }
+        
         console.log('Initial session check:', initialSession?.user?.id || 'No session');
         
         if (initialSession?.user) {
@@ -57,9 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
-      if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
         return;
       }
 
