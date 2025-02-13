@@ -74,12 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (event === 'TOKEN_REFRESHED' && currentSession) {
-        setSession(currentSession);
-        setUser(currentSession.user);
-        return;
-      }
-
       if (currentSession?.user) {
         setSession(currentSession);
         setUser(currentSession.user);
