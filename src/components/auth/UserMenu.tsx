@@ -7,7 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { UserProfile } from "@/types/auth";
 
 interface UserMenuProps {
-  profile: UserProfile | null;
+  profile: UserProfile;
   userRole: string | null;
   onSignOut: () => Promise<void>;
 }
@@ -16,14 +16,25 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
   const navigate = useNavigate();
 
   const getFirstName = () => {
-    if (!profile?.full_name) return "";
+    if (!profile?.full_name) return "User";
     return profile.full_name.split(" ")[0];
   };
 
   const getInitials = () => {
-    if (!profile?.full_name) return "";
+    if (!profile?.full_name) return "U";
     const names = profile.full_name.split(" ");
     return names.map(name => name[0]).join("").toUpperCase();
+  };
+
+  const handleNavigation = (path: string) => {
+    try {
+      // Always navigate to absolute paths
+      const absolutePath = path === 'home' ? '/' : `/${path}`;
+      console.log('Navigating to:', absolutePath);
+      navigate(absolutePath);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   };
 
   return (
@@ -42,18 +53,18 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => navigate("/")}>
+        <DropdownMenuItem onClick={() => handleNavigation("home")}>
           Pet Flight Search
         </DropdownMenuItem>
         {userRole === "site_manager" && (
-          <DropdownMenuItem onClick={() => navigate("/admin")}>
+          <DropdownMenuItem onClick={() => handleNavigation("admin")}>
             Manage
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => navigate("/profile")}>
+        <DropdownMenuItem onClick={() => handleNavigation("profile")}>
           My Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/pets")}>
+        <DropdownMenuItem onClick={() => handleNavigation("pets")}>
           My Pets
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut}>

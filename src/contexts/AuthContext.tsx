@@ -1,136 +1,230 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { UserProfile } from '@/types/auth';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
-import { fetchProfile, ProfileError } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
 
-interface AuthContextType {
+interface AuthState {
   session: Session | null;
   user: User | null;
-  profile: UserProfile | null;
+  loading: boolean;
+  initialized: boolean;
+  error: AuthError | Error | null;
+  isRestoring: boolean;
+}
+
+type AuthAction =
+  | { type: 'START_LOADING' }
+  | { type: 'SET_AUTH_STATE'; payload: { session: Session | null; user: User | null } }
+  | { type: 'RESTORE_AUTH_STATE'; payload: { session: Session | null; user: User | null } }
+  | { type: 'SET_ERROR'; payload: AuthError | Error }
+  | { type: 'INITIALIZE_SUCCESS' }
+  | { type: 'COMPLETE_RESTORATION' }
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'SIGN_OUT' };
+
+interface AuthContextType extends AuthState {
   signIn: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: AuthError }>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
-  loading: boolean;
-  profileLoading: boolean;
-  profileError: ProfileError | null;
-  retryProfileLoad: () => Promise<void>;
+}
+
+const initialState: AuthState = {
+  session: null,
+  user: null,
+  loading: true,
+  initialized: false,
+  error: null,
+  isRestoring: true,
+};
+
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case 'START_LOADING':
+      return { ...state, loading: true, error: null };
+    case 'SET_AUTH_STATE':
+      return {
+        ...state,
+        session: action.payload.session,
+        user: action.payload.user,
+        loading: false,
+        error: null,
+      };
+    case 'RESTORE_AUTH_STATE':
+      return {
+        ...state,
+        session: action.payload.session,
+        user: action.payload.user,
+        loading: false,
+        error: null,
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        loading: false,
+      };
+    case 'INITIALIZE_SUCCESS':
+      return {
+        ...state,
+        initialized: true,
+        loading: false,
+      };
+    case 'COMPLETE_RESTORATION':
+      return {
+        ...state,
+        isRestoring: false,
+        initialized: true,
+      };
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
+    case 'SIGN_OUT':
+      return {
+        ...initialState,
+        loading: false,
+        initialized: true,
+        isRestoring: false,
+      };
+    default:
+      return state;
+  }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Add the validateSession function
+async function validateSession(session: Session): Promise<boolean> {
+  try {
+    // Check if the session token is valid by making a test request
+    const { error } = await supabase.auth.getUser(session.access_token);
+    if (error) {
+      console.error('Session validation failed:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Session validation error:', error);
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [profileError, setProfileError] = useState<ProfileError | null>(null);
+  const [state, dispatch] = useReducer(authReducer, initialState);
   const authOperations = useAuthOperations();
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  const abortController = useRef<AbortController | null>(null);
 
-  // Profile fetch with improved error handling
-  const loadProfile = useCallback(async (userId: string) => {
-    // Clear any existing abort controller
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  // Safe dispatch function
+  const safeDispatch = (action: AuthAction) => {
+    if (mounted.current) {
+      dispatch(action);
     }
-    
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    
-    setProfileLoading(true);
-    setProfileError(null);
+  };
 
-    try {
-      const profileData = await fetchProfile(userId);
-      setProfile(profileData);
-      setProfileError(null);
-    } catch (error) {
-      console.error('Profile fetch failed:', error);
-      if (error instanceof ProfileError) {
-        setProfileError(error);
+  // Initialize auth state
+  useEffect(() => {
+    const initializeAuth = async () => {
+      abortController.current = new AbortController();
+      
+      try {
+        dispatch({ type: 'START_LOADING' });
         
-        // Show appropriate toast based on error type
-        const errorMessages = {
-          timeout: "Profile load timed out. Please try again.",
-          not_found: "Profile not found. Please sign out and back in.",
-          network: "Network error loading profile. Please check your connection.",
-          unknown: "Unexpected error loading profile. Please try again."
-        };
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        toast({
-          title: "Error",
-          description: errorMessages[error.type],
-          variant: "destructive",
-        });
-      } else {
-        setProfileError(new ProfileError('Unexpected error', 'unknown'));
+        if (sessionError) {
+          console.error('Session initialization error:', sessionError);
+          throw sessionError;
+        }
+
+        if (session) {
+          const isValid = await validateSession(session);
+          if (!isValid) {
+            console.log('Invalid session detected, signing out');
+            await supabase.auth.signOut();
+            safeDispatch({ type: 'SIGN_OUT' });
+            return;
+          }
+          
+          safeDispatch({
+            type: 'RESTORE_AUTH_STATE',
+            payload: { 
+              session, 
+              user: session.user 
+            },
+          });
+        } else {
+          safeDispatch({ type: 'RESTORE_AUTH_STATE', payload: { session: null, user: null } });
+        }
+
+        safeDispatch({ type: 'COMPLETE_RESTORATION' });
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (error instanceof AuthError) {
+          safeDispatch({ type: 'SET_ERROR', payload: error });
+        } else {
+          safeDispatch({ type: 'SET_ERROR', payload: new Error('Failed to initialize auth') });
+        }
       }
-    } finally {
-      setProfileLoading(false);
-    }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted.current = false;
+      abortController.current?.abort();
+    };
   }, []);
 
-  // Retry profile load
-  const retryProfileLoad = useCallback(async () => {
-    if (user?.id) {
-      await loadProfile(user.id);
-    }
-  }, [user?.id, loadProfile]);
-
-  // Handle session recovery and auth state changes
+  // Handle auth state changes
   useEffect(() => {
-    const handleAuthChange = async (event: string, currentSession: Session | null) => {
+    if (state.isRestoring) {
+      console.log('Not setting up auth listener during restoration');
+      return;
+    }
+
+    console.log('Setting up auth state change listener');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
-      if (currentSession?.user) {
-        setSession(currentSession);
-        setUser(currentSession.user);
-        await loadProfile(currentSession.user.id);
-      } else {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setProfileError(null);
-        setProfileLoading(false);
+      if (event === 'SIGNED_OUT') {
+        safeDispatch({ type: 'SIGN_OUT' });
+        return;
       }
-    };
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('Initial session check:', initialSession?.user?.id);
-      handleAuthChange('INITIAL_SESSION', initialSession);
-      setLoading(false);
+      if (currentSession) {
+        const isValid = await validateSession(currentSession);
+        if (!isValid) {
+          console.log('Invalid session in auth change, signing out');
+          await supabase.auth.signOut();
+          safeDispatch({ type: 'SIGN_OUT' });
+          return;
+        }
+
+        safeDispatch({
+          type: 'SET_AUTH_STATE',
+          payload: {
+            session: currentSession,
+            user: currentSession.user,
+          },
+        });
+      }
     });
 
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-
-    // Cleanup function
     return () => {
+      console.log('Cleaning up auth state change listener');
       subscription.unsubscribe();
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
     };
-  }, [loadProfile]);
+  }, [state.isRestoring]);
 
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      profile, 
-      loading,
-      profileLoading,
-      profileError,
-      retryProfileLoad,
-      ...authOperations
-    }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        ...authOperations,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

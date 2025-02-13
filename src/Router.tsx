@@ -9,7 +9,6 @@ import Admin from "@/pages/Admin";
 import SampleResults from "@/pages/SampleResults";
 import AuthCallback from "@/pages/AuthCallback";
 import AuthDialog from "@/components/AuthDialog";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/toaster";
 
 // Create a protected layout that wraps routes requiring authentication
@@ -20,15 +19,13 @@ const ProtectedLayout = () => {
 // Create an app layout that provides auth context
 const AppLayout = () => {
   return (
-    <AuthProvider>
-      <div className="relative min-h-screen">
-        <div className="absolute top-4 right-4 z-50">
-          <AuthDialog />
-        </div>
-        <Outlet />
+    <div className="relative min-h-screen">
+      <div className="absolute top-4 right-4 z-50">
+        <AuthDialog />
       </div>
+      <Outlet />
       <Toaster />
-    </AuthProvider>
+    </div>
   );
 };
 
@@ -40,6 +37,10 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <Index />,
+      },
+      {
+        path: "/auth/callback",
+        element: <AuthCallback />,
       },
       {
         // Protected routes group
@@ -71,15 +72,12 @@ const router = createBrowserRouter([
           },
         ],
       },
+      // Move catch-all route to the end
       {
-        path: "/:route",
+        path: "*",
         element: <SampleResults />,
       },
     ],
-  },
-  {
-    path: "/auth/callback",
-    element: <AuthCallback />,
   },
 ]);
 

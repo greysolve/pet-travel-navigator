@@ -1,114 +1,167 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, UserRole, SubscriptionPlan } from "@/types/auth";
-import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
+import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-const QUERY_TIMEOUT = 5000; // 5 seconds timeout
+// Interface for the direct RPC response
+interface ProfileWithRoleResponse {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  notification_preferences: {
+    travel_alerts: boolean;
+    policy_changes: boolean;
+    documentation_reminders: boolean;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_line3: string | null;
+  locality: string | null;
+  administrative_area: string | null;
+  postal_code: string | null;
+  address_format: string | null;
+  country_id: string | null;
+  search_count: number;
+  plan: SubscriptionPlan | null;
+  userRole: string;
+}
 
+// Define the class without export keyword
 class ProfileError extends Error {
   constructor(
     message: string,
-    public readonly type: 'timeout' | 'not_found' | 'network' | 'unknown'
+    public readonly type: 'not_found' | 'network' | 'unknown'
   ) {
     super(message);
     this.name = 'ProfileError';
   }
 }
 
+// Helper to validate subscription plan
+const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
+  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
+  return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+};
+
+// Helper to validate notification preferences
+const validateNotificationPreferences = (preferences: unknown) => {
+  const defaultPreferences = {
+    travel_alerts: true,
+    policy_changes: true,
+    documentation_reminders: true
+  };
+
+  if (!preferences || typeof preferences !== 'object') {
+    return defaultPreferences;
+  }
+
+  const prefs = preferences as Record<string, unknown>;
+  
+  return {
+    travel_alerts: typeof prefs.travel_alerts === 'boolean' ? prefs.travel_alerts : defaultPreferences.travel_alerts,
+    policy_changes: typeof prefs.policy_changes === 'boolean' ? prefs.policy_changes : defaultPreferences.policy_changes,
+    documentation_reminders: typeof prefs.documentation_reminders === 'boolean' ? prefs.documentation_reminders : defaultPreferences.documentation_reminders
+  };
+};
+
+async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+  console.log('profileManagement - Starting update:', { userId, updates });
+
+  if (!userId) {
+    throw new ProfileError('User ID is required for profile update', 'not_found');
+  }
+
+  try {
+    // Filter out undefined values and prepare the update object
+    const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Remove id and userRole from updates as they shouldn't be modified
+    delete updateData.id;
+    delete updateData.userRole;
+    
+    console.log('profileManagement - Sending update to Supabase:', updateData);
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('profileManagement - Supabase update error:', error);
+      throw new ProfileError(
+        error.message || 'Failed to update user profile',
+        error.code === 'PGRST116' ? 'not_found' : 'network'
+      );
+    }
+
+    console.log('profileManagement - Update successful, fetching updated profile');
+    // Fetch the updated profile
+    return await fetchProfile(userId);
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      throw error;
+    }
+    console.error('profileManagement - Unexpected error updating profile:', error);
+    throw new ProfileError('Unexpected error updating profile', 'unknown');
+  }
+}
+
 async function fetchProfile(userId: string): Promise<UserProfile> {
   console.log('Fetching profile for user:', userId);
   
-  // Create a timeout promise that rejects after QUERY_TIMEOUT
-  const createTimeout = () => new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new ProfileError('Profile fetch timed out', 'timeout'));
-    }, QUERY_TIMEOUT);
-  });
-
   try {
-    // Get the user's role with timeout
-    const rolePromise = supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('get_profile_with_role', {
+      p_user_id: userId
+    });
 
-    const roleResult = await Promise.race([
-      rolePromise,
-      createTimeout()
-    ]) as PostgrestSingleResponse<{ role: string }>;
-
-    if (roleResult.error) {
-      console.error('Error fetching role:', roleResult.error);
-      throw new ProfileError('Failed to fetch user role', 'network');
-    }
-
-    if (!roleResult.data) {
-      console.error('No role found for user');
-      throw new ProfileError('User role not found', 'not_found');
-    }
-
-    // Get the profile data with timeout
-    const profilePromise = supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    const profileResult = await Promise.race([
-      profilePromise,
-      createTimeout()
-    ]) as PostgrestSingleResponse<{
-      created_at: string;
-      updated_at: string;
-      full_name: string | null;
-      avatar_url: string | null;
-      address_line1: string | null;
-      address_line2: string | null;
-      address_line3: string | null;
-      locality: string | null;
-      administrative_area: string | null;
-      postal_code: string | null;
-      country_id: string | null;
-      address_format: string | null;
-      plan: string | null;
-      search_count: number | null;
-      notification_preferences: {
-        travel_alerts: boolean;
-        policy_changes: boolean;
-        documentation_reminders: boolean;
-      } | null;
-    }>;
-
-    if (profileResult.error) {
-      console.error('Error fetching profile:', profileResult.error);
+    if (error) {
+      console.error('Error fetching profile:', error);
       throw new ProfileError('Failed to fetch user profile', 'network');
     }
 
-    if (!profileResult.data) {
-      console.error('No profile found for user');
+    if (!data) {
+      console.error('No profile data returned');
       throw new ProfileError('User profile not found', 'not_found');
     }
 
-    // Create the user profile object with proper type casting
+    // Type guard to verify the response structure
+    const isValidProfileResponse = (response: any): response is ProfileWithRoleResponse => {
+      return response 
+        && typeof response === 'object'
+        && 'id' in response
+        && 'userRole' in response;
+    };
+
+    if (!isValidProfileResponse(data)) {
+      console.error('Invalid response structure:', data);
+      throw new ProfileError('Invalid profile data structure', 'unknown');
+    }
+
+    // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
       id: userId,
-      userRole: roleResult.data.role as UserRole, // Type cast role string to UserRole
-      created_at: profileResult.data.created_at,
-      updated_at: profileResult.data.updated_at,
-      full_name: profileResult.data.full_name ?? undefined,
-      avatar_url: profileResult.data.avatar_url ?? undefined,
-      address_line1: profileResult.data.address_line1 ?? undefined,
-      address_line2: profileResult.data.address_line2 ?? undefined,
-      address_line3: profileResult.data.address_line3 ?? undefined,
-      locality: profileResult.data.locality ?? undefined,
-      administrative_area: profileResult.data.administrative_area ?? undefined,
-      postal_code: profileResult.data.postal_code ?? undefined,
-      country_id: profileResult.data.country_id ?? undefined,
-      address_format: profileResult.data.address_format ?? undefined,
-      plan: (profileResult.data.plan as SubscriptionPlan) ?? undefined, // Type cast plan string to SubscriptionPlan
-      search_count: profileResult.data.search_count ?? undefined,
-      notification_preferences: profileResult.data.notification_preferences
+      userRole: data.userRole as UserRole,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      full_name: data.full_name ?? undefined,
+      avatar_url: data.avatar_url ?? undefined,
+      address_line1: data.address_line1 ?? undefined,
+      address_line2: data.address_line2 ?? undefined,
+      address_line3: data.address_line3 ?? undefined,
+      locality: data.locality ?? undefined,
+      administrative_area: data.administrative_area ?? undefined,
+      postal_code: data.postal_code ?? undefined,
+      country_id: data.country_id ?? undefined,
+      address_format: data.address_format ?? undefined,
+      plan: validatePlan(data.plan),
+      search_count: data.search_count,
+      notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
     console.log('Successfully mapped profile:', userProfile);
@@ -122,4 +175,5 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
   }
 }
 
-export { fetchProfile, ProfileError };
+// Export everything once at the bottom
+export { ProfileError, fetchProfile, updateProfile };
