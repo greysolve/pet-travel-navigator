@@ -36,6 +36,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setError(null);
         setLoading(false);
+        setInitialized(false);
         return;
       }
 
@@ -69,7 +70,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = async (userId: string) => {
-    // Prevent concurrent refreshes and duplicate refreshes for the same user
     if (isRefreshing.current || (profile?.id === userId && !error)) {
       console.log('Skipping profile refresh - already refreshing or profile already loaded');
       return;
@@ -78,6 +78,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (retryCount >= 3) {
       console.log('Max retry attempts reached for profile refresh');
       setLoading(false);
+      setInitialized(false);
       return;
     }
 
@@ -98,12 +99,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         setProfile(profileData);
         setError(null);
         setRetryCount(0);
+        setInitialized(true); // Only set initialized on success
       }
     } catch (error) {
       console.error('Error refreshing profile:', error);
       if (error instanceof ProfileError && currentUserId.current === userId) {
         setError(error);
         setProfile(null);
+        setInitialized(false); // Ensure initialized is false on error
         
         if (error.type === 'network' || retryCount >= 2) {
           toast({
@@ -121,7 +124,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       isRefreshing.current = false;
       if (currentUserId.current === userId) {
         setLoading(false);
-        setInitialized(true);
       }
     }
   };
