@@ -3,6 +3,7 @@ import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 
 interface ProfileContextType {
   profile: UserProfile | null;
@@ -24,12 +25,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const currentUserId = useRef<string | null>(null);
   const isRefreshing = useRef(false);
   const retryCount = useRef(0);
+  const { isRestoring } = useAuth();
 
   useEffect(() => {
     let mounted = true;
 
     const handleAuthChange = async (event: string, session: any) => {
-      if (!mounted) return;
+      if (!mounted || isRestoring) return;
 
       console.log('Auth state changed:', { event, userId: session?.user?.id });
 
@@ -39,7 +41,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setError(null);
         setLoading(false);
-        setInitialized(true); // System is initialized in a valid "signed out" state
+        setInitialized(true);
         return;
       }
 
@@ -50,27 +52,33 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+    if (!isRestoring) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      const userId = session?.user?.id;
-      if (userId) {
-        currentUserId.current = userId;
-        refreshProfile(userId);
-      } else {
-        setLoading(false);
-        setInitialized(true); // System is initialized in a valid "no session" state
-      }
-    });
+      // Initial session check only if not restoring
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!mounted || isRestoring) return;
+        
+        const userId = session?.user?.id;
+        if (userId) {
+          currentUserId.current = userId;
+          refreshProfile(userId);
+        } else {
+          setLoading(false);
+          setInitialized(true);
+        }
+      });
+
+      return () => {
+        mounted = false;
+        subscription.unsubscribe();
+      };
+    }
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
-  }, []);
+  }, [isRestoring]);
 
   const refreshProfile = async (userId: string) => {
     if (isRefreshing.current && currentUserId.current === userId) {

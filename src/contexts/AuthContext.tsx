@@ -5,25 +5,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
 import { toast } from '@/components/ui/use-toast';
 
-// Combined auth state type for atomic updates
 interface AuthState {
   session: Session | null;
   user: User | null;
   loading: boolean;
   initialized: boolean;
   error: AuthError | Error | null;
+  isRestoring: boolean;
 }
 
-// Auth state reducer actions
 type AuthAction =
   | { type: 'START_LOADING' }
   | { type: 'SET_AUTH_STATE'; payload: { session: Session | null; user: User | null } }
+  | { type: 'RESTORE_AUTH_STATE'; payload: { session: Session | null; user: User | null } }
   | { type: 'SET_ERROR'; payload: AuthError | Error }
   | { type: 'INITIALIZE_SUCCESS' }
+  | { type: 'COMPLETE_RESTORATION' }
   | { type: 'CLEAR_ERROR' }
   | { type: 'SIGN_OUT' };
 
-// Auth context type
 interface AuthContextType extends AuthState {
   signIn: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: AuthError }>;
@@ -37,6 +37,7 @@ const initialState: AuthState = {
   loading: true,
   initialized: false,
   error: null,
+  isRestoring: true,
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -44,6 +45,14 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
     case 'START_LOADING':
       return { ...state, loading: true, error: null };
     case 'SET_AUTH_STATE':
+      return {
+        ...state,
+        session: action.payload.session,
+        user: action.payload.user,
+        loading: false,
+        error: null,
+      };
+    case 'RESTORE_AUTH_STATE':
       return {
         ...state,
         session: action.payload.session,
@@ -63,6 +72,12 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         initialized: true,
         loading: false,
       };
+    case 'COMPLETE_RESTORATION':
+      return {
+        ...state,
+        isRestoring: false,
+        initialized: true,
+      };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
     case 'SIGN_OUT':
@@ -70,6 +85,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         ...initialState,
         loading: false,
         initialized: true,
+        isRestoring: false,
       };
     default:
       return state;
@@ -82,27 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const authOperations = useAuthOperations();
   const mounted = useRef(true);
-  const pendingAuthChanges = useRef<Array<() => void>>([]);
   const abortController = useRef<AbortController | null>(null);
 
-  // Simplified session validation
-  const validateSession = async (session: Session | null): Promise<boolean> => {
-    if (!session?.access_token) return false;
-    
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser(session.access_token);
-      if (error || !user) {
-        console.error('Session validation failed:', error);
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error('Error validating session:', error);
-      return false;
-    }
-  };
-
-  // Safe state update function
+  // Safe dispatch function
   const safeDispatch = (action: AuthAction) => {
     if (mounted.current) {
       dispatch(action);
@@ -117,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         dispatch({ type: 'START_LOADING' });
         
-        // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -126,18 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (session) {
-          // Attempt to refresh the session
-          const { data: { session: refreshedSession }, error: refreshError } = 
-            await supabase.auth.refreshSession();
-
-          if (refreshError) {
-            console.error('Session refresh failed:', refreshError);
-            await supabase.auth.signOut();
-            safeDispatch({ type: 'SIGN_OUT' });
-            return;
-          }
-
-          const isValid = await validateSession(refreshedSession || session);
+          const isValid = await validateSession(session);
           if (!isValid) {
             console.log('Invalid session detected, signing out');
             await supabase.auth.signOut();
@@ -146,22 +132,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           
           safeDispatch({
-            type: 'SET_AUTH_STATE',
+            type: 'RESTORE_AUTH_STATE',
             payload: { 
-              session: refreshedSession || session, 
-              user: (refreshedSession || session).user 
+              session, 
+              user: session.user 
             },
           });
         } else {
-          safeDispatch({ type: 'SET_AUTH_STATE', payload: { session: null, user: null } });
+          safeDispatch({ type: 'RESTORE_AUTH_STATE', payload: { session: null, user: null } });
         }
 
-        safeDispatch({ type: 'INITIALIZE_SUCCESS' });
-        
-        while (pendingAuthChanges.current.length > 0) {
-          const change = pendingAuthChanges.current.shift();
-          change?.();
-        }
+        safeDispatch({ type: 'COMPLETE_RESTORATION' });
       } catch (error) {
         console.error('Auth initialization error:', error);
         if (error instanceof AuthError) {
@@ -177,14 +158,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted.current = false;
       abortController.current?.abort();
-      pendingAuthChanges.current = [];
     };
   }, []);
 
   // Handle auth state changes
   useEffect(() => {
-    if (!state.initialized) {
-      console.log('Queuing auth state change listener until initialized');
+    if (state.isRestoring) {
+      console.log('Not setting up auth listener during restoration');
       return;
     }
 
@@ -192,36 +172,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed:', event, currentSession?.user?.id);
       
-      const handleAuthChange = async () => {
-        if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
+        safeDispatch({ type: 'SIGN_OUT' });
+        return;
+      }
+
+      if (currentSession) {
+        const isValid = await validateSession(currentSession);
+        if (!isValid) {
+          console.log('Invalid session in auth change, signing out');
+          await supabase.auth.signOut();
           safeDispatch({ type: 'SIGN_OUT' });
           return;
         }
 
-        if (currentSession) {
-          const isValid = await validateSession(currentSession);
-          if (!isValid) {
-            console.log('Invalid session in auth change, signing out');
-            await supabase.auth.signOut();
-            safeDispatch({ type: 'SIGN_OUT' });
-            return;
-          }
-
-          safeDispatch({
-            type: 'SET_AUTH_STATE',
-            payload: {
-              session: currentSession,
-              user: currentSession.user,
-            },
-          });
-        }
-      };
-
-      if (!state.initialized) {
-        console.log('Queueing auth state change');
-        pendingAuthChanges.current.push(handleAuthChange);
-      } else {
-        await handleAuthChange();
+        safeDispatch({
+          type: 'SET_AUTH_STATE',
+          payload: {
+            session: currentSession,
+            user: currentSession.user,
+          },
+        });
       }
     });
 
@@ -229,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Cleaning up auth state change listener');
       subscription.unsubscribe();
     };
-  }, [state.initialized]);
+  }, [state.isRestoring]);
 
   return (
     <AuthContext.Provider
@@ -250,4 +221,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
