@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
@@ -68,6 +67,10 @@ const validateNotificationPreferences = (preferences: unknown) => {
 async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
   console.log('profileManagement - Starting update:', { userId, updates });
 
+  if (!userId) {
+    throw new ProfileError('User ID is required for profile update', 'not_found');
+  }
+
   try {
     // Filter out undefined values and prepare the update object
     const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
@@ -86,11 +89,15 @@ async function updateProfile(userId: string, updates: Partial<UserProfile>): Pro
     const { error } = await supabase
       .from('profiles')
       .update(updateData)
-      .eq('id', userId);
+      .eq('id', userId)
+      .single();
 
     if (error) {
       console.error('profileManagement - Supabase update error:', error);
-      throw new ProfileError('Failed to update user profile', 'network');
+      throw new ProfileError(
+        error.message || 'Failed to update user profile',
+        error.code === 'PGRST116' ? 'not_found' : 'network'
+      );
     }
 
     console.log('profileManagement - Update successful, fetching updated profile');

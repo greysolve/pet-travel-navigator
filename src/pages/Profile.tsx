@@ -39,7 +39,15 @@ const Profile = () => {
   }, [profile]);
 
   const handleProfileUpdate = async (updates: any) => {
-    if (!profile?.id) return;
+    if (!user?.id) {
+      console.error('Profile page - Cannot update profile: No user ID');
+      toast({
+        title: "Error",
+        description: "Unable to update profile: User not found",
+        variant: "destructive",
+      });
+      return;
+    }
     
     console.log('Profile page - Updating profile with:', updates);
     try {
@@ -58,7 +66,7 @@ const Profile = () => {
     }
   };
 
-  if (!profile) {
+  if (!profile || !user) {
     return null;
   }
 
@@ -68,12 +76,12 @@ const Profile = () => {
       
       <div className="grid gap-8">
         <ProfileHeader 
-          userId={user?.id || ""}
+          userId={user.id}
           avatarUrl={profile.avatar_url}
         />
         
         <ProfileForm
-          email={user?.email || ""}
+          email={user.email || ""}
           initialData={formData}
           onSubmit={handleProfileUpdate}
         />
