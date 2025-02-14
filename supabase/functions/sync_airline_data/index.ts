@@ -21,6 +21,17 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting sync_airline_data function...');
     
+    // Parse request
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      requestBody = { mode: 'clear' };
+    }
+    const { mode = 'clear' } = requestBody;
+    
+    console.log('Starting airline sync process in mode:', mode);
+    
     // Initialize dependencies
     const supabaseManager = new SupabaseClientManager();
     supabase = await supabaseManager.initialize();
@@ -33,17 +44,6 @@ Deno.serve(async (req) => {
     
     const batchProcessor = new BatchProcessor();
     airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
-
-    // Parse request
-    let requestBody;
-    try {
-      requestBody = await req.json();
-    } catch (error) {
-      requestBody = { mode: 'clear' };
-    }
-    const { mode = 'clear' } = requestBody;
-    
-    console.log('Starting airline sync process in mode:', mode);
 
     if (mode === 'update') {
       const { data: missingPolicies, error: missingPoliciesError } = await supabase
