@@ -12,6 +12,16 @@ export const useFlightSearchState = (userId: string | undefined) => {
   const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
   const { toast } = useToast();
 
+  const clearRouteSearch = () => {
+    setOrigin("");
+    setDestination("");
+    setDate(undefined);
+  };
+
+  const clearPolicySearch = () => {
+    setPolicySearch("");
+  };
+
   useEffect(() => {
     console.log('Auth state changed, resetting form state');
     setPolicySearch("");
@@ -35,6 +45,9 @@ export const useFlightSearchState = (userId: string | undefined) => {
     setFlights,
     shouldSaveSearch,
     setShouldSaveSearch,
+    clearRouteSearch,
+    clearPolicySearch,
     toast
   };
 };
+

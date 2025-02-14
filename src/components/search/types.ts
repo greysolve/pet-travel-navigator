@@ -23,7 +23,9 @@ export interface SearchFormHeaderProps {
 export interface AirlinePolicySearchProps {
   policySearch: string;
   setPolicySearch: (value: string) => void;
-  isLoading?: boolean;  // Added isLoading prop
+  isLoading?: boolean;
+  disabled?: boolean;
+  onFocus?: () => void;
 }
 
 export interface RouteSearchProps {
@@ -31,7 +33,9 @@ export interface RouteSearchProps {
   destination: string;
   setOrigin: (value: string) => void;
   setDestination: (value: string) => void;
-  isLoading?: boolean;  // Added isLoading prop
+  isLoading?: boolean;
+  disabled?: boolean;
+  onFocus?: () => void;
 }
 
 export type SavedSearch = {

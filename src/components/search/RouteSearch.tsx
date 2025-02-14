@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +18,9 @@ export const RouteSearch = ({
   destination,
   setOrigin,
   setDestination,
-  isLoading
+  isLoading,
+  disabled,
+  onFocus
 }: RouteSearchProps) => {
   const [airports, setAirports] = useState<Airport[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -77,6 +80,10 @@ export const RouteSearch = ({
     }
   }, [toast]);
 
+  const handleInputFocus = () => {
+    onFocus?.();
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="relative">
@@ -91,12 +98,15 @@ export const RouteSearch = ({
             fetchAirports(value);
             setShowOriginSuggestions(true);
           }}
-          onFocus={() => setShowOriginSuggestions(true)}
+          onFocus={() => {
+            setShowOriginSuggestions(true);
+            handleInputFocus();
+          }}
           onBlur={() => {
             // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowOriginSuggestions(false), 200);
           }}
-          disabled={isLoading}
+          disabled={isLoading || disabled}
         />
         {showOriginSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -136,12 +146,15 @@ export const RouteSearch = ({
             fetchAirports(value);
             setShowDestinationSuggestions(true);
           }}
-          onFocus={() => setShowDestinationSuggestions(true)}
+          onFocus={() => {
+            setShowDestinationSuggestions(true);
+            handleInputFocus();
+          }}
           onBlur={() => {
             // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowDestinationSuggestions(false), 200);
           }}
-          disabled={isLoading}
+          disabled={isLoading || disabled}
         />
         {showDestinationSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -171,3 +184,4 @@ export const RouteSearch = ({
     </div>
   );
 };
+

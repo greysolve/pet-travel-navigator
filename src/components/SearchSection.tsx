@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -36,6 +37,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setFlights,
     shouldSaveSearch,
     setShouldSaveSearch,
+    clearRouteSearch,
+    clearPolicySearch,
     toast
   } = useFlightSearchState(user?.id);
 
@@ -170,6 +173,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }, new Set<string>()))
   );
 
+  const hasRouteSearch = origin !== "" || destination !== "";
+
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className={cn(
@@ -193,6 +198,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
           isLoading={isLoading}
+          disabled={hasRouteSearch}
+          onFocus={clearRouteSearch}
         />
         
         <SearchDivider />
@@ -203,6 +210,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           setOrigin={setOrigin}
           setDestination={setDestination}
           isLoading={isLoading}
+          disabled={policySearch !== ""}
+          onFocus={clearPolicySearch}
         />
 
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
@@ -230,3 +239,4 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     </div>
   );
 };
+

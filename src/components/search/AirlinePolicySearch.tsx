@@ -14,7 +14,9 @@ type Airline = {
 export const AirlinePolicySearch = ({ 
   policySearch, 
   setPolicySearch,
-  isLoading 
+  isLoading,
+  disabled,
+  onFocus
 }: AirlinePolicySearchProps) => {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -73,8 +75,11 @@ export const AirlinePolicySearch = ({
           fetchAirlines(value);
           setShowAirlineSuggestions(true);
         }}
-        onFocus={() => setShowAirlineSuggestions(true)}
-        disabled={isLoading}
+        onFocus={() => {
+          setShowAirlineSuggestions(true);
+          onFocus?.();
+        }}
+        disabled={isLoading || disabled}
       />
       {showAirlineSuggestions && airlines.length > 0 && (
         <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -103,3 +108,4 @@ export const AirlinePolicySearch = ({
     </div>
   );
 };
+
