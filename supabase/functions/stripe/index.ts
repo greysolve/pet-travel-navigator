@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -19,6 +18,59 @@ Deno.serve(async (req) => {
     );
 
     const { action, priceId, userId } = await req.json();
+
+    if (action === 'import-plans') {
+      // Fetch all active products and their prices from Stripe
+      const products = await stripe.products.list({ active: true });
+      const prices = await stripe.prices.list({ active: true });
+
+      // Create a map of product IDs to their prices
+      const productPrices = new Map();
+      prices.data.forEach(price => {
+        if (!productPrices.has(price.product)) {
+          productPrices.set(price.product, []);
+        }
+        productPrices.get(price.product).push(price);
+      });
+
+      // Process each product and its prices
+      for (const product of products.data) {
+        const prices = productPrices.get(product.id) || [];
+        for (const price of prices) {
+          const planData = {
+            name: product.name,
+            description: product.description,
+            price: price.unit_amount ? price.unit_amount / 100 : 0,
+            currency: price.currency.toUpperCase(),
+            stripe_price_id: price.id,
+            features: product.metadata.features ? 
+              JSON.parse(product.metadata.features) : 
+              []
+          };
+
+          // Upsert the plan data
+          const { error } = await supabaseClient
+            .from('payment_plans')
+            .upsert(
+              planData,
+              { 
+                onConflict: 'stripe_price_id',
+                ignoreDuplicates: false
+              }
+            );
+
+          if (error) throw error;
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
 
     if (action === 'create-subscription') {
       // Get or create customer
