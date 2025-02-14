@@ -1,6 +1,6 @@
 
 import { Toaster } from "@/components/ui/toaster";
-import { Router } from "./Router";
+import Router from "./Router";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProfileProvider } from "./contexts/ProfileContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
