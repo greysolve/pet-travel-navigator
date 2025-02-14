@@ -4,12 +4,11 @@ import { SupabaseClientManager } from '../_shared/SupabaseClient.ts';
 import { AirlineSyncService } from '../_shared/AirlineSyncService.ts';
 import { SyncManager } from '../_shared/SyncManager.ts';
 
-// Enhanced CORS headers to explicitly allow lovableproject.com
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400', // 24 hours cache for preflight requests
+  'Access-Control-Max-Age': '86400',
 };
 
 Deno.serve(async (req) => {
@@ -20,11 +19,9 @@ Deno.serve(async (req) => {
     url: req.url
   });
 
-  // Enhanced OPTIONS handling for preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
     return new Response(null, {
-      status: 204, // No content
+      status: 204,
       headers: corsHeaders
     });
   }
@@ -36,19 +33,17 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting sync_airline_data function...');
     
-    // Parse request with validation
     let requestBody;
     try {
       requestBody = await req.json();
     } catch (error) {
-      console.log('Failed to parse request body, defaulting to clear mode:', error);
+      console.log('Failed to parse request body:', error);
       requestBody = { mode: 'clear' };
     }
-    const { mode = 'clear', resumeToken } = requestBody;
+    const { mode = 'clear', resumeToken, offset = 0 } = requestBody;
     
-    console.log('Starting airline sync process in mode:', mode, 'resumeToken:', resumeToken);
+    console.log('Starting airline sync process:', { mode, resumeToken, offset });
     
-    // Initialize dependencies with enhanced error handling
     try {
       const supabaseManager = new SupabaseClientManager();
       supabase = await supabaseManager.initialize();
@@ -59,73 +54,84 @@ Deno.serve(async (req) => {
         'airlines'
       );
       
-      // Adjusted timeouts and batch size for reliability
-      const batchProcessor = new BatchProcessor(45000, 3, 5, 3000);
+      // Using smaller batch size and shorter timeouts
+      const batchProcessor = new BatchProcessor(30000, 3, 3, 2000);
       airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
     } catch (error) {
       console.error('Failed to initialize services:', error);
       throw new Error(`Service initialization failed: ${error.message}`);
     }
 
-    if (mode === 'update') {
-      // Get current progress if resuming
-      let currentProgress;
-      if (resumeToken) {
-        currentProgress = await syncManager.getCurrentProgress();
-        if (!currentProgress?.needs_continuation) {
-          throw new Error('Invalid resume token or no continuation needed');
-        }
+    // Get total count of airlines to process
+    const { data: missingPolicies, error: missingPoliciesError } = await supabase
+      .from('missing_pet_policies')
+      .select('id, iata_code, name');
+
+    if (missingPoliciesError) {
+      console.error('Failed to fetch missing policies:', missingPoliciesError);
+      throw missingPoliciesError;
+    }
+
+    const total = missingPolicies?.length || 0;
+    console.log(`Total airlines to process: ${total}`);
+
+    // Initialize progress if starting fresh
+    if (!resumeToken) {
+      await syncManager.initialize(total);
+    }
+
+    // Only process a limited number of airlines per invocation
+    const maxProcessingTime = 120000; // 120 seconds (leaving 30s buffer)
+    const startTime = Date.now();
+    let processedInThisInvocation = 0;
+    let currentOffset = offset;
+
+    while (currentOffset < total) {
+      // Check if we're approaching the timeout
+      if (Date.now() - startTime > maxProcessingTime) {
+        console.log('Approaching timeout limit, will continue in next invocation');
+        break;
       }
 
-      // Fetch missing policies with enhanced error handling
-      const { data: missingPolicies, error: missingPoliciesError } = await supabase
-        .from('missing_pet_policies')
-        .select('id, iata_code, name');
+      const batchSize = batchProcessor.getBatchSize();
+      const batch = missingPolicies!.slice(currentOffset, currentOffset + batchSize);
+      
+      if (batch.length === 0) break;
 
-      if (missingPoliciesError) {
-        console.error('Failed to fetch missing policies:', missingPoliciesError);
-        throw missingPoliciesError;
+      console.log(`Processing batch at offset ${currentOffset}`);
+      const batchResult = await airlineSyncService.processBatch(batch);
+      console.log('Batch result:', batchResult);
+
+      processedInThisInvocation += batch.length;
+      currentOffset += batch.length;
+
+      // Add delay between batches
+      if (currentOffset < total) {
+        await batchProcessor.delay(batchProcessor.getDelayBetweenBatches());
       }
-
-      const total = missingPolicies?.length || 0;
-      if (!resumeToken) {
-        await syncManager.initialize(total);
-      }
-      console.log(`${resumeToken ? 'Resuming' : 'Initialized'} sync progress with ${total} airlines to process`);
-
-      // Process airlines in batches with enhanced logging
-      for (let i = 0; i < (missingPolicies?.length || 0); i += batchProcessor.getBatchSize()) {
-        const batch = missingPolicies!.slice(i, i + batchProcessor.getBatchSize());
-        console.log(`Processing batch ${Math.floor(i/batchProcessor.getBatchSize()) + 1} of ${Math.ceil((missingPolicies?.length || 0)/batchProcessor.getBatchSize())}`);
-
-        const batchResult = await airlineSyncService.processBatch(batch);
-        console.log('Batch processing result:', batchResult);
-
-        if (i + batchProcessor.getBatchSize() < (missingPolicies?.length || 0)) {
-          console.log(`Waiting ${batchProcessor.getDelayBetweenBatches()}ms before next batch...`);
-          await batchProcessor.delay(batchProcessor.getDelayBetweenBatches());
-        }
-      }
-
-      const finalProgress = await syncManager.getCurrentProgress();
-      const isComplete = finalProgress.processed >= total;
-      await syncManager.updateProgress({
-        is_complete: isComplete,
-        needs_continuation: !isComplete
-      });
-
-    } else {
-      // Full sync mode with enhanced logging
-      await airlineSyncService.performFullSync();
     }
 
     const currentProgress = await syncManager.getCurrentProgress();
-    
+    const needsContinuation = currentOffset < total;
+
+    // Update progress
+    await syncManager.updateProgress({
+      processed: currentProgress.processed + processedInThisInvocation,
+      needs_continuation: needsContinuation,
+      is_complete: !needsContinuation,
+      last_processed: missingPolicies![currentOffset - 1]?.iata_code
+    });
+
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Airlines sync process completed successfully',
-        progress: currentProgress
+        message: needsContinuation ? 'Batch processed successfully, more remaining' : 'All airlines processed successfully',
+        progress: {
+          ...currentProgress,
+          processed: currentProgress.processed + processedInThisInvocation,
+          needs_continuation: needsContinuation,
+          next_offset: currentOffset
+        }
       }), 
       { 
         headers: { 
@@ -168,4 +174,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
