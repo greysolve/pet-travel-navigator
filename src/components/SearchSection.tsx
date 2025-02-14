@@ -1,6 +1,6 @@
-
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { useFlightSearch } from "./search/FlightSearchHandler";
@@ -18,8 +18,9 @@ import type { SearchSectionProps, SavedSearch } from "./search/types";
 import type { PetPolicy } from "./flight-results/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const { user } = useAuth();
-  const { handleFlightSearch, isLoading, searchCount, isPetCaddie, isProfileLoading } = useFlightSearch();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: profileLoading, initialized } = useProfile();
+  const { handleFlightSearch, isSearchLoading, searchCount, isPetCaddie } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   const {
@@ -37,6 +38,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setShouldSaveSearch,
     toast
   } = useFlightSearchState(user?.id);
+
+  const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
 
   const handleLoadSearch = (searchCriteria: SavedSearch['search_criteria']) => {
     console.log('Loading saved search:', searchCriteria);
@@ -171,7 +174,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     <div className="max-w-3xl mx-auto px-4 -mt-8">
       <div className={cn(
         "bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4",
-        isProfileLoading && "opacity-75"
+        isLoading && "opacity-75"
       )}>
         <SearchFormHeader
           user={user}
@@ -183,13 +186,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             e.stopPropagation();
             handleDeleteSearch(id);
           }}
-          isLoading={isProfileLoading}
+          isLoading={isLoading}
         />
 
         <AirlinePolicySearch 
           policySearch={policySearch}
           setPolicySearch={setPolicySearch}
-          isLoading={isProfileLoading}
+          isLoading={isLoading}
         />
         
         <SearchDivider />
@@ -199,7 +202,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           destination={destination}
           setOrigin={setOrigin}
           setDestination={setDestination}
-          isLoading={isProfileLoading}
+          isLoading={isLoading}
         />
 
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
@@ -207,20 +210,20 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
             <DateSelector 
               date={date} 
               setDate={setDate}
-              isLoading={isProfileLoading}
+              isLoading={isLoading}
             />
           </div>
           <SaveSearch
             shouldSaveSearch={shouldSaveSearch}
             setShouldSaveSearch={setShouldSaveSearch}
             user={user}
-            isProfileLoading={isProfileLoading}
+            isProfileLoading={isLoading}
           />
         </div>
 
         <SearchButton
           isLoading={isLoading}
-          isProfileLoading={isProfileLoading}
+          isProfileLoading={isLoading}
           onClick={handleSearch}
         />
       </div>

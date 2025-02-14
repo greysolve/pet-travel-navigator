@@ -1,13 +1,62 @@
 
 import { ExternalLink } from "lucide-react";
 import { JsonRenderer } from "@/components/ui/json-renderer";
+import { PremiumFeature } from "@/components/ui/premium-feature";
 import type { PetPolicy } from "./types";
 
 type PolicyDetailsProps = {
   policy?: PetPolicy;
 };
 
+type PremiumFieldValue = {
+  value: any;
+  isPremiumField: true;
+};
+
+const isPremiumField = (value: any): value is PremiumFieldValue => {
+  return value && typeof value === 'object' && 'isPremiumField' in value;
+};
+
+const renderPremiumField = (value: PremiumFieldValue, label?: string) => {
+  return (
+    <PremiumFeature title={label || ""}>
+      <div className="blur-sm select-none">
+        <JsonRenderer data={value.value} />
+      </div>
+    </PremiumFeature>
+  );
+};
+
+const renderValue = (value: any) => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? (
+      <ul className="list-disc list-inside">
+        {value.map((item, index) => (
+          <li key={index} className="text-gray-600">{item}</li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-gray-500 italic">None specified</p>
+    );
+  }
+  
+  if (typeof value === 'string') {
+    return <p className="text-gray-600">{value}</p>;
+  }
+  
+  return <JsonRenderer data={value} />;
+};
+
+const renderPolicyField = (value: any, label?: string) => {
+  if (isPremiumField(value)) {
+    return renderPremiumField(value, label);
+  }
+  return renderValue(value);
+};
+
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
+  console.log('Rendering policy:', policy);
+
   if (!policy) {
     return (
       <p className="text-sm text-gray-500 border-t pt-4">
@@ -18,10 +67,11 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
 
   return (
     <div className="text-sm space-y-4 border-t pt-4">
-      {policy.pet_types_allowed?.length > 0 && (
+      {/* Pet Types */}
+      {policy.pet_types_allowed && (
         <div>
           <p className="font-medium mb-2">Allowed pets:</p>
-          <JsonRenderer data={policy.pet_types_allowed} />
+          {renderValue(policy.pet_types_allowed)}
         </div>
       )}
 
@@ -29,37 +79,14 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.size_restrictions && (
         <div>
           <p className="font-medium mb-2">Size and Weight Restrictions:</p>
-          <JsonRenderer data={policy.size_restrictions} />
-        </div>
-      )}
-
-      {/* Carrier Requirements */}
-      {policy.carrier_requirements && (
-        <div>
-          <p className="font-medium mb-2">Carrier requirements:</p>
-          <JsonRenderer data={policy.carrier_requirements} />
-        </div>
-      )}
-
-      {policy.carrier_requirements_cabin && (
-        <div>
-          <p className="font-medium mb-2">Cabin carrier requirements:</p>
-          <JsonRenderer data={policy.carrier_requirements_cabin} />
-        </div>
-      )}
-
-      {policy.carrier_requirements_cargo && (
-        <div>
-          <p className="font-medium mb-2">Cargo carrier requirements:</p>
-          <JsonRenderer data={policy.carrier_requirements_cargo} />
-        </div>
-      )}
-
-      {/* Documentation */}
-      {policy.documentation_needed?.length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Required documentation:</p>
-          <JsonRenderer data={policy.documentation_needed} />
+          {Object.entries(policy.size_restrictions).map(([key, value]) => (
+            <div key={key} className="mb-2">
+              <p className="text-gray-600 capitalize mb-1">
+                {key.split('_').join(' ')}:
+              </p>
+              {renderPolicyField(value)}
+            </div>
+          ))}
         </div>
       )}
 
@@ -67,34 +94,87 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
       {policy.fees && Object.keys(policy.fees).length > 0 && (
         <div>
           <p className="font-medium mb-2">Fees:</p>
-          <JsonRenderer data={policy.fees} />
+          {Object.entries(policy.fees).map(([key, value]) => (
+            <div key={key} className="mb-2">
+              <p className="text-gray-600 capitalize mb-1">
+                {key.split('_').join(' ')}:
+              </p>
+              {renderPolicyField(value)}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Temperature and Breed Restrictions */}
+      {/* Documentation */}
+      {policy.documentation_needed && (
+        <div>
+          <p className="font-medium mb-2">Required Documentation:</p>
+          {renderValue(policy.documentation_needed)}
+        </div>
+      )}
+
+      {/* Breed Restrictions */}
+      {policy.breed_restrictions && (
+        <div>
+          <p className="font-medium mb-2">Breed Restrictions:</p>
+          {renderValue(policy.breed_restrictions)}
+        </div>
+      )}
+
+      {/* Carrier Requirements */}
+      {(policy.carrier_requirements || policy.carrier_requirements_cabin || policy.carrier_requirements_cargo) && (
+        <div>
+          <p className="font-medium mb-2">Carrier Requirements:</p>
+          {policy.carrier_requirements && (
+            <div className="mb-2">
+              {renderPolicyField(policy.carrier_requirements, "General Requirements")}
+            </div>
+          )}
+          {policy.carrier_requirements_cabin && (
+            <div className="mb-2">
+              <p className="text-gray-600 mb-1">For Cabin:</p>
+              {renderPolicyField(policy.carrier_requirements_cabin)}
+            </div>
+          )}
+          {policy.carrier_requirements_cargo && (
+            <div>
+              <p className="text-gray-600 mb-1">For Cargo:</p>
+              {renderPolicyField(policy.carrier_requirements_cargo)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Temperature Restrictions */}
       {policy.temperature_restrictions && (
         <div>
-          <p className="font-medium mb-2">Temperature restrictions:</p>
-          <JsonRenderer data={policy.temperature_restrictions} />
+          <p className="font-medium mb-2">Temperature Restrictions:</p>
+          {renderPolicyField(policy.temperature_restrictions)}
         </div>
       )}
 
-      {policy.breed_restrictions?.length > 0 && (
-        <div>
-          <p className="font-medium mb-2">Breed restrictions:</p>
-          <JsonRenderer data={policy.breed_restrictions} />
-        </div>
-      )}
-
+      {/* Policy URL */}
       {policy.policy_url && (
-        <a 
-          href={policy.policy_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center text-primary hover:text-primary/80 mt-2"
-        >
-          View full policy <ExternalLink className="h-4 w-4 ml-1" />
-        </a>
+        <div>
+          {isPremiumField(policy.policy_url) ? (
+            <PremiumFeature title="Full Policy">
+              <div className="blur-sm select-none">
+                <span className="inline-flex items-center text-primary">
+                  View full policy <ExternalLink className="h-4 w-4 ml-1" />
+                </span>
+              </div>
+            </PremiumFeature>
+          ) : (
+            <a 
+              href={policy.policy_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-primary hover:text-primary/80"
+            >
+              View full policy <ExternalLink className="h-4 w-4 ml-1" />
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

@@ -8,6 +8,11 @@ type JsonArray = JsonValue[];
 type JsonObject = { [key: string]: JsonValue };
 type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 
+type PremiumFieldValue = {
+  value: any;
+  isPremiumField: true;
+};
+
 // Type guards
 const isJsonObject = (value: JsonValue): value is JsonObject => {
   return value !== null && 
@@ -17,6 +22,13 @@ const isJsonObject = (value: JsonValue): value is JsonObject => {
 
 const isJsonArray = (value: JsonValue): value is JsonArray => {
   return Array.isArray(value);
+};
+
+const isPremiumField = (value: any): value is PremiumFieldValue => {
+  return value && 
+         typeof value === 'object' && 
+         'isPremiumField' in value && 
+         'value' in value;
 };
 
 interface JsonRendererProps {
@@ -32,6 +44,18 @@ export const JsonRenderer: React.FC<JsonRendererProps> = ({
   path = [],
   className
 }) => {
+  // Handle premium fields first
+  if (isPremiumField(data)) {
+    return (
+      <JsonRenderer 
+        data={data.value}
+        depth={depth}
+        path={path}
+        className={className}
+      />
+    );
+  }
+
   // Handle null/undefined
   if (data === null || data === undefined) {
     return (

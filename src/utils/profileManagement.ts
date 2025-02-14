@@ -1,101 +1,179 @@
+import { supabase } from "@/integrations/supabase/client";
+import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-import { supabase } from "@/lib/supabase";
-import { UserProfile } from "@/types/auth";
-import { toast } from "@/components/ui/use-toast";
-
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 1000;
-
-async function wait(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// Interface for the direct RPC response
+interface ProfileWithRoleResponse {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  notification_preferences: {
+    travel_alerts: boolean;
+    policy_changes: boolean;
+    documentation_reminders: boolean;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_line3: string | null;
+  locality: string | null;
+  administrative_area: string | null;
+  postal_code: string | null;
+  address_format: string | null;
+  country_id: string | null;
+  search_count: number;
+  plan: SubscriptionPlan | null;
+  userRole: string;
 }
 
-async function fetchProfileWithRetry(userId: string, retryCount = 0): Promise<UserProfile> {
+// Define the class without export keyword
+class ProfileError extends Error {
+  constructor(
+    message: string,
+    public readonly type: 'not_found' | 'network' | 'unknown'
+  ) {
+    super(message);
+    this.name = 'ProfileError';
+  }
+}
+
+// Helper to validate subscription plan
+const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
+  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
+  return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+};
+
+// Helper to validate notification preferences
+const validateNotificationPreferences = (preferences: unknown) => {
+  const defaultPreferences = {
+    travel_alerts: true,
+    policy_changes: true,
+    documentation_reminders: true
+  };
+
+  if (!preferences || typeof preferences !== 'object') {
+    return defaultPreferences;
+  }
+
+  const prefs = preferences as Record<string, unknown>;
+  
+  return {
+    travel_alerts: typeof prefs.travel_alerts === 'boolean' ? prefs.travel_alerts : defaultPreferences.travel_alerts,
+    policy_changes: typeof prefs.policy_changes === 'boolean' ? prefs.policy_changes : defaultPreferences.policy_changes,
+    documentation_reminders: typeof prefs.documentation_reminders === 'boolean' ? prefs.documentation_reminders : defaultPreferences.documentation_reminders
+  };
+};
+
+async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+  console.log('profileManagement - Starting update:', { userId, updates });
+
+  if (!userId) {
+    throw new ProfileError('User ID is required for profile update', 'not_found');
+  }
+
   try {
-    console.log(`Attempting to fetch profile for user ${userId}, attempt ${retryCount + 1}`);
+    // Filter out undefined values and prepare the update object
+    const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Remove id and userRole from updates as they shouldn't be modified
+    delete updateData.id;
+    delete updateData.userRole;
     
-    // First, get the user's role - this MUST exist
-    const { data: roleData, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-
-    if (roleError) {
-      console.error('Error fetching role:', roleError);
-      throw new Error('Failed to fetch user role');
-    }
-
-    if (!roleData) {
-      throw new Error('No role found for user');
-    }
-
-    // Then, get the profile data - this MUST exist
-    const { data: profileData, error: profileError } = await supabase
+    console.log('profileManagement - Sending update to Supabase:', updateData);
+    
+    const { error } = await supabase
       .from('profiles')
-      .select('*')
+      .update(updateData)
       .eq('id', userId)
       .single();
 
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
-      throw new Error('Failed to fetch user profile');
+    if (error) {
+      console.error('profileManagement - Supabase update error:', error);
+      throw new ProfileError(
+        error.message || 'Failed to update user profile',
+        error.code === 'PGRST116' ? 'not_found' : 'network'
+      );
     }
 
-    if (!profileData) {
-      throw new Error('No profile found for user');
+    console.log('profileManagement - Update successful, fetching updated profile');
+    // Fetch the updated profile
+    return await fetchProfile(userId);
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      throw error;
+    }
+    console.error('profileManagement - Unexpected error updating profile:', error);
+    throw new ProfileError('Unexpected error updating profile', 'unknown');
+  }
+}
+
+async function fetchProfile(userId: string): Promise<UserProfile> {
+  console.log('Fetching profile for user:', userId);
+  
+  try {
+    const { data, error } = await supabase.rpc('get_profile_with_role', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      throw new ProfileError('Failed to fetch user profile', 'network');
     }
 
-    // Log the raw data for debugging
-    console.log('Role data:', roleData);
-    console.log('Profile data:', profileData);
+    if (!data) {
+      console.error('No profile data returned');
+      throw new ProfileError('User profile not found', 'not_found');
+    }
 
-    // Create the user profile object - no optional chaining, no defaults
-    const userProfile: UserProfile = {
-      id: userId,
-      userRole: roleData.role,
-      created_at: profileData.created_at,
-      updated_at: profileData.updated_at,
-      full_name: profileData.full_name,
-      avatar_url: profileData.avatar_url,
-      address_line1: profileData.address_line1,
-      address_line2: profileData.address_line2,
-      address_line3: profileData.address_line3,
-      locality: profileData.locality,
-      administrative_area: profileData.administrative_area,
-      postal_code: profileData.postal_code,
-      country_id: profileData.country_id,
-      address_format: profileData.address_format,
-      plan: profileData.plan,
-      search_count: profileData.search_count,
-      notification_preferences: profileData.notification_preferences
+    // Type guard to verify the response structure
+    const isValidProfileResponse = (response: any): response is ProfileWithRoleResponse => {
+      return response 
+        && typeof response === 'object'
+        && 'id' in response
+        && 'userRole' in response;
     };
 
-    console.log('Mapped profile:', userProfile);
-    return userProfile;
-
-  } catch (error) {
-    if (retryCount < MAX_RETRIES) {
-      console.log('Retrying profile fetch...');
-      await wait(INITIAL_RETRY_DELAY * Math.pow(2, retryCount));
-      return fetchProfileWithRetry(userId, retryCount + 1);
+    if (!isValidProfileResponse(data)) {
+      console.error('Invalid response structure:', data);
+      throw new ProfileError('Invalid profile data structure', 'unknown');
     }
-    console.error('Error in fetchProfileWithRetry:', error);
-    throw error;
+
+    // Create the user profile object with direct value mapping
+    const userProfile: UserProfile = {
+      id: userId,
+      userRole: data.userRole as UserRole,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      full_name: data.full_name ?? undefined,
+      avatar_url: data.avatar_url ?? undefined,
+      address_line1: data.address_line1 ?? undefined,
+      address_line2: data.address_line2 ?? undefined,
+      address_line3: data.address_line3 ?? undefined,
+      locality: data.locality ?? undefined,
+      administrative_area: data.administrative_area ?? undefined,
+      postal_code: data.postal_code ?? undefined,
+      country_id: data.country_id ?? undefined,
+      address_format: data.address_format ?? undefined,
+      plan: validatePlan(data.plan),
+      search_count: data.search_count,
+      notification_preferences: validateNotificationPreferences(data.notification_preferences)
+    };
+
+    console.log('Successfully mapped profile:', userProfile);
+    return userProfile;
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      throw error;
+    }
+    console.error('Unexpected error in profile management:', error);
+    throw new ProfileError('Unexpected error fetching profile', 'unknown');
   }
 }
 
-export async function fetchOrCreateProfile(userId: string): Promise<UserProfile> {
-  try {
-    console.log('Starting fetchOrCreateProfile for user:', userId);
-    return await fetchProfileWithRetry(userId);
-  } catch (error) {
-    console.error('Error in profile management:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load user profile. Please try signing in again.",
-      variant: "destructive",
-    });
-    throw error; // Re-throw to be handled by the auth context
-  }
-}
+// Export everything once at the bottom
+export { ProfileError, fetchProfile, updateProfile };

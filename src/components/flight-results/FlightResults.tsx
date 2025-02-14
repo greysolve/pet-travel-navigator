@@ -46,6 +46,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   console.log("Rendering FlightResults with flights:", flights);
   console.log("Airline names mapping:", airlineNames);
+  console.log("Pet policies:", petPolicies);
   
   if (flights.length === 0) {
     return (
@@ -161,4 +162,3 @@ const calculateLayoverDuration = (arrivalTime: string, departureTime: string) =>
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
   return `${hours}h ${minutes}m`;
 };
-

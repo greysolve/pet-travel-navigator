@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
 interface FlightSearchProps {
@@ -13,23 +15,32 @@ interface FlightSearchProps {
 }
 
 export const useFlightSearch = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile, profileLoading } = useAuth();
+  const { user } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
 
   const checkSearchEligibility = () => {
-    if (!profile) return { eligible: false, message: "Profile not loaded" };
-    
-    const isPetCaddie = profile.userRole === 'pet_caddie';
-    const searchCount = profile.search_count ?? 0;
+    if (profileLoading || !user) {
+      return { eligible: true };
+    }
+
+    if (!profile && user) {
+      return {
+        eligible: false,
+        message: "Please wait while we load your profile."
+      };
+    }
+
+    const isPetCaddie = profile?.userRole === 'pet_caddie';
     
     console.log('Checking search eligibility:', {
-      userRole: profile.userRole,
-      searchCount,
+      userRole: profile?.userRole,
+      searchCount: profile?.search_count,
       isPetCaddie
     });
 
-    if (isPetCaddie && searchCount <= 0) {
+    if (isPetCaddie && profile?.search_count <= 0) {
       return {
         eligible: false,
         message: "You have no remaining searches. Please upgrade your plan to continue searching."
@@ -40,6 +51,11 @@ export const useFlightSearch = () => {
   };
 
   const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
+    if (!profile) {
+      console.log('Cannot record search without a profile');
+      return true;
+    }
+
     try {
       const { error: searchError } = await supabase
         .from('route_searches')
@@ -53,8 +69,7 @@ export const useFlightSearch = () => {
       if (searchError?.code === '23505') {
         console.log('Duplicate search detected');
         
-        // Show duplicate search warning only for pet_caddie users
-        if (profile?.userRole === 'pet_caddie') {
+        if (profile.userRole === 'pet_caddie') {
           toast({
             title: "Duplicate Search",
             description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
@@ -66,11 +81,11 @@ export const useFlightSearch = () => {
         console.error('Error recording search:', searchError);
         throw searchError;
       }
+
       return true;
     } catch (error: any) {
-      // Only throw if it's not a duplicate search error
       if (error?.code !== '23505') {
-        throw error;
+        console.error('Unexpected error recording search:', error);
       }
       return true;
     }
@@ -83,31 +98,12 @@ export const useFlightSearch = () => {
     onSearchResults,
     onSearchComplete,
   }: FlightSearchProps) => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to search for flights.",
-        variant: "destructive",
-      });
-      onSearchComplete();
-      return;
-    }
-
-    if (profileLoading) {
-      toast({
-        title: "Loading",
-        description: "Please wait while we load your profile.",
-      });
-      onSearchComplete();
-      return;
-    }
-
-    // Check search eligibility before proceeding
     const { eligible, message } = checkSearchEligibility();
+    
     if (!eligible) {
       console.log('Search blocked - not eligible:', message);
       toast({
-        title: "Search limit reached",
+        title: "Search unavailable",
         description: message,
         variant: "destructive",
       });
@@ -124,19 +120,19 @@ export const useFlightSearch = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSearchLoading(true);
     try {
       console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
       
-      // Record the search first - this will trigger the search_count update via database trigger
-      await recordSearch(
-        user.id,
-        origin,
-        destination,
-        date.toISOString().split('T')[0]
-      );
+      if (user) {
+        await recordSearch(
+          user.id,
+          origin,
+          destination,
+          date.toISOString().split('T')[0]
+        );
+      }
 
-      // Proceed with the flight search
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: { origin, destination, date: date.toISOString() }
       });
@@ -164,16 +160,23 @@ export const useFlightSearch = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSearchLoading(false);
       onSearchComplete();
     }
   };
 
-  return { 
-    handleFlightSearch, 
-    isLoading,
-    searchCount: profile?.search_count ?? 0,
-    isPetCaddie: profile?.userRole === 'pet_caddie',
-    isProfileLoading: profileLoading
+  const { searchCount, isPetCaddie } = profile ? {
+    searchCount: profile.search_count,
+    isPetCaddie: profile.userRole === 'pet_caddie'
+  } : {
+    searchCount: null,
+    isPetCaddie: false
+  };
+
+  return {
+    handleFlightSearch,
+    isSearchLoading,
+    searchCount,
+    isPetCaddie
   };
 };

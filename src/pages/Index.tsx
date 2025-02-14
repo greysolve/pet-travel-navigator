@@ -19,7 +19,7 @@ const Index = () => {
     setSearchPerformed(false);
     setFlights([]);
     setPetPolicies(undefined);
-  }, [user?.id]); // Use user.id as dependency to trigger on auth changes
+  }, [user?.id]);
 
   const handleSearchResults = (
     results: FlightData[], 

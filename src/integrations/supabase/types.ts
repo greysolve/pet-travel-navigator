@@ -438,6 +438,33 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_field_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          field_name: Database["public"]["Enums"]["premium_field_type"]
+          id: string
+          is_premium: boolean
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          field_name: Database["public"]["Enums"]["premium_field_type"]
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          field_name?: Database["public"]["Enums"]["premium_field_type"]
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_format: string | null
@@ -829,6 +856,12 @@ export type Database = {
           country: string
         }[]
       }
+      get_profile_with_role: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           user_id: string
@@ -869,6 +902,21 @@ export type Database = {
     Enums: {
       app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      premium_field_type:
+        | "carrier_requirements"
+        | "carrier_requirements_cabin"
+        | "carrier_requirements_cargo"
+        | "temperature_restrictions"
+        | "policy_url"
+        | "fees_cargo"
+        | "fees_in_cabin"
+        | "size_restrictions_cabin"
+        | "pet_types_allowed"
+        | "documentation_needed"
+        | "breed_restrictions"
+        | "size_restrictions_max_weight_cabin"
+        | "size_restrictions_max_weight_cargo"
+        | "size_restrictions_carrier_dimensions_cabin"
       subscription_plan: "free" | "premium" | "teams"
     }
     CompositeTypes: {

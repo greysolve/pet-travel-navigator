@@ -1,8 +1,7 @@
-
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { SyncProgressDB } from "../types/sync-types";
 import { SyncProgressRecord } from "@/types/sync";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
@@ -73,4 +72,3 @@ export const useSyncProgressSubscription = () => {
     };
   }, [queryClient]);
 };
-

@@ -2,7 +2,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
-import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { decorateWithPremiumFields } from "@/utils/policyDecorator";
+import { usePremiumFields } from "@/hooks/usePremiumFields";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
@@ -10,13 +12,15 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
 };
 
 export const usePetPolicies = (flights: FlightData[]) => {
-  const { profile } = useAuth();
-  const isPetCaddie = profile?.userRole === 'pet_caddie';
+  const { profile } = useProfile();
+  // If we have a profile, userRole is guaranteed to exist
+  const isPetCaddie = profile ? profile.userRole === 'pet_caddie' : false;
+  const { data: premiumFields = [] } = usePremiumFields();
 
   return useQuery({
     queryKey: ['petPolicies', flights.map(journey => 
       journey.segments?.map(segment => segment.carrierFsCode)
-    ).flat()],
+    ).flat(), premiumFields],
     queryFn: async () => {
       if (!flights.length) return {};
       
@@ -33,24 +37,6 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       if (!airlines?.length) return {};
 
-      if (isPetCaddie) {
-        const { data: summaries } = await supabase
-          .from('pet_policy_summaries')
-          .select('summary, airlines!inner(iata_code)')
-          .in('airline_id', airlines.map(a => a.id));
-
-        console.log("Found pet policy summaries:", summaries);
-
-        return summaries?.reduce((acc: Record<string, PetPolicy>, record: any) => {
-          const summary = record.summary;
-          acc[record.airlines.iata_code] = {
-            ...summary,
-            isSummary: true  // Mark as summary
-          };
-          return acc;
-        }, {}) || {};
-      }
-
       const { data: policies } = await supabase
         .from('pet_policies')
         .select('*, airlines!inner(iata_code)')
@@ -58,8 +44,10 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       console.log("Found pet policies:", policies);
 
-      return policies?.reduce((acc: Record<string, PetPolicy>, policy: any) => {
-        acc[policy.airlines.iata_code] = {
+      const decoratedPolicies: Record<string, PetPolicy> = {};
+      
+      for (const policy of policies || []) {
+        const policyData: Partial<PetPolicy> = {
           pet_types_allowed: policy.pet_types_allowed,
           carrier_requirements: policy.carrier_requirements,
           carrier_requirements_cabin: policy.carrier_requirements_cabin,
@@ -68,12 +56,16 @@ export const usePetPolicies = (flights: FlightData[]) => {
           temperature_restrictions: policy.temperature_restrictions,
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
-          size_restrictions: policy.size_restrictions,
-          fees: policy.fees,
-          isSummary: false  // Mark as full policy
+          size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
+          fees: policy.fees as PetPolicy['fees']
         };
-        return acc;
-      }, {}) || {};
+        
+        decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
+          ? decorateWithPremiumFields(policyData, premiumFields)
+          : policyData as PetPolicy;
+      }
+      
+      return decoratedPolicies;
     },
     enabled: flights.length > 0,
   });
@@ -110,3 +102,4 @@ export const useCountryPolicies = (countries: string[]) => {
     retryDelay: 2000,
   });
 };
+
