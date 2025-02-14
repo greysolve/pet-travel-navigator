@@ -26,9 +26,11 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Initialize service variables in outer scope
   let supabase;
   let syncManager;
   let airlineSyncService;
+  let batchProcessor;
 
   try {
     console.log('Starting sync_airline_data function...');
@@ -43,24 +45,20 @@ Deno.serve(async (req) => {
     const { mode = 'clear', resumeToken, offset = 0 } = requestBody;
     
     console.log('Starting airline sync process:', { mode, resumeToken, offset });
+
+    // Initialize Supabase client and services
+    const supabaseManager = new SupabaseClientManager();
+    supabase = await supabaseManager.initialize();
     
-    try {
-      const supabaseManager = new SupabaseClientManager();
-      supabase = await supabaseManager.initialize();
-      
-      syncManager = new SyncManager(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-        'airlines'
-      );
-      
-      // Using smaller batch size and shorter timeouts
-      const batchProcessor = new BatchProcessor(30000, 3, 3, 2000);
-      airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
-    } catch (error) {
-      console.error('Failed to initialize services:', error);
-      throw new Error(`Service initialization failed: ${error.message}`);
-    }
+    syncManager = new SyncManager(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      'airlines'
+    );
+    
+    // Initialize batch processor in outer scope
+    batchProcessor = new BatchProcessor(30000, 3, 3, 2000);
+    airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
 
     // Get total count of airlines to process
     const { data: missingPolicies, error: missingPoliciesError } = await supabase
@@ -75,9 +73,17 @@ Deno.serve(async (req) => {
     const total = missingPolicies?.length || 0;
     console.log(`Total airlines to process: ${total}`);
 
-    // Initialize progress if starting fresh
-    if (!resumeToken) {
+    // Get current progress or initialize if starting fresh
+    const currentProgress = await syncManager.getCurrentProgress();
+    
+    // Initialize progress only if:
+    // 1. No current progress exists OR
+    // 2. Not resuming and mode is 'clear'
+    if (!currentProgress || (!resumeToken && mode === 'clear')) {
+      console.log('Initializing new sync progress');
       await syncManager.initialize(total);
+    } else {
+      console.log('Resuming from previous progress:', currentProgress);
     }
 
     // Only process a limited number of airlines per invocation
@@ -85,6 +91,8 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     let processedInThisInvocation = 0;
     let currentOffset = offset;
+
+    console.log(`Starting processing from offset: ${currentOffset}`);
 
     while (currentOffset < total) {
       // Check if we're approaching the timeout
@@ -98,7 +106,7 @@ Deno.serve(async (req) => {
       
       if (batch.length === 0) break;
 
-      console.log(`Processing batch at offset ${currentOffset}`);
+      console.log(`Processing batch at offset ${currentOffset}, batch size: ${batch.length}`);
       const batchResult = await airlineSyncService.processBatch(batch);
       console.log('Batch result:', batchResult);
 
@@ -111,15 +119,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const currentProgress = await syncManager.getCurrentProgress();
+    // Get latest progress for the update
+    const latestProgress = await syncManager.getCurrentProgress();
     const needsContinuation = currentOffset < total;
+    const lastProcessed = missingPolicies![currentOffset - 1]?.iata_code;
+
+    console.log('Updating progress:', {
+      processed: latestProgress.processed + processedInThisInvocation,
+      needsContinuation,
+      lastProcessed,
+      currentOffset
+    });
 
     // Update progress
     await syncManager.updateProgress({
-      processed: currentProgress.processed + processedInThisInvocation,
+      processed: latestProgress.processed + processedInThisInvocation,
       needs_continuation: needsContinuation,
       is_complete: !needsContinuation,
-      last_processed: missingPolicies![currentOffset - 1]?.iata_code
+      last_processed: lastProcessed
     });
 
     return new Response(
@@ -127,10 +144,11 @@ Deno.serve(async (req) => {
         success: true,
         message: needsContinuation ? 'Batch processed successfully, more remaining' : 'All airlines processed successfully',
         progress: {
-          ...currentProgress,
-          processed: currentProgress.processed + processedInThisInvocation,
+          ...latestProgress,
+          processed: latestProgress.processed + processedInThisInvocation,
           needs_continuation: needsContinuation,
-          next_offset: currentOffset
+          next_offset: currentOffset,
+          last_processed: lastProcessed
         }
       }), 
       { 
