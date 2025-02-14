@@ -46,19 +46,48 @@ Deno.serve(async (req) => {
     
     console.log('Starting airline sync process:', { mode, resumeToken, offset });
 
-    // Initialize Supabase client and services
-    const supabaseManager = new SupabaseClientManager();
-    supabase = await supabaseManager.initialize();
-    
-    syncManager = new SyncManager(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      'airlines'
-    );
-    
-    // Initialize batch processor in outer scope
-    batchProcessor = new BatchProcessor(30000, 3, 3, 2000);
-    airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
+    // Initialize each service separately with detailed error handling
+    try {
+      const supabaseManager = new SupabaseClientManager();
+      supabase = await supabaseManager.initialize();
+      console.log('Supabase client initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Supabase client:', error);
+      throw new Error(`Supabase initialization failed: ${error.message}`);
+    }
+
+    try {
+      syncManager = new SyncManager(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        'airlines'
+      );
+      console.log('Sync manager initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Sync Manager:', error);
+      throw new Error(`Sync Manager initialization failed: ${error.message}`);
+    }
+
+    try {
+      console.log('Initializing BatchProcessor...');
+      batchProcessor = new BatchProcessor(30000, 3, 3, 2000);
+      console.log('BatchProcessor initialized successfully:', {
+        timeout: batchProcessor.getTimeout(),
+        batchSize: batchProcessor.getBatchSize(),
+        delay: batchProcessor.getDelayBetweenBatches()
+      });
+    } catch (error) {
+      console.error('Failed to initialize BatchProcessor:', error);
+      throw new Error(`BatchProcessor initialization failed: ${error.message}`);
+    }
+
+    try {
+      airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
+      console.log('Airline sync service initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize AirlineSyncService:', error);
+      throw new Error(`AirlineSyncService initialization failed: ${error.message}`);
+    }
 
     // Get total count of airlines to process
     const { data: missingPolicies, error: missingPoliciesError } = await supabase
@@ -84,6 +113,11 @@ Deno.serve(async (req) => {
       await syncManager.initialize(total);
     } else {
       console.log('Resuming from previous progress:', currentProgress);
+    }
+
+    // Add verification check for BatchProcessor before entering processing loop
+    if (!batchProcessor || typeof batchProcessor.getBatchSize !== 'function') {
+      throw new Error('BatchProcessor not properly initialized before processing loop');
     }
 
     // Only process a limited number of airlines per invocation
