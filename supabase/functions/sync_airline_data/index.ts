@@ -28,9 +28,9 @@ Deno.serve(async (req) => {
     } catch (error) {
       requestBody = { mode: 'clear' };
     }
-    const { mode = 'clear' } = requestBody;
+    const { mode = 'clear', resumeToken } = requestBody;
     
-    console.log('Starting airline sync process in mode:', mode);
+    console.log('Starting airline sync process in mode:', mode, 'resumeToken:', resumeToken);
     
     // Initialize dependencies
     const supabaseManager = new SupabaseClientManager();
@@ -42,13 +42,29 @@ Deno.serve(async (req) => {
       'airlines'
     );
     
-    const batchProcessor = new BatchProcessor();
+    const batchProcessor = new BatchProcessor(30000, 3, 5, 2000); // Adjusted timeouts and batch size
     airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
 
     if (mode === 'update') {
-      const { data: missingPolicies, error: missingPoliciesError } = await supabase
+      // Get current progress if resuming
+      let currentProgress;
+      if (resumeToken) {
+        currentProgress = await syncManager.getCurrentProgress();
+        if (!currentProgress?.needs_continuation) {
+          throw new Error('Invalid resume token or no continuation needed');
+        }
+      }
+
+      // Fetch missing policies, excluding already processed ones
+      const query = supabase
         .from('missing_pet_policies')
         .select('id, iata_code, name');
+
+      if (currentProgress?.processed_items?.length) {
+        query.not('iata_code', 'in', `(${currentProgress.processed_items.join(',')})`);
+      }
+
+      const { data: missingPolicies, error: missingPoliciesError } = await query;
 
       if (missingPoliciesError) {
         console.error('Failed to fetch missing policies:', missingPoliciesError);
@@ -56,15 +72,18 @@ Deno.serve(async (req) => {
       }
 
       const total = missingPolicies?.length || 0;
-      await syncManager.initialize(total);
-      console.log(`Initialized sync progress with ${total} airlines to process`);
+      if (!resumeToken) {
+        await syncManager.initialize(total);
+      }
+      console.log(`${resumeToken ? 'Resuming' : 'Initialized'} sync progress with ${total} airlines to process`);
 
       // Process airlines in batches
       for (let i = 0; i < (missingPolicies?.length || 0); i += batchProcessor.getBatchSize()) {
         const batch = missingPolicies!.slice(i, i + batchProcessor.getBatchSize());
         console.log(`Processing batch ${Math.floor(i/batchProcessor.getBatchSize()) + 1} of ${Math.ceil((missingPolicies?.length || 0)/batchProcessor.getBatchSize())}`);
 
-        await airlineSyncService.processBatch(batch);
+        const batchResult = await airlineSyncService.processBatch(batch);
+        console.log('Batch processing result:', batchResult);
 
         // Add delay between batches
         if (i + batchProcessor.getBatchSize() < (missingPolicies?.length || 0)) {
@@ -74,7 +93,7 @@ Deno.serve(async (req) => {
       }
 
       const finalProgress = await syncManager.getCurrentProgress();
-      const isComplete = finalProgress.processed + finalProgress.error_items.length >= total;
+      const isComplete = finalProgress.processed >= total;
       await syncManager.updateProgress({
         is_complete: isComplete,
         needs_continuation: !isComplete
@@ -85,10 +104,13 @@ Deno.serve(async (req) => {
       await airlineSyncService.performFullSync();
     }
 
+    const currentProgress = await syncManager.getCurrentProgress();
+    
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Airlines sync process started successfully'
+        message: 'Airlines sync process completed successfully',
+        progress: currentProgress
       }), 
       { 
         headers: { 
@@ -105,7 +127,10 @@ Deno.serve(async (req) => {
         await syncManager.updateProgress({
           error_items: ['sync_error'],
           needs_continuation: true,
-          is_complete: false
+          is_complete: false,
+          error_details: {
+            sync_error: error.message
+          }
         });
       }
     } catch (e) {
