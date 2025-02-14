@@ -20,11 +20,9 @@ Deno.serve(async (req) => {
     const { action, priceId, userId } = await req.json();
 
     if (action === 'import-plans') {
-      // Fetch all active products and their prices from Stripe
       const products = await stripe.products.list({ active: true });
       const prices = await stripe.prices.list({ active: true });
 
-      // Create a map of product IDs to their prices
       const productPrices = new Map();
       prices.data.forEach(price => {
         if (!productPrices.has(price.product)) {
@@ -33,7 +31,6 @@ Deno.serve(async (req) => {
         productPrices.get(price.product).push(price);
       });
 
-      // Process each product and its prices
       for (const product of products.data) {
         const prices = productPrices.get(product.id) || [];
         for (const price of prices) {
@@ -48,7 +45,6 @@ Deno.serve(async (req) => {
               []
           };
 
-          // Upsert the plan data
           const { error } = await supabaseClient
             .from('payment_plans')
             .upsert(
@@ -73,7 +69,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'create-subscription') {
-      // Get or create customer
       const { data: profiles } = await supabaseClient
         .from('profiles')
         .select('*')
@@ -99,7 +94,6 @@ Deno.serve(async (req) => {
         customerId = customer.id;
       }
 
-      // Create a checkout session
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [
