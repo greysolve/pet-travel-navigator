@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -187,5 +188,7 @@ function useToast() {
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }
+
+export type ToastFunction = typeof toast;
 
 export { useToast, toast }
