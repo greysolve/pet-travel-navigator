@@ -19,11 +19,15 @@ export class AirlineSyncService {
   private supabase;
   private syncManager;
   private batchProcessor;
+  private supabaseUrl: string;
+  private supabaseKey: string;
 
   constructor(supabase: any, syncManager: SyncManager, batchProcessor: BatchProcessor) {
     this.supabase = supabase;
     this.syncManager = syncManager;
     this.batchProcessor = batchProcessor;
+    this.supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    this.supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   }
 
   async processBatch(batch: AirlineSync[]) {
@@ -33,101 +37,47 @@ export class AirlineSyncService {
     const currentProgress = await this.syncManager.getCurrentProgress();
     
     try {
-      // Process each airline individually to prevent batch-wide failures
+      // Process the batch using analyze_batch_pet_policies
+      console.log('Calling analyze_batch_pet_policies with batch:', batch);
+      
+      // Make direct fetch call to the edge function with proper authorization
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ airlines: batch })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Batch analysis failed: ${response.status} - ${errorText}`);
+      }
+
+      const analysisResult = await response.json();
+      console.log('Batch analysis results:', analysisResult);
+
+      // Update progress based on results
       for (const airline of batch) {
-        try {
-          console.log(`Processing airline ${airline.name} (${airline.iata_code})`);
-          
-          // Check if this airline was already processed
-          if (currentProgress?.processed_items?.includes(airline.iata_code)) {
-            console.log(`Airline ${airline.iata_code} already processed, skipping`);
-            continue;
-          }
+        const result = analysisResult.results?.find((r: any) => r.iata_code === airline.iata_code);
+        const error = analysisResult.errors?.find((e: any) => e.iata_code === airline.iata_code);
 
-          // Call Perplexity API directly here instead of through another edge function
-          const response = await fetch('https://api.perplexity.ai/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get('PERPLEXITY_API_KEY')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama-3.1-sonar-small-128k-online',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are a helpful assistant that analyzes airline pet policies and returns the information in a structured format.'
-                },
-                {
-                  role: 'user',
-                  content: `Analyze the pet policy for ${airline.name} airline and return a JSON object with the following structure:
-                    {
-                      "pet_types_allowed": [],
-                      "size_restrictions": {
-                        "max_weight_cabin": null,
-                        "max_weight_cargo": null,
-                        "carrier_dimensions_cabin": null
-                      },
-                      "carrier_requirements_cabin": "",
-                      "carrier_requirements_cargo": "",
-                      "documentation_needed": [],
-                      "fees": {
-                        "in_cabin": null,
-                        "cargo": null
-                      },
-                      "temperature_restrictions": "",
-                      "breed_restrictions": []
-                    }`
-                }
-              ]
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error(`Perplexity API error: ${response.status}`);
-          }
-
-          const analysisData = await response.json();
-          const policyContent = analysisData.choices[0].message.content;
-          let policyData;
-          
-          try {
-            policyData = JSON.parse(policyContent);
-          } catch (parseError) {
-            console.error('Error parsing policy data:', parseError);
-            throw new Error('Failed to parse policy analysis results');
-          }
-
-          // Save the policy data
-          const { error: saveError } = await this.supabase
-            .from('pet_policies')
-            .upsert({
-              airline_id: airline.id,
-              ...policyData
-            }, {
-              onConflict: 'airline_id'
-            });
-
-          if (saveError) {
-            throw new Error(`Failed to save pet policy: ${saveError.message}`);
-          }
-
+        if (result) {
           results.push({ success: true, iata_code: airline.iata_code });
           await this.updateProgressForAirline(airline.iata_code, true);
-
-        } catch (error) {
-          console.error(`Error processing airline ${airline.name}:`, error);
+        } else if (error) {
           results.push({ 
             success: false, 
             iata_code: airline.iata_code,
-            error: error.message 
+            error: error.error 
           });
-          await this.updateProgressForAirline(airline.iata_code, false, error.message);
+          await this.updateProgressForAirline(airline.iata_code, false, error.error);
         }
-
-        // Add delay between individual airlines to prevent rate limiting
-        await this.batchProcessor.delay(2000);
       }
+
+      // Add delay between batches to prevent rate limiting
+      await this.batchProcessor.delay(this.batchProcessor.getDelayBetweenBatches());
 
       return { 
         success: results.some(r => r.success),
