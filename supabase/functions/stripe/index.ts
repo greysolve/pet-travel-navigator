@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -18,10 +19,15 @@ Deno.serve(async (req) => {
     );
 
     const { action, priceId, userId } = await req.json();
+    console.log('Processing action:', action);
 
     if (action === 'import-plans') {
+      console.log('Starting plan import process');
       const products = await stripe.products.list({ active: true });
+      console.log(`Found ${products.data.length} active products`);
+      
       const prices = await stripe.prices.list({ active: true });
+      console.log(`Found ${prices.data.length} active prices`);
 
       const productPrices = new Map();
       prices.data.forEach(price => {
@@ -31,36 +37,56 @@ Deno.serve(async (req) => {
         productPrices.get(price.product).push(price);
       });
 
+      let importedCount = 0;
       for (const product of products.data) {
         const prices = productPrices.get(product.id) || [];
+        console.log(`Processing product "${product.name}" with ${prices.length} prices`);
+        
         for (const price of prices) {
-          const planData = {
-            name: product.name,
-            description: product.description,
-            price: price.unit_amount ? price.unit_amount / 100 : 0,
-            currency: price.currency.toUpperCase(),
-            stripe_price_id: price.id,
-            features: product.metadata.features ? 
-              JSON.parse(product.metadata.features) : 
-              []
-          };
+          try {
+            const priceAmount = price.unit_amount ? price.unit_amount / 100 : 0;
+            console.log(`Processing price ${price.id} (${priceAmount} ${price.currency.toUpperCase()})`);
+            
+            const planData = {
+              name: `${product.name} (${priceAmount} ${price.currency.toUpperCase()})`,
+              description: product.description,
+              price: priceAmount,
+              currency: price.currency.toUpperCase(),
+              stripe_price_id: price.id,
+              features: product.metadata.features ? 
+                JSON.parse(product.metadata.features) : 
+                []
+            };
 
-          const { error } = await supabaseClient
-            .from('payment_plans')
-            .upsert(
-              planData,
-              { 
-                onConflict: 'stripe_price_id',
-                ignoreDuplicates: false
-              }
-            );
+            const { error } = await supabaseClient
+              .from('payment_plans')
+              .upsert(
+                planData,
+                { 
+                  onConflict: 'stripe_price_id',
+                  ignoreDuplicates: false
+                }
+              );
 
-          if (error) throw error;
+            if (error) {
+              console.error(`Error upserting plan for price ${price.id}:`, error);
+              continue;
+            }
+
+            importedCount++;
+          } catch (error) {
+            console.error(`Error processing price ${price.id}:`, error);
+            continue;
+          }
         }
       }
 
+      console.log(`Plan import completed. Successfully imported ${importedCount} plans`);
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ 
+          success: true, 
+          message: `Successfully imported ${importedCount} plans` 
+        }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -146,6 +172,7 @@ Deno.serve(async (req) => {
 
     throw new Error('Invalid action');
   } catch (error) {
+    console.error('Error in Stripe function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
