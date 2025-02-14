@@ -202,7 +202,7 @@ export const useSyncOperations = () => {
         return;
       }
 
-      // Handle other sync types with existing logic
+      // Handle other sync types with existing logic, now passing the mode parameter
       const functionMap: Record<keyof typeof SyncType, string> = {
         airlines: 'sync_airline_data',
         airports: 'sync_airport_data',
@@ -211,12 +211,19 @@ export const useSyncOperations = () => {
         countryPolicies: 'analyze_countries_policies'
       };
 
-      const { error } = await supabase.functions.invoke(functionMap[type]);
+      // Pass mode based on clearData state for non-special sync types
+      const syncMode = clearData[type] ? 'clear' : 'update';
+      console.log(`Invoking ${functionMap[type]} with mode: ${syncMode}`);
+      
+      const { error } = await supabase.functions.invoke(functionMap[type], {
+        body: { mode: syncMode }
+      });
+      
       if (error) throw error;
 
       toast({
         title: "Sync Started",
-        description: `Started synchronizing ${type} data${mode ? ` for ${mode}` : ''}.`,
+        description: `Started synchronizing ${type} data in ${syncMode} mode.`,
       });
 
       // Invalidate sync progress cache
@@ -243,3 +250,4 @@ export const useSyncOperations = () => {
     handleSync
   };
 };
+
