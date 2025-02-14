@@ -32,47 +32,58 @@ export class AirlineSyncService {
     const results: SyncResult[] = [];
     const currentProgress = await this.syncManager.getCurrentProgress();
     
-    // Process each airline individually to prevent batch-wide failures
-    for (const airline of batch) {
-      try {
-        console.log(`Processing airline ${airline.name} (${airline.iata_code})`);
-        
-        // Check if this airline was already processed
-        if (currentProgress?.processed_items?.includes(airline.iata_code)) {
-          console.log(`Airline ${airline.iata_code} already processed, skipping`);
-          continue;
+    try {
+      // Process the batch using analyze_batch_pet_policies
+      console.log('Calling analyze_batch_pet_policies with batch:', batch);
+      const { data: analysisResult, error: analysisError } = await this.supabase.functions.invoke(
+        'analyze_batch_pet_policies',
+        {
+          body: { airlines: batch }
         }
+      );
 
-        const policyData = await this.analyzePetPolicy(airline);
-        
-        if (policyData) {
-          await this.savePetPolicy(airline.id, policyData);
-          results.push({ success: true, iata_code: airline.iata_code });
-          
-          // Update progress after each successful airline
-          await this.updateProgressForAirline(airline.iata_code, true);
-        }
-      } catch (error) {
-        console.error(`Error processing airline ${airline.name}:`, error);
-        results.push({ 
-          success: false, 
-          iata_code: airline.iata_code,
-          error: error.message 
-        });
-        
-        // Update progress with error
-        await this.updateProgressForAirline(airline.iata_code, false, error.message);
+      if (analysisError) {
+        throw new Error(`Batch analysis failed: ${analysisError.message}`);
       }
 
-      // Add delay between individual airlines to prevent rate limiting
-      await this.batchProcessor.delay(1000);
-    }
+      console.log('Batch analysis results:', analysisResult);
 
-    return { 
-      success: results.some(r => r.success),
-      results: results.filter(r => r.success),
-      errors: results.filter(r => !r.success)
-    };
+      // Update progress based on results
+      for (const airline of batch) {
+        const result = analysisResult.results?.find(r => r.airline_id === airline.id);
+        const error = analysisResult.errors?.find(e => e.airline_id === airline.id);
+
+        if (result) {
+          results.push({ success: true, iata_code: airline.iata_code });
+          await this.updateProgressForAirline(airline.iata_code, true);
+        } else if (error) {
+          results.push({ 
+            success: false, 
+            iata_code: airline.iata_code,
+            error: error.error 
+          });
+          await this.updateProgressForAirline(airline.iata_code, false, error.error);
+        }
+      }
+
+      return { 
+        success: results.some(r => r.success),
+        results: results.filter(r => r.success),
+        errors: results.filter(r => !r.success)
+      };
+
+    } catch (error) {
+      console.error('Error processing batch:', error);
+      // Update progress with batch-wide error
+      for (const airline of batch) {
+        await this.updateProgressForAirline(
+          airline.iata_code, 
+          false, 
+          `Batch processing failed: ${error.message}`
+        );
+      }
+      throw error;
+    }
   }
 
   private async updateProgressForAirline(iataCode: string, success: boolean, errorMessage?: string) {
@@ -95,38 +106,6 @@ export class AirlineSyncService {
     }
 
     await this.syncManager.updateProgress(updates);
-  }
-
-  private async analyzePetPolicy(airline: AirlineSync) {
-    console.log(`Analyzing pet policy for ${airline.name}`);
-    
-    try {
-      const { data, error } = await this.supabase.rpc('analyze_airline_pet_policy', {
-        airline_id: airline.id,
-        airline_name: airline.name
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error(`Failed to analyze pet policy for ${airline.name}:`, error);
-      throw new Error(`Policy analysis failed: ${error.message}`);
-    }
-  }
-
-  private async savePetPolicy(airlineId: string, policyData: any) {
-    const { error } = await this.supabase
-      .from('pet_policies')
-      .upsert({
-        airline_id: airlineId,
-        ...policyData
-      }, {
-        onConflict: 'airline_id'
-      });
-
-    if (error) {
-      throw new Error(`Failed to save pet policy: ${error.message}`);
-    }
   }
 
   async performFullSync() {
