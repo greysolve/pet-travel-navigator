@@ -5,7 +5,7 @@ import { SaveSearch } from "../SaveSearch";
 import { useFlightSearch } from "../FlightSearchHandler";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "../../flight-results/types";
-import type { Toast } from "@/hooks/use-toast";
+import type { ToastFunction } from "@/hooks/use-toast";
 
 interface RouteSearchFormProps {
   origin: string;
@@ -20,7 +20,7 @@ interface RouteSearchFormProps {
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
   user: any;
-  toast: Toast;
+  toast: ToastFunction;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
   setFlights: (flights: FlightData[]) => void;
 }
