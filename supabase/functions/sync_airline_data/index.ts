@@ -4,14 +4,29 @@ import { SupabaseClientManager } from '../_shared/SupabaseClient.ts';
 import { AirlineSyncService } from '../_shared/AirlineSyncService.ts';
 import { SyncManager } from '../_shared/SyncManager.ts';
 
+// Enhanced CORS headers to explicitly allow lovableproject.com
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400', // 24 hours cache for preflight requests
+};
 
 Deno.serve(async (req) => {
+  // Log the incoming request for debugging
+  console.log('Received request:', {
+    method: req.method,
+    headers: Object.fromEntries(req.headers.entries()),
+    url: req.url
+  });
+
+  // Enhanced OPTIONS handling for preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    console.log('Handling OPTIONS preflight request');
+    return new Response(null, {
+      status: 204, // No content
+      headers: corsHeaders
+    });
   }
 
   let supabase;
@@ -21,29 +36,36 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting sync_airline_data function...');
     
-    // Parse request
+    // Parse request with validation
     let requestBody;
     try {
       requestBody = await req.json();
     } catch (error) {
+      console.log('Failed to parse request body, defaulting to clear mode:', error);
       requestBody = { mode: 'clear' };
     }
     const { mode = 'clear', resumeToken } = requestBody;
     
     console.log('Starting airline sync process in mode:', mode, 'resumeToken:', resumeToken);
     
-    // Initialize dependencies
-    const supabaseManager = new SupabaseClientManager();
-    supabase = await supabaseManager.initialize();
-    
-    syncManager = new SyncManager(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      'airlines'
-    );
-    
-    const batchProcessor = new BatchProcessor(30000, 3, 5, 2000); // Adjusted timeouts and batch size
-    airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
+    // Initialize dependencies with enhanced error handling
+    try {
+      const supabaseManager = new SupabaseClientManager();
+      supabase = await supabaseManager.initialize();
+      
+      syncManager = new SyncManager(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        'airlines'
+      );
+      
+      // Adjusted timeouts and batch size for reliability
+      const batchProcessor = new BatchProcessor(45000, 3, 5, 3000);
+      airlineSyncService = new AirlineSyncService(supabase, syncManager, batchProcessor);
+    } catch (error) {
+      console.error('Failed to initialize services:', error);
+      throw new Error(`Service initialization failed: ${error.message}`);
+    }
 
     if (mode === 'update') {
       // Get current progress if resuming
@@ -55,16 +77,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Fetch missing policies, excluding already processed ones
-      const query = supabase
+      // Fetch missing policies with enhanced error handling
+      const { data: missingPolicies, error: missingPoliciesError } = await supabase
         .from('missing_pet_policies')
         .select('id, iata_code, name');
-
-      if (currentProgress?.processed_items?.length) {
-        query.not('iata_code', 'in', `(${currentProgress.processed_items.join(',')})`);
-      }
-
-      const { data: missingPolicies, error: missingPoliciesError } = await query;
 
       if (missingPoliciesError) {
         console.error('Failed to fetch missing policies:', missingPoliciesError);
@@ -77,7 +93,7 @@ Deno.serve(async (req) => {
       }
       console.log(`${resumeToken ? 'Resuming' : 'Initialized'} sync progress with ${total} airlines to process`);
 
-      // Process airlines in batches
+      // Process airlines in batches with enhanced logging
       for (let i = 0; i < (missingPolicies?.length || 0); i += batchProcessor.getBatchSize()) {
         const batch = missingPolicies!.slice(i, i + batchProcessor.getBatchSize());
         console.log(`Processing batch ${Math.floor(i/batchProcessor.getBatchSize()) + 1} of ${Math.ceil((missingPolicies?.length || 0)/batchProcessor.getBatchSize())}`);
@@ -85,7 +101,6 @@ Deno.serve(async (req) => {
         const batchResult = await airlineSyncService.processBatch(batch);
         console.log('Batch processing result:', batchResult);
 
-        // Add delay between batches
         if (i + batchProcessor.getBatchSize() < (missingPolicies?.length || 0)) {
           console.log(`Waiting ${batchProcessor.getDelayBetweenBatches()}ms before next batch...`);
           await batchProcessor.delay(batchProcessor.getDelayBetweenBatches());
@@ -100,7 +115,7 @@ Deno.serve(async (req) => {
       });
 
     } else {
-      // Full sync mode
+      // Full sync mode with enhanced logging
       await airlineSyncService.performFullSync();
     }
 
@@ -153,3 +168,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

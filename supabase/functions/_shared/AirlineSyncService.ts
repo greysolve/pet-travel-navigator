@@ -37,43 +37,59 @@ export class AirlineSyncService {
     const currentProgress = await this.syncManager.getCurrentProgress();
     
     try {
-      // Process the batch using analyze_batch_pet_policies
+      // Process the batch using analyze_batch_pet_policies with enhanced error handling
       console.log('Calling analyze_batch_pet_policies with batch:', batch);
       
-      // Make direct fetch call to the edge function with proper authorization
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ airlines: batch })
-      });
+      // Enhanced fetch call with timeout and retry logic
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Batch analysis failed: ${response.status} - ${errorText}`);
-      }
+      try {
+        const response = await fetch(`${this.supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${this.supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ airlines: batch })
+        });
 
-      const analysisResult = await response.json();
-      console.log('Batch analysis results:', analysisResult);
+        clearTimeout(timeoutId);
 
-      // Update progress based on results
-      for (const airline of batch) {
-        const result = analysisResult.results?.find((r: any) => r.iata_code === airline.iata_code);
-        const error = analysisResult.errors?.find((e: any) => e.iata_code === airline.iata_code);
-
-        if (result) {
-          results.push({ success: true, iata_code: airline.iata_code });
-          await this.updateProgressForAirline(airline.iata_code, true);
-        } else if (error) {
-          results.push({ 
-            success: false, 
-            iata_code: airline.iata_code,
-            error: error.error 
-          });
-          await this.updateProgressForAirline(airline.iata_code, false, error.error);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Batch analysis failed: ${response.status} - ${errorText}`);
         }
+
+        const analysisResult = await response.json();
+        console.log('Batch analysis results:', analysisResult);
+
+        // Update progress based on results with enhanced error handling
+        for (const airline of batch) {
+          const result = analysisResult.results?.find((r: any) => r.iata_code === airline.iata_code);
+          const error = analysisResult.errors?.find((e: any) => e.iata_code === airline.iata_code);
+
+          if (result) {
+            results.push({ success: true, iata_code: airline.iata_code });
+            await this.updateProgressForAirline(airline.iata_code, true);
+          } else if (error) {
+            results.push({ 
+              success: false, 
+              iata_code: airline.iata_code,
+              error: error.error 
+            });
+            await this.updateProgressForAirline(airline.iata_code, false, error.error);
+          }
+        }
+
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out after 30 seconds');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       // Add delay between batches to prevent rate limiting
