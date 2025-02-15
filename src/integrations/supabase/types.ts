@@ -313,6 +313,7 @@ export type Database = {
           created_at: string | null
           currency: string | null
           description: string | null
+          environment: string
           features: Json | null
           id: string
           name: string
@@ -324,6 +325,7 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           description?: string | null
+          environment?: string
           features?: Json | null
           id?: string
           name: string
@@ -335,6 +337,7 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           description?: string | null
+          environment?: string
           features?: Json | null
           id?: string
           name?: string

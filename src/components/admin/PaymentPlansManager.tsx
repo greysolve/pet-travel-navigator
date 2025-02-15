@@ -26,6 +26,7 @@ interface PaymentPlan {
   features: any[] | null;
   created_at: string;
   updated_at: string;
+  environment: string;
 }
 
 export function PaymentPlansManager() {
@@ -48,6 +49,7 @@ export function PaymentPlansManager() {
       const { data, error } = await supabase
         .from("payment_plans")
         .select("*")
+        .eq('environment', isTestEnvironment ? 'test' : 'production')
         .order("price");
       if (error) throw error;
       return data as PaymentPlan[];
