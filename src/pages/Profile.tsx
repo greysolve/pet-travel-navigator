@@ -7,7 +7,6 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileForm } from "@/components/profile/ProfileForm";
-import { SubscriptionManager } from "@/components/profile/SubscriptionManager";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -80,8 +79,6 @@ const Profile = () => {
           userId={user.id}
           avatarUrl={profile.avatar_url}
         />
-
-        <SubscriptionManager userId={user.id} />
         
         <ProfileForm
           email={user.email || ""}
