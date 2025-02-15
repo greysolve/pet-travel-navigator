@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
@@ -13,7 +12,6 @@ import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 const AuthDialog = () => {
   const { user, signInWithEmail, signUp, signOut } = useAuth();
   const { profile } = useProfile();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -94,23 +92,14 @@ const AuthDialog = () => {
     setIsLoading(true);
     try {
       await signOut();
-      // Add a small delay before navigation
-      setTimeout(() => {
-        try {
-          navigate("/");
-        } catch (navError) {
-          console.error("Navigation error:", navError);
-          // Fallback to window.location if navigate fails
-          window.location.href = "/";
-        }
-      }, 100);
+      // Use window.location for a clean reload of the home page
+      window.location.href = "/";
     } catch (error: any) {
       toast({
         title: "Error signing out",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
