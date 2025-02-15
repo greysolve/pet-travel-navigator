@@ -149,12 +149,14 @@ export function SubscriptionManager({ userId }: { userId: string }) {
           <p className="text-sm mb-4">
             Searches remaining: {currentPlan.searchCount}
           </p>
-          <Button 
-            onClick={handleUpgrade}
-            className="w-[68.75%] -ml-[9.375%] bg-[#F97316] hover:bg-[#F97316]/90 text-white"
-          >
-            Upgrade Now
-          </Button>
+          <div className="flex justify-center">
+            <Button 
+              onClick={handleUpgrade}
+              className="w-[68.75%] bg-[#F97316] hover:bg-[#F97316]/90 text-white"
+            >
+              Upgrade Now
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
