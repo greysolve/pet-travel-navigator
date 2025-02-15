@@ -55,23 +55,27 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
     
     if (policySearch) {
-      await handlePolicySearch();
+      const policySearchFormRef = document.querySelector('[data-policy-search-form]');
+      if (policySearchFormRef) {
+        await handlePolicySearch();
+      }
     } else if (origin && destination && date) {
       await handleRouteSearch();
     }
   };
 
   const handlePolicySearch = async () => {
-    const policySearchForm = document.querySelector('[data-policy-search-form]');
-    if (policySearchForm) {
-      (policySearchForm as any).handlePolicySearch();
+    // Get reference to the PolicySearchForm component
+    const policySearchRef = document.querySelector('[data-policy-search-form]');
+    if (policySearchRef) {
+      await (policySearchRef as any).handlePolicySearch();
     }
   };
 
   const handleRouteSearch = async () => {
-    const routeSearchForm = document.querySelector('[data-route-search-form]');
-    if (routeSearchForm) {
-      (routeSearchForm as any).handleRouteSearch();
+    const routeSearchRef = document.querySelector('[data-route-search-form]');
+    if (routeSearchRef) {
+      await (routeSearchRef as any).handleRouteSearch();
     }
   };
 
@@ -111,6 +115,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           toast={toast}
           onSearchResults={onSearchResults}
           setFlights={setFlights}
+          onPolicySearch={handlePolicySearch}
         />
         
         <SearchDivider />

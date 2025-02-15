@@ -17,6 +17,7 @@ interface PolicySearchFormProps {
   toast: ToastFunction;
   onSearchResults: (flights: any[], policies?: Record<string, PetPolicy>) => void;
   setFlights: (flights: any[]) => void;
+  onPolicySearch: () => Promise<void>;
 }
 
 export const PolicySearchForm = ({
@@ -30,7 +31,8 @@ export const PolicySearchForm = ({
   user,
   toast,
   onSearchResults,
-  setFlights
+  setFlights,
+  onPolicySearch
 }: PolicySearchFormProps) => {
   const handlePolicySearch = async () => {
     console.log("Searching for airline policy:", policySearch);
