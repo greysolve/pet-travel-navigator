@@ -27,7 +27,7 @@ export const SearchFormHeader = ({
             <Button 
               variant="outline" 
               size="sm" 
-              className="text-primary" 
+              className="text-orange hover:text-orange border-orange hover:bg-orange/10" 
               asChild
             >
               <Link to="/pricing">
