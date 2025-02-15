@@ -4,8 +4,8 @@ export const TEST_STRIPE_PUBLISHABLE_KEY = "pk_test_51NqfHjElvVFKoCN6Lsnm2iuMMTy
 export const TEST_STRIPE_PRICING_TABLE_ID = "prctbl_1QsXnwElvVFKoCN6vbUHDEL5";
 
 // Production Mode Credentials (to be filled when ready for production)
-export const PROD_STRIPE_PUBLISHABLE_KEY = "";
-export const PROD_STRIPE_PRICING_TABLE_ID = "";
+export const PROD_STRIPE_PUBLISHABLE_KEY = "";  // Add your production publishable key here
+export const PROD_STRIPE_PRICING_TABLE_ID = ""; // Add your production pricing table ID here
 
 // Active credentials (switch these when moving to production)
 export const STRIPE_PUBLISHABLE_KEY = TEST_STRIPE_PUBLISHABLE_KEY;
@@ -13,3 +13,4 @@ export const STRIPE_PRICING_TABLE_ID = TEST_STRIPE_PRICING_TABLE_ID;
 
 // Environment helper
 export const isTestMode = () => STRIPE_PUBLISHABLE_KEY.startsWith('pk_test_');
+
