@@ -80,14 +80,14 @@ const Profile = () => {
           userId={user.id}
           avatarUrl={profile.avatar_url}
         />
+
+        <SubscriptionManager userId={user.id} />
         
         <ProfileForm
           email={user.email || ""}
           initialData={formData}
           onSubmit={handleProfileUpdate}
         />
-
-        <SubscriptionManager userId={user.id} />
 
         <Card>
           <CardContent className="pt-6">
