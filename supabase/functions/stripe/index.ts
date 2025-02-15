@@ -3,9 +3,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-});
+// Function to get the appropriate Stripe instance based on environment
+const getStripeInstance = (environment: 'test' | 'production') => {
+  const secretKey = environment === 'test' 
+    ? Deno.env.get('STRIPE_TEST_SECRET_KEY')
+    : Deno.env.get('STRIPE_PROD_SECRET_KEY');
+    
+  if (!secretKey) {
+    throw new Error(`Stripe secret key not found for ${environment} environment`);
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: '2023-10-16',
+  });
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,11 +29,14 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { action, priceId, userId } = await req.json();
-    console.log('Processing action:', action);
+    const { action, priceId, userId, environment = 'test' } = await req.json();
+    console.log('Processing action:', action, 'in environment:', environment);
+
+    // Get the appropriate Stripe instance
+    const stripe = getStripeInstance(environment);
 
     if (action === 'import-plans') {
-      console.log('Starting plan import process');
+      console.log(`Starting plan import process for ${environment} environment`);
       const products = await stripe.products.list({ active: true });
       console.log(`Found ${products.data.length} active products`);
       
@@ -55,7 +69,8 @@ Deno.serve(async (req) => {
               stripe_price_id: price.id,
               features: product.metadata.features ? 
                 JSON.parse(product.metadata.features) : 
-                []
+                [],
+              environment: environment
             };
 
             const { error } = await supabaseClient
