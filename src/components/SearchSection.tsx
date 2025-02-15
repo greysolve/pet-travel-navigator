@@ -1,5 +1,6 @@
 
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
@@ -14,6 +15,7 @@ import { PolicySearchForm } from "./search/forms/PolicySearchForm";
 import { RouteSearchForm } from "./search/forms/RouteSearchForm";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
 import type { SearchSectionProps } from "./search/types";
+import type { PetPolicy } from "./flight-results/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
@@ -62,7 +64,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handlePolicySearch = async () => {
-    // Get reference to the PolicySearchForm component
     const { data: airline, error: airlineError } = await supabase
       .from('airlines')
       .select('id')
