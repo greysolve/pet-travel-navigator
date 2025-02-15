@@ -149,7 +149,12 @@ export function SubscriptionManager({ userId }: { userId: string }) {
           <p className="text-sm mb-4">
             Searches remaining: {currentPlan.searchCount}
           </p>
-          <Button onClick={handleUpgrade}>Upgrade Now</Button>
+          <Button 
+            onClick={handleUpgrade}
+            className="w-[125%] -ml-[12.5%] bg-[#F97316] hover:bg-[#F97316]/90 text-white"
+          >
+            Upgrade Now
+          </Button>
         </CardContent>
       </Card>
     );
