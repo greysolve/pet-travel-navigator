@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
@@ -66,14 +67,19 @@ const validateNotificationPreferences = (preferences: unknown) => {
 
 async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
   console.log('profileManagement - Starting update:', { userId, updates });
+  console.log('profileManagement - Raw updates object:', JSON.stringify(updates, null, 2));
 
   if (!userId) {
     throw new ProfileError('User ID is required for profile update', 'not_found');
   }
 
   try {
+    // Log entries before transformation
+    console.log('profileManagement - Update entries before transformation:', Object.entries(updates));
+
     // Filter out undefined values and prepare the update object
     const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
+      console.log('profileManagement - Processing key:', key, 'with value:', value);
       if (value !== undefined) {
         acc[key] = value;
       }
@@ -84,7 +90,7 @@ async function updateProfile(userId: string, updates: Partial<UserProfile>): Pro
     delete updateData.id;
     delete updateData.userRole;
     
-    console.log('profileManagement - Sending update to Supabase:', updateData);
+    console.log('profileManagement - Final updateData being sent to Supabase:', updateData);
     
     const { error } = await supabase
       .from('profiles')
@@ -177,3 +183,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 
 // Export everything once at the bottom
 export { ProfileError, fetchProfile, updateProfile };
+
