@@ -22,23 +22,40 @@ export function SubscriptionManager({ userId }: { userId: string }) {
   const { data: currentPlan } = useQuery({
     queryKey: ['profile-plan'],
     queryFn: async () => {
+      // First get the user's profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('plan, search_count')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
-      if (!profile?.plan) return null;
+      if (!profile) return null;
 
-      const { data: planDetails } = await supabase
-        .from('payment_plans')
-        .select('*')
-        .eq('name', profile.plan)
-        .single();
+      // If user has a plan, find it in payment_plans
+      if (profile.plan) {
+        const { data: plans } = await supabase
+          .from('payment_plans')
+          .select('*')
+          .ilike('name', `%${profile.plan}%`);
 
+        const planDetails = plans?.[0];
+        if (planDetails) {
+          return {
+            ...planDetails,
+            searchCount: profile.search_count,
+            features: Array.isArray(planDetails.features) ? planDetails.features : []
+          };
+        }
+      }
+
+      // Return basic free plan info if no paid plan found
       return {
-        ...planDetails,
-        searchCount: profile.search_count
+        name: "Free Plan",
+        description: null,
+        price: 0,
+        currency: "USD",
+        features: [],
+        searchCount: profile.search_count ?? 5
       };
     },
   });
@@ -74,7 +91,24 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     window.location.href = '/pricing';
   };
 
+  // Show loading state while query is running
   if (!currentPlan) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Subscription</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Free plan view
+  if (currentPlan.price === 0) {
     return (
       <Card>
         <CardHeader>
@@ -85,7 +119,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
             You're currently on the free plan. Upgrade to access premium features!
           </p>
           <p className="text-sm mb-4">
-            Searches remaining: {currentPlan?.searchCount ?? 5}
+            Searches remaining: {currentPlan.searchCount}
           </p>
           <Button onClick={handleUpgrade}>Upgrade Now</Button>
         </CardContent>
@@ -93,6 +127,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
+  // Paid plan view
   return (
     <Card>
       <CardHeader>
@@ -110,7 +145,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
             {currentPlan.price} {currentPlan.currency}
           </div>
 
-          {currentPlan.features && currentPlan.features.length > 0 && (
+          {currentPlan.features.length > 0 && (
             <div className="space-y-2">
               <p className="font-medium">Features:</p>
               <ul className="list-disc list-inside space-y-1">
