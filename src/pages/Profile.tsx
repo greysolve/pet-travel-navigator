@@ -7,6 +7,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { SubscriptionManager } from "@/components/profile/SubscriptionManager";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -85,6 +86,8 @@ const Profile = () => {
           initialData={formData}
           onSubmit={handleProfileUpdate}
         />
+
+        <SubscriptionManager userId={user.id} />
 
         <Card>
           <CardContent className="pt-6">
