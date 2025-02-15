@@ -1,8 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { isTestMode } from "@/config/stripe";
 import {
   Table,
   TableBody,
@@ -12,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface PaymentPlan {
   id: string;
@@ -28,10 +31,19 @@ interface PaymentPlan {
 export function PaymentPlansManager() {
   const { toast } = useToast();
   const [isImporting, setIsImporting] = useState(false);
+  const [isTestEnvironment, setIsTestEnvironment] = useState(() => {
+    // Initialize based on current Stripe configuration
+    return isTestMode();
+  });
+
+  // Store environment preference
+  useEffect(() => {
+    localStorage.setItem('stripe-environment', isTestEnvironment ? 'test' : 'production');
+  }, [isTestEnvironment]);
 
   // Fetch existing payment plans
   const { data: plans, refetch: refetchPlans } = useQuery({
-    queryKey: ["payment-plans"],
+    queryKey: ["payment-plans", isTestEnvironment],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("payment_plans")
@@ -47,7 +59,10 @@ export function PaymentPlansManager() {
     try {
       setIsImporting(true);
       const { error } = await supabase.functions.invoke("stripe", {
-        body: { action: "import-plans" },
+        body: { 
+          action: "import-plans",
+          environment: isTestEnvironment ? 'test' : 'production'
+        },
       });
       
       if (error) throw error;
@@ -72,13 +87,30 @@ export function PaymentPlansManager() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Payment Plans</h2>
-        <Button
-          onClick={importStripePlans}
-          disabled={isImporting}
-        >
-          {isImporting ? "Importing..." : "Import from Stripe"}
-        </Button>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold">Payment Plans</h2>
+          <Badge variant={isTestEnvironment ? "secondary" : "default"}>
+            {isTestEnvironment ? "Test Mode" : "Production Mode"}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={isTestEnvironment}
+              onCheckedChange={setIsTestEnvironment}
+              aria-label="Toggle Stripe environment"
+            />
+            <span className="text-sm text-muted-foreground">
+              Test Mode
+            </span>
+          </div>
+          <Button
+            onClick={importStripePlans}
+            disabled={isImporting}
+          >
+            {isImporting ? "Importing..." : "Import from Stripe"}
+          </Button>
+        </div>
       </div>
 
       <Table>
