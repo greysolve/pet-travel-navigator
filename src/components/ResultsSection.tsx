@@ -47,7 +47,7 @@ export const ResultsSection = ({
     
     return (
       <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 text-left">
           <h2 className="text-xl font-semibold mb-4">
             Pet Policy {policy.isSummary ? "Summary" : ""} for {airlineName}
           </h2>
@@ -59,7 +59,7 @@ export const ResultsSection = ({
 
   return (
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
-      <div className="space-y-8">
+      <div className="space-y-8 text-left">
         {flights.length > 0 && (
           <FlightResults 
             flights={flights} 
@@ -82,7 +82,7 @@ export const ResultsSection = ({
                   </div>
                 ))
               ) : (
-                <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+                <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
                   {isCountryPoliciesLoading ? (
                     <div className="space-y-4">
                       <Skeleton className="h-4 w-3/4" />
@@ -95,12 +95,12 @@ export const ResultsSection = ({
                 </div>
               )
             ) : (
-              <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+              <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
                 <p className="text-gray-500">No countries found in search results.</p>
               </div>
             )
           ) : (
-            <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+            <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
               <p className="text-gray-500">Please perform a search to view country policies.</p>
             </div>
           )}
