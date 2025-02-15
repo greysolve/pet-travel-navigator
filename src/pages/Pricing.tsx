@@ -11,13 +11,28 @@ const Pricing = () => {
   useEffect(() => {
     // Load and initialize the Stripe Pricing Table
     const initPricingTable = async () => {
-      await loadStripe(STRIPE_PUBLISHABLE_KEY);
+      try {
+        await loadStripe(STRIPE_PUBLISHABLE_KEY);
 
-      // Load the pricing table script
-      const script = document.createElement('script');
-      script.src = 'https://js.stripe.com/v3/pricing-table.js';
-      script.async = true;
-      document.body.appendChild(script);
+        // Remove any existing pricing table script to prevent duplicates
+        const existingScript = document.querySelector('script[src*="pricing-table.js"]');
+        if (existingScript) {
+          existingScript.remove();
+        }
+
+        // Load the pricing table script
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/pricing-table.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        // Verify the script loads correctly
+        script.onerror = () => {
+          console.error('Failed to load Stripe Pricing Table script');
+        };
+      } catch (error) {
+        console.error('Error initializing Stripe:', error);
+      }
     };
 
     initPricingTable();
