@@ -94,7 +94,17 @@ const AuthDialog = () => {
     setIsLoading(true);
     try {
       await signOut();
-      navigate("/");
+      // Add a slight delay to ensure auth state is updated before navigation
+      setTimeout(() => {
+        // Use a try-catch block for the navigation
+        try {
+          navigate("/");
+        } catch (navError) {
+          console.error("Navigation error:", navError);
+          // Fallback to window.location if navigate fails
+          window.location.href = "/";
+        }
+      }, 100);
     } catch (error: any) {
       toast({
         title: "Error signing out",
