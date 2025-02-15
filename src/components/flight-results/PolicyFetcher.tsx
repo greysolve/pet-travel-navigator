@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "./types";
@@ -67,6 +66,9 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         : policyData as PetPolicy;
     },
     enabled: !!airlineName,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 2,
   });
 };
 
@@ -161,4 +163,3 @@ export const useCountryPolicies = (countries: string[]) => {
     retryDelay: 2000,
   });
 };
-
