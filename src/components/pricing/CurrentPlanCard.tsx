@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlanDetails } from "@/hooks/use-current-plan";
+import { stripeApi } from "@/utils/stripeApi";
 
 interface CurrentPlanCardProps {
   plan: PlanDetails;
@@ -18,20 +19,10 @@ export const CurrentPlanCard = ({ plan, userId }: CurrentPlanCardProps) => {
   const handleManageSubscription = async () => {
     try {
       setIsManagingSubscription(true);
-      const response = await fetch('/api/stripe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'portal',
-          userId
-        }),
-      });
-
-      const { url, error } = await response.json();
-      if (error) throw new Error(error);
-      
+      const { url } = await stripeApi.redirectToCustomerPortal(userId);
       window.location.href = url;
     } catch (error) {
+      console.error('Error accessing subscription portal:', error);
       toast({
         title: "Error",
         description: "Failed to access subscription portal. Please try again.",

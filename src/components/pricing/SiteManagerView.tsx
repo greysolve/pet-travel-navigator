@@ -1,25 +1,61 @@
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { stripeApi } from "@/utils/stripeApi";
 
 export const SiteManagerView = () => {
+  const { toast } = useToast();
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportPlans = async () => {
+    try {
+      setIsImporting(true);
+      const result = await stripeApi.importPlans();
+      
+      toast({
+        title: "Success",
+        description: result.message,
+      });
+    } catch (error) {
+      console.error('Error importing plans:', error);
+      toast({
+        title: "Error",
+        description: "Failed to import plans. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Site Manager Account</CardTitle>
+        <CardTitle>Payment Plans Management</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          You have full access to all features as a site manager.
-        </p>
         <div className="space-y-4">
-          <div className="text-sm">
-            <p className="font-medium mb-2">Features include:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Unlimited searches</li>
-              <li>Access to all premium features</li>
-              <li>Site administration tools</li>
-            </ul>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            As a site manager, you can import and manage payment plans from Stripe.
+          </p>
+          
+          <Button 
+            onClick={handleImportPlans} 
+            disabled={isImporting}
+            className="w-full"
+          >
+            {isImporting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Importing Plans...
+              </>
+            ) : (
+              'Import Plans from Stripe'
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>

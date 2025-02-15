@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 import { STRIPE_PUBLISHABLE_KEY, STRIPE_PRICING_TABLE_ID } from "@/config/stripe";
+import { stripeApi } from "@/utils/stripeApi";
 
 interface PricingTableProps {
   userId?: string;
