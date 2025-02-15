@@ -4,6 +4,9 @@ import { FlightResults } from "./flight-results/FlightResults";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
 import { PolicyDetails } from "./flight-results/PolicyDetails";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useProfile } from "@/contexts/ProfileContext";
+import { usePremiumFields } from "@/hooks/usePremiumFields";
+import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import type { FlightData, PetPolicy } from "./flight-results/types";
 
 export const ResultsSection = ({ 
@@ -15,6 +18,9 @@ export const ResultsSection = ({
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
 }) => {
+  const { profile } = useProfile();
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
+  const { data: premiumFields = [] } = usePremiumFields();
   const { data: flightPetPolicies, isLoading: isPoliciesLoading } = usePetPolicies(flights);
   
   // Get unique countries from flights if available
@@ -43,7 +49,11 @@ export const ResultsSection = ({
   // If we have a direct airline policy search result
   if (flights.length === 0 && petPolicies) {
     const airlineName = Object.keys(petPolicies)[0];
-    const policy = petPolicies[airlineName];
+    const rawPolicy = petPolicies[airlineName];
+    // Apply premium field decoration if user is pet_caddie
+    const policy = isPetCaddie 
+      ? decorateWithPremiumFields(rawPolicy, premiumFields)
+      : rawPolicy;
     
     return (
       <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
