@@ -33,11 +33,19 @@ export const useCurrentPlan = (userId: string | undefined) => {
 
         const planDetails = plans?.[0];
         if (planDetails) {
+          // Convert features to string array, handling potential non-string values
+          const features = Array.isArray(planDetails.features) 
+            ? planDetails.features.map(feature => String(feature))
+            : [];
+
           return {
-            ...planDetails,
-            searchCount: profile.search_count,
-            features: Array.isArray(planDetails.features) ? planDetails.features : []
-          };
+            name: planDetails.name,
+            description: planDetails.description,
+            price: planDetails.price,
+            currency: planDetails.currency || 'USD',
+            features,
+            searchCount: profile.search_count
+          } satisfies PlanDetails;
         }
       }
 
@@ -48,7 +56,7 @@ export const useCurrentPlan = (userId: string | undefined) => {
         currency: "USD",
         features: [],
         searchCount: profile.search_count ?? 5
-      };
+      } satisfies PlanDetails;
     },
     enabled: !!userId
   });
