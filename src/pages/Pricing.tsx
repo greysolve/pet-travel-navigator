@@ -11,13 +11,7 @@ const Pricing = () => {
   useEffect(() => {
     // Load and initialize the Stripe Pricing Table
     const initPricingTable = async () => {
-      const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
-      const prices = stripe?.prices;
-      
-      if (!prices) {
-        console.error('Failed to load Stripe Pricing Table');
-        return;
-      }
+      await loadStripe(STRIPE_PUBLISHABLE_KEY);
 
       // Load the pricing table script
       const script = document.createElement('script');
