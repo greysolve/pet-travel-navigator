@@ -4,7 +4,6 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
 import { toast } from '@/components/ui/use-toast';
-import { useNavigate } from 'react-router-dom';
 
 interface AuthState {
   session: Session | null;
@@ -95,8 +94,10 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Add the validateSession function
 async function validateSession(session: Session): Promise<boolean> {
   try {
+    // Check if the session token is valid by making a test request
     const { error } = await supabase.auth.getUser(session.access_token);
     if (error) {
       console.error('Session validation failed:', error);
@@ -114,14 +115,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authOperations = useAuthOperations();
   const mounted = useRef(true);
   const abortController = useRef<AbortController | null>(null);
-  const navigate = useNavigate();
 
+  // Safe dispatch function
   const safeDispatch = (action: AuthAction) => {
     if (mounted.current) {
       dispatch(action);
     }
   };
 
+  // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
       abortController.current = new AbortController();
@@ -142,7 +144,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('Invalid session detected, signing out');
             await supabase.auth.signOut();
             safeDispatch({ type: 'SIGN_OUT' });
-            navigate('/');
             return;
           }
           
@@ -174,8 +175,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted.current = false;
       abortController.current?.abort();
     };
-  }, [navigate]);
+  }, []);
 
+  // Handle auth state changes
   useEffect(() => {
     if (state.isRestoring) {
       console.log('Not setting up auth listener during restoration');
@@ -188,7 +190,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (event === 'SIGNED_OUT') {
         safeDispatch({ type: 'SIGN_OUT' });
-        navigate('/');
         return;
       }
 
@@ -198,7 +199,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Invalid session in auth change, signing out');
           await supabase.auth.signOut();
           safeDispatch({ type: 'SIGN_OUT' });
-          navigate('/');
           return;
         }
 
@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Cleaning up auth state change listener');
       subscription.unsubscribe();
     };
-  }, [state.isRestoring, navigate]);
+  }, [state.isRestoring]);
 
   return (
     <AuthContext.Provider
