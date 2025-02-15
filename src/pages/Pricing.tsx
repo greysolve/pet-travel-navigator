@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/contexts/ProfileContext";
 
-const STRIPE_PUBLISHABLE_KEY = "pk_test_51Oq5wVF97qwKzYXUqsxEcBj8QMBXWEQcfKHxbqVEFcLuXFQlqHEMXXdMHIOq4JMJ6C0wFpxHJWwTjLu7DT3BvqP000VCKFAQkr";
+const STRIPE_PUBLISHABLE_KEY = "pk_test_51NqfHjElvVFKoCN6Lsnm2iuMMTySB71zpLvlMI6IlqfDG4aMJAFCbEccoGZERXUD5W1BD8YdmNTefLDUcwk869hY00qbXJV9Rl";
 
 interface PlanDetails {
   name: string;
@@ -264,7 +263,7 @@ const Pricing = () => {
 
       {/* Stripe Pricing Table */}
       <stripe-pricing-table
-        pricing-table-id="prctbl_1Oq5wVF97qwKzYXUqsxEcBj8QMBXWEQcfKHxbqVEFcLuXFQlqHEMXXdMHIOq4JMJ6C0wFpxHJWwTjLu7DT3BvqP000VCKFAQkr"
+        pricing-table-id="prctbl_1QsXnwElvVFKoCN6vbUHDEL5"
         publishable-key={STRIPE_PUBLISHABLE_KEY}
         client-reference-id={session?.user?.id}
       />
