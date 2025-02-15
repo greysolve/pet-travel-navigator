@@ -130,6 +130,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       p_user_id: userId
     });
 
+    console.log('fetchProfile - Raw data from RPC:', data);
+
     if (error) {
       console.error('Error fetching profile:', error);
       throw new ProfileError('Failed to fetch user profile', 'network');
@@ -153,6 +155,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('Invalid profile data structure', 'unknown');
     }
 
+    console.log('fetchProfile - Validated profile response:', data);
+
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
       id: userId,
@@ -174,6 +178,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
+    console.log('fetchProfile - Mapped profile data:', userProfile);
     console.log('Successfully mapped profile:', userProfile);
     return userProfile;
   } catch (error) {

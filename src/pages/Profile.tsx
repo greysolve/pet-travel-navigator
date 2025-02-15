@@ -24,8 +24,9 @@ const Profile = () => {
   });
 
   useEffect(() => {
+    console.log('Profile - Received profile from context:', profile);
     if (profile) {
-      setFormData({
+      const newFormData = {
         fullName: profile.full_name || "",
         addressLine1: profile.address_line1 || "",
         addressLine2: profile.address_line2 || "",
@@ -34,7 +35,10 @@ const Profile = () => {
         administrativeArea: profile.administrative_area || "",
         postalCode: profile.postal_code || "",
         selectedCountryId: profile.country_id || "",
-      });
+      };
+      console.log('Profile - Setting form data with profile:', profile);
+      console.log('Profile - Resulting form data:', newFormData);
+      setFormData(newFormData);
     }
   }, [profile]);
 

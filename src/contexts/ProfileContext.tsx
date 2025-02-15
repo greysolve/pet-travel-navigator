@@ -109,8 +109,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         console.log(`Attempt ${retryCount.current + 1}/${MAX_RETRIES + 1} to fetch profile`);
         const profileData = await fetchProfile(userId);
         
+        console.log('ProfileContext - Starting profile refresh with data:', profileData);
+        
         if (currentUserId.current === userId) {
-          console.log('Profile refreshed successfully:', profileData);
+          console.log('ProfileContext - Setting profile state:', profileData);
           setProfile(profileData);
           setError(null);
           setInitialized(true);
@@ -134,7 +136,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           if (existingProfile && currentUserId.current === userId) {
             setProfile(existingProfile);
             setError(error);
-            setInitialized(true); // Still initialize with existing profile
+            setInitialized(true);
             toast({
               title: "Profile Error",
               description: "There was a problem refreshing your profile. Please try again later.",
