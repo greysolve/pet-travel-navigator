@@ -77,10 +77,14 @@ async function updateProfile(userId: string, updates: Partial<UserProfile>): Pro
     // Log entries before transformation
     console.log('profileManagement - Update entries before transformation:', Object.entries(updates));
 
-    // Filter out undefined values and prepare the update object
+    // Filter out undefined values and empty strings, and prepare the update object
     const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
       console.log('profileManagement - Processing key:', key, 'with value:', value);
-      if (value !== undefined) {
+      // Only include the field if:
+      // 1. It's defined (not undefined)
+      // 2. It's not an empty string
+      // 3. For string fields that can be null, we'll allow null values through
+      if (value !== undefined && value !== '') {
         acc[key] = value;
       }
       return acc;
@@ -183,4 +187,3 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 
 // Export everything once at the bottom
 export { ProfileError, fetchProfile, updateProfile };
-
