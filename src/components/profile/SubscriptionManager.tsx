@@ -151,7 +151,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
           </p>
           <Button 
             onClick={handleUpgrade}
-            className="w-[125%] -ml-[12.5%] bg-[#F97316] hover:bg-[#F97316]/90 text-white"
+            className="w-[68.75%] -ml-[9.375%] bg-[#F97316] hover:bg-[#F97316]/90 text-white"
           >
             Upgrade Now
           </Button>
