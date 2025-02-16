@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
@@ -66,15 +67,24 @@ const validateNotificationPreferences = (preferences: unknown) => {
 
 async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
   console.log('profileManagement - Starting update:', { userId, updates });
+  console.log('profileManagement - Raw updates object:', JSON.stringify(updates, null, 2));
 
   if (!userId) {
     throw new ProfileError('User ID is required for profile update', 'not_found');
   }
 
   try {
-    // Filter out undefined values and prepare the update object
+    // Log entries before transformation
+    console.log('profileManagement - Update entries before transformation:', Object.entries(updates));
+
+    // Filter out undefined values and empty strings, and prepare the update object
     const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
+      console.log('profileManagement - Processing key:', key, 'with value:', value);
+      // Only include the field if:
+      // 1. It's defined (not undefined)
+      // 2. It's not an empty string
+      // 3. For string fields that can be null, we'll allow null values through
+      if (value !== undefined && value !== '') {
         acc[key] = value;
       }
       return acc;
@@ -84,7 +94,7 @@ async function updateProfile(userId: string, updates: Partial<UserProfile>): Pro
     delete updateData.id;
     delete updateData.userRole;
     
-    console.log('profileManagement - Sending update to Supabase:', updateData);
+    console.log('profileManagement - Final updateData being sent to Supabase:', updateData);
     
     const { error } = await supabase
       .from('profiles')
@@ -120,6 +130,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       p_user_id: userId
     });
 
+    console.log('fetchProfile - Raw data from RPC:', data);
+
     if (error) {
       console.error('Error fetching profile:', error);
       throw new ProfileError('Failed to fetch user profile', 'network');
@@ -143,6 +155,8 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       throw new ProfileError('Invalid profile data structure', 'unknown');
     }
 
+    console.log('fetchProfile - Validated profile response:', data);
+
     // Create the user profile object with direct value mapping
     const userProfile: UserProfile = {
       id: userId,
@@ -164,6 +178,7 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
       notification_preferences: validateNotificationPreferences(data.notification_preferences)
     };
 
+    console.log('fetchProfile - Mapped profile data:', userProfile);
     console.log('Successfully mapped profile:', userProfile);
     return userProfile;
   } catch (error) {

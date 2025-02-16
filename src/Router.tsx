@@ -6,6 +6,7 @@ import Profile from "@/pages/Profile";
 import Pets from "@/pages/Pets";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Admin from "@/pages/Admin";
+import Pricing from "@/pages/Pricing";
 import SampleResults from "@/pages/SampleResults";
 import AuthCallback from "@/pages/AuthCallback";
 import AuthDialog from "@/components/AuthDialog";
@@ -37,6 +38,10 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <Index />,
+      },
+      {
+        path: "/pricing",
+        element: <Pricing />,
       },
       {
         path: "/auth/callback",

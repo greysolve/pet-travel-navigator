@@ -1,6 +1,4 @@
-
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
@@ -13,10 +11,19 @@ import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 const AuthDialog = () => {
   const { user, signInWithEmail, signUp, signOut } = useAuth();
   const { profile } = useProfile();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+
+  useEffect(() => {
+    const showDialog = () => {
+      setIsSignUp(false);
+      setShowAuthDialog(true);
+    };
+
+    window.addEventListener("show-auth-dialog", showDialog);
+    return () => window.removeEventListener("show-auth-dialog", showDialog);
+  }, []);
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
@@ -94,14 +101,14 @@ const AuthDialog = () => {
     setIsLoading(true);
     try {
       await signOut();
-      navigate("/");
+      // Use window.location for a clean reload of the home page
+      window.location.href = "/";
     } catch (error: any) {
       toast({
         title: "Error signing out",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

@@ -28,7 +28,6 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
 
   const handleNavigation = (path: string) => {
     try {
-      // Always navigate to absolute paths
       const absolutePath = path === 'home' ? '/' : `/${path}`;
       console.log('Navigating to:', absolutePath);
       navigate(absolutePath);
@@ -55,6 +54,9 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={() => handleNavigation("home")}>
           Pet Flight Search
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleNavigation("pricing")}>
+          Manage Subscription
         </DropdownMenuItem>
         {userRole === "site_manager" && (
           <DropdownMenuItem onClick={() => handleNavigation("admin")}>

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -26,6 +26,12 @@ interface ProfileFormProps {
 export const ProfileForm = ({ email, initialData, onSubmit }: ProfileFormProps) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState(initialData);
+
+  // Add useEffect to sync with initialData changes
+  useEffect(() => {
+    console.log('ProfileForm - Received new initialData:', initialData);
+    setFormData(initialData);
+  }, [initialData]);
 
   const handleSubmit = async () => {
     console.log('ProfileForm - Starting submit with data:', formData);

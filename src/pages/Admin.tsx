@@ -7,6 +7,7 @@ import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
 import UserManagement from "@/components/admin/UserManagement";
 import SampleResultsManager from "@/components/admin/SampleResultsManager";
 import { PremiumFieldsManager } from "@/components/admin/PremiumFieldsManager";
+import { PaymentPlansManager } from "@/components/admin/PaymentPlansManager";
 import AuthDialog from "@/components/AuthDialog";
 
 const Admin = () => {
@@ -25,6 +26,7 @@ const Admin = () => {
             <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
             <TabsTrigger value="country-policies">Country Policies</TabsTrigger>
             <TabsTrigger value="premium-fields">Premium Fields</TabsTrigger>
+            <TabsTrigger value="payment-plans">Payment Plans</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="sample-results">Sample Results</TabsTrigger>
           </TabsList>
@@ -48,6 +50,10 @@ const Admin = () => {
 
         <TabsContent value="premium-fields">
           <PremiumFieldsManager />
+        </TabsContent>
+
+        <TabsContent value="payment-plans">
+          <PaymentPlansManager />
         </TabsContent>
 
         <TabsContent value="users">

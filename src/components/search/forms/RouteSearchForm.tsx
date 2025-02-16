@@ -2,8 +2,6 @@
 import { RouteSearch } from "../RouteSearch";
 import { DateSelector } from "../DateSelector";
 import { SaveSearch } from "../SaveSearch";
-import { useFlightSearch } from "../FlightSearchHandler";
-import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "../../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
 
@@ -37,53 +35,8 @@ export const RouteSearchForm = ({
   clearPolicySearch,
   shouldSaveSearch,
   setShouldSaveSearch,
-  user,
-  toast,
-  onSearchResults,
-  setFlights
+  user
 }: RouteSearchFormProps) => {
-  const { handleFlightSearch } = useFlightSearch();
-
-  const handleRouteSearch = async () => {
-    handleFlightSearch({
-      origin,
-      destination,
-      date: date!,
-      onSearchResults: async (results, policies) => {
-        onSearchResults(results, policies);
-        setFlights(results);
-
-        if (shouldSaveSearch && user) {
-          const { error: saveError } = await supabase
-            .from('saved_searches')
-            .insert({
-              user_id: user.id,
-              search_criteria: {
-                origin,
-                destination,
-                date: date!.toISOString()
-              }
-            });
-
-          if (saveError) {
-            console.error("Error saving search:", saveError);
-            toast({
-              title: "Error saving search",
-              description: "Could not save your search. Please try again.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Search saved",
-              description: "Your search has been saved successfully.",
-            });
-          }
-        }
-      },
-      onSearchComplete: () => {}
-    });
-  };
-
   return (
     <div className="space-y-4">
       <RouteSearch

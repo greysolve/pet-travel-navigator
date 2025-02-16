@@ -1,5 +1,4 @@
 
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
@@ -7,18 +6,15 @@ import { useFlightSearch } from "./search/FlightSearchHandler";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
 import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
 import { useSearchValidation } from "./search/hooks/useSearchValidation";
-import { SearchFormHeader } from "./search/SearchFormHeader";
-import { SearchDivider } from "./search/SearchDivider";
-import { SearchButton } from "./search/SearchButton";
-import { PolicySearchForm } from "./search/forms/PolicySearchForm";
-import { RouteSearchForm } from "./search/forms/RouteSearchForm";
+import { useSearchHandler } from "./search/hooks/useSearchHandler";
+import { SearchFormContainer } from "./search/SearchFormContainer";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
   const { loading: profileLoading, initialized } = useProfile();
-  const { isSearchLoading, searchCount, isPetCaddie } = useFlightSearch();
+  const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   const {
@@ -39,9 +35,31 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     toast
   } = useFlightSearchState(user?.id);
 
+  const { handlePolicySearch, handleRouteSearch } = useSearchHandler({
+    user,
+    toast,
+    policySearch,
+    origin,
+    destination,
+    date,
+    shouldSaveSearch,
+    setFlights,
+    handleFlightSearch,
+    onSearchResults,
+  });
+
   const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
 
   const handleLoadSearch = (searchCriteria: any) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to load saved searches",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     console.log('Loading saved search:', searchCriteria);
     setOrigin(searchCriteria.origin || "");
     setDestination(searchCriteria.destination || "");
@@ -50,6 +68,15 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handleSearch = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!validateSearch(policySearch, origin, destination, date)) {
       return;
     }
@@ -61,84 +88,38 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     }
   };
 
-  const handlePolicySearch = async () => {
-    const policySearchForm = document.querySelector('[data-policy-search-form]');
-    if (policySearchForm) {
-      (policySearchForm as any).handlePolicySearch();
-    }
-  };
-
-  const handleRouteSearch = async () => {
-    const routeSearchForm = document.querySelector('[data-route-search-form]');
-    if (routeSearchForm) {
-      (routeSearchForm as any).handleRouteSearch();
-    }
-  };
+  const hasRouteSearch = origin !== "" || destination !== "";
 
   const { data: flightPetPolicies } = usePetPolicies(flights);
   const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
 
-  const hasRouteSearch = origin !== "" || destination !== "";
-
   return (
-    <div className="max-w-3xl mx-auto px-4 -mt-8">
-      <div className={cn(
-        "bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4",
-        isLoading && "opacity-75"
-      )}>
-        <SearchFormHeader
-          user={user}
-          isPetCaddie={isPetCaddie}
-          searchCount={searchCount}
-          savedSearches={savedSearches}
-          onLoadSearch={handleLoadSearch}
-          onDeleteSearch={(e, id) => {
-            e.stopPropagation();
-            handleDeleteSearch(id);
-          }}
-          isLoading={isLoading}
-        />
-
-        <PolicySearchForm 
-          policySearch={policySearch}
-          setPolicySearch={setPolicySearch}
-          isLoading={isLoading}
-          hasRouteSearch={hasRouteSearch}
-          clearRouteSearch={clearRouteSearch}
-          shouldSaveSearch={shouldSaveSearch}
-          setShouldSaveSearch={setShouldSaveSearch}
-          user={user}
-          toast={toast}
-          onSearchResults={onSearchResults}
-          setFlights={setFlights}
-        />
-        
-        <SearchDivider />
-
-        <RouteSearchForm
-          origin={origin}
-          destination={destination}
-          setOrigin={setOrigin}
-          setDestination={setDestination}
-          date={date}
-          setDate={setDate}
-          isLoading={isLoading}
-          policySearch={policySearch}
-          clearPolicySearch={clearPolicySearch}
-          shouldSaveSearch={shouldSaveSearch}
-          setShouldSaveSearch={setShouldSaveSearch}
-          user={user}
-          toast={toast}
-          onSearchResults={onSearchResults}
-          setFlights={setFlights}
-        />
-
-        <SearchButton
-          isLoading={isLoading}
-          isProfileLoading={isLoading}
-          onClick={handleSearch}
-        />
-      </div>
-    </div>
+    <SearchFormContainer
+      user={user}
+      isPetCaddie={isPetCaddie}
+      searchCount={searchCount}
+      savedSearches={savedSearches}
+      isLoading={isLoading}
+      policySearch={policySearch}
+      setPolicySearch={setPolicySearch}
+      hasRouteSearch={hasRouteSearch}
+      clearRouteSearch={clearRouteSearch}
+      origin={origin}
+      destination={destination}
+      setOrigin={setOrigin}
+      setDestination={setDestination}
+      date={date}
+      setDate={setDate}
+      clearPolicySearch={clearPolicySearch}
+      shouldSaveSearch={shouldSaveSearch}
+      setShouldSaveSearch={setShouldSaveSearch}
+      toast={toast}
+      onSearchResults={onSearchResults}
+      setFlights={setFlights}
+      onLoadSearch={handleLoadSearch}
+      handleDeleteSearch={handleDeleteSearch}
+      handleSearch={handleSearch}
+      onPolicySearch={handlePolicySearch}
+    />
   );
 };

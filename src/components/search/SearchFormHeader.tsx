@@ -1,8 +1,9 @@
 
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
 import type { SearchFormHeaderProps } from "./types";
+import { Link } from "react-router-dom";
 
 export const SearchFormHeader = ({
   user,
@@ -17,11 +18,24 @@ export const SearchFormHeader = ({
 
   return (
     <div className="flex justify-between items-center mb-4">
-      <div className="text-sm text-muted-foreground">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
         {isPetCaddie && (
-          <span>
-            Remaining searches: {searchCount ?? 0}
-          </span>
+          <>
+            <span>
+              Remaining searches: {searchCount ?? 0}
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-orange hover:text-orange border-orange hover:bg-orange/10" 
+              asChild
+            >
+              <Link to="/pricing">
+                <ArrowUp className="mr-1 h-4 w-4" />
+                Upgrade
+              </Link>
+            </Button>
+          </>
         )}
       </div>
       <SavedSearchesDropdown
