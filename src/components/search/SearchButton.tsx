@@ -10,13 +10,19 @@ interface SearchButtonProps {
 }
 
 export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchButtonProps) => {
-  const { user, signIn } = useAuth();
+  const { user } = useAuth();
 
   if (!user) {
     return (
       <Button 
         className="w-full h-12 mt-4 text-base bg-primary hover:bg-primary/90"
-        onClick={signIn}
+        onClick={() => {
+          // Find the closest sign in button and click it
+          const signInButton = document.querySelector('button:has-text("Sign In")') as HTMLButtonElement;
+          if (signInButton) {
+            signInButton.click();
+          }
+        }}
       >
         Sign in to Search
       </Button>
