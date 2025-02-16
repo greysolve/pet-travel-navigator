@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSingleAirlinePolicy } from "../../flight-results/PolicyFetcher";
 import type { PetPolicy } from "../../flight-results/types";
 import { AirlinePolicySearch } from "../AirlinePolicySearch";
-import { SaveSearch } from "../SaveSearch";
 import type { ToastFunction } from "@/hooks/use-toast";
 
 interface PolicySearchFormProps {
@@ -12,8 +11,6 @@ interface PolicySearchFormProps {
   isLoading: boolean;
   hasRouteSearch: boolean;
   clearRouteSearch: () => void;
-  shouldSaveSearch: boolean;
-  setShouldSaveSearch: (value: boolean) => void;
   user: any;
   toast: ToastFunction;
   onSearchResults: (flights: any[], policies?: Record<string, PetPolicy>) => void;
@@ -27,8 +24,6 @@ export const PolicySearchForm = ({
   isLoading,
   hasRouteSearch,
   clearRouteSearch,
-  shouldSaveSearch,
-  setShouldSaveSearch,
   user,
   toast,
   onSearchResults,
@@ -48,16 +43,6 @@ export const PolicySearchForm = ({
         disabled={hasRouteSearch}
         onFocus={clearRouteSearch}
       />
-      
-      <div className="flex justify-end">
-        <SaveSearch
-          shouldSaveSearch={shouldSaveSearch}
-          setShouldSaveSearch={setShouldSaveSearch}
-          user={user}
-          // Pass both loading states here since this affects the whole form
-          isProfileLoading={isLoading || isPolicyLoading}
-        />
-      </div>
     </div>
   );
 };

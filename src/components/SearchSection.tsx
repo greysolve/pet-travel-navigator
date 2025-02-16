@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -221,8 +220,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
           isLoading={isLoading}
           hasRouteSearch={hasRouteSearch}
           clearRouteSearch={clearRouteSearch}
-          shouldSaveSearch={shouldSaveSearch}
-          setShouldSaveSearch={setShouldSaveSearch}
           user={user}
           toast={toast}
           onSearchResults={onSearchResults}
