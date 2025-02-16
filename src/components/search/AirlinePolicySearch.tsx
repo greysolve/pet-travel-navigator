@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -51,13 +50,6 @@ export const AirlinePolicySearch = ({
         }
 
         setAirlines(data || []);
-      } catch (error) {
-        console.error('Error fetching airlines:', error);
-        toast({
-          title: "Error fetching airlines",
-          description: "Please try again",
-          variant: "destructive",
-        });
       } finally {
         setIsSearching(false);
       }
@@ -68,14 +60,21 @@ export const AirlinePolicySearch = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPolicySearch(value);
-    debouncedFetch(value);
-    setShowAirlineSuggestions(true);
+    if (value.length >= 2) {
+      debouncedFetch(value);
+      setShowAirlineSuggestions(true);
+    } else {
+      setAirlines([]);
+      setShowAirlineSuggestions(false);
+    }
   };
 
   const handleSuggestionClick = (airlineName: string) => {
     setPolicySearch(airlineName);
     setShowAirlineSuggestions(false);
-    inputRef.current?.focus();
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   return (
@@ -88,17 +87,12 @@ export const AirlinePolicySearch = ({
         value={policySearch}
         onChange={handleInputChange}
         onFocus={() => {
-          setShowAirlineSuggestions(true);
+          if (policySearch.length >= 2) {
+            setShowAirlineSuggestions(true);
+          }
           onFocus?.();
         }}
-        onBlur={(e) => {
-          // Only hide suggestions if we're not clicking on a suggestion
-          const relatedTarget = e.relatedTarget as HTMLElement;
-          if (!relatedTarget?.closest('.suggestions-list')) {
-            setTimeout(() => setShowAirlineSuggestions(false), 200);
-          }
-        }}
-        disabled={isLoading || disabled}
+        disabled={disabled}
       />
       {showAirlineSuggestions && airlines.length > 0 && (
         <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg suggestions-list">
