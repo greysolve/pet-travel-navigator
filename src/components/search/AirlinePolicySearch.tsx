@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -34,7 +34,6 @@ export const AirlinePolicySearch = ({
 
       setIsSearching(true);
       try {
-        console.log('Fetching airlines for search term:', searchTerm);
         const { data, error } = await supabase
           .from('airlines')
           .select('name, iata_code')
@@ -51,7 +50,6 @@ export const AirlinePolicySearch = ({
           return;
         }
 
-        console.log('Fetched airlines:', data);
         setAirlines(data || []);
       } catch (error) {
         console.error('Error fetching airlines:', error);
@@ -77,7 +75,6 @@ export const AirlinePolicySearch = ({
   const handleSuggestionClick = (airlineName: string) => {
     setPolicySearch(airlineName);
     setShowAirlineSuggestions(false);
-    // Maintain focus on input after selection
     inputRef.current?.focus();
   };
 
