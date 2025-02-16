@@ -1,9 +1,10 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useDebounce } from "use-debounce";
 import type { AirlinePolicySearchProps } from "./types";
 
 type Airline = {
@@ -21,68 +22,89 @@ export const AirlinePolicySearch = ({
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showAirlineSuggestions, setShowAirlineSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const fetchAirlines = useCallback(async (searchTerm: string) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setAirlines([]);
-      return;
-    }
+  const [debouncedFetch] = useDebounce(
+    async (searchTerm: string) => {
+      if (!searchTerm || searchTerm.length < 2) {
+        setAirlines([]);
+        return;
+      }
 
-    setIsSearching(true);
-    try {
-      console.log('Fetching airlines for search term:', searchTerm);
-      const { data, error } = await supabase
-        .from('airlines')
-        .select('name, iata_code')
-        .or(`name.ilike.%${searchTerm}%,iata_code.ilike.%${searchTerm}%`)
-        .limit(10);
+      setIsSearching(true);
+      try {
+        console.log('Fetching airlines for search term:', searchTerm);
+        const { data, error } = await supabase
+          .from('airlines')
+          .select('name, iata_code')
+          .or(`name.ilike.%${searchTerm}%,iata_code.ilike.%${searchTerm}%`)
+          .limit(10);
 
-      if (error) {
+        if (error) {
+          console.error('Error fetching airlines:', error);
+          toast({
+            title: "Error fetching airlines",
+            description: "Please try again",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log('Fetched airlines:', data);
+        setAirlines(data || []);
+      } catch (error) {
         console.error('Error fetching airlines:', error);
         toast({
           title: "Error fetching airlines",
           description: "Please try again",
           variant: "destructive",
         });
-        return;
+      } finally {
+        setIsSearching(false);
       }
+    },
+    300 // 300ms delay
+  );
 
-      console.log('Fetched airlines:', data);
-      setAirlines(data || []);
-    } catch (error) {
-      console.error('Error fetching airlines:', error);
-      toast({
-        title: "Error fetching airlines",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  }, [toast]);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPolicySearch(value);
+    debouncedFetch(value);
+    setShowAirlineSuggestions(true);
+  };
+
+  const handleSuggestionClick = (airlineName: string) => {
+    setPolicySearch(airlineName);
+    setShowAirlineSuggestions(false);
+    // Maintain focus on input after selection
+    inputRef.current?.focus();
+  };
 
   return (
     <div className="relative">
       <Input
+        ref={inputRef}
         type="text"
         placeholder="Search for airline pet policies..."
         className="h-12 text-lg bg-white/90 border-0 shadow-sm"
         value={policySearch}
-        onChange={(e) => {
-          const value = e.target.value;
-          setPolicySearch(value);
-          fetchAirlines(value);
-          setShowAirlineSuggestions(true);
-        }}
+        onChange={handleInputChange}
         onFocus={() => {
           setShowAirlineSuggestions(true);
           onFocus?.();
         }}
+        onBlur={(e) => {
+          // Only hide suggestions if we're not clicking on a suggestion
+          const relatedTarget = e.relatedTarget as HTMLElement;
+          if (!relatedTarget?.closest('.suggestions-list')) {
+            setTimeout(() => setShowAirlineSuggestions(false), 200);
+          }
+        }}
         disabled={isLoading || disabled}
       />
       {showAirlineSuggestions && airlines.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+        <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg suggestions-list">
           {isSearching ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -93,9 +115,9 @@ export const AirlinePolicySearch = ({
                 <li
                   key={airline.iata_code || airline.name}
                   className="px-4 py-2 hover:bg-accent cursor-pointer"
-                  onClick={() => {
-                    setPolicySearch(airline.name);
-                    setShowAirlineSuggestions(false);
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input blur
+                    handleSuggestionClick(airline.name);
                   }}
                 >
                   {airline.name} {airline.iata_code ? `(${airline.iata_code})` : ''}
@@ -108,4 +130,3 @@ export const AirlinePolicySearch = ({
     </div>
   );
 };
-
