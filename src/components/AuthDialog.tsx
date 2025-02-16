@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +14,16 @@ const AuthDialog = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+
+  useEffect(() => {
+    const showDialog = () => {
+      setIsSignUp(false);
+      setShowAuthDialog(true);
+    };
+
+    window.addEventListener("show-auth-dialog", showDialog);
+    return () => window.removeEventListener("show-auth-dialog", showDialog);
+  }, []);
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
