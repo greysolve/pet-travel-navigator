@@ -129,10 +129,45 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handleRouteSearch = async () => {
-    const routeSearchRef = document.querySelector('[data-route-search-form]');
-    if (routeSearchRef) {
-      await (routeSearchRef as any).handleRouteSearch();
-    }
+    // Directly call the flight search function
+    const { handleFlightSearch } = useFlightSearch();
+    await handleFlightSearch({
+      origin,
+      destination,
+      date: date!,
+      onSearchResults: async (results, policies) => {
+        onSearchResults(results, policies);
+        setFlights(results);
+        
+        if (shouldSaveSearch && user) {
+          const { error: saveError } = await supabase
+            .from('saved_searches')
+            .insert({
+              user_id: user.id,
+              search_criteria: {
+                origin,
+                destination,
+                date: date!.toISOString()
+              }
+            });
+
+          if (saveError) {
+            console.error("Error saving search:", saveError);
+            toast({
+              title: "Error saving search",
+              description: "Could not save your search. Please try again.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Search saved",
+              description: "Your search has been saved successfully.",
+            });
+          }
+        }
+      },
+      onSearchComplete: () => {}
+    });
   };
 
   const { data: flightPetPolicies } = usePetPolicies(flights);
