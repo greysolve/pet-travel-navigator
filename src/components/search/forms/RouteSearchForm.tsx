@@ -35,8 +35,7 @@ export const RouteSearchForm = ({
   clearPolicySearch,
   shouldSaveSearch,
   setShouldSaveSearch,
-  user,
-  isProfileLoading
+  user
 }: RouteSearchFormProps) => {
   return (
     <div className="space-y-4">
