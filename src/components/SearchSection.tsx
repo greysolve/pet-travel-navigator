@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +19,7 @@ import type { PetPolicy } from "./flight-results/types";
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
   const { loading: profileLoading, initialized } = useProfile();
-  const { isSearchLoading, searchCount, isPetCaddie } = useFlightSearch();
+  const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   const {
@@ -129,8 +128,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handleRouteSearch = async () => {
-    // Directly call the flight search function
-    const { handleFlightSearch } = useFlightSearch();
+    console.log('Handling route search with:', { origin, destination, date });
     await handleFlightSearch({
       origin,
       destination,

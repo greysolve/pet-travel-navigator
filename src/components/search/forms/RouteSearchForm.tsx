@@ -2,8 +2,6 @@
 import { RouteSearch } from "../RouteSearch";
 import { DateSelector } from "../DateSelector";
 import { SaveSearch } from "../SaveSearch";
-import { useFlightSearch } from "../FlightSearchHandler";
-import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "../../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
 
@@ -38,12 +36,8 @@ export const RouteSearchForm = ({
   shouldSaveSearch,
   setShouldSaveSearch,
   user,
-  toast,
-  onSearchResults,
-  setFlights
+  isProfileLoading
 }: RouteSearchFormProps) => {
-  const { handleFlightSearch } = useFlightSearch();
-
   return (
     <div className="space-y-4">
       <RouteSearch
