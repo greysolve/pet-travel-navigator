@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +44,15 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
 
   const handleLoadSearch = (searchCriteria: any) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to load saved searches",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     console.log('Loading saved search:', searchCriteria);
     setOrigin(searchCriteria.origin || "");
     setDestination(searchCriteria.destination || "");
@@ -51,6 +61,15 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handleSearch = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!validateSearch(policySearch, origin, destination, date)) {
       return;
     }
@@ -63,6 +82,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handlePolicySearch = async () => {
+    if (!user) return;
+
     const { data: airline, error: airlineError } = await supabase
       .from('airlines')
       .select('id')
@@ -128,6 +149,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   };
 
   const handleRouteSearch = async () => {
+    if (!user) return;
+
     console.log('Handling route search with:', { origin, destination, date });
     await handleFlightSearch({
       origin,
