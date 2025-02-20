@@ -1,17 +1,9 @@
-
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { RouteSearchProps } from "./types";
-
-type Airport = {
-  iata_code: string;
-  name: string;
-  city: string;
-  country: string;
-};
+import type { RouteSearchProps, Airport } from "./types";
 
 export const RouteSearch = ({
   origin,
@@ -36,16 +28,14 @@ export const RouteSearch = ({
     
     setIsSearching(true);
     try {
-      // Split the search term by comma and get the parts
-      const parts = searchTerm.split(',').map(part => part.trim());
-      const cityTerm = parts[0];
-      const countryTerm = parts[1] || '';
+      // Split the search term by comma and get the first part (ignore country for now as we have scoring)
+      const searchPart = searchTerm.split(',')[0].trim();
       
-      console.log('Fetching airports with:', { cityTerm, countryTerm });
+      console.log('Fetching airports with:', { searchPart });
       
       const { data, error } = await supabase
         .rpc('search_airports_insensitive', {
-          search_term: cityTerm
+          search_term: searchPart
         });
 
       if (error) {
@@ -58,16 +48,8 @@ export const RouteSearch = ({
         return;
       }
 
-      // Filter results client-side if a country term is provided
-      let filteredData = data;
-      if (countryTerm) {
-        filteredData = data.filter((airport: Airport) => 
-          airport.country.toLowerCase().startsWith(countryTerm.toLowerCase())
-        );
-      }
-
-      console.log('Filtered airports:', filteredData);
-      setAirports(filteredData || []);
+      console.log('Airports search results:', data);
+      setAirports(data || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
       toast({
@@ -79,6 +61,16 @@ export const RouteSearch = ({
       setIsSearching(false);
     }
   }, [toast]);
+
+  const formatAirportDisplay = (airport: Airport): string => {
+    if (airport.search_score >= 80) {
+      // IATA code match - prioritize airport name
+      return `${airport.name} (${airport.iata_code}), ${airport.city}, ${airport.country}`;
+    } else {
+      // City or other match - keep city first
+      return `${airport.city}, ${airport.country} (${airport.iata_code})`;
+    }
+  };
 
   const handleInputFocus = () => {
     onFocus?.();
@@ -103,7 +95,6 @@ export const RouteSearch = ({
             handleInputFocus();
           }}
           onBlur={() => {
-            // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowOriginSuggestions(false), 200);
           }}
           disabled={isLoading || disabled}
@@ -125,7 +116,7 @@ export const RouteSearch = ({
                       setShowOriginSuggestions(false);
                     }}
                   >
-                    {airport.city}, {airport.country} ({airport.iata_code})
+                    {formatAirportDisplay(airport)}
                   </li>
                 ))}
               </ul>
@@ -151,7 +142,6 @@ export const RouteSearch = ({
             handleInputFocus();
           }}
           onBlur={() => {
-            // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowDestinationSuggestions(false), 200);
           }}
           disabled={isLoading || disabled}
@@ -173,7 +163,7 @@ export const RouteSearch = ({
                       setShowDestinationSuggestions(false);
                     }}
                   >
-                    {airport.city}, {airport.country} ({airport.iata_code})
+                    {formatAirportDisplay(airport)}
                   </li>
                 ))}
               </ul>
@@ -184,4 +174,3 @@ export const RouteSearch = ({
     </div>
   );
 };
-

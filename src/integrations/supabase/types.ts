@@ -814,6 +814,7 @@ export type Database = {
           name: string
           city: string
           country: string
+          search_score: number
         }[]
       }
       unaccent: {
