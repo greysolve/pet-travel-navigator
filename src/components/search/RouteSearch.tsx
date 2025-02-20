@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -110,7 +111,7 @@ export const RouteSearch = ({
                 {airports.map((airport) => (
                   <li
                     key={airport.iata_code}
-                    className="px-4 py-2 hover:bg-accent cursor-pointer"
+                    className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
                     onClick={() => {
                       setOrigin(airport.iata_code);
                       setShowOriginSuggestions(false);
@@ -157,7 +158,7 @@ export const RouteSearch = ({
                 {airports.map((airport) => (
                   <li
                     key={airport.iata_code}
-                    className="px-4 py-2 hover:bg-accent cursor-pointer"
+                    className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
                     onClick={() => {
                       setDestination(airport.iata_code);
                       setShowDestinationSuggestions(false);
@@ -174,3 +175,4 @@ export const RouteSearch = ({
     </div>
   );
 };
+

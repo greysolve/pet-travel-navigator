@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -105,7 +106,7 @@ export const AirlinePolicySearch = ({
               {airlines.map((airline) => (
                 <li
                   key={airline.iata_code || airline.name}
-                  className="px-4 py-2 hover:bg-accent cursor-pointer"
+                  className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
                   onMouseDown={(e) => {
                     e.preventDefault(); // Prevent input blur
                     handleSuggestionClick(airline.name);
@@ -121,3 +122,4 @@ export const AirlinePolicySearch = ({
     </div>
   );
 };
+
