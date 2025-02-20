@@ -50,3 +50,10 @@ export type SavedSearch = {
   created_at: string;
 }
 
+export interface Airport {
+  iata_code: string;
+  name: string;
+  city: string;
+  country: string;
+  search_score: number;
+}
