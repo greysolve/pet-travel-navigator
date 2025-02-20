@@ -192,75 +192,6 @@ export type Database = {
         }
         Relationships: []
       }
-      country_policies_backup_2025_02_07: {
-        Row: {
-          additional_notes: string | null
-          all_blood_tests: string | null
-          all_other_biological_tests: string | null
-          backup_timestamp: string | null
-          country_code: string | null
-          created_at: string | null
-          description: string | null
-          documentation_needed: string[] | null
-          fees: Json | null
-          id: string | null
-          last_updated: string | null
-          policy_type: Database["public"]["Enums"]["policy_type"] | null
-          policy_url: string | null
-          quarantine_requirements: string | null
-          required_ports_of_entry: string | null
-          requirements: string[] | null
-          restrictions: Json | null
-          title: string | null
-          updated_at: string | null
-          vaccination_requirements: string[] | null
-        }
-        Insert: {
-          additional_notes?: string | null
-          all_blood_tests?: string | null
-          all_other_biological_tests?: string | null
-          backup_timestamp?: string | null
-          country_code?: string | null
-          created_at?: string | null
-          description?: string | null
-          documentation_needed?: string[] | null
-          fees?: Json | null
-          id?: string | null
-          last_updated?: string | null
-          policy_type?: Database["public"]["Enums"]["policy_type"] | null
-          policy_url?: string | null
-          quarantine_requirements?: string | null
-          required_ports_of_entry?: string | null
-          requirements?: string[] | null
-          restrictions?: Json | null
-          title?: string | null
-          updated_at?: string | null
-          vaccination_requirements?: string[] | null
-        }
-        Update: {
-          additional_notes?: string | null
-          all_blood_tests?: string | null
-          all_other_biological_tests?: string | null
-          backup_timestamp?: string | null
-          country_code?: string | null
-          created_at?: string | null
-          description?: string | null
-          documentation_needed?: string[] | null
-          fees?: Json | null
-          id?: string | null
-          last_updated?: string | null
-          policy_type?: Database["public"]["Enums"]["policy_type"] | null
-          policy_url?: string | null
-          quarantine_requirements?: string | null
-          required_ports_of_entry?: string | null
-          requirements?: string[] | null
-          restrictions?: Json | null
-          title?: string | null
-          updated_at?: string | null
-          vaccination_requirements?: string[] | null
-        }
-        Relationships: []
-      }
       customer_subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -404,13 +335,6 @@ export type Database = {
             referencedRelation: "airlines"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "pet_policies_airline_id_fkey"
-            columns: ["airline_id"]
-            isOneToOne: true
-            referencedRelation: "missing_pet_policies"
-            referencedColumns: ["id"]
-          },
         ]
       }
       pet_policy_summaries: {
@@ -441,13 +365,6 @@ export type Database = {
             columns: ["airline_id"]
             isOneToOne: true
             referencedRelation: "airlines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pet_policy_summaries_airline_id_fkey"
-            columns: ["airline_id"]
-            isOneToOne: true
-            referencedRelation: "missing_pet_policies"
             referencedColumns: ["id"]
           },
         ]
@@ -528,7 +445,7 @@ export type Database = {
         Row: {
           created_at: string | null
           description: string | null
-          field_name: Database["public"]["Enums"]["premium_field_type"]
+          field_name: string
           id: string
           is_premium: boolean
           updated_at: string | null
@@ -536,7 +453,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           description?: string | null
-          field_name: Database["public"]["Enums"]["premium_field_type"]
+          field_name: string
           id?: string
           is_premium?: boolean
           updated_at?: string | null
@@ -544,7 +461,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           description?: string | null
-          field_name?: Database["public"]["Enums"]["premium_field_type"]
+          field_name?: string
           id?: string
           is_premium?: boolean
           updated_at?: string | null
@@ -623,63 +540,6 @@ export type Database = {
           },
         ]
       }
-      profiles_backup: {
-        Row: {
-          address_format: string | null
-          address_line1: string | null
-          address_line2: string | null
-          address_line3: string | null
-          administrative_area: string | null
-          avatar_url: string | null
-          country_id: string | null
-          created_at: string | null
-          full_name: string | null
-          id: string | null
-          locality: string | null
-          notification_preferences: Json | null
-          plan: Database["public"]["Enums"]["subscription_plan"] | null
-          postal_code: string | null
-          search_count: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          address_format?: string | null
-          address_line1?: string | null
-          address_line2?: string | null
-          address_line3?: string | null
-          administrative_area?: string | null
-          avatar_url?: string | null
-          country_id?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          id?: string | null
-          locality?: string | null
-          notification_preferences?: Json | null
-          plan?: Database["public"]["Enums"]["subscription_plan"] | null
-          postal_code?: string | null
-          search_count?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          address_format?: string | null
-          address_line1?: string | null
-          address_line2?: string | null
-          address_line3?: string | null
-          administrative_area?: string | null
-          avatar_url?: string | null
-          country_id?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          id?: string | null
-          locality?: string | null
-          notification_preferences?: Json | null
-          plan?: Database["public"]["Enums"]["subscription_plan"] | null
-          postal_code?: string | null
-          search_count?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       route_searches: {
         Row: {
           created_at: string | null
@@ -750,13 +610,6 @@ export type Database = {
             columns: ["airline_id"]
             isOneToOne: false
             referencedRelation: "airlines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "routes_airline_id_fkey"
-            columns: ["airline_id"]
-            isOneToOne: false
-            referencedRelation: "missing_pet_policies"
             referencedColumns: ["id"]
           },
           {
@@ -903,16 +756,7 @@ export type Database = {
       }
     }
     Views: {
-      missing_pet_policies: {
-        Row: {
-          iata_code: string | null
-          id: string | null
-          name: string | null
-          policy_status: string | null
-          website: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       backfill_policy_summaries: {
