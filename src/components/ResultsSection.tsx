@@ -88,6 +88,7 @@ export const ResultsSection = ({
         <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <ExportDialog
+              isOpen={showExportDialog}
               flights={[]}
               petPolicies={petPolicies}
               countryPolicies={[]}
@@ -166,6 +167,7 @@ export const ResultsSection = ({
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <ExportDialog
+            isOpen={showExportDialog}
             flights={flights}
             petPolicies={petPolicies || flightPetPolicies}
             countryPolicies={countryPolicies || []}
@@ -176,4 +178,3 @@ export const ResultsSection = ({
     </div>
   );
 };
-
