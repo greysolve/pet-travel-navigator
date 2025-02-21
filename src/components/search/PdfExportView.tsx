@@ -62,7 +62,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
                 <div className="flex items-center space-x-6 mb-4">
                   <div>
                     <p className="font-bold text-lg">
-                      {segment.airlineName} ({segment.carrierFsCode})
+                      {segment.airlineName || "Unknown Airline"} ({segment.carrierFsCode})
                     </p>
                     <Badge variant="secondary" className="font-normal bg-secondary/80 text-secondary-foreground">
                       {segment.flightNumber}
@@ -106,7 +106,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
             {carrierCodes.map(code => {
               const airlineName = flights.find(journey => 
                 journey.segments?.some(segment => segment.carrierFsCode === code)
-              )?.segments?.find(segment => segment.carrierFsCode === code)?.airlineName;
+              )?.segments?.find(segment => segment.carrierFsCode === code)?.airlineName || "Unknown Airline";
               
               return (
                 <div key={code} className="bg-white p-6 rounded-lg page-break-inside-avoid">
