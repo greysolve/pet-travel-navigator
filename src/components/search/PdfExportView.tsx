@@ -1,6 +1,7 @@
 
 import { PolicyDetails } from "../flight-results/PolicyDetails";
 import { DestinationPolicy } from "../flight-results/DestinationPolicy";
+import { Badge } from "@/components/ui/badge";
 import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 
 interface PdfExportViewProps {
@@ -14,7 +15,6 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
     journey.segments?.map(segment => segment.carrierFsCode) || []
   ))];
 
-  // Get first and last airports from the first journey's segments
   const firstJourney = flights[0];
   const firstSegment = firstJourney?.segments?.[0];
   const lastSegment = firstJourney?.segments?.[firstJourney.segments.length - 1];
@@ -58,6 +58,19 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
             
             {journey.segments?.map((segment, segIndex) => (
               <div key={segIndex} className="mb-6 page-break-inside-avoid">
+                {/* Flight Header - Matching search results view */}
+                <div className="flex items-center space-x-6 mb-4">
+                  <div>
+                    <p className="font-bold text-lg">
+                      {segment.airlineName || "Unknown Airline"} ({segment.carrierFsCode})
+                    </p>
+                    <Badge variant="secondary" className="font-normal">
+                      {segment.flightNumber}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Flight Details */}
                 <div className="grid grid-cols-2 gap-8 text-base">
                   <div className="space-y-2">
                     <div className="font-medium text-lg">{segment.departureAirportFsCode}</div>
@@ -90,12 +103,20 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
         <div className="page-break-before page-break-after">
           <h2 className="text-2xl font-semibold mb-6">Airline Pet Policies</h2>
           <div className="space-y-8">
-            {carrierCodes.map(code => (
-              <div key={code} className="bg-white p-6 rounded-lg page-break-inside-avoid">
-                <h3 className="font-medium text-lg mb-4">Carrier: {code}</h3>
-                <PolicyDetails policy={petPolicies[code]} />
-              </div>
-            ))}
+            {carrierCodes.map(code => {
+              const airlineName = flights.find(journey => 
+                journey.segments?.some(segment => segment.carrierFsCode === code)
+              )?.segments?.find(segment => segment.carrierFsCode === code)?.airlineName;
+              
+              return (
+                <div key={code} className="bg-white p-6 rounded-lg page-break-inside-avoid">
+                  <h3 className="font-medium text-lg mb-4">
+                    {airlineName || "Unknown Airline"} ({code})
+                  </h3>
+                  <PolicyDetails policy={petPolicies[code]} />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
