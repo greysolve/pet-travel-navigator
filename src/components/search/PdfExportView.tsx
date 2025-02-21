@@ -28,7 +28,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
   }) : '';
 
   return (
-    <div className="min-w-[1200px] p-8 bg-white space-y-8">
+    <div className="w-[800px] mx-auto p-8 bg-white space-y-8">
       {/* Title Page */}
       <div className="page-break-after">
         <h1 className="text-3xl font-bold mb-8 text-center">Flight Itinerary & Pet Travel Requirements</h1>
@@ -62,9 +62,9 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
                 <div className="flex items-center space-x-6 mb-4">
                   <div>
                     <p className="font-bold text-lg">
-                      {segment.airlineName || "Unknown Airline"} ({segment.carrierFsCode})
+                      {segment.airlineName} ({segment.carrierFsCode})
                     </p>
-                    <Badge variant="secondary" className="font-normal">
+                    <Badge variant="secondary" className="font-normal bg-secondary/80 text-secondary-foreground">
                       {segment.flightNumber}
                     </Badge>
                   </div>
@@ -111,7 +111,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
               return (
                 <div key={code} className="bg-white p-6 rounded-lg page-break-inside-avoid">
                   <h3 className="font-medium text-lg mb-4">
-                    {airlineName || "Unknown Airline"} ({code})
+                    {airlineName} ({code})
                   </h3>
                   <PolicyDetails policy={petPolicies[code]} />
                 </div>
@@ -141,3 +141,4 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
     </div>
   );
 };
+
