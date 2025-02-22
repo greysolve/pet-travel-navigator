@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PdfExportView } from "../PdfExportView";
@@ -145,39 +145,38 @@ export const ExportDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-7xl min-h-[90dvh] md:h-[90vh] overflow-y-auto p-4 md:p-6">
-        <DialogHeader>
-          <DialogTitle>Export Travel Requirements</DialogTitle>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>Export Travel Requirements</DialogTitle>
+      </DialogHeader>
 
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-4">
-          <div className="flex-1">
-            <Input
-              placeholder="Enter filename"
-              value={filename}
-              onChange={(e) => setFilename(e.target.value)}
-              className="w-full"
-              disabled={isExporting}
-            />
-          </div>
-          <Button 
-            onClick={handleExport}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 mb-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Enter filename"
+            value={filename}
+            onChange={(e) => setFilename(e.target.value)}
+            className="w-full"
             disabled={isExporting}
-            className="w-full md:w-auto md:min-w-[150px]"
-          >
-            {isExporting ? "Generating PDF..." : "Download PDF"}
-          </Button>
-        </div>
-
-        <div id="pdf-export-content" className="bg-white">
-          <PdfExportView
-            flights={flights}
-            petPolicies={petPolicies}
-            countryPolicies={countryPolicies}
           />
         </div>
-      </DialogContent>
-    </Dialog>
+        <Button 
+          onClick={handleExport}
+          disabled={isExporting}
+          className="w-full md:w-auto md:min-w-[150px]"
+        >
+          {isExporting ? "Generating PDF..." : "Download PDF"}
+        </Button>
+      </div>
+
+      <div id="pdf-export-content" className="bg-white">
+        <PdfExportView
+          flights={flights}
+          petPolicies={petPolicies}
+          countryPolicies={countryPolicies}
+        />
+      </div>
+    </>
   );
 };
+

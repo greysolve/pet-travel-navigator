@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { FlightResults } from "./flight-results/FlightResults";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
@@ -7,6 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/contexts/ProfileContext";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ExportDialog } from "./search/saved-searches/ExportDialog";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./flight-results/types";
 
 export const ResultsSection = ({ 
@@ -18,6 +23,7 @@ export const ResultsSection = ({
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
 }) => {
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const { profile } = useProfile();
   const isPetCaddie = profile?.userRole === 'pet_caddie';
   const { data: premiumFields = [] } = usePremiumFields();
@@ -44,6 +50,9 @@ export const ResultsSection = ({
   const uniqueCountries = Array.from(allCountries).filter(Boolean);
   const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
+  const hasExportableResults = flights.length > 0 || Object.keys(petPolicies || {}).length > 0;
+  const canExport = !isPetCaddie && hasExportableResults;
+
   if (!searchPerformed) return null;
 
   // If we have a direct airline policy search result
@@ -58,11 +67,35 @@ export const ResultsSection = ({
     return (
       <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
         <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 text-left">
+          {canExport && (
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowExportDialog(true)}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                Export Results
+              </Button>
+            </div>
+          )}
           <h2 className="text-xl font-semibold mb-4">
             Pet Policy {policy.isSummary ? "Summary" : ""} for {airlineName}
           </h2>
           <PolicyDetails policy={policy} />
         </div>
+
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <ExportDialog
+              isOpen={showExportDialog}
+              flights={[]}
+              petPolicies={petPolicies}
+              countryPolicies={[]}
+              onClose={() => setShowExportDialog(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -71,10 +104,24 @@ export const ResultsSection = ({
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
       <div className="space-y-8 text-left">
         {flights.length > 0 && (
-          <FlightResults 
-            flights={flights} 
-            petPolicies={isPoliciesLoading ? undefined : flightPetPolicies} 
-          />
+          <>
+            {canExport && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExportDialog(true)}
+                  className="gap-2"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Export Results
+                </Button>
+              </div>
+            )}
+            <FlightResults 
+              flights={flights} 
+              petPolicies={isPoliciesLoading ? undefined : flightPetPolicies} 
+            />
+          </>
         )}
         
         <div id="country-policies" className="space-y-6">
@@ -116,6 +163,18 @@ export const ResultsSection = ({
           )}
         </div>
       </div>
+
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <ExportDialog
+            isOpen={showExportDialog}
+            flights={flights}
+            petPolicies={petPolicies || flightPetPolicies}
+            countryPolicies={countryPolicies || []}
+            onClose={() => setShowExportDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,182 +1,53 @@
 
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
 import type { FlightData, PetPolicy } from "../flight-results/types";
-
-interface FlightSearchProps {
-  origin: string;
-  destination: string;
-  date: Date;
-  onSearchResults: (flights: FlightData[], petPolicies?: Record<string, PetPolicy>) => void;
-  onSearchComplete: () => void;
-}
 
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const { profile, loading: profileLoading } = useProfile();
+  const [searchCount, setSearchCount] = useState<number>(0);
+  const [isPetCaddie, setIsPetCaddie] = useState(false);
 
-  const checkSearchEligibility = () => {
-    if (profileLoading || !user) {
-      return { eligible: true };
-    }
-
-    if (!profile && user) {
-      return {
-        eligible: false,
-        message: "Please wait while we load your profile."
-      };
-    }
-
-    const isPetCaddie = profile?.userRole === 'pet_caddie';
-    
-    console.log('Checking search eligibility:', {
-      userRole: profile?.userRole,
-      searchCount: profile?.search_count,
-      isPetCaddie
-    });
-
-    if (isPetCaddie && profile?.search_count <= 0) {
-      return {
-        eligible: false,
-        message: "You have no remaining searches. Please upgrade your plan to continue searching."
-      };
-    }
-
-    return { eligible: true };
-  };
-
-  const recordSearch = async (userId: string, origin: string, destination: string, date: string) => {
-    if (!profile) {
-      console.log('Cannot record search without a profile');
-      return true;
-    }
-
-    try {
-      const { error: searchError } = await supabase
-        .from('route_searches')
-        .insert({
-          user_id: userId,
-          origin,
-          destination,
-          search_date: date
-        });
-
-      if (searchError?.code === '23505') {
-        console.log('Duplicate search detected');
-        
-        if (profile.userRole === 'pet_caddie') {
-          toast({
-            title: "Duplicate Search",
-            description: "You have already searched this route and date combination. Note that this search will still count against your search limit.",
-            variant: "default"
-          });
-        }
-        return true;
-      } else if (searchError) {
-        console.error('Error recording search:', searchError);
-        throw searchError;
-      }
-
-      return true;
-    } catch (error: any) {
-      if (error?.code !== '23505') {
-        console.error('Unexpected error recording search:', error);
-      }
-      return true;
-    }
-  };
-
-  const handleFlightSearch = async ({
-    origin,
-    destination,
-    date,
-    onSearchResults,
-    onSearchComplete,
-  }: FlightSearchProps) => {
-    const { eligible, message } = checkSearchEligibility();
-    
-    if (!eligible) {
-      console.log('Search blocked - not eligible:', message);
-      toast({
-        title: "Search unavailable",
-        description: message,
-        variant: "destructive",
-      });
-      onSearchComplete();
-      return;
-    }
-
-    if (!origin || !destination || !date) {
-      toast({
-        title: "Missing search criteria",
-        description: "Please provide origin, destination, and date.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleFlightSearch = async (origin: string, destination: string, date: Date): Promise<FlightData[]> => {
     setIsSearchLoading(true);
     try {
-      console.log('Starting search transaction with:', { origin, destination, date: date.toISOString() });
-      
-      if (user) {
-        await recordSearch(
-          user.id,
+      console.log('Searching flights:', { origin, destination, date });
+      const { data: flightData, error } = await supabase.functions.invoke('search_flight_schedules', {
+        body: JSON.stringify({
           origin,
           destination,
-          date.toISOString().split('T')[0]
-        );
-      }
-
-      const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
-        body: { origin, destination, date: date.toISOString() }
+          date: date.toISOString(),
+        }),
       });
 
-      if (error) throw error;
-      
-      if (data?.connections) {
-        console.log('Found connections:', data.connections);
-        onSearchResults(data.connections);
-      } else {
-        console.log('No flights found in response');
-        onSearchResults([]);
+      if (error) {
+        console.error('Error fetching flights:', error);
+        throw error;
       }
-    } catch (error: any) {
-      console.error('Error searching flights:', error);
-      let errorMessage = "There was an error searching for flights.";
-      
-      if (error.message?.includes('policy')) {
-        errorMessage = "You have reached your search limit. Please upgrade your plan to continue searching.";
-      }
-      
-      toast({
-        title: "Error searching flights",
-        description: errorMessage,
-        variant: "destructive",
-      });
+
+      // Ensure each flight segment has the airline name
+      const processedFlights = flightData.flights.map((flight: FlightData) => ({
+        ...flight,
+        segments: flight.segments?.map(segment => ({
+          ...segment,
+          airlineName: segment.airlineName || `${segment.carrierFsCode} Airlines` // Fallback if name not provided
+        }))
+      }));
+
+      console.log('Processed flights with airline names:', processedFlights);
+      return processedFlights;
+    } catch (error) {
+      console.error('Flight search error:', error);
+      throw error;
     } finally {
       setIsSearchLoading(false);
-      onSearchComplete();
     }
-  };
-
-  const { searchCount, isPetCaddie } = profile ? {
-    searchCount: profile.search_count,
-    isPetCaddie: profile.userRole === 'pet_caddie'
-  } : {
-    searchCount: null,
-    isPetCaddie: false
   };
 
   return {
-    handleFlightSearch,
     isSearchLoading,
     searchCount,
-    isPetCaddie
+    isPetCaddie,
+    handleFlightSearch,
   };
 };
