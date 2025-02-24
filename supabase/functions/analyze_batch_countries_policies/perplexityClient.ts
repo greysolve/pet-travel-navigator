@@ -48,7 +48,7 @@ export async function analyzePolicies(country: Country, perplexityKey: string): 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
+          model: 'sonar-reasoning-pro',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -100,3 +100,4 @@ export async function analyzePolicies(country: Country, perplexityKey: string): 
 
   throw lastError;
 }
+
