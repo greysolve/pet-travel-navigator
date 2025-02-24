@@ -2,6 +2,7 @@
 import { Country } from './types.ts';
 
 const systemPrompt = `You are a helpful assistant specializing in finding official government pet and/or live animal import policies. You understand the distinction between arrival policies (for pets entering the country) and transit policies (for pets passing through the country). You prioritize citations you discover from the results that belong to the government of the country you're asked about or the most authoritative citation you can find.
+Do not ruminate or demonstrate your thought process into the chat. 
 Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
 
 export async function analyzePolicies(country: Country, perplexityKey: string): Promise<any[]> {
@@ -100,4 +101,3 @@ export async function analyzePolicies(country: Country, perplexityKey: string): 
 
   throw lastError;
 }
-

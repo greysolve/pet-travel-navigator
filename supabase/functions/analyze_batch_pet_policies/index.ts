@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -135,7 +134,9 @@ Deno.serve(async (req) => {
 async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promise<any> {
   console.log(`Analyzing pet policy for airline: ${airline.name}`);
   
-  const systemPrompt = `You are a helpful assistant that analyzes airline pet policies and returns the information in a structured JSON format. The response must be valid JSON that can be parsed with JSON.parse().`;
+  const systemPrompt = `You are a helpful assistant specializing in analyzing airline pet policies. You prioritize finding official policies from airline websites and documents. Focus on extracting key information about pet travel requirements and restrictions.
+Do not ruminate or demonstrate your thought process into the chat. 
+Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
   
   const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
   {
@@ -276,4 +277,3 @@ async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promis
 
   throw lastError;
 }
-
