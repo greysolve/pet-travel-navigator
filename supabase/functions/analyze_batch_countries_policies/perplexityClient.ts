@@ -49,7 +49,7 @@ export async function analyzePolicies(country: Country, perplexityKey: string): 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'sonar-reasoning-pro',
+          model: 'sonar-pro',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }

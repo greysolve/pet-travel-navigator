@@ -188,7 +188,7 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'sonar-reasoning-pro',
+          model: 'sonar-pro',
           messages: [
             {
               role: 'system',
