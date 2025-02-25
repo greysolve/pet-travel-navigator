@@ -337,38 +337,6 @@ export type Database = {
           },
         ]
       }
-      pet_policy_summaries: {
-        Row: {
-          airline_id: string | null
-          created_at: string | null
-          id: string
-          summary: Json
-          updated_at: string | null
-        }
-        Insert: {
-          airline_id?: string | null
-          created_at?: string | null
-          id?: string
-          summary: Json
-          updated_at?: string | null
-        }
-        Update: {
-          airline_id?: string | null
-          created_at?: string | null
-          id?: string
-          summary?: Json
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pet_policy_summaries_airline_id_fkey"
-            columns: ["airline_id"]
-            isOneToOne: true
-            referencedRelation: "airlines"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pet_profiles: {
         Row: {
           age: number | null
