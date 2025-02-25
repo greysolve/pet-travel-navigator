@@ -25,6 +25,7 @@ export const useSyncOperations = () => {
   const handleSyncResponse = async (
     response: { data: any; error: any },
     type: keyof typeof SyncType,
+    mode: string,
     offset: number = 0
   ) => {
     if (response.error) {
@@ -46,8 +47,8 @@ export const useSyncOperations = () => {
       // Add a small delay before the next batch
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Continue with the next batch
-      return handleSync(type, true, 'update', nextOffset);
+      // Continue with the next batch, preserving the original mode
+      return handleSync(type, true, mode, nextOffset);
     }
 
     console.log(`Sync completed for ${type}`);
@@ -84,7 +85,7 @@ export const useSyncOperations = () => {
         }
       });
 
-      await handleSyncResponse(response, type, offset);
+      await handleSyncResponse(response, type, mode, offset);
 
     } catch (error: any) {
       console.error(`Error syncing ${type}:`, error);
