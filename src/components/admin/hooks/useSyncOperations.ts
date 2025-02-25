@@ -49,15 +49,16 @@ export const useSyncOperations = () => {
       
       // Continue with the next batch, preserving the original mode
       await handleSync(type, true, mode, nextOffset);
+    } else {
+      // Only mark as complete if there's no continuation needed
+      console.log(`Sync completed for ${type}`);
+      toast({
+        title: "Sync Complete",
+        description: `Successfully synchronized ${type} data.`,
+      });
+      setIsInitializing(prev => ({ ...prev, [type]: false }));
+      await resetSyncProgressCache(type);
     }
-
-    console.log(`Sync completed for ${type}`);
-    toast({
-      title: "Sync Complete",
-      description: `Successfully synchronized ${type} data.`,
-    });
-    setIsInitializing(prev => ({ ...prev, [type]: false }));
-    await resetSyncProgressCache(type);
   };
 
   const handleSync = async (
