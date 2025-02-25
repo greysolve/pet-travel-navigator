@@ -48,7 +48,9 @@ export const useSyncOperations = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Continue with the next batch, preserving the original mode
-      return handleSync(type, true, mode, nextOffset);
+      // Key change: await the continuation instead of just returning it
+      await handleSync(type, true, mode, nextOffset);
+      return;
     }
 
     console.log(`Sync completed for ${type}`);
