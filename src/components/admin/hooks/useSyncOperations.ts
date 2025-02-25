@@ -22,6 +22,27 @@ export const useSyncOperations = () => {
     await queryClient.invalidateQueries({ queryKey: ["syncProgress"] });
   };
 
+  const checkSyncProgress = async (type: keyof typeof SyncType): Promise<boolean> => {
+    try {
+      const { data: syncProgress, error } = await supabase
+        .from('sync_progress')
+        .select('*')
+        .eq('type', type)
+        .single();
+
+      if (error) {
+        console.error('Error checking sync progress:', error);
+        return false;
+      }
+
+      console.log(`Current sync progress for ${type}:`, syncProgress);
+      return !syncProgress.needs_continuation && syncProgress.is_complete;
+    } catch (error) {
+      console.error('Error checking sync progress:', error);
+      return false;
+    }
+  };
+
   const handleSyncResponse = async (
     response: { data: any; error: any },
     type: keyof typeof SyncType,
@@ -39,10 +60,19 @@ export const useSyncOperations = () => {
       return;
     }
 
-    // Check if we need to continue processing
-    if (response.data?.progress?.needs_continuation) {
-      console.log(`More data to process for ${type}, continuing...`);
-      const nextOffset = response.data.progress.next_offset;
+    // Check both the response and the actual database state
+    const isActuallyComplete = await checkSyncProgress(type);
+    const needsContinuation = response.data?.progress?.needs_continuation;
+
+    console.log(`Sync state for ${type}:`, {
+      isActuallyComplete,
+      needsContinuation,
+      responseData: response.data
+    });
+
+    if (needsContinuation || !isActuallyComplete) {
+      const nextOffset = response.data?.progress?.next_offset || offset + 1;
+      console.log(`More data to process for ${type}, continuing from offset ${nextOffset}...`);
       
       // Add a small delay before the next batch
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -50,7 +80,7 @@ export const useSyncOperations = () => {
       // Continue with the next batch, preserving the original mode
       await handleSync(type, true, mode, nextOffset);
     } else {
-      // Only mark as complete if there's no continuation needed
+      // Only mark as complete if both conditions are met
       console.log(`Sync completed for ${type}`);
       toast({
         title: "Sync Complete",
