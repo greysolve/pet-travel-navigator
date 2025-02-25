@@ -3,11 +3,54 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { SyncManager } from '../_shared/SyncManager.ts';
 import { processCountriesChunk } from './countryProcessor.ts';
-import { RequestBody, AnalysisResponse } from './types.ts';
+
+export type AnalysisResponse = {
+  data?: {
+    progress?: {
+      needs_continuation: boolean;
+      next_offset: number | null;
+    };
+    [key: string]: any;
+  };
+  error?: {
+    message: string;
+  };
+};
+
+export function createResponse(response: AnalysisResponse): Response {
+  return new Response(
+    JSON.stringify(response),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
 export async function handleAnalysisRequest(req: Request): Promise<Response> {
   try {
-    const { mode, offset, resumeToken } = await parseRequestBody(req);
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    let mode = 'clear';
+    let offset = 0;
+    
+    try {
+      const body = await req.text();
+      console.log('Received request body:', body);
+      
+      if (body) {
+        const parsedBody = JSON.parse(body);
+        if (parsedBody.mode) mode = parsedBody.mode;
+        if (typeof parsedBody.offset === 'number') offset = parsedBody.offset;
+      }
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      return createResponse({ 
+        error: { message: 'Invalid request body' }
+      });
+    }
+
+    console.log(`Starting country policies analysis - Mode: ${mode}, Offset: ${offset}`);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -15,12 +58,10 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       throw new Error('Missing Supabase configuration');
     }
 
-    console.log(`Starting country policies analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
-    
     const supabase = createClient(supabaseUrl, supabaseKey);
     const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'countryPolicies');
 
-    // Get total count for the full table - this sets our baseline
+    // Get total count for the full table
     const { count: totalCount, error: countError } = await supabase
       .from('countries')
       .select('*', { count: 'exact', head: true });
@@ -34,9 +75,12 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
 
     if (!totalCount) {
       return createResponse({ 
-        success: true, 
-        message: 'No countries to process',
-        has_more: false 
+        data: {
+          progress: {
+            needs_continuation: false,
+            next_offset: null
+          }
+        }
       });
     }
 
@@ -73,43 +117,13 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Fatal error in analyze_countries_policies:', error);
     return createResponse({ 
-      success: false, 
-      error: error.message 
-    }, 500);
+      error: { message: error.message }
+    });
   }
 }
 
-async function parseRequestBody(req: Request): Promise<{ mode: string; offset: number; resumeToken: string | null }> {
-  let mode = 'clear';
-  let offset = 0;
-  let resumeToken = null;
-  
-  try {
-    const body = await req.text();
-    console.log('Received request body:', body);
-    
-    if (body) {
-      const parsedBody = JSON.parse(body) as RequestBody;
-      console.log('Parsed request body:', parsedBody);
-      
-      if (parsedBody.mode) mode = parsedBody.mode;
-      if (typeof parsedBody.offset === 'number') offset = parsedBody.offset;
-      if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
-    }
-  } catch (error) {
-    console.error('Error parsing request body:', error);
-    throw new Error('Invalid request body');
-  }
-
-  return { mode, offset, resumeToken };
-}
-
-export function createResponse(data: AnalysisResponse, status: number = 200): Response {
-  return new Response(
-    JSON.stringify(data),
-    { 
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
-}
+export type RequestBody = {
+  mode?: string;
+  offset?: number;
+  resumeToken?: string | null;
+};
