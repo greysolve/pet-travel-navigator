@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { SyncType, SyncProgress } from "@/types/sync";
 
@@ -14,7 +15,8 @@ export async function initializeSyncProgress(type: SyncType, total: number): Pro
       processed_items: [],
       error_items: [],
       start_time: new Date().toISOString(),
-      is_complete: false
+      is_complete: false,
+      needs_continuation: false
     }, {
       onConflict: 'type'
     });
@@ -71,7 +73,8 @@ export async function getSyncProgress(type: SyncType): Promise<SyncProgress | nu
     processedItems: data.processed_items || [],
     errorItems: data.error_items || [],
     startTime: data.start_time,
-    isComplete: data.is_complete
+    isComplete: data.is_complete,
+    needsContinuation: data.needs_continuation
   };
 }
 
@@ -96,7 +99,8 @@ export async function getAllActiveSyncs(): Promise<Record<SyncType, SyncProgress
       processedItems: curr.processed_items || [],
       errorItems: curr.error_items || [],
       startTime: curr.start_time,
-      isComplete: curr.is_complete
+      isComplete: curr.is_complete,
+      needsContinuation: curr.needs_continuation
     };
     return acc;
   }, {} as Record<SyncType, SyncProgress>);
