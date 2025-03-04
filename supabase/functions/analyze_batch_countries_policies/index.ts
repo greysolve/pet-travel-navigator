@@ -30,6 +30,9 @@ Deno.serve(async (req) => {
       throw new Error('Invalid input: countries must be an array');
     }
 
+    // Log the countries we're about to process
+    console.log(`Processing countries: ${countries.map(c => c.name).join(', ')}`);
+
     const { results, errors } = await processPolicyBatch(
       countries,
       openaiKey,

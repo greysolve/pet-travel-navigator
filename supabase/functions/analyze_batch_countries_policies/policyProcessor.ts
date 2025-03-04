@@ -34,31 +34,53 @@ export async function processPolicyBatch(
       console.log(`Arrival policy: ${arrivalPolicy ? 'Found' : 'Not found'}`);
       console.log(`Transit policy: ${transitPolicy ? 'Found' : 'Not found'}`);
 
-      // 3. Upsert to the country_policies table
-      const { data, error } = await supabase
-        .from('country_policies')
-        .upsert({
-          country_id: country.id,
-          country_name: country.name,
-          arrival_policy: arrivalPolicy,
-          transit_policy: transitPolicy,
-          last_analyzed: new Date().toISOString()
-        }, { onConflict: 'country_id' });
+      // Track which policies were successfully saved
+      const savedPolicies = [];
 
-      if (error) {
-        console.error(`Error upserting policy for ${country.name}:`, error);
-        throw error;
+      // 3. Insert or update the arrival policy if it exists
+      if (arrivalPolicy) {
+        const { error: arrivalError } = await upsertPolicy(
+          supabase,
+          country.code,
+          arrivalPolicy
+        );
+
+        if (arrivalError) {
+          console.error(`Error upserting arrival policy for ${country.name}:`, arrivalError);
+          throw new Error(`Failed to save arrival policy: ${arrivalError.message}`);
+        } else {
+          console.log(`Successfully saved arrival policy for ${country.name}`);
+          savedPolicies.push('arrival');
+        }
       }
 
-      // 4. Record successful result
+      // 4. Insert or update the transit policy if it exists
+      if (transitPolicy) {
+        const { error: transitError } = await upsertPolicy(
+          supabase,
+          country.code,
+          transitPolicy
+        );
+
+        if (transitError) {
+          console.error(`Error upserting transit policy for ${country.name}:`, transitError);
+          throw new Error(`Failed to save transit policy: ${transitError.message}`);
+        } else {
+          console.log(`Successfully saved transit policy for ${country.name}`);
+          savedPolicies.push('transit');
+        }
+      }
+
+      // 5. Record successful result
       const processingTime = Date.now() - startTime;
       results.push({
         country: country.name,
         processingTimeMs: processingTime,
-        policiesFound: policies.length
+        policiesFound: policies.length,
+        policiesSaved: savedPolicies
       });
 
-      console.log(`Successfully processed ${country.name} in ${processingTime}ms`);
+      console.log(`Successfully processed ${country.name} in ${processingTime}ms. Saved policies: ${savedPolicies.join(', ')}`);
 
     } catch (error) {
       console.error(`Error processing ${country.name}:`, error);
@@ -71,4 +93,41 @@ export async function processPolicyBatch(
 
   console.log(`Completed batch. Successes: ${results.length}, Failures: ${errors.length}`);
   return { results, errors };
+}
+
+// Helper function to upsert a policy to the database
+async function upsertPolicy(
+  supabase: ReturnType<typeof createClient>,
+  countryCode: string,
+  policy: any
+) {
+  // Map OpenAI response fields to database columns
+  const policyData = {
+    country_code: countryCode,
+    policy_type: policy.policy_type,
+    title: policy.title,
+    description: policy.description,
+    requirements: policy.requirements,
+    documentation_needed: policy.documentation_needed,
+    all_blood_tests: policy.all_blood_tests,
+    all_other_biological_tests: policy.all_other_biological_tests,
+    fees: policy.fees,
+    restrictions: policy.restrictions,
+    quarantine_requirements: policy.quarantine_requirements,
+    vaccination_requirements: policy.vaccination_requirements,
+    additional_notes: policy.additional_notes,
+    required_ports_of_entry: policy.required_ports_of_entry,
+    policy_url: policy.policy_url,
+    last_updated: new Date().toISOString()
+  };
+
+  console.log(`Upserting ${policy.policy_type} policy for country code ${countryCode}`);
+  
+  // Use policy_type and country_code as the conflict key
+  return await supabase
+    .from('country_policies')
+    .upsert(policyData, { 
+      onConflict: 'country_code,policy_type',
+      ignoreDuplicates: false 
+    });
 }

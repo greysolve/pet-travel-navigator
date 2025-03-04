@@ -49,12 +49,21 @@ export async function processCountriesChunk(
   }
 
   const startTime = Date.now();
+  
+  // Make sure we pass the full country object including name, id, and code
+  const countriesWithCode = countries.map(country => ({
+    id: country.id,
+    name: country.name,
+    code: country.code
+  }));
+  
   const { results, errors } = await processPolicyBatch(
-    countries as Country[],
+    countriesWithCode as Country[],
     openaiKey,
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
+  
   const executionTime = Date.now() - startTime;
 
   const processedCountries = results.map(r => r.country);
