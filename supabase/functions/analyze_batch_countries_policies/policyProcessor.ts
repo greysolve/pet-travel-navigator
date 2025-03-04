@@ -1,51 +1,64 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
-import { Country, PolicyResult, PolicyError, Policy } from './types.ts';
-import { analyzePolicies } from './perplexityClient.ts';
+import { analyzePolicies } from './openAIClient.ts';
+import { Country, CountryPolicyResult, ProcessingError } from './types.ts';
 
 export async function processPolicyBatch(
   countries: Country[],
-  perplexityKey: string,
+  openaiKey: string,
   supabaseUrl: string,
   supabaseKey: string
-): Promise<{ results: PolicyResult[]; errors: PolicyError[] }> {
-  console.log(`Processing batch of ${countries.length} countries`);
-  const results: PolicyResult[] = [];
-  const errors: PolicyError[] = [];
+): Promise<{
+  results: CountryPolicyResult[];
+  errors: ProcessingError[];
+}> {
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const results: CountryPolicyResult[] = [];
+  const errors: ProcessingError[] = [];
+
+  console.log(`Starting batch processing for ${countries.length} countries`);
 
   for (const country of countries) {
     try {
       console.log(`Processing country: ${country.name}`);
-      const policies = await analyzePolicies(country, perplexityKey);
-      console.log(`Got policies for ${country.name}:`, policies);
+      const startTime = Date.now();
 
-      // Store each policy type separately
-      for (const policy of policies) {
-        const policyData: Policy = {
-          country_code: country.code,
-          ...policy,
-          last_updated: new Date().toISOString()
-        };
+      // 1. Get policies via OpenAI
+      const policies = await analyzePolicies(country, openaiKey);
+      console.log(`Retrieved ${policies.length} policies for ${country.name}`);
 
-        const { error: upsertError } = await supabase
-          .from('country_policies')
-          .upsert(policyData, {
-            onConflict: 'country_code,policy_type'
-          });
+      // 2. Extract the arrival and transit policies
+      const arrivalPolicy = policies.find(p => p.policy_type === 'pet_arrival') || null;
+      const transitPolicy = policies.find(p => p.policy_type === 'pet_transit') || null;
 
-        if (upsertError) {
-          throw upsertError;
-        }
+      console.log(`Arrival policy: ${arrivalPolicy ? 'Found' : 'Not found'}`);
+      console.log(`Transit policy: ${transitPolicy ? 'Found' : 'Not found'}`);
+
+      // 3. Upsert to the country_policies table
+      const { data, error } = await supabase
+        .from('country_policies')
+        .upsert({
+          country_id: country.id,
+          country_name: country.name,
+          arrival_policy: arrivalPolicy,
+          transit_policy: transitPolicy,
+          last_analyzed: new Date().toISOString()
+        }, { onConflict: 'country_id' });
+
+      if (error) {
+        console.error(`Error upserting policy for ${country.name}:`, error);
+        throw error;
       }
 
+      // 4. Record successful result
+      const processingTime = Date.now() - startTime;
       results.push({
         country: country.name,
-        success: true
+        processingTimeMs: processingTime,
+        policiesFound: policies.length
       });
 
-      // Add delay between API calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`Successfully processed ${country.name} in ${processingTime}ms`);
 
     } catch (error) {
       console.error(`Error processing ${country.name}:`, error);
@@ -56,5 +69,6 @@ export async function processPolicyBatch(
     }
   }
 
+  console.log(`Completed batch. Successes: ${results.length}, Failures: ${errors.length}`);
   return { results, errors };
 }

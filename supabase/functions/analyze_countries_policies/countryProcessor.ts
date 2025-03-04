@@ -43,15 +43,15 @@ export async function processCountriesChunk(
     });
   }
 
-  const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-  if (!perplexityKey) {
-    throw new Error('Missing Perplexity API key');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiKey) {
+    throw new Error('Missing OpenAI API key');
   }
 
   const startTime = Date.now();
   const { results, errors } = await processPolicyBatch(
     countries as Country[],
-    perplexityKey,
+    openaiKey,
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );

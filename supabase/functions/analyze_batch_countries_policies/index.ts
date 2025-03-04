@@ -13,9 +13,9 @@ Deno.serve(async (req) => {
 
   const startTime = Date.now();
   try {
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) {
-      console.error('PERPLEXITY_API_KEY is not set');
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('OPENAI_API_KEY is not set');
       throw new Error('API key configuration error');
     }
 
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
     const { results, errors } = await processPolicyBatch(
       countries,
-      perplexityKey,
+      openaiKey,
       supabaseUrl,
       supabaseKey
     );
