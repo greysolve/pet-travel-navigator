@@ -33,6 +33,13 @@ export async function processCountriesChunk(
   }
 
   if (!countries || countries.length === 0) {
+    console.log('No more countries to process');
+    // Mark the sync as complete
+    await syncManager.updateProgress({
+      is_complete: true,
+      needs_continuation: false
+    });
+    
     return createResponse({ 
       data: {
         progress: {
@@ -42,6 +49,9 @@ export async function processCountriesChunk(
       }
     });
   }
+
+  console.log(`Processing ${countries.length} countries starting from index ${offset}:`, 
+    countries.map(c => c.name).join(', '));
 
   const openaiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiKey) {
@@ -70,8 +80,17 @@ export async function processCountriesChunk(
   const errorCountries = errors.map(e => e.country);
   const successRate = (results.length / countries.length) * 100;
 
+  // Calculate next offset - always advance by the batch size we processed
   const nextOffset = offset + countries.length;
   const hasMore = nextOffset < currentProgress.total;
+
+  console.log(`Processed batch complete. Next offset: ${nextOffset}, Has more: ${hasMore}`);
+  console.log(`Results: ${results.length} successes, ${errors.length} errors`);
+  console.log(`Processed countries: ${processedCountries.join(', ')}`);
+  if (errors.length > 0) {
+    console.log(`Error countries: ${errorCountries.join(', ')}`);
+    errors.forEach(e => console.error(`Error for ${e.country}:`, e.error));
+  }
 
   // Update sync progress
   await syncManager.updateProgress({

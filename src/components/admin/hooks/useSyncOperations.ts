@@ -63,21 +63,22 @@ export const useSyncOperations = () => {
     // Check both the response and the actual database state
     const isActuallyComplete = await checkSyncProgress(type);
     const needsContinuation = response.data?.progress?.needs_continuation;
+    const nextOffset = response.data?.progress?.next_offset;
 
     console.log(`Sync state for ${type}:`, {
       isActuallyComplete,
       needsContinuation,
+      nextOffset,
       responseData: response.data
     });
 
-    if (needsContinuation || !isActuallyComplete) {
-      const nextOffset = response.data?.progress?.next_offset || offset + 1;
+    if (needsContinuation && nextOffset !== null) {
       console.log(`More data to process for ${type}, continuing from offset ${nextOffset}...`);
       
       // Add a small delay before the next batch
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Continue with the next batch, preserving the original mode
+      // Continue with the next batch, preserving the original mode and using the new offset
       await handleSync(type, true, mode, nextOffset);
     } else {
       // Only mark as complete if both conditions are met

@@ -94,8 +94,10 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
     } else if (offset === 0 && currentProgress) {
       // If starting new sync but there's existing progress, check if it needs continuation
       if (currentProgress.needs_continuation) {
-        console.log('Found incomplete sync:', currentProgress);
-        return await processCountriesChunk(supabase, syncManager, currentProgress.processed, mode);
+        console.log('Found incomplete sync, continuing from last position:', currentProgress);
+        // Use processed count as offset to continue from where we left off
+        offset = currentProgress.processed;
+        console.log(`Setting offset to ${offset} based on processed count`);
       } else {
         // Reinitialize for new sync
         console.log('Reinitializing sync progress');
