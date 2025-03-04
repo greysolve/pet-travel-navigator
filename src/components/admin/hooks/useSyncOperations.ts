@@ -79,9 +79,10 @@ export const useSyncOperations = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Continue with the next batch, preserving the original mode and using the new offset
+      // IMPORTANT: Don't set isInitializing to false here since we're continuing
       await handleSync(type, true, mode, nextOffset);
     } else {
-      // Only mark as complete if both conditions are met
+      // Only mark as complete if truly finished
       console.log(`Sync completed for ${type}`);
       toast({
         title: "Sync Complete",
@@ -99,7 +100,11 @@ export const useSyncOperations = () => {
     offset: number = 0
   ) => {
     console.log(`Starting sync for ${type}, resume: ${resume}, mode: ${mode}, offset: ${offset}`);
-    setIsInitializing(prev => ({ ...prev, [type]: true }));
+    
+    // Only set initializing to true if we're starting a new sync or if it's not already set
+    if (!resume || !isInitializing[type]) {
+      setIsInitializing(prev => ({ ...prev, [type]: true }));
+    }
     
     try {
       const functionMap: Record<keyof typeof SyncType, string> = {
