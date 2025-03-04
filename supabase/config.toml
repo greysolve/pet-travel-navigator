@@ -37,3 +37,5 @@ verify_jwt = false
 [functions.stripe-webhooks]
 verify_jwt = false
 
+[functions.analyze_batch_countries_policies]
+verify_jwt = false
