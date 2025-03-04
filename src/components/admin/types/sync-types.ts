@@ -22,6 +22,6 @@ export interface ActiveSyncsProps {
     total: number;
     processed: number;
     isComplete: boolean;
+    needsContinuation?: boolean;
   }>;
 }
-

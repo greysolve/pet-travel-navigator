@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -66,7 +65,10 @@ export const SyncCard = ({
     };
   }, [syncProgress?.startTime, syncProgress?.processed, syncProgress?.total, syncProgress?.isComplete]);
 
-  const isSyncInProgress = () => syncProgress && !syncProgress.isComplete;
+  const isSyncInProgress = () => 
+    syncProgress && 
+    (!syncProgress.isComplete || syncProgress.needsContinuation);
+  
   const progressPercentage = syncProgress ? ((syncProgress.processed / syncProgress.total) * 100).toFixed(1) : 0;
   const processedItems = syncProgress?.processedItems || [];
   const errorItems = syncProgress?.errorItems || [];
@@ -74,19 +76,19 @@ export const SyncCard = ({
 
   const getStatusIcon = () => {
     if (isLoading) return <Loader2 className="w-5 h-5 animate-spin text-primary" />;
-    if (syncProgress?.isComplete) return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+    if (syncProgress?.isComplete && !syncProgress?.needsContinuation) 
+      return <CheckCircle2 className="w-5 h-5 text-green-500" />;
     if (isSyncInProgress()) return <ArrowUp className="w-5 h-5 text-blue-500 animate-bounce" />;
     return null;
   };
 
-  // Show sync mode selection for pet policies instead of airlines
   const showSyncModeSelection = title.toLowerCase().includes('pet polic');
 
   return (
     <div className={cn(
       "p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md",
       isSyncInProgress() && "border-blue-500/50",
-      syncProgress?.isComplete && "border-green-500/50"
+      syncProgress?.isComplete && !syncProgress?.needsContinuation && "border-green-500/50"
     )}>
       <h2 className="text-2xl font-semibold mb-6 flex items-center justify-between">
         <span>{formattedTitle}</span>
@@ -128,7 +130,7 @@ export const SyncCard = ({
         </div>
       )}
 
-      {syncProgress?.total > 0 && !syncProgress.isComplete ? (
+      {syncProgress?.total > 0 && !syncProgress.isComplete || syncProgress?.needsContinuation ? (
         <div className="mb-6 space-y-4">
           <div className="space-y-2">
             <Progress 
@@ -267,4 +269,3 @@ export const SyncCard = ({
     </div>
   );
 };
-

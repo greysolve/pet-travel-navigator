@@ -1,6 +1,7 @@
+
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SyncProgressDB } from "../types/sync-types";
 import { SyncProgressRecord } from "@/types/sync";
@@ -8,6 +9,7 @@ import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export const useSyncProgressSubscription = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log('Setting up sync progress subscription');
@@ -39,7 +41,8 @@ export const useSyncProgressSubscription = () => {
                   processedItems: newRecord.processed_items || [],
                   errorItems: newRecord.error_items || [],
                   startTime: newRecord.start_time,
-                  isComplete: newRecord.is_complete
+                  isComplete: newRecord.is_complete,
+                  needsContinuation: newRecord.needs_continuation
                 }
               })
             );
@@ -55,7 +58,7 @@ export const useSyncProgressSubscription = () => {
             }
 
             // If sync completed successfully, show success toast
-            if (newRecord.is_complete && payload.eventType === 'UPDATE') {
+            if (newRecord.is_complete && !newRecord.needs_continuation && payload.eventType === 'UPDATE') {
               toast({
                 title: "Sync Complete",
                 description: `Successfully synchronized ${newRecord.type} data.`,
@@ -70,5 +73,5 @@ export const useSyncProgressSubscription = () => {
       console.log('Cleaning up sync progress subscription');
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, toast]);
 };
