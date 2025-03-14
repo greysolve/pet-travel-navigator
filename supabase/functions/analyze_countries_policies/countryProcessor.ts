@@ -13,12 +13,14 @@ export async function processCountriesChunk(
   offset: number = 0,
   mode: string = 'clear'
 ) {
-  console.log(`Processing chunk starting from offset ${offset}`);
+  console.log(`Processing countries chunk starting from offset ${offset} with batch size ${BATCH_SIZE}`);
   
   const currentProgress = await syncManager.getCurrentProgress();
   if (!currentProgress) {
     throw new Error('No sync progress found');
   }
+
+  console.log(`Current progress before processing: processed=${currentProgress.processed}/${currentProgress.total}, needs_continuation=${currentProgress.needs_continuation}`);
 
   // Get the next batch of countries
   const { data: countries, error } = await supabase
@@ -33,7 +35,7 @@ export async function processCountriesChunk(
   }
 
   if (!countries || countries.length === 0) {
-    console.log('No more countries to process');
+    console.log(`No more countries to process at offset ${offset}. Marking sync as complete.`);
     // Mark the sync as complete
     await syncManager.updateProgress({
       is_complete: true,
@@ -50,7 +52,7 @@ export async function processCountriesChunk(
     });
   }
 
-  console.log(`Processing ${countries.length} countries starting from index ${offset}:`, 
+  console.log(`Retrieved ${countries.length} countries starting from index ${offset}:`, 
     countries.map(c => c.name).join(', '));
 
   const openaiKey = Deno.env.get('OPENAI_API_KEY');
@@ -84,7 +86,8 @@ export async function processCountriesChunk(
   const nextOffset = offset + countries.length;
   const hasMore = nextOffset < currentProgress.total;
 
-  console.log(`Processed batch complete. Next offset: ${nextOffset}, Has more: ${hasMore}`);
+  console.log(`Processed batch complete. Current offset: ${offset}, Next offset: ${nextOffset}`);
+  console.log(`Total: ${currentProgress.total}, Processed: ${currentProgress.processed}, HasMore: ${hasMore}`);
   console.log(`Results: ${results.length} successes, ${errors.length} errors`);
   console.log(`Processed countries: ${processedCountries.join(', ')}`);
   if (errors.length > 0) {
@@ -93,14 +96,19 @@ export async function processCountriesChunk(
   }
 
   // Update sync progress
+  const updatedProcessed = currentProgress.processed + countries.length;
   await syncManager.updateProgress({
-    processed: currentProgress.processed + countries.length,
+    processed: updatedProcessed,
     last_processed: countries[countries.length - 1].name,
     processed_items: [...(currentProgress.processed_items || []), ...processedCountries],
     error_items: [...(currentProgress.error_items || []), ...errorCountries],
     needs_continuation: hasMore
   });
 
+  console.log(`Updated progress: processed=${updatedProcessed}/${currentProgress.total}, needs_continuation=${hasMore}`);
+
+  // Important: Make sure we're explicitly setting needs_continuation to the correct value
+  // and always returning next_offset when needs_continuation is true
   return createResponse({
     data: {
       progress: {
@@ -112,7 +120,12 @@ export async function processCountriesChunk(
       chunk_metrics: {
         processed: countries.length,
         execution_time: executionTime,
-        success_rate: successRate
+        success_rate: successRate,
+        currentOffset: offset,
+        nextOffset: nextOffset,
+        hasMore: hasMore,
+        total: currentProgress.total,
+        processedSoFar: updatedProcessed
       }
     }
   });

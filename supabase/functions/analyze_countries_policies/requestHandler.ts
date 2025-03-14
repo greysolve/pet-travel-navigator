@@ -71,9 +71,10 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
       throw new Error(`Error getting count: ${countError.message}`);
     }
 
-    console.log('Total count:', totalCount);
+    console.log(`Total countries count: ${totalCount}`);
 
     if (!totalCount) {
+      console.log('No countries found, marking as completed with no continuation needed');
       return createResponse({ 
         data: {
           progress: {
@@ -86,10 +87,11 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
 
     // Check for existing sync in progress first
     const currentProgress = await syncManager.getCurrentProgress();
+    console.log('Current progress from database:', currentProgress);
     
     // Initialize sync progress only when starting from beginning
     if (offset === 0 && !currentProgress) {
-      console.log(`Initializing sync progress with total count: ${totalCount}`);
+      console.log(`Initializing new sync progress with total count: ${totalCount}`);
       await syncManager.initialize(totalCount);
     } else if (offset === 0 && currentProgress) {
       // If starting new sync but there's existing progress, check if it needs continuation
@@ -100,18 +102,19 @@ export async function handleAnalysisRequest(req: Request): Promise<Response> {
         console.log(`Setting offset to ${offset} based on processed count`);
       } else {
         // Reinitialize for new sync
-        console.log('Reinitializing sync progress');
+        console.log('Reinitializing sync progress for new sync');
         await syncManager.initialize(totalCount);
       }
     } else {
       // For non-zero offset, validate against existing progress
       if (!currentProgress) {
+        console.error('No sync progress found for non-zero offset:', offset);
         throw new Error('No sync progress found for non-zero offset');
       }
       if (currentProgress.total !== totalCount) {
         console.warn(`Total count mismatch. Current: ${currentProgress.total}, New: ${totalCount}. Using existing total.`);
       }
-      console.log('Continuing with existing progress:', currentProgress);
+      console.log(`Continuing with existing progress at offset ${offset}:`, currentProgress);
     }
 
     return await processCountriesChunk(supabase, syncManager, offset, mode);

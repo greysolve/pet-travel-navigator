@@ -49,6 +49,8 @@ export const useSyncOperations = () => {
     mode: string,
     offset: number = 0
   ) => {
+    console.log(`Full sync response for ${type}:`, response);
+    
     if (response.error) {
       console.error(`Error syncing ${type}:`, response.error);
       toast({
@@ -65,25 +67,31 @@ export const useSyncOperations = () => {
     const needsContinuation = response.data?.progress?.needs_continuation;
     const nextOffset = response.data?.progress?.next_offset;
 
-    console.log(`Sync state for ${type}:`, {
+    console.log(`Sync state details for ${type}:`, {
       isActuallyComplete,
       needsContinuation,
       nextOffset,
       responseData: response.data
     });
 
-    if (needsContinuation && nextOffset !== null) {
-      console.log(`More data to process for ${type}, continuing from offset ${nextOffset}...`);
+    // FIXED: Only consider the sync complete if needsContinuation is explicitly false
+    // We no longer rely on nextOffset being null to determine completion
+    if (needsContinuation === true) {
+      console.log(`Sync needs to continue for ${type}. needsContinuation=${needsContinuation}, nextOffset=${nextOffset}`);
+      
+      // Even if nextOffset is null but needsContinuation is true, we should try to continue
+      const offsetToUse = nextOffset !== null ? nextOffset : offset + 5; // Fallback to incrementing by batch size
+      
+      console.log(`Continuing sync for ${type} with offset ${offsetToUse}`);
       
       // Add a small delay before the next batch
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Continue with the next batch, preserving the original mode and using the new offset
-      // IMPORTANT: Don't set isInitializing to false here since we're continuing
-      await handleSync(type, true, mode, nextOffset);
+      await handleSync(type, true, mode, offsetToUse);
     } else {
-      // Only mark as complete if truly finished
-      console.log(`Sync completed for ${type}`);
+      // Only mark as complete if needsContinuation is explicitly false
+      console.log(`Sync completed for ${type}. needsContinuation=${needsContinuation}`);
       toast({
         title: "Sync Complete",
         description: `Successfully synchronized ${type} data.`,
@@ -115,6 +123,7 @@ export const useSyncOperations = () => {
         countryPolicies: 'analyze_countries_policies'
       };
 
+      console.log(`Invoking function ${functionMap[type]} with mode=${mode}, offset=${offset}`);
       const response = await supabase.functions.invoke(functionMap[type], {
         body: { 
           mode: clearData[type] ? 'clear' : mode,
