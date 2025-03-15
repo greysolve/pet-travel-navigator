@@ -111,7 +111,10 @@ export const SyncSection = () => {
                 handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
               } else if (key === 'petPolicies') {
                 // Pass the forceContentComparison flag for pet policies
-                handleSync(key as keyof typeof SyncType, resume, 'clear', { forceContentComparison });
+                handleSync(key as keyof typeof SyncType, resume, 'clear', { 
+                  forceContentComparison,
+                  compareContent: true  // Always enable content comparison
+                });
               } else {
                 // For full sync or other types, no country validation needed
                 handleSync(key as keyof typeof SyncType, resume, mode);

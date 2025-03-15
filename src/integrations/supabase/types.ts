@@ -727,10 +727,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      backfill_policy_summaries: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       cleanup_airlines_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined

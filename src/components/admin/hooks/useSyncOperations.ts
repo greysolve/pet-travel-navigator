@@ -9,6 +9,7 @@ type StatusRecord = Record<keyof typeof SyncType, boolean>;
 
 interface SyncOptions {
   forceContentComparison?: boolean;
+  compareContent?: boolean;
   [key: string]: any;
 }
 
@@ -59,7 +60,8 @@ export const useSyncOperations = () => {
           data = { 
             resumeSync, 
             mode: clearData[syncType] ? 'clear' : 'update',
-            forceContentComparison: options.forceContentComparison || false
+            forceContentComparison: options.forceContentComparison || false,
+            compareContent: options.compareContent || false
           };
           break;
           
