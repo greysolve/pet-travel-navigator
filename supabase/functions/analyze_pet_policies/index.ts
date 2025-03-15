@@ -69,17 +69,24 @@ Deno.serve(async (req) => {
       console.log('Resuming from previous state:', currentProgress);
     }
 
+    // Get all active airlines query
+    const activeAirlinesQuery = supabase.from('airlines').select('*', { count: 'exact' }).eq('active', true);
+    
+    // Add timestamp filtering if we're in update mode and not doing a full clear
+    if (mode === 'update' && mode !== 'clear') {
+      // Find airlines where policy doesn't exist or is older than last airline update
+      activeAirlinesQuery.or('last_policy_update.is.null,last_policy_update.lt.updated_at');
+    }
+    
     // Get total count
-    const { count: totalCount, error: countError } = mode === 'update' 
-      ? await supabase.from('missing_pet_policies').select('*', { count: 'exact', head: true })
-      : await supabase.from('airlines').select('*', { count: 'exact', head: true }).eq('active', true);
+    const { count: totalCount, error: countError } = await activeAirlinesQuery.select('*', { count: 'exact', head: true });
 
     if (countError) {
       console.error('Error getting count:', countError);
       throw new Error(`Error getting count: ${countError.message}`);
     }
 
-    console.log('Total count:', totalCount);
+    console.log('Total airlines to process:', totalCount);
 
     if (!totalCount) {
       console.log('No airlines to process');
@@ -108,17 +115,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Clone the query to get the batch of airlines
+    const batchQuery = supabase
+      .from('airlines')
+      .select('*')
+      .eq('active', true)
+      .range(offset, offset + CHUNK_SIZE - 1);
+      
+    // Add the same timestamp filtering if in update mode
+    if (mode === 'update' && mode !== 'clear') {
+      batchQuery.or('last_policy_update.is.null,last_policy_update.lt.updated_at');
+    }
+    
     // Get batch of airlines
-    const { data: airlines, error: batchError } = mode === 'update'
-      ? await supabase
-          .from('missing_pet_policies')
-          .select('*')
-          .range(offset, offset + CHUNK_SIZE - 1)
-      : await supabase
-          .from('airlines')
-          .select('*')
-          .eq('active', true)
-          .range(offset, offset + CHUNK_SIZE - 1);
+    const { data: airlines, error: batchError } = await batchQuery;
 
     if (batchError) {
       console.error('Error fetching airlines batch:', batchError);
@@ -183,9 +193,9 @@ Deno.serve(async (req) => {
           processed: currentProgress.processed + 1,
           last_processed: airline.name,
           processed_items: [...(currentProgress.processed_items || []), 
-            ...(result.results || []).map((r: any) => r.iata_code)],
+            ...(result.results || []).map((r) => r.iata_code)],
           error_items: [...(currentProgress.error_items || []),
-            ...(result.errors || []).map((error: any) => `${error.iata_code}: ${error.error}`)],
+            ...(result.errors || []).map((error) => `${error.iata_code}: ${error.error}`)],
           needs_continuation: true
         });
 
@@ -205,12 +215,11 @@ Deno.serve(async (req) => {
     const nextOffset = offset + airlines.length;
     const hasMore = nextOffset < totalCount;
 
-    if (!hasMore) {
-      await syncManager.updateProgress({ 
-        is_complete: true,
-        needs_continuation: false
-      });
-    }
+    // Explicitly set the correct progress state before responding
+    await syncManager.updateProgress({ 
+      is_complete: !hasMore,
+      needs_continuation: hasMore
+    });
 
     const resumeData = hasMore ? {
       offset: nextOffset,
@@ -226,7 +235,7 @@ Deno.serve(async (req) => {
         chunk_metrics: {
           processed: airlines.length,
           execution_time: Date.now() - chunkStartTime,
-          success_rate: (results.length / airlines.length) * 100
+          success_rate: airlines.length > 0 ? (results.length / airlines.length) * 100 : 0
         },
         has_more: hasMore,
         next_offset: hasMore ? nextOffset : null,
