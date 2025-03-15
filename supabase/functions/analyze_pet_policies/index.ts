@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         throw new Error(`Failed to count airlines: ${countError.message}`);
       }
       
-      await syncManager.initializeSyncProgress(count || 0);
+      await syncManager.initialize(count || 0);
     }
 
     // Process airlines in smaller batches for better reliability

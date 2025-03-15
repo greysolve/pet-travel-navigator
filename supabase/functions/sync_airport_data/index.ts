@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
 
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
-    const syncManager = new SyncManager(supabaseUrl, supabaseKey, 'airports')
+    const syncManager = new SyncManager(supabase, 'airports')
 
     console.log(`Processing ${airports.length} airports in batches of ${BATCH_SIZE}...`)
 

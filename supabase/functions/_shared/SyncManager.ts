@@ -1,5 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 export interface SyncState {
   total: number;
@@ -19,13 +20,23 @@ export interface SyncState {
 }
 
 export class SyncManager {
-  private supabase;
+  private supabase: SupabaseClient;
   private type: string;
   
-  constructor(supabaseUrl: string, supabaseKey: string, type: string) {
-    console.log(`Initializing SyncManager for ${type}`);
-    this.supabase = createClient(supabaseUrl, supabaseKey);
-    this.type = type;
+  constructor(supabaseUrlOrClient: string | SupabaseClient, supabaseKeyOrType?: string, type?: string) {
+    if (typeof supabaseUrlOrClient === 'string' && typeof supabaseKeyOrType === 'string' && type) {
+      // Old constructor format: (url, key, type)
+      console.log(`Initializing SyncManager for ${type} with URL and key`);
+      this.supabase = createClient(supabaseUrlOrClient, supabaseKeyOrType);
+      this.type = type;
+    } else if (typeof supabaseUrlOrClient !== 'string' && typeof supabaseKeyOrType === 'string') {
+      // New constructor format: (client, type)
+      console.log(`Initializing SyncManager for ${supabaseKeyOrType} with client`);
+      this.supabase = supabaseUrlOrClient;
+      this.type = supabaseKeyOrType;
+    } else {
+      throw new Error('Invalid parameters for SyncManager constructor');
+    }
   }
 
   async getCurrentProgress(): Promise<SyncState | null> {
@@ -127,5 +138,52 @@ export class SyncManager {
       throw error;
     }
   }
-}
 
+  // Add convenience methods for common operations
+  async completeSync(): Promise<void> {
+    console.log(`Marking sync ${this.type} as complete`);
+    await this.updateProgress({ 
+      is_complete: true,
+      needs_continuation: false
+    });
+  }
+
+  async continueSyncProgress(): Promise<void> {
+    console.log(`Continuing sync ${this.type}`);
+    const currentProgress = await this.getCurrentProgress();
+    if (!currentProgress) {
+      throw new Error(`No progress found for sync type ${this.type}`);
+    }
+    
+    await this.updateProgress({
+      needs_continuation: true,
+      is_complete: false
+    });
+  }
+
+  async getSyncProgress(): Promise<SyncState> {
+    const progress = await this.getCurrentProgress();
+    if (!progress) {
+      throw new Error(`No progress found for sync type ${this.type}`);
+    }
+    return progress;
+  }
+
+  async clearSyncProgress(): Promise<void> {
+    console.log(`Clearing sync progress for ${this.type}`);
+    await this.initialize(0);
+  }
+
+  async cleanup(): Promise<void> {
+    console.log(`Cleaning up sync ${this.type}`);
+    const { error } = await this.supabase
+      .from('sync_progress')
+      .delete()
+      .eq('type', this.type);
+      
+    if (error) {
+      console.error(`Error cleaning up sync ${this.type}:`, error);
+      throw error;
+    }
+  }
+}
