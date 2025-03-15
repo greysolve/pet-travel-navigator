@@ -67,32 +67,16 @@ export const useSyncOperations = () => {
           throw new Error(`Unknown sync type: ${syncType}`);
       }
       
-      // Get the Supabase URL and key in a way that doesn't use protected properties
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+      // Use supabase.functions.invoke instead of direct fetch
+      const { data: result, error } = await supabase.functions.invoke(endpoint, {
+        method: 'POST',
+        body: data
+      });
       
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Supabase configuration is missing");
+      if (error) {
+        throw new Error(`Failed to start sync: ${error.message}`);
       }
       
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/${endpoint}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`
-          },
-          body: JSON.stringify(data)
-        }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to start sync: ${errorText}`);
-      }
-      
-      const result = await response.json();
       console.log(`${syncType} sync initiated:`, result);
       
       toast({
