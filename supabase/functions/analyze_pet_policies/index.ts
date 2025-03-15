@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
     let mode = 'clear';
     let offset = 0;
     let resumeToken = null;
+    let forceContentComparison = false;
     
     // Parse request body
     try {
@@ -48,13 +49,14 @@ Deno.serve(async (req) => {
         if (parsedBody.mode) mode = parsedBody.mode;
         if (parsedBody.offset) offset = parsedBody.offset;
         if (parsedBody.resumeToken) resumeToken = parsedBody.resumeToken;
+        if (parsedBody.forceContentComparison) forceContentComparison = parsedBody.forceContentComparison;
       }
     } catch (error) {
       console.error('Error parsing request body:', error);
       throw new Error('Invalid request body');
     }
 
-    console.log(`Starting pet policy analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}`);
+    console.log(`Starting pet policy analysis - Mode: ${mode}, Offset: ${offset}, ResumeToken: ${resumeToken}, ForceContentComparison: ${forceContentComparison}`);
     
     // Initialize clients
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -72,8 +74,8 @@ Deno.serve(async (req) => {
     // Get all active airlines query
     const activeAirlinesQuery = supabase.from('airlines').select('*', { count: 'exact' }).eq('active', true);
     
-    // Add timestamp filtering if we're in update mode and not doing a full clear
-    if (mode === 'update' && mode !== 'clear') {
+    // Add timestamp filtering if we're in update mode and not forcing content comparison
+    if (mode === 'update' && !forceContentComparison) {
       // Find airlines where policy doesn't exist or is older than last airline update
       activeAirlinesQuery.or('last_policy_update.is.null,last_policy_update.lt.updated_at');
     }
@@ -122,8 +124,8 @@ Deno.serve(async (req) => {
       .eq('active', true)
       .range(offset, offset + CHUNK_SIZE - 1);
       
-    // Add the same timestamp filtering if in update mode
-    if (mode === 'update' && mode !== 'clear') {
+    // Add the same timestamp filtering if in update mode and not forcing content comparison
+    if (mode === 'update' && !forceContentComparison) {
       batchQuery.or('last_policy_update.is.null,last_policy_update.lt.updated_at');
     }
     
@@ -157,45 +159,84 @@ Deno.serve(async (req) => {
     const errors = [];
     const chunkStartTime = Date.now();
 
+    // For content comparison, we need to get existing policies
+    let existingPolicies = {};
+    if (forceContentComparison || mode === 'update') {
+      const airlineIds = airlines.map(airline => airline.id);
+      const { data: policies } = await supabase
+        .from('pet_policies')
+        .select('*')
+        .in('airline_id', airlineIds);
+      
+      if (policies) {
+        existingPolicies = policies.reduce((acc, policy) => {
+          acc[policy.airline_id] = policy;
+          return acc;
+        }, {});
+      }
+      console.log(`Retrieved ${Object.keys(existingPolicies).length} existing policies for content comparison`);
+    }
+
     // Process airlines one at a time with delay
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
         
-        const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ airlines: [airline] }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to process airline: ${response.statusText}`);
+        // Check if we need to update this airline's policy based on content
+        let shouldProcess = true;
+        
+        if (mode === 'update' && existingPolicies[airline.id] && !forceContentComparison) {
+          // In update mode without forced content comparison,
+          // we've already filtered for timestamp differences in the query
+          shouldProcess = true;
+        } else if (existingPolicies[airline.id] && forceContentComparison) {
+          // Force content comparison is enabled, we'll check the content
+          // This would be where we implement the content comparison logic
+          console.log(`Content comparison for airline ${airline.name} will be performed by analyze_batch_pet_policies`);
+          shouldProcess = true;
         }
 
-        const result = await response.json();
-        console.log('Airline processing result:', result);
+        if (shouldProcess) {
+          const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              airlines: [airline],
+              forceContentComparison: forceContentComparison,
+              existingPolicy: existingPolicies[airline.id] || null
+            }),
+          });
 
-        if (result.results?.length > 0) {
-          results.push(...result.results);
-        }
-        if (result.errors?.length > 0) {
-          errors.push(...result.errors);
+          if (!response.ok) {
+            throw new Error(`Failed to process airline: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log('Airline processing result:', result);
+
+          if (result.results?.length > 0) {
+            results.push(...result.results);
+          }
+          if (result.errors?.length > 0) {
+            errors.push(...result.errors);
+          }
+        } else {
+          console.log(`Skipping ${airline.name} - no content or timestamp changes detected`);
         }
 
         // Update progress after each airline
         const currentProgress = await syncManager.getCurrentProgress();
-        const processedInChunk = results.length + errors.length;
         
         await syncManager.updateProgress({
           processed: currentProgress.processed + 1,
           last_processed: airline.name,
           processed_items: [...(currentProgress.processed_items || []), 
-            ...(result.results || []).map((r) => r.iata_code)],
+            ...(results.length > 0 ? results.map((r) => r.iata_code) : [])],
           error_items: [...(currentProgress.error_items || []),
-            ...(result.errors || []).map((error) => `${error.iata_code}: ${error.error}`)],
+            ...(errors.length > 0 ? errors.map((error) => `${error.iata_code}: ${error.error}`) : [])],
           needs_continuation: true
         });
 
@@ -224,6 +265,7 @@ Deno.serve(async (req) => {
     const resumeData = hasMore ? {
       offset: nextOffset,
       mode,
+      forceContentComparison,
       timestamp: new Date().toISOString()
     } : null;
     

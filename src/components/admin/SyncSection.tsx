@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,10 +9,13 @@ import { useSyncOperations } from "./hooks/useSyncOperations";
 import { useSyncProgressSubscription } from "./hooks/useSyncProgressSubscription";
 import { SyncProgressDB } from "./types/sync-types";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export const SyncSection = () => {
   const { toast } = useToast();
   const [countryInput, setCountryInput] = useState<string>("");
+  const [forceContentComparison, setForceContentComparison] = useState<boolean>(false);
   const { isInitializing, clearData, setClearData, handleSync } = useSyncOperations();
   
   // Set up sync progress subscription
@@ -77,6 +81,18 @@ export const SyncSection = () => {
         />
       </div>
 
+      {/* Content comparison toggle for pet policies */}
+      <div className="flex items-center space-x-2 mb-6">
+        <Switch 
+          id="force-content-comparison" 
+          checked={forceContentComparison}
+          onCheckedChange={setForceContentComparison}
+        />
+        <Label htmlFor="force-content-comparison">
+          Force content comparison (detects policy changes regardless of timestamps)
+        </Label>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {Object.entries(SyncType).map(([key, value]) => (
           <SyncCard
@@ -100,6 +116,9 @@ export const SyncSection = () => {
                   return;
                 }
                 handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
+              } else if (key === 'petPolicies' && forceContentComparison) {
+                // Pass the forceContentComparison flag for pet policies
+                handleSync(key as keyof typeof SyncType, resume, mode, { forceContentComparison });
               } else {
                 // For full sync or other types, no country validation needed
                 handleSync(key as keyof typeof SyncType, resume, mode);
