@@ -1,13 +1,13 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { SyncProgress } from "@/types/sync";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface SyncCardProps {
   title: string;
@@ -16,6 +16,9 @@ interface SyncCardProps {
   isLoading: boolean;
   onSync: (resume?: boolean, mode?: string) => void;
   syncProgress?: SyncProgress;
+  forceContentComparison?: boolean;
+  onForceContentComparisonChange?: (checked: boolean) => void;
+  showForceContentComparison?: boolean;
 }
 
 const formatTitle = (title: string) => {
@@ -33,6 +36,9 @@ export const SyncCard = ({
   isLoading,
   onSync,
   syncProgress,
+  forceContentComparison = false,
+  onForceContentComparisonChange,
+  showForceContentComparison = false,
 }: SyncCardProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState('Calculating...');
@@ -82,8 +88,6 @@ export const SyncCard = ({
     return null;
   };
 
-  const showSyncModeSelection = title.toLowerCase().includes('pet polic');
-
   return (
     <div className={cn(
       "p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md",
@@ -95,26 +99,8 @@ export const SyncCard = ({
         {getStatusIcon()}
       </h2>
       
-      {showSyncModeSelection ? (
-        <div className="mb-6">
-          <RadioGroup
-            value={syncMode}
-            onValueChange={setSyncMode}
-            className="space-y-3"
-            disabled={isLoading || isSyncInProgress()}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="clear" id="clear" />
-              <Label htmlFor="clear">Clear and Full Sync</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="update" id="update" />
-              <Label htmlFor="update">Update Missing Policies Only</Label>
-            </div>
-          </RadioGroup>
-        </div>
-      ) : (
-        <div className="flex items-center space-x-3 mb-6">
+      <div className="space-y-4 mb-6">
+        <div className="flex items-center space-x-3">
           <Checkbox 
             id={`clear${title.replace(/\s+/g, '')}`}
             checked={clearData}
@@ -128,7 +114,24 @@ export const SyncCard = ({
             Clear existing {formattedTitle.toLowerCase()} data first
           </Label>
         </div>
-      )}
+
+        {showForceContentComparison && onForceContentComparisonChange && (
+          <div className="flex items-center space-x-3 pt-2">
+            <Checkbox 
+              id={`force-content${title.replace(/\s+/g, '')}`}
+              checked={forceContentComparison}
+              onCheckedChange={(checked) => onForceContentComparisonChange(checked === true)}
+              disabled={isLoading || isSyncInProgress()}
+            />
+            <Label 
+              htmlFor={`force-content${title.replace(/\s+/g, '')}`} 
+              className={cn("text-lg", (isLoading || isSyncInProgress()) && "opacity-50")}
+            >
+              Force content comparison (detects policy changes regardless of timestamps)
+            </Label>
+          </div>
+        )}
+      </div>
 
       {syncProgress?.total > 0 && !syncProgress.isComplete || syncProgress?.needsContinuation ? (
         <div className="mb-6 space-y-4">
