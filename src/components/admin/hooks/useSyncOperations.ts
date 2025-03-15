@@ -10,6 +10,7 @@ type StatusRecord = Record<keyof typeof SyncType, boolean>;
 interface SyncOptions {
   forceContentComparison?: boolean;
   compareContent?: boolean;
+  offset?: number;
   [key: string]: any;
 }
 
@@ -52,7 +53,12 @@ export const useSyncOperations = () => {
           
         case 'countryPolicies':
           endpoint = 'analyze_countries_policies';
-          data = { resumeSync, mode, countryName: mode !== 'clear' ? mode : undefined };
+          data = { 
+            resumeSync, 
+            mode, 
+            countryName: mode !== 'clear' ? mode : undefined,
+            offset: options.offset
+          };
           break;
           
         case 'petPolicies':
@@ -61,7 +67,9 @@ export const useSyncOperations = () => {
             resumeSync, 
             mode: clearData[syncType] ? 'clear' : 'update',
             forceContentComparison: options.forceContentComparison || false,
-            compareContent: options.compareContent || false
+            compareContent: options.compareContent || false,
+            offset: options.offset || 0,
+            limit: 10 // Process 10 airlines per batch
           };
           break;
           
@@ -81,10 +89,13 @@ export const useSyncOperations = () => {
       
       console.log(`${syncType} sync initiated:`, result);
       
-      toast({
-        title: "Sync Started",
-        description: `${syncType} synchronization has been initiated.`,
-      });
+      // Only show toast for initial sync start, not continuations
+      if (!options.offset) {
+        toast({
+          title: "Sync Started",
+          description: `${syncType} synchronization has been initiated.`,
+        });
+      }
       
     } catch (error) {
       console.error(`Error starting ${syncType} sync:`, error);
