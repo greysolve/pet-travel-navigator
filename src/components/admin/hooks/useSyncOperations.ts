@@ -34,17 +34,17 @@ export const useSyncOperations = () => {
       let data: any = {};
       
       switch (syncType) {
-        case 'airlineData':
+        case 'airlines':
           endpoint = 'sync_airline_data';
           data = { clear: clearData[syncType] };
           break;
         
-        case 'airportData':
+        case 'airports':
           endpoint = 'sync_airport_data';
           data = { clear: clearData[syncType] };
           break;
           
-        case 'routeData':
+        case 'routes':
           endpoint = 'sync_route_data';
           data = { clear: clearData[syncType] };
           break;
@@ -67,13 +67,21 @@ export const useSyncOperations = () => {
           throw new Error(`Unknown sync type: ${syncType}`);
       }
       
+      // Get the Supabase URL and key in a way that doesn't use protected properties
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Supabase configuration is missing");
+      }
+      
       const response = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/${endpoint}`,
+        `${supabaseUrl}/functions/v1/${endpoint}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabase.supabaseKey}`
+            'Authorization': `Bearer ${supabaseKey}`
           },
           body: JSON.stringify(data)
         }
