@@ -160,6 +160,8 @@ Deno.serve(async (req) => {
 
     let totalProcessed = 0;
     let totalUpdated = 0;
+    const processedItems: string[] = [];
+    const errorItems: string[] = [];
     
     for (const batch of airlineBatches) {
       try {
@@ -205,18 +207,24 @@ Deno.serve(async (req) => {
         const result = await response.json();
         console.log('Batch processing result:', result);
 
-        // Update progress with processed items
-        const processedItems = result.results.map((item: any) => item.iata_code);
-        const errorItems = result.errors.map((item: any) => item.iata_code);
-        
-        await syncManager.updateSyncProgress({
-          processed: (await syncManager.getSyncProgress()).processed + processedItems.length,
-          processedItems,
-          errorItems,
-          lastProcessed: batch[batch.length - 1].iata_code
+        // Collect processed and error items
+        result.results.forEach((item: any) => {
+          processedItems.push(item.iata_code);
         });
         
-        totalProcessed += processedItems.length;
+        result.errors.forEach((item: any) => {
+          errorItems.push(item.iata_code);
+        });
+        
+        // Update progress with batch results
+        await syncManager.updateProgress({
+          processed: (await syncManager.getSyncProgress()).processed + result.results.length,
+          processed_items: processedItems,
+          error_items: errorItems,
+          last_processed: batch[batch.length - 1].iata_code
+        });
+        
+        totalProcessed += batch.length;
         totalUpdated += result.results.length;
         
         // Add delay between batches to prevent rate limiting
@@ -237,15 +245,15 @@ Deno.serve(async (req) => {
       const { processed } = await syncManager.getSyncProgress();
       
       if (!countError && processed >= (count || 0)) {
-        await syncManager.completeSyncProgress();
+        await syncManager.completeSync();
       } else {
-        await syncManager.updateSyncProgress({
-          needsContinuation: true
+        await syncManager.updateProgress({
+          needs_continuation: true
         });
       }
     } else {
-      await syncManager.updateSyncProgress({
-        needsContinuation: true
+      await syncManager.updateProgress({
+        needs_continuation: true
       });
     }
 

@@ -109,34 +109,68 @@ export class SyncManager {
   async updateProgress(updates: Partial<SyncState>): Promise<void> {
     console.log(`Updating progress for ${this.type}:`, updates);
     
-    // Get current state to properly handle processed count and preserve total
-    const currentState = await this.getCurrentProgress();
-    if (!currentState) {
-      console.error('No current state found when updating progress');
-      return;
-    }
+    try {
+      // Get current state to properly handle processed count and preserve total
+      const currentState = await this.getCurrentProgress();
+      if (!currentState) {
+        console.error('No current state found when updating progress');
+        return;
+      }
 
-    // Ensure processed count doesn't exceed total and preserve the total
-    let processedCount = updates.processed ?? currentState.processed;
-    if (processedCount > currentState.total) {
-      console.warn(`Attempted to set processed count (${processedCount}) higher than total (${currentState.total}). Capping at total.`);
-      processedCount = currentState.total;
-    }
+      // Ensure processed count doesn't exceed total and preserve the total
+      let processedCount = updates.processed ?? currentState.processed;
+      if (processedCount > currentState.total) {
+        console.warn(`Attempted to set processed count (${processedCount}) higher than total (${currentState.total}). Capping at total.`);
+        processedCount = currentState.total;
+      }
 
-    const { error } = await this.supabase
-      .from('sync_progress')
-      .update({
-        ...updates,
-        total: currentState.total, // Preserve the original total
-        processed: processedCount,
-        updated_at: new Date().toISOString()
-      })
-      .eq('type', this.type);
+      // Handle array merging for processed_items and error_items
+      const updatedProcessedItems = this.mergeArrayItems(
+        currentState.processed_items || [], 
+        updates.processed_items || []
+      );
+      
+      const updatedErrorItems = this.mergeArrayItems(
+        currentState.error_items || [], 
+        updates.error_items || []
+      );
 
-    if (error) {
-      console.error(`Error updating progress for ${this.type}:`, error);
-      throw error;
+      const { error } = await this.supabase
+        .from('sync_progress')
+        .update({
+          ...updates,
+          processed_items: updatedProcessedItems,
+          error_items: updatedErrorItems,
+          total: currentState.total, // Preserve the original total
+          processed: processedCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('type', this.type);
+
+      if (error) {
+        console.error(`Error updating progress for ${this.type}:`, error);
+        throw error;
+      }
+    } catch (error) {
+      console.error(`Critical error in updateProgress for ${this.type}:`, error);
+      // Continue execution without throwing to prevent cascade failures
     }
+  }
+
+  // Helper function to properly merge array items, handling both string arrays and single string values
+  private mergeArrayItems(existingItems: string[], newItems: string[] | string): string[] {
+    // Handle case where newItems is a single string
+    if (typeof newItems === 'string') {
+      return [...new Set([...existingItems, newItems])];
+    }
+    
+    // Handle case where newItems is an array
+    if (Array.isArray(newItems)) {
+      return [...new Set([...existingItems, ...newItems])];
+    }
+    
+    // If newItems is undefined or null, return existing items
+    return existingItems;
   }
 
   // Add convenience methods for common operations
