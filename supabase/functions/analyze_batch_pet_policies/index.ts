@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -21,9 +22,9 @@ Deno.serve(async (req) => {
 
   const startTime = Date.now();
   try {
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) {
-      console.error('PERPLEXITY_API_KEY is not set');
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('OPENAI_API_KEY is not set');
       throw new Error('API key configuration error');
     }
 
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
-        const petPolicy = await analyzePetPolicy(airline, perplexityKey);
+        const petPolicy = await analyzePetPolicy(airline, openaiKey);
         
         const policyData = {
           airline_id: airline.id,
@@ -131,7 +132,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promise<any> {
+async function analyzePetPolicy(airline: Airline, openaiKey: string): Promise<any> {
   console.log(`Analyzing pet policy for airline: ${airline.name}`);
   
   const systemPrompt = `You are a helpful assistant specializing in analyzing airline pet policies. You prioritize finding official policies from airline websites and documents. Focus on extracting key information about pet travel requirements and restrictions.
@@ -179,16 +180,16 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Attempt ${attempt} to get pet policy from Perplexity API`);
+      console.log(`Attempt ${attempt} to get pet policy from OpenAI API`);
       
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${perplexityKey}`,
+          'Authorization': `Bearer ${openaiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'sonar-pro',
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
@@ -201,17 +202,16 @@ Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
           ],
           temperature: 0.1,
           max_tokens: 2000,
-          top_p: 0.9,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Perplexity API error: ${response.status} ${response.statusText}`);
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
       const responseData = await response.json();
       if (!responseData.choices?.[0]?.message?.content) {
-        throw new Error('Invalid response format from Perplexity API');
+        throw new Error('Invalid response format from OpenAI API');
       }
 
       const rawContent = responseData.choices[0].message.content;
