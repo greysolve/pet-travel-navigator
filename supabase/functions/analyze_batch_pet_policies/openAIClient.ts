@@ -21,7 +21,8 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
   const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
   {
     "airline_info": {
-      "official_website": "url if found"
+      "official_website": "The main airline website URL if found",
+      "pet_policy_url": "The DIRECT URL to the pet travel policy page if found (not just the homepage)"
     },
     "pet_policy": {
       "pet_types_allowed": ["list of allowed pets, specify if in cabin or cargo"],
@@ -50,7 +51,7 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
   5. Fees for both cabin and cargo transport
   6. Any temperature or weather restrictions
   7. Any breed restrictions
-  8. Official airline website if found
+  8. Both the main airline website URL AND the specific direct URL to pet travel policy page
 
   Return ONLY the JSON object with all available information. If any information is not found, use null for that field.`;
 
@@ -128,7 +129,7 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         documentation_needed: content.pet_policy.documentation_needed || [],
         temperature_restrictions: content.pet_policy.temperature_restrictions || '',
         breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info?.official_website || null,
+        policy_url: content.airline_info?.pet_policy_url || content.airline_info?.official_website || null,
         size_restrictions: {
           max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
           max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,

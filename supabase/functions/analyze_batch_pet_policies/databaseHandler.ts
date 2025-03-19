@@ -19,6 +19,8 @@ export async function savePetPolicyToDatabase(
 ): Promise<void> {
   console.log(`Saving pet policy for ${airline.name} to database`);
   
+  // Respect the policy URL found by the AI analysis
+  // If the airline already has a policy_url, use that, otherwise use what was found by AI
   const policyData = {
     airline_id: airline.id,
     ...petPolicy,
@@ -35,14 +37,15 @@ export async function savePetPolicyToDatabase(
     throw upsertError;
   }
 
+  // Update the airline's policy_url if one was found and airline doesn't already have one
   if (petPolicy.policy_url && !airline.policy_url) {
     const { error: airlineError } = await supabase
       .from('airlines')
-      .update({ website: petPolicy.policy_url })
+      .update({ policy_url: petPolicy.policy_url })
       .eq('id', airline.id);
 
     if (airlineError) {
-      console.error(`Error updating airline website: ${airlineError.message}`);
+      console.error(`Error updating airline policy_url: ${airlineError.message}`);
     }
   }
 
