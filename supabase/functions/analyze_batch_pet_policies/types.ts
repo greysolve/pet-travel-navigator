@@ -8,6 +8,7 @@ export interface Airline {
   name: string;
   iata_code: string;
   policy_url?: string;
+  website?: string;
 }
 
 export interface ProcessingResult {
@@ -37,6 +38,7 @@ export interface PetPolicyData {
   temperature_restrictions: string;
   breed_restrictions: string[];
   policy_url: string | null;
+  official_website?: string | null; // Added to store the main website URL
   size_restrictions: {
     max_weight_cabin: string | null;
     max_weight_cargo: string | null;

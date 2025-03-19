@@ -122,6 +122,15 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         throw new Error('Invalid response structure: missing required fields');
       }
 
+      // Log found URLs for monitoring
+      if (content.airline_info.official_website) {
+        console.log(`Found main website URL for ${airline.name}: ${content.airline_info.official_website}`);
+      }
+      
+      if (content.airline_info.pet_policy_url) {
+        console.log(`Found pet policy URL for ${airline.name}: ${content.airline_info.pet_policy_url}`);
+      }
+
       return {
         pet_types_allowed: content.pet_policy.pet_types_allowed || [],
         carrier_requirements_cabin: content.pet_policy.carrier_requirements_cabin || '',
@@ -129,7 +138,8 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         documentation_needed: content.pet_policy.documentation_needed || [],
         temperature_restrictions: content.pet_policy.temperature_restrictions || '',
         breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info?.pet_policy_url || content.airline_info?.official_website || null,
+        policy_url: content.airline_info.pet_policy_url || null, // Only use pet policy URL, no fallback
+        official_website: content.airline_info.official_website || null, // Store official website separately
         size_restrictions: {
           max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
           max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,

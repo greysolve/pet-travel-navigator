@@ -19,13 +19,16 @@ export async function savePetPolicyToDatabase(
 ): Promise<void> {
   console.log(`Saving pet policy for ${airline.name} to database`);
   
-  // Respect the policy URL found by the AI analysis
-  // If the airline already has a policy_url, use that, otherwise use what was found by AI
+  // Prepare policy data with just the specific pet policy URL
   const policyData = {
     airline_id: airline.id,
     ...petPolicy,
-    policy_url: airline.policy_url || petPolicy.policy_url
+    // We don't include official_website in the pet_policies table
   };
+  
+  // Remove official_website as it shouldn't be part of the pet_policies table
+  // @ts-ignore - This field exists in our data but not in the type
+  delete policyData.official_website;
   
   const { error: upsertError } = await supabase
     .from('pet_policies')
@@ -37,20 +40,31 @@ export async function savePetPolicyToDatabase(
     throw upsertError;
   }
 
-  // Update the airline's policy_url if one was found and airline doesn't already have one
-  if (petPolicy.policy_url && !airline.policy_url) {
+  // Update airline record with appropriate URLs
+  const airlineUpdates: Record<string, any> = {};
+  
+  // Only update the airline's main website if one was found and airline doesn't already have one
+  // @ts-ignore - This field exists in our data but not in the type
+  if (petPolicy.official_website && !airline.website) {
+    // @ts-ignore - This field exists in our data but not in the type
+    airlineUpdates.website = petPolicy.official_website;
+    console.log(`Updating airline ${airline.name} website to: ${petPolicy.official_website}`);
+  }
+  
+  // Only perform the update if we have changes to make
+  if (Object.keys(airlineUpdates).length > 0) {
     const { error: airlineError } = await supabase
       .from('airlines')
-      .update({ policy_url: petPolicy.policy_url })
+      .update(airlineUpdates)
       .eq('id', airline.id);
 
     if (airlineError) {
-      console.error(`Error updating airline policy_url: ${airlineError.message}`);
+      console.error(`Error updating airline data: ${airlineError.message}`);
     }
   }
 
-  // Remove from missing_pet_policies if present
-  if (airline.policy_url) {
+  // Remove from missing_pet_policies if we have a policy URL
+  if (petPolicy.policy_url) {
     const { error: deleteError } = await supabase
       .from('missing_pet_policies')
       .delete()
