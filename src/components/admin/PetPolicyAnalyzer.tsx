@@ -1,13 +1,13 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type { PetPolicy } from "@/components/flight-results/types";
 
 export const PetPolicyAnalyzer = () => {
   const { toast } = useToast();
@@ -33,7 +33,7 @@ export const PetPolicyAnalyzer = () => {
     enabled: false,
   });
 
-  // Get current pet policy
+  // Get current pet policy with proper typing
   const { data: petPolicy, isLoading: isLoadingPolicy, refetch: refetchPolicy } = useQuery({
     queryKey: ["petPolicy", airline?.id],
     queryFn: async () => {
@@ -46,7 +46,7 @@ export const PetPolicyAnalyzer = () => {
         .single();
         
       if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      return data as PetPolicy | null;
     },
     enabled: !!airline,
   });

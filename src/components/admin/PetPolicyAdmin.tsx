@@ -1,5 +1,5 @@
 
-import { PetPolicyUpdate } from './PetPolicyUpdate';
+import PetPolicyUpdate from './PetPolicyUpdate';
 import { PetPolicyAnalyzer } from './PetPolicyAnalyzer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
