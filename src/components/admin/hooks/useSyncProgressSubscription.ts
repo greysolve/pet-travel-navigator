@@ -74,11 +74,11 @@ export const useSyncProgressSubscription = () => {
             // Auto-continue syncs when needed
             if (newRecord.needs_continuation && !newRecord.is_complete) {
               // Generate a unique key for this sync continuation
-              const continuationKey = `${newRecord.type}_${newRecord.last_processed}`;
+              const continuationKey = `${newRecord.type}_${newRecord.processed}`;
               
               // Only trigger a continuation if we haven't already triggered one for this exact state
               if (!activeContinuations[continuationKey]) {
-                console.log(`Auto-continuing sync for ${newRecord.type} from ${newRecord.last_processed}`);
+                console.log(`Auto-continuing sync for ${newRecord.type} from ${newRecord.processed}`);
                 
                 // Mark this continuation as active to prevent duplicates
                 activeContinuations[continuationKey] = true;
@@ -94,7 +94,7 @@ export const useSyncProgressSubscription = () => {
                   // For pet policies, we need to pass a flag to compare content if it was set previously
                   const options = isPetPoliciesSync ? {
                     forceContentComparison: false,
-                    compareContent: true
+                    compareContent: true  // Always enable content comparison
                   } : undefined;
                   
                   // Continue the sync

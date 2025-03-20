@@ -51,6 +51,9 @@ export async function savePetPolicyToDatabase(
     console.log(`Updating airline ${airline.name} website to: ${petPolicy.official_website}`);
   }
   
+  // Also update the last_policy_update timestamp to track when we last processed this airline
+  airlineUpdates.last_policy_update = new Date().toISOString();
+  
   // Only perform the update if we have changes to make
   if (Object.keys(airlineUpdates).length > 0) {
     const { error: airlineError } = await supabase
@@ -63,6 +66,9 @@ export async function savePetPolicyToDatabase(
     }
   }
 
+  // Comment out the missing_pet_policies section since this table doesn't exist
+  // and was causing errors in the logs
+  /*
   // Remove from missing_pet_policies if we have a policy URL
   if (petPolicy.policy_url) {
     const { error: deleteError } = await supabase
@@ -74,4 +80,5 @@ export async function savePetPolicyToDatabase(
       console.error(`Error removing from missing_pet_policies: ${deleteError.message}`);
     }
   }
+  */
 }
