@@ -61,8 +61,8 @@ export const useSyncOperations = () => {
       if (syncType === 'petPolicies' && options.smartUpdate) {
         console.log('Smart Update mode enabled - fetching airlines that need updates');
         try {
-          // Explicitly type the return value structure
-          const { data, error } = await supabase.rpc<string[]>('get_airlines_needing_policy_update');
+          // Correctly provide both type parameters: return type and params type
+          const { data, error } = await supabase.rpc<string[], Record<string, never>>('get_airlines_needing_policy_update');
           
           if (error) {
             throw new Error(`Failed to get airlines needing updates: ${error.message}`);
