@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { SyncManager } from '../_shared/SyncManager.ts';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -121,7 +120,8 @@ export async function processPetPoliciesBatch(
           name: airline.name,
           iata_code: airline.iata_code,
           policy_url: airline.website
-        }))
+        })),
+        forceUpdate: forceContentComparison // Pass the forceUpdate parameter
       })
     });
     

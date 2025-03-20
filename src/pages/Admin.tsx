@@ -2,7 +2,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AirlineDataManager } from "@/components/admin/AirlineDataManager";
 import { SyncSection } from "@/components/admin/SyncSection";
-import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
+import { PetPolicyAdmin } from "@/components/admin/PetPolicyAdmin";
 import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
 import UserManagement from "@/components/admin/UserManagement";
 import SampleResultsManager from "@/components/admin/SampleResultsManager";
@@ -41,7 +41,7 @@ const Admin = () => {
         </TabsContent>
 
         <TabsContent value="pet-policies">
-          <PetPolicyUpdate />
+          <PetPolicyAdmin />
         </TabsContent>
 
         <TabsContent value="country-policies">
