@@ -73,19 +73,20 @@ export const useSyncProgressSubscription = () => {
             
             // Auto-continue syncs when needed
             if (newRecord.needs_continuation && !newRecord.is_complete) {
-              // Generate a unique key for this sync continuation
-              const continuationKey = `${newRecord.type}_${newRecord.processed}`;
+              // Generate a unique key for this sync continuation based on last processed item
+              // This is crucial for pet policies to prevent duplicate processing
+              const continuationKey = `${newRecord.type}_${newRecord.last_processed || 'initial'}`;
               
               // Only trigger a continuation if we haven't already triggered one for this exact state
               if (!activeContinuations[continuationKey]) {
-                console.log(`Auto-continuing sync for ${newRecord.type} from ${newRecord.processed}`);
+                console.log(`Auto-continuing sync for ${newRecord.type} from ${newRecord.last_processed || 'initial'}`);
                 
                 // Mark this continuation as active to prevent duplicates
                 activeContinuations[continuationKey] = true;
                 
                 // Small delay to prevent rate limiting and allow UI to update
                 setTimeout(() => {
-                  // Get the last processed item to use as the next offset
+                  // Get the next offset for pagination
                   let nextOffset = newRecord.processed;
                   
                   // Determine if this is a pet policies sync (which needs special handling)
