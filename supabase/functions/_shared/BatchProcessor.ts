@@ -8,7 +8,7 @@ export class BatchProcessor {
   constructor(
     timeout = 30000,
     maxRetries = 3,
-    batchSize = 3, // Reduced from 5 to 3 to prevent timeouts
+    batchSize = 5, // Changed from 3 to 5 as requested
     delayBetweenBatches = 2000
   ) {
     this.REQUEST_TIMEOUT = timeout;
