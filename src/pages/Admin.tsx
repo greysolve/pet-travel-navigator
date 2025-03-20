@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AirlineDataManager } from "@/components/admin/AirlineDataManager";
 import { SyncSection } from "@/components/admin/SyncSection";
 import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
+import PetPolicyEditor from "@/components/admin/PetPolicyEditor";
 import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
 import UserManagement from "@/components/admin/UserManagement";
 import SampleResultsManager from "@/components/admin/SampleResultsManager";
@@ -24,6 +25,7 @@ const Admin = () => {
             <TabsTrigger value="sync">Data Sync</TabsTrigger>
             <TabsTrigger value="airlines">Airline Data</TabsTrigger>
             <TabsTrigger value="pet-policies">Pet Policies</TabsTrigger>
+            <TabsTrigger value="pet-policy-editor">Policy Editor</TabsTrigger>
             <TabsTrigger value="country-policies">Country Policies</TabsTrigger>
             <TabsTrigger value="premium-fields">Premium Fields</TabsTrigger>
             <TabsTrigger value="payment-plans">Payment Plans</TabsTrigger>
@@ -42,6 +44,10 @@ const Admin = () => {
 
         <TabsContent value="pet-policies">
           <PetPolicyUpdate />
+        </TabsContent>
+
+        <TabsContent value="pet-policy-editor">
+          <PetPolicyEditor />
         </TabsContent>
 
         <TabsContent value="country-policies">

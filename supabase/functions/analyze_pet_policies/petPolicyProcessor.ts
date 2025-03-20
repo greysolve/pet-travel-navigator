@@ -23,9 +23,11 @@ export async function processPetPoliciesBatch(
   offset: number = 0,
   limit: number = 10,
   compareContent: boolean = false,
-  forceContentComparison: boolean = false
+  forceContentComparison: boolean = false,
+  specificAirlineIds?: string[]
 ) {
   console.log(`Processing pet policies batch starting from offset ${offset} with batch size ${limit}`);
+  console.log(`Specific airline IDs: ${specificAirlineIds ? specificAirlineIds.join(', ') : 'None'}`);
   
   // Get current progress
   const currentProgress = await syncManager.getCurrentProgress();
@@ -38,7 +40,11 @@ export async function processPetPoliciesBatch(
   // Build the query for airlines that need policy updates
   let query = supabase.from('airlines').select('id, name, iata_code, website, last_policy_update');
   
-  if (!forceContentComparison && !compareContent) {
+  if (specificAirlineIds && specificAirlineIds.length > 0) {
+    // If specific airline IDs are provided, only fetch those
+    console.log(`Selecting specific airlines: ${specificAirlineIds.join(', ')}`);
+    query = query.in('id', specificAirlineIds);
+  } else if (!forceContentComparison && !compareContent) {
     // Only select airlines that have never had policy updates or haven't been updated in 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -46,8 +52,10 @@ export async function processPetPoliciesBatch(
     query = query.or(`last_policy_update.is.null,last_policy_update.lt.${thirtyDaysAgo.toISOString()}`);
   }
   
-  // Apply offset and limit
-  query = query.range(offset, offset + limit - 1).order('name');
+  // If not using specific airline IDs, apply offset and limit
+  if (!specificAirlineIds || specificAirlineIds.length === 0) {
+    query = query.range(offset, offset + limit - 1).order('name');
+  }
   
   // Fetch airlines for this batch
   const { data: airlines, error: airlinesError } = await query;
@@ -169,18 +177,23 @@ export async function processPetPoliciesBatch(
   console.log(`Results: ${processedItems.length} successes, ${errorItems.length} errors`);
   console.log(`Last processed IATA: ${lastProcessedIata}`);
 
-  // Update sync progress - now check if we've processed everything
-  const isComplete = !hasMore;
-  await syncManager.updateProgress({
-    processed: updatedProcessed,
-    last_processed: lastProcessedIata,
-    processed_items: processedItems,
-    error_items: errorItems,
-    needs_continuation: hasMore,
-    is_complete: isComplete
-  });
+  // If we're processing specific airlines, don't update the full sync progress
+  if (!specificAirlineIds || specificAirlineIds.length === 0) {
+    // Update sync progress - now check if we've processed everything
+    const isComplete = !hasMore;
+    await syncManager.updateProgress({
+      processed: updatedProcessed,
+      last_processed: lastProcessedIata,
+      processed_items: processedItems,
+      error_items: errorItems,
+      needs_continuation: hasMore,
+      is_complete: isComplete
+    });
 
-  console.log(`Updated progress: processed=${updatedProcessed}/${currentProgress.total}, needs_continuation=${hasMore}, is_complete=${isComplete}, last_processed=${lastProcessedIata}`);
+    console.log(`Updated progress: processed=${updatedProcessed}/${currentProgress.total}, needs_continuation=${hasMore}, is_complete=${isComplete}, last_processed=${lastProcessedIata}`);
+  } else {
+    console.log('Processing specific airlines only - not updating sync progress.');
+  }
 
   return {
     data: {
@@ -189,7 +202,7 @@ export async function processPetPoliciesBatch(
       processedCount: airlines.length,
       updatedCount: totalUpdated,
       progress: {
-        needs_continuation: hasMore,
+        needs_continuation: hasMore && (!specificAirlineIds || specificAirlineIds.length === 0),
         next_offset: hasMore ? nextOffset : null,
         last_processed: lastProcessedIata
       }

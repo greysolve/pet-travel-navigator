@@ -11,6 +11,7 @@ interface SyncRequest {
   limit?: number;
   forceContentComparison?: boolean;
   compareContent?: boolean;
+  airlines?: string[]; // Array of airline IDs for targeted processing
 }
 
 Deno.serve(async (req) => {
@@ -41,7 +42,8 @@ Deno.serve(async (req) => {
       offset = 0, 
       limit = 10,
       forceContentComparison = false,
-      compareContent = false
+      compareContent = false,
+      airlines = undefined
     } = requestData;
 
     console.log('Analyzing pet policies with params:', { 
@@ -49,11 +51,12 @@ Deno.serve(async (req) => {
       mode, 
       offset,
       forceContentComparison,
-      compareContent
+      compareContent,
+      targetedAirlines: airlines ? airlines.length : 0
     });
 
     // Clear existing data if requested
-    if (mode === 'clear' && !resumeSync) {
+    if (mode === 'clear' && !resumeSync && !airlines) {
       await syncManager.clearSyncProgress();
       
       // Clear pet policies data
@@ -77,22 +80,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Initialize or resume sync progress
-    if (resumeSync) {
-      console.log('Resuming sync progress...');
-      await syncManager.continueSyncProgress();
-    } else {
-      // Count total airlines for progress tracking
-      const { count, error: countError } = await supabase
-        .from('airlines')
-        .select('*', { count: 'exact', head: true });
-      
-      if (countError) {
-        throw new Error(`Failed to count airlines: ${countError.message}`);
+    // For specific airline processing, we don't need to manage sync state
+    if (!airlines) {
+      // Initialize or resume sync progress
+      if (resumeSync) {
+        console.log('Resuming sync progress...');
+        await syncManager.continueSyncProgress();
+      } else {
+        // Count total airlines for progress tracking
+        const { count, error: countError } = await supabase
+          .from('airlines')
+          .select('*', { count: 'exact', head: true });
+        
+        if (countError) {
+          throw new Error(`Failed to count airlines: ${countError.message}`);
+        }
+        
+        console.log(`Initializing sync with total count: ${count}`);
+        await syncManager.initialize(count || 0);
       }
-      
-      console.log(`Initializing sync with total count: ${count}`);
-      await syncManager.initialize(count || 0);
+    } else {
+      console.log(`Processing specific airlines: ${airlines.join(', ')}`);
     }
 
     // Process the current batch of airlines
@@ -102,7 +110,8 @@ Deno.serve(async (req) => {
       offset,
       limit,
       compareContent,
-      forceContentComparison
+      forceContentComparison,
+      airlines
     );
 
     return new Response(
