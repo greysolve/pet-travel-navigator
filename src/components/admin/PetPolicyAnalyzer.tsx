@@ -97,7 +97,8 @@ export const PetPolicyAnalyzer = () => {
             name: airline.name,
             iata_code: airline.iata_code,
             policy_url: airline.website,
-          }]
+          }],
+          forceUpdate: forceUpdate // Pass the forceUpdate parameter
         },
       });
       
