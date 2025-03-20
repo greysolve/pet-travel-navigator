@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ export const PetPolicyAnalyzer = () => {
   const [airlineCode, setAirlineCode] = useState("");
   const [forceUpdate, setForceUpdate] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [apiResponse, setApiResponse] = useState<any>(null);
 
   // Find airline by IATA code
   const { data: airline, isLoading: isLoadingAirline, refetch: refetchAirline } = useQuery({
@@ -86,10 +84,9 @@ export const PetPolicyAnalyzer = () => {
     }
     
     setIsAnalyzing(true);
-    setApiResponse(null);
     
     try {
-      const response = await supabase.functions.invoke("analyze_batch_pet_policies", {
+      const { data, error } = await supabase.functions.invoke("analyze_batch_pet_policies", {
         method: "POST",
         body: {
           airlines: [{
@@ -97,17 +94,13 @@ export const PetPolicyAnalyzer = () => {
             name: airline.name,
             iata_code: airline.iata_code,
             policy_url: airline.website,
-          }],
-          forceUpdate: forceUpdate // Pass the forceUpdate parameter
+          }]
         },
       });
       
-      // Store the raw API response for debugging
-      setApiResponse(response);
+      if (error) throw error;
       
-      if (response.error) throw new Error(response.error);
-      
-      if (response.data.success) {
+      if (data.success) {
         toast({
           title: "Success",
           description: `Successfully analyzed pet policy for ${airline.name}`,
@@ -119,7 +112,7 @@ export const PetPolicyAnalyzer = () => {
       } else {
         toast({
           title: "Error",
-          description: response.data.errors?.[0]?.error || "Unknown error analyzing pet policy",
+          description: data.errors?.[0]?.error || "Unknown error analyzing pet policy",
           variant: "destructive",
         });
       }
@@ -188,18 +181,6 @@ export const PetPolicyAnalyzer = () => {
               >
                 {isAnalyzing ? "Analyzing..." : "Analyze Pet Policy"}
               </Button>
-            </div>
-          )}
-          
-          {apiResponse && (
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-2">Raw API Response</h3>
-              <Separator className="my-2" />
-              <div className="bg-gray-100 p-4 rounded-md overflow-auto max-h-96">
-                <pre className="text-xs whitespace-pre-wrap break-words">
-                  {JSON.stringify(apiResponse, null, 2)}
-                </pre>
-              </div>
             </div>
           )}
           

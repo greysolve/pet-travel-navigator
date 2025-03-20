@@ -11,28 +11,13 @@ import { Airline, PetPolicyData } from './types.ts';
  * @param supabase Supabase client instance
  * @param airline Airline data
  * @param petPolicy Pet policy data
- * @param forceUpdate Whether to force update regardless of last_policy_update
  */
 export async function savePetPolicyToDatabase(
   supabase: ReturnType<typeof createClient>,
   airline: Airline,
-  petPolicy: PetPolicyData,
-  forceUpdate: boolean = false
+  petPolicy: PetPolicyData
 ): Promise<void> {
-  console.log(`Saving pet policy for ${airline.name} to database, forceUpdate: ${forceUpdate}`);
-  
-  // Check if we need to update based on timestamp, unless force update is enabled
-  if (!forceUpdate && airline.last_policy_update) {
-    // If the airline was updated in the last 24 hours and we're not forcing an update, skip
-    const lastUpdate = new Date(airline.last_policy_update);
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-    
-    if (lastUpdate > oneDayAgo) {
-      console.log(`Skipping update for ${airline.name} - last updated ${lastUpdate.toISOString()}, less than 24 hours ago`);
-      return;
-    }
-  }
+  console.log(`Saving pet policy for ${airline.name} to database`);
   
   // Prepare policy data with just the specific pet policy URL
   const policyData = {

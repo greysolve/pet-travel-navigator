@@ -37,14 +37,12 @@ Deno.serve(async (req) => {
     }
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json();
-    const { airlines, forceUpdate = false } = body;
-    
+    const { airlines } = await req.json();
     if (!Array.isArray(airlines)) {
       throw new Error('Invalid input: airlines must be an array');
     }
 
-    console.log(`Processing batch of ${airlines.length} airlines, forceUpdate: ${forceUpdate}`);
+    console.log(`Processing batch of ${airlines.length} airlines`);
     const results: ProcessingResult[] = [];
     const errors: ProcessingError[] = [];
 
@@ -53,7 +51,7 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicy = await analyzePetPolicy(airline, openaiKey, firecrawlApiKey);
         
-        await savePetPolicyToDatabase(supabase, airline, petPolicy, forceUpdate);
+        await savePetPolicyToDatabase(supabase, airline, petPolicy);
 
         // If we reach here, processing was successful
         results.push({
