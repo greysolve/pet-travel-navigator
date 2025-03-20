@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SyncType } from '@/types/sync';
@@ -61,7 +60,7 @@ export const useSyncOperations = () => {
       if (syncType === 'petPolicies' && options.smartUpdate) {
         console.log('Smart Update mode enabled - fetching airlines that need updates');
         try {
-          // Fix: Get airline IDs and map to string array
+          // Updated implementation to use the fixed database function
           const { data, error } = await supabase.rpc('get_airlines_needing_policy_update');
           
           if (error) {
@@ -69,7 +68,7 @@ export const useSyncOperations = () => {
           }
           
           if (data && Array.isArray(data) && data.length > 0) {
-            // Extract the id values from each object and create a string array
+            // The function now returns objects with an id field (text type)
             specificAirlines = data.map(item => item.id);
             console.log(`Found ${specificAirlines.length} airlines that need updates`);
           } else {
