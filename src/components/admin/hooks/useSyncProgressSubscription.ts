@@ -50,19 +50,11 @@ export const useSyncProgressSubscription = () => {
               })
             );
 
-            // If sync failed with errors, log them but don't show individual toasts
+            // If sync failed with errors, log them but don't show any toasts
             if (newRecord.error_items?.length > 0) {
               const lastError = newRecord.error_items[newRecord.error_items.length - 1];
               console.error(`Error during ${newRecord.type} sync: ${lastError}`);
-              
-              // If this is the first error, show a summary toast
-              if (newRecord.error_items.length === 1) {
-                toast({
-                  variant: "destructive",
-                  title: "Sync Errors Occurring",
-                  description: `Some items are failing during ${newRecord.type} sync. Check logs for details.`,
-                });
-              }
+              // Removed error toast notification
             }
 
             // If sync completed successfully, show success toast
