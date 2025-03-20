@@ -16,9 +16,6 @@ export const useSyncProgressSubscription = () => {
   useEffect(() => {
     console.log('Setting up sync progress subscription');
     
-    // Track active syncs to prevent duplicate continuations
-    const activeContinuations: Record<string, boolean> = {};
-    
     const channel = supabase
       .channel('sync_progress_changes')
       .on(
@@ -71,47 +68,25 @@ export const useSyncProgressSubscription = () => {
               });
             }
             
-            // Auto-continue syncs when needed
+            // Auto-continue syncs when needed - no more timeouts or unnecessary delays
             if (newRecord.needs_continuation && !newRecord.is_complete) {
-              // Generate a unique key for this sync continuation based on last processed item
-              // This is crucial for pet policies to prevent duplicate processing
-              const continuationKey = `${newRecord.type}_${newRecord.last_processed || 'initial'}`;
+              console.log(`Auto-continuing sync for ${newRecord.type} from next offset ${newRecord.processed || 0}`);
               
-              // Only trigger a continuation if we haven't already triggered one for this exact state
-              if (!activeContinuations[continuationKey]) {
-                console.log(`Auto-continuing sync for ${newRecord.type} from ${newRecord.last_processed || 'initial'}`);
-                
-                // Mark this continuation as active to prevent duplicates
-                activeContinuations[continuationKey] = true;
-                
-                // Small delay to prevent rate limiting and allow UI to update
-                setTimeout(() => {
-                  // Get the next offset for pagination
-                  let nextOffset = newRecord.processed;
-                  
-                  // Determine if this is a pet policies sync (which needs special handling)
-                  const isPetPoliciesSync = newRecord.type === SyncType.petPolicies;
-                  
-                  // For pet policies, we need to pass a flag to compare content if it was set previously
-                  const options = isPetPoliciesSync ? {
-                    forceContentComparison: false,
-                    compareContent: true  // Always enable content comparison
-                  } : undefined;
-                  
-                  // Continue the sync
-                  handleSync(newRecord.type as keyof typeof SyncType, true, 'update', {
-                    ...options,
-                    offset: nextOffset
-                  });
-                  
-                  // Remove from active continuations after a delay
-                  setTimeout(() => {
-                    delete activeContinuations[continuationKey];
-                  }, 5000); // Wait 5 seconds before allowing another continuation with the same key
-                }, 1000); // Wait 1 second before continuing
-              } else {
-                console.log(`Skipping duplicate continuation for ${newRecord.type}`);
-              }
+              // Get the next offset for pagination - use the processed count as next offset
+              const nextOffset = newRecord.processed;
+              
+              // Determine if this is a pet policies sync (which needs special handling)
+              const isPetPoliciesSync = newRecord.type === SyncType.petPolicies;
+              
+              // For pet policies, we need to pass flags for content comparison if it was set previously
+              const options = isPetPoliciesSync ? {
+                forceContentComparison: false,
+                compareContent: true,  // Always enable content comparison
+                offset: nextOffset     // Use the processed count as the next offset
+              } : { offset: nextOffset };
+              
+              // Continue the sync with the updated offset
+              handleSync(newRecord.type as keyof typeof SyncType, true, 'update', options);
             }
           }
         }

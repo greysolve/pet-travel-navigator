@@ -31,6 +31,29 @@ export const useSyncOperations = () => {
     try {
       console.log(`Starting ${syncType} sync...`, { resumeSync, mode, options });
       
+      // Get current sync progress if resuming
+      let currentOffset = options.offset || 0;
+      
+      if (resumeSync) {
+        try {
+          const { data: syncProgress } = await supabase
+            .from('sync_progress')
+            .select('*')
+            .eq('type', syncType)
+            .single();
+            
+          if (syncProgress) {
+            // Use the processed count as the next offset if it's greater than current
+            if (syncProgress.processed > currentOffset) {
+              console.log(`Updating offset from ${currentOffset} to ${syncProgress.processed} from sync progress`);
+              currentOffset = syncProgress.processed;
+            }
+          }
+        } catch (error) {
+          console.log('Error fetching current sync progress, using provided offset', error);
+        }
+      }
+      
       // Prepare endpoint and data based on sync type
       let endpoint = '';
       let data: any = {};
@@ -57,7 +80,7 @@ export const useSyncOperations = () => {
             resumeSync, 
             mode, 
             countryName: mode !== 'clear' ? mode : undefined,
-            offset: options.offset
+            offset: currentOffset
           };
           break;
           
@@ -68,7 +91,7 @@ export const useSyncOperations = () => {
             mode: clearData[syncType] ? 'clear' : 'update',
             forceContentComparison: options.forceContentComparison || false,
             compareContent: options.compareContent || false,
-            offset: options.offset || 0,
+            offset: currentOffset,
             limit: 10 // Process 10 airlines per batch
           };
           
@@ -93,7 +116,7 @@ export const useSyncOperations = () => {
       console.log(`${syncType} sync initiated:`, result);
       
       // Only show toast for initial sync start, not continuations
-      if (!options.offset) {
+      if (!resumeSync) {
         toast({
           title: "Sync Started",
           description: `${syncType} synchronization has been initiated.`,

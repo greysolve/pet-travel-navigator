@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 import { SyncManager } from '../_shared/SyncManager.ts'
@@ -85,6 +84,19 @@ Deno.serve(async (req) => {
       // Initialize or resume sync progress
       if (resumeSync) {
         console.log('Resuming sync progress...');
+        
+        // Get the current state to ensure we're using the right offset
+        const currentState = await syncManager.getCurrentProgress();
+        console.log('Current sync state:', currentState);
+        
+        // If we have processed count in the state, use it as the next offset
+        // Otherwise, stay with the provided offset
+        if (currentState && currentState.processed > offset) {
+          console.log(`Updating offset from ${offset} to ${currentState.processed} based on processed count`);
+          // Update the offset to match the processed count
+          offset = currentState.processed;
+        }
+        
         await syncManager.continueSyncProgress();
       } else {
         // Count total airlines for progress tracking
@@ -128,7 +140,9 @@ Deno.serve(async (req) => {
     console.error('Error:', error);
     return new Response(
       JSON.stringify({
-        error: error.message || 'An unexpected error occurred'
+        error: error.message || 'An unexpected error occurred',
+        needsContinuation: true, // Allow continuation even on error
+        nextOffset: (parseInt(error.offset) || 0) + 1 // Move forward to avoid getting stuck
       }),
       {
         status: 500,

@@ -30,6 +30,22 @@ export async function processPetPoliciesBatch(
       console.log(`Processing specific airlines: ${specificAirlines.join(', ')}`);
       query = query.in('id', specificAirlines);
     } else {
+      // Get already processed items to exclude from query
+      const currentProgress = await syncManager.getCurrentProgress();
+      const processedItems = currentProgress?.processed_items || [];
+      const errorItems = currentProgress?.error_items || [];
+      
+      // Exclude both successfully processed and error items
+      const excludeItems = [...processedItems, ...errorItems]
+        .map(item => item.split(' - ')[0]) // Extract airline codes
+        .filter(Boolean);
+      
+      if (excludeItems.length > 0) {
+        console.log(`Excluding ${excludeItems.length} already processed or errored airlines`);
+        // Using not.in with airline codes
+        query = query.not('iata_code', 'in', `(${excludeItems.join(',')})`);
+      }
+      
       // Important: Only filter by last_policy_update if we're NOT forcing content comparison
       if (!forceContentComparison) {
         console.log('Using normal filtering based on last_policy_update');
@@ -44,7 +60,7 @@ export async function processPetPoliciesBatch(
         query = query.eq('active', true);
       }
       
-      // Apply pagination
+      // Apply pagination - now using offset correctly
       query = query.range(offset, offset + limit - 1).order('id', { ascending: true });
     }
     
@@ -84,12 +100,20 @@ export async function processPetPoliciesBatch(
         if (error) {
           console.error(`Error processing ${airline.name}: ${error.message}`);
           errorAirlines.push(`${airline.iata_code} - ${error.message}`);
+          // Immediately add to error items list in sync manager
+          await syncManager.updateSyncState({
+            error_items: [`${airline.iata_code} - ${error.message}`]
+          });
           continue;
         }
         
         if (!data.success) {
           console.error(`Failed to process ${airline.name}: ${data.error || 'Unknown error'}`);
           errorAirlines.push(`${airline.iata_code} - Processing failed`);
+          // Immediately add to error items list in sync manager
+          await syncManager.updateSyncState({
+            error_items: [`${airline.iata_code} - Processing failed`]
+          });
           continue;
         }
 
@@ -112,17 +136,37 @@ export async function processPetPoliciesBatch(
       } catch (airlineError) {
         console.error(`Error processing airline ${airline.name}: ${airlineError.message}`);
         errorAirlines.push(`${airline.iata_code} - ${airlineError.message}`);
+        // Immediately add to error items list in sync manager
+        await syncManager.updateSyncState({
+          error_items: [`${airline.iata_code} - ${airlineError.message}`]
+        });
       }
     }
     
     // Determine if we need to continue processing more airlines
     if (!specificAirlines) {
-      // When determining remaining airlines, use the same query logic as above
+      // Always need continuation if we successfully got any airlines, 
+      // unless we've reached the end of all airlines to process
       let countQuery = supabase
         .from('airlines')
         .select('id', { count: 'exact', head: true });
       
-      // Important: Apply the same filtering logic as the main query
+      // Get current progress to exclude already processed and error items
+      const currentProgress = await syncManager.getCurrentProgress();
+      const processedItems = currentProgress?.processed_items || [];
+      const errorItems = currentProgress?.error_items || [];
+      
+      // Exclude both successfully processed and error items
+      const excludeItems = [...processedItems, ...errorItems]
+        .map(item => item.split(' - ')[0]) // Extract airline codes
+        .filter(Boolean);
+      
+      if (excludeItems.length > 0) {
+        // Using not.in with airline codes
+        countQuery = countQuery.not('iata_code', 'in', `(${excludeItems.join(',')})`);
+      }
+      
+      // Apply the same filtering logic as the main query
       if (!forceContentComparison) {
         countQuery = countQuery.or(
           'last_policy_update.is.null,' +
@@ -133,19 +177,17 @@ export async function processPetPoliciesBatch(
         countQuery = countQuery.eq('active', true);
       }
       
-      // Only count airlines with IDs greater than the last processed
-      countQuery = countQuery.gt('id', airlines[airlines.length - 1].id);
-      
       const { count: remainingCount, error: countError } = await countQuery;
       
       if (!countError && remainingCount !== null && remainingCount > 0) {
         console.log(`${remainingCount} more airlines need processing`);
         needsContinuation = true;
         
-        // Update sync state to indicate continuation is needed
+        // Update sync state to indicate continuation is needed with the next offset
         await syncManager.updateSyncState({
           needs_continuation: true,
-          last_processed: airlines[airlines.length - 1].id
+          // Store the next offset in the processed count
+          processed: offset + processedAirlines.length
         });
       } else if (!countError) {
         console.log('All airlines processed, completing sync');
@@ -172,7 +214,9 @@ export async function processPetPoliciesBatch(
     if (syncManager) {
       await syncManager.updateSyncState({
         error_items: [`Batch error at offset ${offset}: ${error.message}`],
-        needs_continuation: true
+        needs_continuation: true,
+        // Still increment the offset to avoid getting stuck on the same batch
+        processed: offset + 1 // Move at least one step forward
       });
     }
     
@@ -181,7 +225,7 @@ export async function processPetPoliciesBatch(
         success: false,
         error: error.message,
         needsContinuation: true,
-        nextOffset: offset
+        nextOffset: offset + 1 // Move forward even on error
       }
     };
   }
