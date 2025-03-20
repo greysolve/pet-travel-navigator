@@ -32,6 +32,7 @@ Do not include any generalized information or assumptions. Only include specific
 
   const maxRetries = 3;
   let lastError = null;
+  let rawResponse = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -84,6 +85,9 @@ Do not include any generalized information or assumptions. Only include specific
       console.log('=== CONTENT PROCESSING ===');
       console.log('Raw content:', content);
       
+      // Always save the raw content before attempting to parse
+      rawResponse = content;
+      
       try {
         const cleanContent = content
           .replace(/```json\n?|\n?```/g, '')
@@ -94,7 +98,7 @@ Do not include any generalized information or assumptions. Only include specific
         let parsedData = JSON.parse(cleanContent);
         
         // Add raw API response for debugging purposes
-        parsedData._raw_api_response = cleanContent;
+        parsedData._raw_api_response = content;
         
         // Extract the airline info and pet policy
         const airlineInfo = parsedData.airline_info || {};
@@ -105,7 +109,7 @@ Do not include any generalized information or assumptions. Only include specific
           ...petPolicy,
           official_website: airlineInfo.official_website,
           policy_url: airlineInfo.pet_policy_url || petPolicy.policy_url,
-          _raw_api_response: cleanContent // Store raw response for debugging
+          _raw_api_response: content // Store raw response for debugging
         };
         
         console.log('=== PARSED DATA ===');
@@ -115,7 +119,13 @@ Do not include any generalized information or assumptions. Only include specific
       } catch (parseError) {
         console.error('Failed to parse API response. Parse error:', parseError);
         console.error('Content that failed to parse:', content);
-        throw new Error('Invalid policy data format');
+        
+        // Return a special object indicating parsing failure but including raw response
+        return {
+          _parsing_failed: true,
+          _raw_api_response: content,
+          error_message: 'Invalid policy data format'
+        };
       }
 
     } catch (error) {
@@ -127,10 +137,21 @@ Do not include any generalized information or assumptions. Only include specific
         console.log(`Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        throw new Error(`Failed after ${maxRetries} attempts: ${lastError.message}`);
+        // Create an error object that includes the raw response if available
+        const errorWithResponse = {
+          _parsing_failed: true,
+          _raw_api_response: rawResponse,
+          error_message: `Failed after ${maxRetries} attempts: ${lastError.message}`
+        };
+        return errorWithResponse;
       }
     }
   }
 
-  throw lastError;
+  // Should never reach here, but just in case
+  return {
+    _parsing_failed: true,
+    _raw_api_response: rawResponse,
+    error_message: `Failed after ${maxRetries} attempts: ${lastError ? lastError.message : "Unknown error"}`
+  };
 }

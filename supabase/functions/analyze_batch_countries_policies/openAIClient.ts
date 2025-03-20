@@ -37,6 +37,7 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
 
   const maxRetries = 3;
   let lastError = null;
+  let rawResponse = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -97,6 +98,9 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
       console.log('=== CONTENT PROCESSING ===');
       console.log('Raw content before cleaning:', content);
       
+      // Always save the raw content
+      rawResponse = content;
+      
       if (annotations && annotations.length > 0) {
         console.log('=== CITATIONS FOUND ===');
         console.log('Citations:', JSON.stringify(annotations, null, 2));
@@ -133,11 +137,20 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
           });
         }
         
+        // Add raw response for debugging
+        enrichedPolicies._raw_api_response = content;
+        
         return enrichedPolicies;
       } catch (parseError) {
         console.error('Failed to parse API response. Parse error:', parseError);
         console.error('Content that failed to parse:', content);
-        throw new Error('Invalid policy data format');
+        
+        // Return a special object indicating parsing failure but including raw response
+        return [{
+          _parsing_failed: true,
+          _raw_api_response: content,
+          error_message: 'Invalid policy data format'
+        }];
       }
 
     } catch (error) {
@@ -149,10 +162,20 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
         console.log(`Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        throw new Error(`Failed after ${maxRetries} attempts: ${lastError.message}`);
+        // Create an error object that includes the raw response if available
+        return [{
+          _parsing_failed: true,
+          _raw_api_response: rawResponse,
+          error_message: `Failed after ${maxRetries} attempts: ${lastError ? lastError.message : "Unknown error"}`
+        }];
       }
     }
   }
 
-  throw lastError;
+  // Should never reach here, but just in case
+  return [{
+    _parsing_failed: true,
+    _raw_api_response: rawResponse,
+    error_message: `Failed after ${maxRetries} attempts: ${lastError ? lastError.message : "Unknown error"}`
+  }];
 }

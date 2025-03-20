@@ -46,17 +46,34 @@ Deno.serve(async (req) => {
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
-        const petPolicy = await analyzePetPolicy(airline, openaiKey);
+        const petPolicyResponse = await analyzePetPolicy(airline, openaiKey);
         
-        // Store raw API response for debugging
-        rawApiResponse = petPolicy._raw_api_response; 
-        delete petPolicy._raw_api_response; // Remove from policy object before saving
+        // Check if parsing failed but we still have raw response
+        if (petPolicyResponse._parsing_failed) {
+          console.error(`Parsing failed for ${airline.name}, but captured raw response`);
+          
+          // Store the raw response for the client
+          rawApiResponse = petPolicyResponse._raw_api_response;
+          
+          // Add to errors
+          errors.push({
+            airline_id: airline.id,
+            error: petPolicyResponse.error_message || "Failed to parse policy data",
+            iata_code: airline.iata_code
+          });
+          
+          continue; // Skip to the next airline
+        }
+        
+        // Store raw API response for debugging (available regardless of success/failure)
+        rawApiResponse = petPolicyResponse._raw_api_response; 
+        delete petPolicyResponse._raw_api_response; // Remove from policy object before saving
         
         // Save to database and get detailed results
         const saveResult = await savePetPolicyToDatabase(
           supabase, 
           airline, 
-          petPolicy, 
+          petPolicyResponse, 
           rawApiResponse
         );
         
@@ -98,6 +115,7 @@ Deno.serve(async (req) => {
     };
     
     console.log(`Batch processing complete. Success: ${response.success}, Results: ${results.length}, Errors: ${errors.length}, Content changed: ${contentChanged}`);
+    console.log(`Raw API response captured: ${rawApiResponse ? 'Yes' : 'No'}`);
     
     return new Response(
       JSON.stringify(response),
