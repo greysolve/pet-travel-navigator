@@ -23,7 +23,7 @@ export async function processPolicyBatch(
       console.log(`Processing country: ${country.name}`);
       const startTime = Date.now();
 
-      // 1. Get policies via OpenAI
+      // 1. Get policies via OpenAI with web search
       const policies = await analyzePolicies(country, openaiKey);
       console.log(`Retrieved ${policies.length} policies for ${country.name}`);
 
@@ -118,6 +118,7 @@ async function upsertPolicy(
     additional_notes: policy.additional_notes,
     required_ports_of_entry: policy.required_ports_of_entry,
     policy_url: policy.policy_url,
+    citations: policy.citations || null, // Store citation information
     last_updated: new Date().toISOString()
   };
 

@@ -40,10 +40,13 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Attempt ${attempt} to get policies from OpenAI API`);
+      console.log(`Attempt ${attempt} to get policies from OpenAI API with web search`);
       
       const requestBody = {
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o-mini-search-preview',
+        web_search_options: {
+          search_context_size: "medium",
+        },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -89,8 +92,15 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
       }
 
       const content = data.choices[0].message.content.trim();
+      const annotations = data.choices[0].message.annotations || [];
+      
       console.log('=== CONTENT PROCESSING ===');
       console.log('Raw content before cleaning:', content);
+      
+      if (annotations && annotations.length > 0) {
+        console.log('=== CITATIONS FOUND ===');
+        console.log('Citations:', JSON.stringify(annotations, null, 2));
+      }
 
       try {
         const cleanContent = content
@@ -105,7 +115,25 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
         console.log('=== PARSED POLICIES ===');
         console.log('Final parsed policies:', JSON.stringify(policies, null, 2));
         
-        return Array.isArray(policies) ? policies : [policies];
+        // Extract citation URLs if available
+        const citationUrls = annotations
+          .filter(a => a.type === 'url_citation')
+          .map(a => ({
+            url: a.url_citation.url,
+            title: a.url_citation.title
+          }));
+        
+        // Add citations to each policy
+        const enrichedPolicies = Array.isArray(policies) ? policies : [policies];
+        if (citationUrls.length > 0) {
+          enrichedPolicies.forEach(policy => {
+            if (!policy.citations) {
+              policy.citations = citationUrls;
+            }
+          });
+        }
+        
+        return enrichedPolicies;
       } catch (parseError) {
         console.error('Failed to parse API response. Parse error:', parseError);
         console.error('Content that failed to parse:', content);

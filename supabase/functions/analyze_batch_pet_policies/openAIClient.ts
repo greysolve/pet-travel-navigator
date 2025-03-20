@@ -1,6 +1,7 @@
 
 /**
  * Handles interactions with the OpenAI API for pet policy analysis
+ * with web search capability for more accurate and up-to-date information
  */
 
 import { Airline } from './types.ts';
@@ -10,15 +11,15 @@ Do not ruminate or demonstrate your thought process into the chat.
 Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
 
 /**
- * Analyzes pet policy for an airline using OpenAI API
+ * Analyzes pet policy for an airline using OpenAI API with web search capabilities
  * @param airline Airline object with details
  * @param openaiKey OpenAI API key
  * @returns Processed pet policy data
  */
 export async function analyzePetPolicy(airline: Airline, openaiKey: string): Promise<any> {
-  console.log(`Analyzing pet policy for airline: ${airline.name}`);
+  console.log(`Analyzing pet policy for airline: ${airline.name} (${airline.iata_code})`);
   
-  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
+  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name} (IATA code: ${airline.iata_code}). The response must be ONLY the JSON object, no markdown formatting or additional text:
   {
     "airline_info": {
       "official_website": "The main airline website URL if found",
@@ -43,7 +44,8 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
     }
   }
 
-  Search specifically for:
+  First, search specifically for the most current and official pet policy information from ${airline.name}'s official website.
+  Be very thorough in your search for:
   1. What pets are allowed in cabin vs cargo
   2. Size and weight limits for both cabin and cargo
   3. Specific carrier requirements for both cabin and cargo
@@ -60,7 +62,7 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Attempt ${attempt} to get pet policy from OpenAI API`);
+      console.log(`Attempt ${attempt} to get pet policy from OpenAI API with web search`);
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -69,7 +71,10 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4o-mini-search-preview',
+          web_search_options: {
+            search_context_size: "medium",
+          },
           messages: [
             {
               role: 'system',
@@ -86,16 +91,26 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenAI API error response (${response.status}):`, errorText);
         throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
       const responseData = await response.json();
+      console.log('API response received:', JSON.stringify(responseData, null, 2));
+      
       if (!responseData.choices?.[0]?.message?.content) {
         throw new Error('Invalid response format from OpenAI API');
       }
 
+      // Extract content and any citation annotations
       const rawContent = responseData.choices[0].message.content;
-      console.log('Raw API response:', rawContent);
+      const annotations = responseData.choices[0].message.annotations || [];
+      
+      console.log('Raw API response content:', rawContent);
+      if (annotations && annotations.length > 0) {
+        console.log('Citations found:', JSON.stringify(annotations, null, 2));
+      }
 
       let content;
       try {
@@ -116,11 +131,19 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         }
       }
 
-      console.log('Successfully parsed content:', content);
+      console.log('Successfully parsed content:', JSON.stringify(content, null, 2));
 
       if (!content.pet_policy || !content.airline_info) {
         throw new Error('Invalid response structure: missing required fields');
       }
+
+      // Store the citation URLs if available
+      const citationUrls = annotations
+        .filter(a => a.type === 'url_citation')
+        .map(a => ({
+          url: a.url_citation.url,
+          title: a.url_citation.title
+        }));
 
       // Log found URLs for monitoring
       if (content.airline_info.official_website) {
@@ -131,15 +154,16 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         console.log(`Found pet policy URL for ${airline.name}: ${content.airline_info.pet_policy_url}`);
       }
 
-      return {
+      // Add citations to the response if available
+      const result = {
         pet_types_allowed: content.pet_policy.pet_types_allowed || [],
         carrier_requirements_cabin: content.pet_policy.carrier_requirements_cabin || '',
         carrier_requirements_cargo: content.pet_policy.carrier_requirements_cargo || '',
         documentation_needed: content.pet_policy.documentation_needed || [],
         temperature_restrictions: content.pet_policy.temperature_restrictions || '',
         breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info.pet_policy_url || null, // Only use pet policy URL, no fallback
-        official_website: content.airline_info.official_website || null, // Store official website separately
+        policy_url: content.airline_info.pet_policy_url || null,
+        official_website: content.airline_info.official_website || null,
         size_restrictions: {
           max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
           max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,
@@ -148,8 +172,11 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         fees: {
           in_cabin: content.pet_policy.fees?.in_cabin || null,
           cargo: content.pet_policy.fees?.cargo || null
-        }
+        },
+        citations: citationUrls.length > 0 ? citationUrls : undefined
       };
+      
+      return result;
 
     } catch (error) {
       console.error(`Attempt ${attempt} failed:`, error);

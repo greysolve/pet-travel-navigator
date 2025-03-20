@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PetPolicyEditor = () => {
   const [iataCode, setIataCode] = useState("");
@@ -132,7 +134,8 @@ const PetPolicyEditor = () => {
       pet_types_allowed: policy.pet_types_allowed || [],
       size_restrictions: policy.size_restrictions || {},
       fees: policy.fees || {},
-      carrier_requirements: policy.carrier_requirements || "None specified",
+      carrier_requirements_cabin: policy.carrier_requirements_cabin || "None specified",
+      carrier_requirements_cargo: policy.carrier_requirements_cargo || "None specified",
       documentation_needed: policy.documentation_needed || [],
       breed_restrictions: policy.breed_restrictions || [],
       temperature_restrictions: policy.temperature_restrictions || "None specified"
@@ -200,10 +203,57 @@ const PetPolicyEditor = () => {
               <CardDescription>
                 Last policy update: {formatDate(airlineData.last_policy_update)}
               </CardDescription>
+              {airlineData.website && (
+                <a 
+                  href={airlineData.website} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-sm text-blue-500 flex items-center hover:underline"
+                >
+                  Official Website <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
+              )}
             </CardHeader>
             
             <CardContent>
               <div className="space-y-4">
+                {policyData?.policy_url && (
+                  <div>
+                    <a 
+                      href={policyData.policy_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-sm text-blue-500 flex items-center hover:underline"
+                    >
+                      Pet Policy URL <ExternalLink className="ml-1 h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+                
+                {policyData?.citations && policyData.citations.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium mb-2">Policy Sources</h3>
+                    <ScrollArea className="h-24 w-full rounded-md border p-2">
+                      <div className="space-y-2">
+                        {policyData.citations.map((citation, index) => (
+                          <div key={index} className="flex items-start">
+                            <Badge variant="outline" className="mr-2 shrink-0">Source {index + 1}</Badge>
+                            <a 
+                              href={citation.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-xs text-blue-500 hover:underline flex items-center"
+                            >
+                              {citation.title || citation.url}
+                              <ExternalLink className="ml-1 h-3 w-3" />
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+                
                 <div>
                   <h3 className="text-lg font-semibold">Current Policy</h3>
                   <pre className="mt-2 whitespace-pre-wrap bg-muted p-4 rounded-md text-xs overflow-auto max-h-[400px]">
@@ -222,10 +272,10 @@ const PetPolicyEditor = () => {
                 {isAnalyzing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing Policy...
+                    Analyzing Policy (Web Search Enhanced)...
                   </>
                 ) : (
-                  "Analyze/Update Pet Policy"
+                  "Analyze/Update Pet Policy with Web Search"
                 )}
               </Button>
             </CardFooter>
