@@ -4,47 +4,20 @@
  */
 
 import { Airline } from './types.ts';
-import { scrapeWebsite } from '../_shared/FirecrawlClient.ts';
 
-const systemPrompt = `You are a helpful assistant specializing in analyzing airline pet policies. Your task is to extract key information from airline websites about pet travel requirements and restrictions.
-Focus on finding official policy information and correctly identifying the direct URL to the pet policy page.
+const systemPrompt = `You are a helpful assistant specializing in analyzing airline pet policies. You prioritize finding official policies from airline websites and documents. Focus on extracting key information about pet travel requirements and restrictions.
+Do not ruminate or demonstrate your thought process into the chat. 
 Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
 
 /**
  * Analyzes pet policy for an airline using OpenAI API
  * @param airline Airline object with details
  * @param openaiKey OpenAI API key
- * @param firecrawlApiKey Firecrawl API key for website scraping
  * @returns Processed pet policy data
  */
-export async function analyzePetPolicy(airline: Airline, openaiKey: string, firecrawlApiKey: string): Promise<any> {
+export async function analyzePetPolicy(airline: Airline, openaiKey: string): Promise<any> {
   console.log(`Analyzing pet policy for airline: ${airline.name}`);
   
-  // Start with the website from the airline record, if available
-  let websiteUrl = airline.website || null;
-  let scrapedContent = '';
-  let petPolicyUrl = null;
-  
-  try {
-    // If we have a website URL, scrape it to get content
-    if (websiteUrl) {
-      console.log(`Scraping website for ${airline.name}: ${websiteUrl}`);
-      scrapedContent = await scrapeWebsite(websiteUrl, firecrawlApiKey);
-      console.log(`Successfully scraped content for ${airline.name}, length: ${scrapedContent.length} characters`);
-    } else {
-      console.log(`No website URL available for ${airline.name}, skipping scraping`);
-    }
-  } catch (error) {
-    console.error(`Error scraping website for ${airline.name}:`, error);
-    // Continue with analysis even if scraping fails
-    scrapedContent = `Unable to scrape website: ${error.message}`;
-  }
-  
-  // Add instructions for the context analysis
-  const contextInstruction = scrapedContent 
-    ? `I've scraped the airline website and extracted the following content. Please analyze this content to identify the pet policy details:\n\n${scrapedContent.substring(0, 15000)}` 
-    : `Please search for information about ${airline.name}'s pet policy. Their website is ${websiteUrl || 'unknown'}.`;
-    
   const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
   {
     "airline_info": {
@@ -80,9 +53,7 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string, fire
   7. Any breed restrictions
   8. Both the main airline website URL AND the specific direct URL to pet travel policy page
 
-  Return ONLY the JSON object with all available information. If any information is not found, use null for that field.
-  
-  ${contextInstruction}`;
+  Return ONLY the JSON object with all available information. If any information is not found, use null for that field.`;
 
   const maxRetries = 3;
   let lastError = null;
