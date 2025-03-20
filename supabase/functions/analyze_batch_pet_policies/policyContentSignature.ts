@@ -1,4 +1,3 @@
-
 /**
  * Generates a content signature for a pet policy to detect changes
  * even when timestamps don't indicate an update
@@ -14,12 +13,24 @@ export const generatePolicyContentSignature = (policy: any): string => {
     if (!url) return null;
     
     try {
-      // Remove any trailing slashes and force to lowercase for comparison
-      const normalizedUrl = url.trim().toLowerCase().replace(/\/+$/, '');
+      // Remove any trailing slashes, query parameters, and force to lowercase for comparison
+      const urlObj = new URL(url.trim());
+      
+      // Keep only hostname and pathname (no query parameters or hash)
+      let normalizedUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`.toLowerCase();
+      
+      // Remove trailing slashes
+      normalizedUrl = normalizedUrl.replace(/\/+$/, '');
+      
+      console.log(`Normalized URL from "${url}" to "${normalizedUrl}"`);
       return normalizedUrl;
     } catch (e) {
       console.error('Error normalizing URL:', e);
-      return url; // Return original if normalization fails
+      
+      // If URL parsing fails (e.g., not a valid URL), just do basic normalization
+      const basicNormalized = url.trim().toLowerCase().replace(/\/+$/, '');
+      console.log(`Basic URL normalization from "${url}" to "${basicNormalized}"`);
+      return basicNormalized;
     }
   };
   
@@ -55,6 +66,14 @@ export const hasPolicyContentChanged = (oldPolicy: any | null, newPolicy: any | 
   // Log for debugging
   console.log(`Comparing old policy URL: ${oldPolicy.policy_url || 'none'}`);
   console.log(`with new policy URL: ${newPolicy.policy_url || 'none'}`);
+  
+  // Check URL changes directly for more detailed logging
+  const oldUrl = oldPolicy.policy_url;
+  const newUrl = newPolicy.policy_url;
+  
+  if (oldUrl !== newUrl) {
+    console.log(`URL change detected from "${oldUrl}" to "${newUrl}"`);
+  }
   
   const oldSignature = generatePolicyContentSignature(oldPolicy);
   const newSignature = generatePolicyContentSignature(newPolicy);
