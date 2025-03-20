@@ -15,7 +15,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Search, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PetPolicyEditor = () => {
@@ -227,30 +226,6 @@ const PetPolicyEditor = () => {
                     >
                       Pet Policy URL <ExternalLink className="ml-1 h-3 w-3" />
                     </a>
-                  </div>
-                )}
-                
-                {policyData?.citations && policyData.citations.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium mb-2">Policy Sources</h3>
-                    <ScrollArea className="h-24 w-full rounded-md border p-2">
-                      <div className="space-y-2">
-                        {policyData.citations.map((citation, index) => (
-                          <div key={index} className="flex items-start">
-                            <Badge variant="outline" className="mr-2 shrink-0">Source {index + 1}</Badge>
-                            <a 
-                              href={citation.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="text-xs text-blue-500 hover:underline flex items-center"
-                            >
-                              {citation.title || citation.url}
-                              <ExternalLink className="ml-1 h-3 w-3" />
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
                   </div>
                 )}
                 

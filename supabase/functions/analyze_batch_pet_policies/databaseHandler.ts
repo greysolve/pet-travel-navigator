@@ -40,8 +40,7 @@ export async function savePetPolicyToDatabase(
       fees: petPolicy.fees,
       temperature_restrictions: petPolicy.temperature_restrictions,
       breed_restrictions: petPolicy.breed_restrictions,
-      policy_url: petPolicy.policy_url,
-      citations: petPolicy.citations || null // Store citation information if available
+      policy_url: petPolicy.policy_url
     };
 
     let policyResult;
