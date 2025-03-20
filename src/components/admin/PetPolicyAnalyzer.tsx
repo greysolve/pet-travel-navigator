@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { PetPolicy } from "@/components/flight-results/types";
@@ -134,6 +136,31 @@ export const PetPolicyAnalyzer = () => {
     }
   };
 
+  // Helper function to render confidence badges
+  const renderConfidenceBadge = (score: number | undefined) => {
+    if (score === undefined) return null;
+    
+    let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+    let label = "Unknown";
+    
+    if (score >= 0.8) {
+      variant = "default";
+      label = "High";
+    } else if (score >= 0.5) {
+      variant = "secondary";
+      label = "Medium";
+    } else if (score > 0) {
+      variant = "destructive";
+      label = "Low";
+    }
+    
+    return (
+      <Badge variant={variant} className="ml-2">
+        Confidence: {label} ({Math.round(score * 100)}%)
+      </Badge>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -188,6 +215,13 @@ export const PetPolicyAnalyzer = () => {
               >
                 {isAnalyzing ? "Analyzing..." : "Analyze Pet Policy"}
               </Button>
+
+              {isAnalyzing && (
+                <div className="mt-4">
+                  <p className="text-sm mb-2">Analysis in progress...</p>
+                  <Progress value={isAnalyzing ? 70 : 100} className="h-2" />
+                </div>
+              )}
             </div>
           )}
           
@@ -205,13 +239,36 @@ export const PetPolicyAnalyzer = () => {
           
           {petPolicy && (
             <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-2">Current Pet Policy</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                Current Pet Policy
+                {petPolicy.confidence_score?.pet_policy !== undefined && renderConfidenceBadge(petPolicy.confidence_score.pet_policy)}
+              </h3>
               <Separator className="my-2" />
               
               <div className="space-y-4 text-sm">
                 <div>
                   <strong>Policy URL:</strong> {petPolicy.policy_url || "Not set"}
+                  {petPolicy.confidence_score?.airline_info !== undefined && renderConfidenceBadge(petPolicy.confidence_score.airline_info)}
                 </div>
+
+                {petPolicy.sources && petPolicy.sources.length > 0 && (
+                  <div>
+                    <strong>Sources:</strong>
+                    <ul className="list-disc pl-5 mt-1">
+                      {petPolicy.sources.map((source, i) => (
+                        <li key={i}>
+                          {source.startsWith('http') ? (
+                            <a href={source} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                              {source}
+                            </a>
+                          ) : (
+                            source
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 
                 <div>
                   <strong>Pet Types Allowed:</strong>
@@ -247,6 +304,29 @@ export const PetPolicyAnalyzer = () => {
                       : <li>None specified</li>
                     }
                   </ul>
+                </div>
+                
+                <div>
+                  <strong>Carrier Requirements:</strong>
+                  <div className="mt-1">
+                    <p><strong>Cabin:</strong> {petPolicy.carrier_requirements_cabin || "Not specified"}</p>
+                    <p><strong>Cargo:</strong> {petPolicy.carrier_requirements_cargo || "Not specified"}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <strong>Breed Restrictions:</strong>
+                  <ul className="list-disc pl-5 mt-1">
+                    {petPolicy.breed_restrictions?.length > 0 
+                      ? petPolicy.breed_restrictions.map((breed, i) => <li key={i}>{breed}</li>)
+                      : <li>None specified</li>
+                    }
+                  </ul>
+                </div>
+                
+                <div>
+                  <strong>Temperature Restrictions:</strong>
+                  <p className="mt-1">{petPolicy.temperature_restrictions || "Not specified"}</p>
                 </div>
               </div>
             </div>

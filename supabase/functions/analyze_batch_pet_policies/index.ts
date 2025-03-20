@@ -23,12 +23,6 @@ Deno.serve(async (req) => {
       console.error('OPENAI_API_KEY is not set');
       throw new Error('API key configuration error');
     }
-    
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!firecrawlApiKey) {
-      console.error('FIRECRAWL_API_KEY is not set');
-      throw new Error('FIRECRAWL_API_KEY is not set. This key is required for website scraping.');
-    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -51,7 +45,7 @@ Deno.serve(async (req) => {
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
-        const petPolicy = await analyzePetPolicy(airline, openaiKey, firecrawlApiKey);
+        const petPolicy = await analyzePetPolicy(airline, openaiKey);
         
         await savePetPolicyToDatabase(supabase, airline, petPolicy, forceUpdate);
 

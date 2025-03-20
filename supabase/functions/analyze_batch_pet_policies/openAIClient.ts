@@ -3,86 +3,76 @@
  * Handles interactions with the OpenAI API for pet policy analysis
  */
 
-import { Airline } from './types.ts';
-import { scrapeWebsite } from '../_shared/FirecrawlClient.ts';
+import { Airline, PetPolicyData } from './types.ts';
 
-const systemPrompt = `You are a helpful assistant specializing in analyzing airline pet policies. Your task is to extract key information from airline websites about pet travel requirements and restrictions.
-Focus on finding official policy information and correctly identifying the direct URL to the pet policy page.
-Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
+const systemPrompt = `You are an AI assistant specialized in finding and analyzing airline pet travel policies.
+Your task is to:
+1. Use your knowledge to identify the official airline website
+2. Formulate what the pet policy URL would likely be based on the airline website
+3. Extract key information about pet travel requirements and restrictions
+4. Provide confidence scores for each piece of information based on how certain you are
+5. List the sources of your information
+
+Return ONLY a raw JSON object with no markdown formatting or explanations.`;
 
 /**
  * Analyzes pet policy for an airline using OpenAI API
  * @param airline Airline object with details
  * @param openaiKey OpenAI API key
- * @param firecrawlApiKey Firecrawl API key for website scraping
  * @returns Processed pet policy data
  */
-export async function analyzePetPolicy(airline: Airline, openaiKey: string, firecrawlApiKey: string): Promise<any> {
+export async function analyzePetPolicy(airline: Airline, openaiKey: string): Promise<PetPolicyData> {
   console.log(`Analyzing pet policy for airline: ${airline.name}`);
   
   // Start with the website from the airline record, if available
   let websiteUrl = airline.website || null;
-  let scrapedContent = '';
-  let petPolicyUrl = null;
-  
-  try {
-    // If we have a website URL, scrape it to get content
-    if (websiteUrl) {
-      console.log(`Scraping website for ${airline.name}: ${websiteUrl}`);
-      scrapedContent = await scrapeWebsite(websiteUrl, firecrawlApiKey);
-      console.log(`Successfully scraped content for ${airline.name}, length: ${scrapedContent.length} characters`);
-    } else {
-      console.log(`No website URL available for ${airline.name}, skipping scraping`);
-    }
-  } catch (error) {
-    console.error(`Error scraping website for ${airline.name}:`, error);
-    // Continue with analysis even if scraping fails
-    scrapedContent = `Unable to scrape website: ${error.message}`;
-  }
   
   // Add instructions for the context analysis
-  const contextInstruction = scrapedContent 
-    ? `I've scraped the airline website and extracted the following content. Please analyze this content to identify the pet policy details:\n\n${scrapedContent.substring(0, 15000)}` 
-    : `Please search for information about ${airline.name}'s pet policy. Their website is ${websiteUrl || 'unknown'}.`;
+  const contextInstruction = websiteUrl 
+    ? `The airline's website appears to be ${websiteUrl}. Use your knowledge to identify the pet policy information.` 
+    : `Please find the official website for ${airline.name} (IATA code: ${airline.iata_code}) and analyze their pet policy.`;
     
-  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
+  const userMessage = `As an airline pet policy expert, find and analyze the pet policy for ${airline.name} (IATA code: ${airline.iata_code}).
+
+  Return a JSON object with the following structure:
   {
     "airline_info": {
-      "official_website": "The main airline website URL if found",
-      "pet_policy_url": "The DIRECT URL to the pet travel policy page if found (not just the homepage)"
+      "official_website": "Main airline website URL",
+      "pet_policy_url": "Direct URL to pet policy page",
+      "sources": ["List of sources you used to find this information"],
+      "confidence_score": 0.95 // How confident you are in the accuracy of this information (0-1)
     },
     "pet_policy": {
-      "pet_types_allowed": ["list of allowed pets, specify if in cabin or cargo"],
+      "pet_types_allowed": ["List of allowed pets, specify in cabin or cargo"],
       "size_restrictions": {
-        "max_weight_cabin": "weight in kg/lbs",
-        "max_weight_cargo": "weight in kg/lbs",
-        "carrier_dimensions_cabin": "size limits"
+        "max_weight_cabin": "Weight limit for cabin",
+        "max_weight_cargo": "Weight limit for cargo",
+        "carrier_dimensions_cabin": "Size limits for cabin"
       },
-      "carrier_requirements_cabin": "description of carrier requirements for cabin travel",
-      "carrier_requirements_cargo": "description of carrier requirements for cargo travel",
-      "documentation_needed": ["list each and every required document"],
+      "carrier_requirements_cabin": "Requirements for cabin carriers",
+      "carrier_requirements_cargo": "Requirements for cargo transport",
+      "documentation_needed": ["Required documents"],
       "fees": {
-        "in_cabin": "fee amount",
-        "cargo": "fee amount"
+        "in_cabin": "Fee amount",
+        "cargo": "Fee amount"
       },
-      "temperature_restrictions": "description of any temperature related restrictions",
-      "breed_restrictions": ["list of restricted breeds"]
+      "temperature_restrictions": "Any temperature restrictions",
+      "breed_restrictions": ["Restricted breeds"],
+      "confidence_score": 0.85 // How confident you are in this policy data (0-1)
     }
   }
 
-  Search specifically for:
-  1. What pets are allowed in cabin vs cargo
-  2. Size and weight limits for both cabin and cargo
-  3. Specific carrier requirements for both cabin and cargo
-  4. All required documentation and health certificates
-  5. Fees for both cabin and cargo transport
-  6. Any temperature or weather restrictions
-  7. Any breed restrictions
-  8. Both the main airline website URL AND the specific direct URL to pet travel policy page
+  For each field, provide a confidence score between 0 and 1, where:
+  - 1.0: You are certain this information is accurate, verified from official sources
+  - 0.8: You are highly confident based on reliable sources
+  - 0.6: You have moderate confidence but some uncertainty
+  - 0.4: You have low confidence, possibly based on indirect information
+  - 0.2: You are making an educated guess
+  - 0: You have no information
 
-  Return ONLY the JSON object with all available information. If any information is not found, use null for that field.
-  
-  ${contextInstruction}`;
+  ${contextInstruction}
+
+  If you cannot find specific information, use null for that field but provide your best effort for all fields.`;
 
   const maxRetries = 3;
   let lastError = null;
@@ -98,7 +88,7 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string, fire
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4o',
           messages: [
             {
               role: 'system',
@@ -167,8 +157,13 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string, fire
         documentation_needed: content.pet_policy.documentation_needed || [],
         temperature_restrictions: content.pet_policy.temperature_restrictions || '',
         breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info.pet_policy_url || null, // Only use pet policy URL, no fallback
-        official_website: content.airline_info.official_website || null, // Store official website separately
+        policy_url: content.airline_info.pet_policy_url || null,
+        official_website: content.airline_info.official_website || null,
+        sources: content.airline_info.sources || [],
+        confidence_score: {
+          airline_info: content.airline_info.confidence_score || 0,
+          pet_policy: content.pet_policy.confidence_score || 0
+        },
         size_restrictions: {
           max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
           max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,
