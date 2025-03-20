@@ -66,6 +66,4 @@ export async function savePetPolicyToDatabase(
       console.error(`Error updating airline data: ${airlineError.message}`);
     }
   }
-
-  // The missing_pet_policies table doesn't exist, so we've removed that code
 }
