@@ -61,7 +61,7 @@ export const useSyncOperations = () => {
       if (syncType === 'petPolicies' && options.smartUpdate) {
         console.log('Smart Update mode enabled - fetching airlines that need updates');
         try {
-          // Fix: Use the correct typing for the RPC call
+          // Fix: Get airline IDs and map to string array
           const { data, error } = await supabase.rpc('get_airlines_needing_policy_update');
           
           if (error) {
@@ -69,7 +69,8 @@ export const useSyncOperations = () => {
           }
           
           if (data && Array.isArray(data) && data.length > 0) {
-            specificAirlines = data;
+            // Extract the id values from each object and create a string array
+            specificAirlines = data.map(item => item.id);
             console.log(`Found ${specificAirlines.length} airlines that need updates`);
           } else {
             toast({
