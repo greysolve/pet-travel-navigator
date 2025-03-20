@@ -150,18 +150,32 @@ Do not include any generalized information or assumptions. Only include specific
         const airlineInfo = parsedData.airline_info || {};
         const petPolicy = parsedData.pet_policy || {};
         
+        // Helper function to convert different formats to arrays
+        const ensureArray = (value: any): string[] => {
+          if (!value) return [];
+          if (Array.isArray(value)) return value;
+          if (typeof value === 'string') return [value];
+          if (typeof value === 'object') {
+            // For objects like { restrictions: "Pit Bull breed dogs are not allowed" }
+            // Convert to array of values
+            return Object.values(value).map(v => v.toString());
+          }
+          return [value.toString()];
+        };
+        
         // If we reach here, we successfully parsed the data
         // Combine the data into a normalized object with our expected field structure
         const normalizedData = {
           // Extract specific fields from pet_policy
-          pet_types_allowed: petPolicy.allowed_pets || {},
+          pet_types_allowed: ensureArray(petPolicy.allowed_pets || {}),
           size_restrictions: petPolicy.size_weight_restrictions || {},
           carrier_requirements_cabin: petPolicy.carrier_requirements?.in_cabin || {},
           carrier_requirements_cargo: petPolicy.carrier_requirements?.cargo || "Not specified",
-          documentation_needed: petPolicy.documentation_needed || [],
+          documentation_needed: ensureArray(petPolicy.documentation_needed || []),
           fees: petPolicy.fees || {},
           temperature_restrictions: petPolicy.temperature_breed_restrictions?.temperature || "Not specified",
-          breed_restrictions: petPolicy.temperature_breed_restrictions?.breed || [],
+          // Use our helper function to ensure breed_restrictions is always an array
+          breed_restrictions: ensureArray(petPolicy.temperature_breed_restrictions?.breed || []),
           
           // Extract website URLs from airline_info
           official_website: airlineInfo.official_website,
@@ -173,6 +187,7 @@ Do not include any generalized information or assumptions. Only include specific
         
         console.log('=== PARSED DATA SUCCESSFULLY ===');
         console.log('Successfully parsed and normalized policy data');
+        console.log('Breed restrictions (should be array):', normalizedData.breed_restrictions);
         
         return normalizedData;
       } catch (parseError) {
