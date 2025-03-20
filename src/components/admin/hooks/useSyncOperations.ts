@@ -71,6 +71,9 @@ export const useSyncOperations = () => {
             offset: options.offset || 0,
             limit: 10 // Process 10 airlines per batch
           };
+          
+          // Log the options for debugging
+          console.log('Pet policy sync options:', data);
           break;
           
         default:

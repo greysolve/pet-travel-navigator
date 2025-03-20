@@ -30,12 +30,18 @@ export async function processPetPoliciesBatch(
       console.log(`Processing specific airlines: ${specificAirlines.join(', ')}`);
       query = query.in('id', specificAirlines);
     } else {
-      // Filter for airlines that haven't been processed or need updates
+      // Important: Only filter by last_policy_update if we're NOT forcing content comparison
       if (!forceContentComparison) {
+        console.log('Using normal filtering based on last_policy_update');
         query = query.or(
           'last_policy_update.is.null,' +     // Never processed
           'last_policy_update.lt.now()-interval\'30 days\''  // Processed more than 30 days ago
         );
+      } else {
+        console.log('Force comparison mode: processing ALL airlines regardless of last_policy_update');
+        // No filtering when force comparing - we want all airlines
+        // Just apply normal active filtering
+        query = query.eq('active', true);
       }
       
       // Apply pagination
@@ -111,14 +117,26 @@ export async function processPetPoliciesBatch(
     
     // Determine if we need to continue processing more airlines
     if (!specificAirlines) {
-      const { data: remainingCount, error: countError } = await supabase
+      // When determining remaining airlines, use the same query logic as above
+      let countQuery = supabase
         .from('airlines')
-        .select('id', { count: 'exact', head: true })
-        .or(
+        .select('id', { count: 'exact', head: true });
+      
+      // Important: Apply the same filtering logic as the main query
+      if (!forceContentComparison) {
+        countQuery = countQuery.or(
           'last_policy_update.is.null,' +
           'last_policy_update.lt.now()-interval\'30 days\''
-        )
-        .gt('id', airlines[airlines.length - 1].id);
+        );
+      } else {
+        // No filtering when force comparing - count all active airlines
+        countQuery = countQuery.eq('active', true);
+      }
+      
+      // Only count airlines with IDs greater than the last processed
+      countQuery = countQuery.gt('id', airlines[airlines.length - 1].id);
+      
+      const { count: remainingCount, error: countError } = await countQuery;
       
       if (!countError && remainingCount !== null && remainingCount > 0) {
         console.log(`${remainingCount} more airlines need processing`);

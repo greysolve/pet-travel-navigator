@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
@@ -157,7 +156,46 @@ export class SyncManager {
     }
   }
 
-  // Helper function to properly merge array items, handling both string arrays and single string values
+  async incrementProgress(itemId: string): Promise<void> {
+    console.log(`Incrementing progress for ${this.type} with item ${itemId}`);
+    
+    try {
+      const currentState = await this.getCurrentProgress();
+      if (!currentState) {
+        console.error('No current state found when incrementing progress');
+        return;
+      }
+      
+      const updatedProcessedItems = this.mergeArrayItems(
+        currentState.processed_items || [], 
+        itemId
+      );
+      
+      const { error } = await this.supabase
+        .from('sync_progress')
+        .update({
+          processed: currentState.processed + 1,
+          processed_items: updatedProcessedItems,
+          last_processed: itemId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('type', this.type);
+
+      if (error) {
+        console.error(`Error incrementing progress for ${this.type}:`, error);
+        throw error;
+      }
+    } catch (error) {
+      console.error(`Critical error in incrementProgress for ${this.type}:`, error);
+      // Continue execution without throwing to prevent cascade failures
+    }
+  }
+
+  async updateSyncState(updates: Partial<SyncState>): Promise<void> {
+    console.log(`Updating sync state for ${this.type}:`, updates);
+    return this.updateProgress(updates);
+  }
+
   private mergeArrayItems(existingItems: string[], newItems: string[] | string): string[] {
     // Handle case where newItems is a single string
     if (typeof newItems === 'string') {
@@ -173,7 +211,6 @@ export class SyncManager {
     return existingItems;
   }
 
-  // Add convenience methods for common operations
   async completeSync(): Promise<void> {
     console.log(`Marking sync ${this.type} as complete`);
     await this.updateProgress({ 
