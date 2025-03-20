@@ -1,70 +1,57 @@
 
-/**
- * Handles interactions with the OpenAI API for pet policy analysis
- * with web search capability for more accurate and up-to-date information
- */
-
 import { Airline } from './types.ts';
 
-const systemPrompt = `You are a helpful assistant specializing in analyzing airline pet policies. You prioritize finding official policies from airline websites and documents. Focus on extracting key information about pet travel requirements and restrictions. Only provide information directly from the official airline source.
-Do not ruminate or demonstrate your thought process into the chat. 
-Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
+const systemPrompt = `You're an expert on airline pet policies. Your task is to extract clear, detailed information about pet travel policies from a provided airline.
 
-/**
- * Analyzes pet policy for an airline using OpenAI API with web search capabilities
- * @param airline Airline object with details
- * @param openaiKey OpenAI API key
- * @returns Processed pet policy data
- */
+Please search for and examine the airline's most recent official pet policy. Return a structured analysis with these sections:
+- What pets are allowed (in cabin & cargo)
+- Size/weight restrictions
+- Carrier requirements (in cabin & cargo)
+- Documentation needed
+- Fees
+- Temperature or breed restrictions
+
+Format your response as a JSON object with these fields:
+1. airline_info: Information about the airline (official website URL, pet policy URL)
+2. pet_policy: The structured pet policy details with the main categories above
+
+Be extremely precise and factual. If a specific detail isn't found, note that rather than assuming. Only include information that's explicitly stated in the airline's official policy.`;
+
 export async function analyzePetPolicy(airline: Airline, openaiKey: string): Promise<any> {
-  console.log(`Analyzing pet policy for airline: ${airline.name} (${airline.iata_code})`);
+  console.log(`Analyzing pet policy for ${airline.name} (${airline.iata_code})`);
   
-  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name} (IATA code: ${airline.iata_code}). The response must be ONLY the JSON object, no markdown formatting or additional text:
-  {
-    "airline_info": {
-      "official_website": "The main airline website URL if found",
-      "pet_policy_url": "The DIRECT URL to the pet travel policy page if found (not just the homepage)"
-    },
-    "pet_policy": {
-      "pet_types_allowed": ["list of allowed pets, specify if in cabin or cargo"],
-      "size_restrictions": {
-        "max_weight_cabin": "weight in kg/lbs",
-        "max_weight_cargo": "weight in kg/lbs",
-        "carrier_dimensions_cabin": "size limits"
-      },
-      "carrier_requirements_cabin": "description of carrier requirements for cabin travel",
-      "carrier_requirements_cargo": "description of carrier requirements for cargo travel",
-      "documentation_needed": ["list each and every required document"],
-      "fees": {
-        "in_cabin": "fee amount",
-        "cargo": "fee amount"
-      },
-      "temperature_restrictions": "description of any temperature related restrictions",
-      "breed_restrictions": ["list of restricted breeds"]
-    }
-  }
+  const userPrompt = `Please search for and analyze the current pet policy for ${airline.name} (${airline.iata_code}).
 
-  First, search specifically for the most current and official pet policy information from ${airline.name}'s official website.
-  IMPORTANT: Only provide information directly from ${airline.name}'s official website or official documents. Do not include information from third-party websites, blogs, or unofficial sources.
-  
-  Be very thorough in your search for:
-  1. What pets are allowed in cabin vs cargo
-  2. Size and weight limits for both cabin and cargo
-  3. Specific carrier requirements for both cabin and cargo
-  4. All required documentation and health certificates
-  5. Fees for both cabin and cargo transport
-  6. Any temperature or weather restrictions
-  7. Any breed restrictions
-  8. Both the main airline website URL AND the specific direct URL to pet travel policy page
+If possible, find:
+1. The official website URL
+2. The direct URL to their pet policy page
+3. Detailed information about their pet travel policies (cabin & cargo)
+4. Any recent updates or changes to their policy
 
-  Return ONLY the JSON object with all available information. If any information is not found, use null for that field.`;
+Do not include any generalized information or assumptions. Only include specific details directly from ${airline.name}'s official sources.`;
 
   const maxRetries = 3;
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Attempt ${attempt} to get pet policy from OpenAI API with web search`);
+      console.log(`Attempt ${attempt} to get policy from OpenAI API with web search`);
+      
+      const requestBody = {
+        model: 'gpt-4o-search-preview',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        web_search_options: {
+          search_context_size: "medium"
+        },
+        temperature: 0.1,
+        max_tokens: 2000,
+      };
+
+      console.log('=== API REQUEST ===');
+      console.log('Sending request to OpenAI API');
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -72,100 +59,65 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
           'Authorization': `Bearer ${openaiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini-search-preview',
-          web_search_options: {
-            search_context_size: "medium",
-          },
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: userMessage
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 2000,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('=== API RESPONSE STATUS ===');
+      console.log('Status:', response.status);
+      console.log('Status Text:', response.statusText);
+      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`OpenAI API error response (${response.status}):`, errorText);
+        console.error('API Error Response:', errorText);
         throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
-      const responseData = await response.json();
-      console.log('API response received:', JSON.stringify(responseData, null, 2));
-      
-      if (!responseData.choices?.[0]?.message?.content) {
+      const data = await response.json();
+      console.log('=== API RESPONSE DATA ===');
+      console.log('Received response from OpenAI API');
+
+      if (!data.choices?.[0]?.message?.content) {
+        console.error('Invalid response format. Response data:', data);
         throw new Error('Invalid response format from OpenAI API');
       }
 
-      // Extract content and ignore any annotations
-      const rawContent = responseData.choices[0].message.content;
+      const content = data.choices[0].message.content.trim();
+      console.log('=== CONTENT PROCESSING ===');
+      console.log('Raw content:', content);
       
-      console.log('Raw API response content:', rawContent);
-
-      let content;
       try {
-        content = JSON.parse(rawContent);
-      } catch (parseError) {
-        console.log('Initial parse failed, attempting to clean content');
-        const cleanContent = rawContent
+        const cleanContent = content
           .replace(/```json\n?|\n?```/g, '')
           .replace(/^\s*\{/, '{')
           .replace(/\}\s*$/, '}')
           .trim();
+          
+        let parsedData = JSON.parse(cleanContent);
         
-        try {
-          content = JSON.parse(cleanContent);
-        } catch (secondError) {
-          console.error('Failed to parse cleaned content:', secondError);
-          throw new Error(`JSON parsing failed: ${secondError.message}`);
-        }
+        // Add raw API response for debugging purposes
+        parsedData._raw_api_response = cleanContent;
+        
+        // Extract the airline info and pet policy
+        const airlineInfo = parsedData.airline_info || {};
+        const petPolicy = parsedData.pet_policy || {};
+        
+        // Combine them into a single object with normalized field names
+        const result = {
+          ...petPolicy,
+          official_website: airlineInfo.official_website,
+          policy_url: airlineInfo.pet_policy_url || petPolicy.policy_url,
+          _raw_api_response: cleanContent // Store raw response for debugging
+        };
+        
+        console.log('=== PARSED DATA ===');
+        console.log('Successfully parsed policy data');
+        
+        return result;
+      } catch (parseError) {
+        console.error('Failed to parse API response. Parse error:', parseError);
+        console.error('Content that failed to parse:', content);
+        throw new Error('Invalid policy data format');
       }
-
-      console.log('Successfully parsed content:', JSON.stringify(content, null, 2));
-
-      if (!content.pet_policy || !content.airline_info) {
-        throw new Error('Invalid response structure: missing required fields');
-      }
-
-      // Log found URLs for monitoring
-      if (content.airline_info.official_website) {
-        console.log(`Found main website URL for ${airline.name}: ${content.airline_info.official_website}`);
-      }
-      
-      if (content.airline_info.pet_policy_url) {
-        console.log(`Found pet policy URL for ${airline.name}: ${content.airline_info.pet_policy_url}`);
-      }
-
-      // Return the processed result without citations
-      const result = {
-        pet_types_allowed: content.pet_policy.pet_types_allowed || [],
-        carrier_requirements_cabin: content.pet_policy.carrier_requirements_cabin || '',
-        carrier_requirements_cargo: content.pet_policy.carrier_requirements_cargo || '',
-        documentation_needed: content.pet_policy.documentation_needed || [],
-        temperature_restrictions: content.pet_policy.temperature_restrictions || '',
-        breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info.pet_policy_url || null,
-        official_website: content.airline_info.official_website || null,
-        size_restrictions: {
-          max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
-          max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,
-          carrier_dimensions_cabin: content.pet_policy.size_restrictions?.carrier_dimensions_cabin || null
-        },
-        fees: {
-          in_cabin: content.pet_policy.fees?.in_cabin || null,
-          cargo: content.pet_policy.fees?.cargo || null
-        }
-      };
-      
-      return result;
 
     } catch (error) {
       console.error(`Attempt ${attempt} failed:`, error);

@@ -39,19 +39,36 @@ Deno.serve(async (req) => {
     console.log(`Processing batch of ${airlines.length} airlines`);
     const results: ProcessingResult[] = [];
     const errors: ProcessingError[] = [];
+    let rawApiResponse = null;
+    let contentChanged = false;
+    let comparisonDetails = null;
 
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicy = await analyzePetPolicy(airline, openaiKey);
         
-        await savePetPolicyToDatabase(supabase, airline, petPolicy);
+        // Store raw API response for debugging
+        rawApiResponse = petPolicy._raw_api_response; 
+        delete petPolicy._raw_api_response; // Remove from policy object before saving
+        
+        // Save to database and get detailed results
+        const saveResult = await savePetPolicyToDatabase(
+          supabase, 
+          airline, 
+          petPolicy, 
+          rawApiResponse
+        );
+        
+        contentChanged = saveResult.content_changed;
+        comparisonDetails = saveResult.comparison_details;
 
         // If we reach here, processing was successful
         results.push({
           airline_id: airline.id,
           success: true,
-          iata_code: airline.iata_code
+          iata_code: airline.iata_code,
+          content_changed: contentChanged
         });
         
         console.log(`Successfully processed ${airline.name} (${airline.iata_code})`);
@@ -74,10 +91,13 @@ Deno.serve(async (req) => {
       success: results.length > 0, // Consider success if at least one airline was processed
       results,
       errors,
-      execution_time: executionTime
+      execution_time: executionTime,
+      raw_api_response: rawApiResponse,
+      content_changed: contentChanged,
+      comparison_details: comparisonDetails
     };
     
-    console.log(`Batch processing complete. Success: ${response.success}, Results: ${results.length}, Errors: ${errors.length}`);
+    console.log(`Batch processing complete. Success: ${response.success}, Results: ${results.length}, Errors: ${errors.length}, Content changed: ${contentChanged}`);
     
     return new Response(
       JSON.stringify(response),

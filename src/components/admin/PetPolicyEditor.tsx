@@ -14,13 +14,18 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Search, ExternalLink } from "lucide-react";
+import { Loader2, Search, ExternalLink, ArrowDown, ArrowRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { JsonRenderer } from "@/components/ui/json-renderer";
 
 const PetPolicyEditor = () => {
   const [iataCode, setIataCode] = useState("");
   const [forceUpdate, setForceUpdate] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [apiResponse, setApiResponse] = useState<any>(null);
+  const [responseStatus, setResponseStatus] = useState<string | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
 
   // First, fetch the airline data
   const { 
@@ -78,6 +83,9 @@ const PetPolicyEditor = () => {
       return;
     }
     
+    // Reset any previous API response data
+    setApiResponse(null);
+    setResponseStatus(null);
     refetchAirline();
   };
 
@@ -85,6 +93,8 @@ const PetPolicyEditor = () => {
     if (!airlineData) return;
     
     setIsAnalyzing(true);
+    setApiResponse(null);
+    setResponseStatus(null);
     
     try {
       // Call the Supabase function to analyze this specific airline
@@ -98,19 +108,39 @@ const PetPolicyEditor = () => {
       
       if (response.error) throw new Error(response.error.message);
       
-      toast({
-        title: "Success",
-        description: "Pet policy analysis initiated successfully",
+      // Now fetch the raw results from the batch processor
+      const batchResponse = await supabase.functions.invoke('analyze_batch_pet_policies', {
+        body: {
+          airlines: [airlineData]
+        }
       });
       
-      // Refetch both airline and policy data after a short delay
-      setTimeout(() => {
-        refetchAirline();
-        refetchPolicy();
-      }, 3000);
+      setApiResponse(batchResponse.data);
+      
+      if (batchResponse.data?.results?.length > 0) {
+        const hasChanged = batchResponse.data.content_changed || false;
+        setResponseStatus(hasChanged ? "Policy content changed" : "Policy content unchanged");
+        
+        toast({
+          title: "Success",
+          description: `Pet policy analysis completed. ${hasChanged ? "Content changed" : "No content changes detected"}.`,
+        });
+      } else {
+        setResponseStatus("Error in processing");
+        toast({
+          title: "Warning",
+          description: "Pet policy analysis completed but no results returned.",
+          variant: "destructive"
+        });
+      }
+      
+      // Refetch both airline and policy data
+      refetchAirline();
+      refetchPolicy();
       
     } catch (error) {
       console.error("Error analyzing policy:", error);
+      setResponseStatus("Error");
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to analyze pet policy",
@@ -229,16 +259,22 @@ const PetPolicyEditor = () => {
                   </div>
                 )}
                 
-                <div>
-                  <h3 className="text-lg font-semibold">Current Policy</h3>
-                  <pre className="mt-2 whitespace-pre-wrap bg-muted p-4 rounded-md text-xs overflow-auto max-h-[400px]">
-                    {formatPolicyData(policyData)}
-                  </pre>
-                </div>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="current-policy">
+                    <AccordionTrigger>Current Policy</AccordionTrigger>
+                    <AccordionContent>
+                      <ScrollArea className="h-[400px] rounded-md border p-4">
+                        <pre className="whitespace-pre-wrap text-xs">
+                          {formatPolicyData(policyData)}
+                        </pre>
+                      </ScrollArea>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             </CardContent>
             
-            <CardFooter>
+            <CardFooter className="flex flex-col space-y-4">
               <Button 
                 onClick={handleAnalyzePolicy} 
                 disabled={isAnalyzing}
@@ -253,7 +289,81 @@ const PetPolicyEditor = () => {
                   "Analyze/Update Pet Policy with Web Search"
                 )}
               </Button>
+
+              {responseStatus && (
+                <div className={`w-full text-center p-2 rounded ${
+                  responseStatus.includes("Error") 
+                    ? "bg-red-100 text-red-800" 
+                    : responseStatus.includes("changed") 
+                      ? "bg-green-100 text-green-800"
+                      : "bg-blue-100 text-blue-800"
+                }`}>
+                  {responseStatus}
+                </div>
+              )}
             </CardFooter>
+          </Card>
+        )}
+        
+        {apiResponse && (
+          <Card>
+            <CardHeader>
+              <CardTitle>API Response</CardTitle>
+              <CardDescription>
+                Raw data from the API analysis
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="raw-response">
+                  <AccordionTrigger>Raw API Response</AccordionTrigger>
+                  <AccordionContent>
+                    <ScrollArea className="h-[400px] rounded-md border p-4">
+                      {apiResponse.raw_api_response ? (
+                        <JsonRenderer data={JSON.parse(apiResponse.raw_api_response)} />
+                      ) : (
+                        <div className="text-sm text-gray-500">No raw API response available</div>
+                      )}
+                    </ScrollArea>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="comparison">
+                  <AccordionTrigger>Content Comparison</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="p-2 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Content Changed:</span>
+                        <span className={apiResponse.content_changed ? "text-green-600" : "text-amber-600"}>
+                          {apiResponse.content_changed ? "Yes" : "No"}
+                        </span>
+                      </div>
+                      
+                      {apiResponse.comparison_details && (
+                        <div className="rounded-md border p-3 bg-gray-50">
+                          <h4 className="font-medium mb-2">Comparison Details:</h4>
+                          <pre className="text-xs whitespace-pre-wrap">
+                            {JSON.stringify(apiResponse.comparison_details, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="full-response">
+                  <AccordionTrigger>Full Response</AccordionTrigger>
+                  <AccordionContent>
+                    <ScrollArea className="h-[400px] rounded-md border p-4">
+                      <pre className="text-xs whitespace-pre-wrap">
+                        {JSON.stringify(apiResponse, null, 2)}
+                      </pre>
+                    </ScrollArea>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </CardContent>
           </Card>
         )}
         
