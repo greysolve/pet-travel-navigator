@@ -38,9 +38,7 @@ export async function savePetPolicyToDatabase(
   const policyData = {
     airline_id: airline.id,
     ...petPolicy,
-    // Format sources and confidence scores for database storage
-    sources: petPolicy.sources || [],
-    confidence_score: petPolicy.confidence_score || { airline_info: 0, pet_policy: 0 }
+    // We don't include official_website in the pet_policies table
   };
   
   // Remove official_website as it shouldn't be part of the pet_policies table

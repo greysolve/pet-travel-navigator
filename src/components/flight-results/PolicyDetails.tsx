@@ -1,9 +1,7 @@
 
-import { ExternalLink, AlertCircle } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { JsonRenderer } from "@/components/ui/json-renderer";
 import { PremiumFeature } from "@/components/ui/premium-feature";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PetPolicy } from "./types";
 import { useMemo } from "react";
 
@@ -76,40 +74,6 @@ const generateContentSignature = (policy: PetPolicy): string => {
   return JSON.stringify(relevantFields, Object.keys(relevantFields).sort());
 };
 
-// Function to render confidence badges
-const renderConfidenceBadge = (score?: number) => {
-  if (score === undefined) return null;
-  
-  let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
-  let label = "Unknown Confidence";
-  
-  if (score >= 0.8) {
-    variant = "default";
-    label = "High Confidence";
-  } else if (score >= 0.5) {
-    variant = "secondary";
-    label = "Medium Confidence";
-  } else if (score > 0) {
-    variant = "destructive";
-    label = "Low Confidence";
-  }
-  
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge variant={variant} className="ml-2">
-            {Math.round(score * 100)}%
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{label}: This data is {Math.round(score * 100)}% reliable</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-};
-
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   console.log('Rendering policy:', policy);
 
@@ -134,42 +98,6 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
 
   return (
     <div className="text-sm space-y-4 border-t pt-4" {...dataAttributes}>
-      {/* Confidence indicator */}
-      {policy.confidence_score && (
-        <div className="flex items-center text-xs text-gray-500">
-          <div className="flex items-center">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            <span>Policy reliability: </span>
-            {renderConfidenceBadge(policy.confidence_score.pet_policy)}
-          </div>
-        </div>
-      )}
-
-      {/* Sources */}
-      {policy.sources && policy.sources.length > 0 && (
-        <div className="text-xs text-gray-500">
-          <p className="font-medium mb-1">Sources:</p>
-          <ul className="list-disc list-inside">
-            {policy.sources.map((source, i) => (
-              <li key={i}>
-                {source.startsWith('http') ? (
-                  <a 
-                    href={source} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline truncate inline-block max-w-full"
-                  >
-                    {source}
-                  </a>
-                ) : (
-                  source
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Pet Types */}
       {policy.pet_types_allowed && (
         <div>
