@@ -11,6 +11,7 @@ interface SyncOptions {
   forceContentComparison?: boolean;
   compareContent?: boolean;
   offset?: number;
+  smartUpdate?: boolean;
   [key: string]: any;
 }
 
@@ -54,6 +55,41 @@ export const useSyncOperations = () => {
         }
       }
       
+      // Smart Update mode - only for pet policies
+      let specificAirlines: string[] | undefined = undefined;
+      
+      if (syncType === 'petPolicies' && options.smartUpdate) {
+        console.log('Smart Update mode enabled - fetching airlines that need updates');
+        try {
+          const { data, error } = await supabase.rpc('get_airlines_needing_policy_update');
+          
+          if (error) {
+            throw new Error(`Failed to get airlines needing updates: ${error.message}`);
+          }
+          
+          if (data && data.length > 0) {
+            specificAirlines = data;
+            console.log(`Found ${specificAirlines.length} airlines that need updates`);
+          } else {
+            toast({
+              title: "No Updates Needed",
+              description: "No airlines were found that need policy updates at this time.",
+            });
+            setIsInitializing(prev => ({ ...prev, [syncType]: false }));
+            return;
+          }
+        } catch (error) {
+          console.error('Error getting airlines needing updates:', error);
+          toast({
+            variant: "destructive",
+            title: "Smart Update Error",
+            description: error instanceof Error ? error.message : "Failed to get airlines needing updates",
+          });
+          setIsInitializing(prev => ({ ...prev, [syncType]: false }));
+          return;
+        }
+      }
+      
       // Prepare endpoint and data based on sync type
       let endpoint = '';
       let data: any = {};
@@ -92,7 +128,8 @@ export const useSyncOperations = () => {
             forceContentComparison: options.forceContentComparison || false,
             compareContent: options.compareContent || false,
             offset: currentOffset,
-            limit: 10 // Process 10 airlines per batch
+            limit: 10, // Process 10 airlines per batch
+            airlines: specificAirlines // Pass specific airlines for smart update
           };
           
           // Log the options for debugging

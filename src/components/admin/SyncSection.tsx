@@ -9,6 +9,8 @@ import { useSyncOperations } from "./hooks/useSyncOperations";
 import { useSyncProgressSubscription } from "./hooks/useSyncProgressSubscription";
 import { SyncProgressDB } from "./types/sync-types";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { WandSparkles } from "lucide-react";
 
 export const SyncSection = () => {
   const { toast } = useToast();
@@ -64,6 +66,14 @@ export const SyncSection = () => {
     },
   });
 
+  // Handle smart update for pet policies
+  const handleSmartUpdate = () => {
+    handleSync('petPolicies', false, 'update', { 
+      smartUpdate: true,
+      compareContent: true // Always enable content comparison for smart updates
+    });
+  };
+
   return (
     <div className="space-y-8">
       <ActiveSyncs syncProgress={syncProgress || {}} />
@@ -77,6 +87,21 @@ export const SyncSection = () => {
           onChange={(e) => setCountryInput(e.target.value)}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
+      </div>
+
+      {/* Smart Update button for pet policies */}
+      <div className="mb-8">
+        <Button 
+          variant="outline" 
+          size="lg" 
+          className="w-full border-dashed border-2 text-lg"
+          onClick={handleSmartUpdate}
+          disabled={isInitializing.petPolicies}
+        >
+          <WandSparkles className="mr-2" />
+          Smart Update Pet Policies
+          <span className="text-xs ml-2 text-muted-foreground">(Only updates policies that need it)</span>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
