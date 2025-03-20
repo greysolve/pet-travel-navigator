@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { 
   Card, 
   CardContent, 
@@ -22,34 +21,50 @@ const PetPolicyEditor = () => {
   const [forceUpdate, setForceUpdate] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Fetch airline data based on IATA code
+  // First, fetch the airline data
   const { 
     data: airlineData, 
-    isLoading, 
-    error,
-    refetch
+    isLoading: isAirlineLoading, 
+    error: airlineError,
+    refetch: refetchAirline
   } = useQuery({
-    queryKey: ["airline", iataCode],
+    queryKey: ["airline-editor", iataCode],
     queryFn: async () => {
       if (!iataCode || iataCode.length < 2) return null;
       
       const { data, error } = await supabase
         .from('airlines')
-        .select(`
-          id, 
-          name, 
-          iata_code, 
-          website,
-          last_policy_update,
-          pet_policies (*)
-        `)
+        .select('id, name, iata_code, website, last_policy_update')
         .eq('iata_code', iataCode.toUpperCase())
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
     },
     enabled: iataCode.length >= 2,
+  });
+
+  // Then fetch the pet policy in a separate query
+  const {
+    data: policyData,
+    isLoading: isPolicyLoading,
+    error: policyError,
+    refetch: refetchPolicy
+  } = useQuery({
+    queryKey: ["airline-policy-editor", airlineData?.id],
+    queryFn: async () => {
+      if (!airlineData?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('pet_policies')
+        .select('*')
+        .eq('airline_id', airlineData.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!airlineData?.id,
   });
 
   const handleSearch = () => {
@@ -62,7 +77,7 @@ const PetPolicyEditor = () => {
       return;
     }
     
-    refetch();
+    refetchAirline();
   };
 
   const handleAnalyzePolicy = async () => {
@@ -87,8 +102,11 @@ const PetPolicyEditor = () => {
         description: "Pet policy analysis initiated successfully",
       });
       
-      // Refetch the airline data after a short delay to get updated policy
-      setTimeout(() => refetch(), 3000);
+      // Refetch both airline and policy data after a short delay
+      setTimeout(() => {
+        refetchAirline();
+        refetchPolicy();
+      }, 3000);
       
     } catch (error) {
       console.error("Error analyzing policy:", error);
@@ -122,6 +140,8 @@ const PetPolicyEditor = () => {
     
     return JSON.stringify(formattedData, null, 2);
   };
+
+  const isLoading = isAirlineLoading || isPolicyLoading;
 
   return (
     <div className="space-y-4 p-4">
@@ -187,7 +207,7 @@ const PetPolicyEditor = () => {
                 <div>
                   <h3 className="text-lg font-semibold">Current Policy</h3>
                   <pre className="mt-2 whitespace-pre-wrap bg-muted p-4 rounded-md text-xs overflow-auto max-h-[400px]">
-                    {formatPolicyData(airlineData.pet_policies?.[0])}
+                    {formatPolicyData(policyData)}
                   </pre>
                 </div>
               </div>
@@ -212,9 +232,9 @@ const PetPolicyEditor = () => {
           </Card>
         )}
         
-        {error && (
+        {(airlineError || policyError) && (
           <div className="text-destructive">
-            Error: {error.message}
+            Error: {airlineError?.message || policyError?.message}
           </div>
         )}
       </div>
