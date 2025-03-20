@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 import { analyzePetPolicy } from './openAIClient.ts'
@@ -16,6 +17,9 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
+  // Initialize rawApiResponse outside the try/catch
+  let rawApiResponse = null;
+  
   try {
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiKey) {
@@ -38,7 +42,6 @@ Deno.serve(async (req) => {
     console.log(`Processing batch of ${airlines.length} airlines`);
     const results: ProcessingResult[] = [];
     const errors: ProcessingError[] = [];
-    let rawApiResponse = null;
     let contentChanged = false;
     let comparisonDetails = null;
 
@@ -47,8 +50,7 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicyResponse = await analyzePetPolicy(airline, openaiKey);
         
-        // CRITICAL CHANGE: Always capture the raw API response
-        // This ensures it's available regardless of success or failure
+        // ALWAYS capture the raw API response
         if (petPolicyResponse._raw_api_response) {
           rawApiResponse = petPolicyResponse._raw_api_response;
           console.log(`Captured raw API response (${rawApiResponse.length} chars)`);
@@ -58,7 +60,7 @@ Deno.serve(async (req) => {
         
         // Check if parsing failed but we still have raw response
         if (petPolicyResponse._parsing_failed) {
-          console.error(`Parsing failed for ${airline.name}, but captured raw response of length: ${rawApiResponse ? rawApiResponse.length : 0}`);
+          console.error(`Parsing failed for ${airline.name}, but raw response was captured (${rawApiResponse?.length || 0} chars)`);
           
           // Add to errors
           errors.push({
@@ -70,8 +72,7 @@ Deno.serve(async (req) => {
           continue; // Skip to the next airline
         }
         
-        // Remove raw API response from policy object before saving to database
-        // but keep a copy for the response
+        // Make a copy of the raw response for database, but remove from policy object
         const rawResponseForDb = petPolicyResponse._raw_api_response;
         delete petPolicyResponse._raw_api_response; 
         
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Fatal error:', error);
     
-    // CRITICAL CHANGE: Even on fatal errors, try to return any raw API response that was captured
+    // Even on fatal errors, return any raw API response that was captured
     return new Response(
       JSON.stringify({ 
         error: error.message,

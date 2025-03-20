@@ -124,6 +124,23 @@ const PetPolicyEditor = () => {
           title: "Success",
           description: `Pet policy analysis completed. ${hasChanged ? "Content changed" : "No content changes detected"}.`,
         });
+      } else if (batchResponse.data?.errors?.length > 0) {
+        // Handle the case where we have errors but also a raw API response
+        setResponseStatus("Error in processing, but raw response captured");
+        
+        if (batchResponse.data.raw_api_response) {
+          toast({
+            title: "Partial success",
+            description: "Policy analysis had errors, but raw API response was captured.",
+            variant: "default"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: batchResponse.data.errors[0].error || "Failed to analyze pet policy",
+            variant: "destructive"
+          });
+        }
       } else {
         setResponseStatus("Error in processing");
         toast({
@@ -184,6 +201,29 @@ const PetPolicyEditor = () => {
       // If parsing fails, return the original string
       console.log("Could not parse JSON, returning raw string");
       return { rawContent: jsonString };
+    }
+  };
+
+  // Improved raw response display function
+  const displayRawResponse = (rawResponse) => {
+    if (!rawResponse) return <div className="text-sm text-gray-500">No raw API response available</div>;
+    
+    // If it's already an object, display it using JsonRenderer
+    if (typeof rawResponse === 'object') {
+      return <JsonRenderer data={rawResponse} />;
+    }
+    
+    // Try to parse it as JSON first to display it nicely
+    try {
+      const parsedJson = JSON.parse(rawResponse);
+      return <JsonRenderer data={parsedJson} />;
+    } catch (e) {
+      // If parsing fails, display as pre-formatted text
+      return (
+        <pre className="whitespace-pre-wrap text-xs overflow-x-auto">
+          {rawResponse}
+        </pre>
+      );
     }
   };
 
@@ -335,11 +375,7 @@ const PetPolicyEditor = () => {
                   <AccordionContent>
                     <ScrollArea className="h-[400px] rounded-md border p-4">
                       {apiResponse.raw_api_response ? (
-                        typeof apiResponse.raw_api_response === 'string' ? (
-                          <pre className="whitespace-pre-wrap text-xs">{apiResponse.raw_api_response}</pre>
-                        ) : (
-                          <JsonRenderer data={apiResponse.raw_api_response} />
-                        )
+                        displayRawResponse(apiResponse.raw_api_response)
                       ) : (
                         <div className="text-sm text-gray-500">No raw API response available</div>
                       )}
@@ -378,6 +414,39 @@ const PetPolicyEditor = () => {
                           <pre className="text-xs whitespace-pre-wrap">
                             {JSON.stringify(apiResponse.comparison_details, null, 2)}
                           </pre>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="json-parsing-results">
+                  <AccordionTrigger>Processing Results</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4">
+                      {apiResponse.results && apiResponse.results.length > 0 && (
+                        <div className="p-2 bg-green-50 rounded border border-green-200">
+                          <h5 className="font-medium text-green-800 mb-1">Successful Results:</h5>
+                          <ul className="list-disc list-inside">
+                            {apiResponse.results.map((result, i) => (
+                              <li key={i} className="text-sm">
+                                {result.iata_code}: {result.content_changed ? 'Content Updated' : 'No Changes Needed'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {apiResponse.errors && apiResponse.errors.length > 0 && (
+                        <div className="p-2 bg-red-50 rounded border border-red-200">
+                          <h5 className="font-medium text-red-800 mb-1">Errors:</h5>
+                          <ul className="list-disc list-inside">
+                            {apiResponse.errors.map((error, i) => (
+                              <li key={i} className="text-sm">
+                                {error.iata_code}: {error.error}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </div>

@@ -32,6 +32,7 @@ Do not include any generalized information or assumptions. Only include specific
 
   const maxRetries = 3;
   let lastError = null;
+  // Initialize raw response variable outside the try/catch blocks
   let rawResponse = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -86,44 +87,69 @@ Do not include any generalized information or assumptions. Only include specific
       console.log('Raw content length:', content.length);
       console.log('First 200 characters of raw content:', content.substring(0, 200));
       
-      // ALWAYS capture the raw response before any parsing attempt
+      // ALWAYS capture the raw response immediately before any parsing or processing
       rawResponse = content;
       
       try {
-        // Clean and parse the content
-        const cleanContent = content
-          .replace(/```json\n?|\n?```/g, '')
-          .replace(/^\s*\{/, '{')
-          .replace(/\}\s*$/, '}')
-          .trim();
-          
-        console.log('Cleaned content length:', cleanContent.length);
-        console.log('First 200 characters of cleaned content:', cleanContent.substring(0, 200));
-        
+        // Step 1: Try parsing the content as-is first
         let parsedData;
         try {
-          parsedData = JSON.parse(cleanContent);
-        } catch (parseError) {
-          console.error('Initial JSON parse failed, attempting secondary cleanup...');
+          parsedData = JSON.parse(content);
+          console.log('Successfully parsed content directly as JSON');
+        } catch (initialParseError) {
+          console.warn('Initial direct JSON parse failed, trying with cleanup steps');
           
-          // Try more aggressive cleanup if initial parse fails
-          const secondaryCleanContent = cleanContent
-            .replace(/\\"/g, '"')  // Replace escaped quotes
-            .replace(/\\\\/g, '\\') // Replace double backslashes
-            .replace(/\n/g, ' ')    // Replace newlines with spaces
+          // Step 2: Clean the content of common formatting issues
+          const basicCleanContent = content
+            .replace(/```json\n?|\n?```/g, '')  // Remove markdown code blocks
+            .replace(/^\s*\{/, '{')             // Fix leading whitespace before opening brace
+            .replace(/\}\s*$/, '}')             // Fix trailing whitespace after closing brace
             .trim();
-          
-          console.log('Secondary cleaned content length:', secondaryCleanContent.length);
-          console.log('First 200 characters after secondary cleanup:', secondaryCleanContent.substring(0, 200));
-          
-          // Attempt to parse again
-          parsedData = JSON.parse(secondaryCleanContent);
+            
+          try {
+            parsedData = JSON.parse(basicCleanContent);
+            console.log('Successfully parsed content after basic cleanup');
+          } catch (basicCleanError) {
+            console.warn('Basic cleaned JSON parse failed, attempting advanced cleanup');
+            
+            // Step 3: More aggressive cleanup for difficult cases
+            const advancedCleanContent = basicCleanContent
+              .replace(/\\"/g, '"')              // Replace escaped quotes
+              .replace(/\\\\/g, '\\')            // Replace double backslashes
+              .replace(/\n/g, ' ')               // Replace newlines with spaces
+              .replace(/,\s*\}/g, '}')           // Remove trailing commas
+              .replace(/,\s*\]/g, ']')           // Remove trailing commas in arrays
+              .trim();
+              
+            try {
+              parsedData = JSON.parse(advancedCleanContent);
+              console.log('Successfully parsed content after advanced cleanup');
+            } catch (advancedCleanError) {
+              console.error('All JSON parsing attempts failed');
+              
+              // Step 4: Try to extract JSON from the text using regex as a last resort
+              const jsonPattern = /\{[\s\S]*\}/g;
+              const match = content.match(jsonPattern);
+              
+              if (match) {
+                try {
+                  parsedData = JSON.parse(match[0]);
+                  console.log('Successfully extracted and parsed JSON using regex');
+                } catch (regexError) {
+                  throw new Error('Failed to parse content as JSON after all attempts');
+                }
+              } else {
+                throw new Error('Could not locate JSON pattern in content');
+              }
+            }
+          }
         }
         
         // Extract the airline info and pet policy
         const airlineInfo = parsedData.airline_info || {};
         const petPolicy = parsedData.pet_policy || {};
         
+        // If we reach here, we successfully parsed the data
         // Combine them into a single object with normalized field names
         const result = {
           ...petPolicy,
@@ -137,15 +163,14 @@ Do not include any generalized information or assumptions. Only include specific
         
         return result;
       } catch (parseError) {
-        console.error('Failed to parse API response. Parse error:', parseError);
-        console.error('Content that failed to parse first 200 chars:', content.substring(0, 200));
+        console.error('Failed to parse API response after all attempts. Error:', parseError.message);
+        console.error('First 200 chars of content that failed to parse:', content.substring(0, 200));
         
-        // Instead of throwing, ALWAYS return an object with the raw response
-        // This is critical - we're changing from throwing to returning a special object
+        // Return an object with parsing_failed flag and the raw response
         return {
           _parsing_failed: true,
           _raw_api_response: rawResponse,
-          error_message: 'Invalid policy data format'
+          error_message: `Failed to parse response: ${parseError.message}`
         };
       }
 

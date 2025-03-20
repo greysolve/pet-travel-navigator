@@ -107,17 +107,61 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
       }
 
       try {
-        const cleanContent = content
-          .replace(/```json\n?|\n?```/g, '')
-          .replace(/^\s*\{/, '{')
-          .replace(/\}\s*$/, '}')
-          .trim();
+        // Step 1: Try parsing the content directly first
+        let policies;
+        try {
+          policies = JSON.parse(content);
+          console.log('Successfully parsed content directly as JSON');
+        } catch (initialParseError) {
+          console.warn('Initial direct JSON parse failed, trying with cleanup steps');
+          
+          // Step 2: Clean the content of common formatting issues
+          const basicCleanContent = content
+            .replace(/```json\n?|\n?```/g, '')  // Remove markdown code blocks
+            .replace(/^\s*\[/, '[')             // Fix leading whitespace before opening array bracket
+            .replace(/\]\s*$/, ']')             // Fix trailing whitespace after closing array bracket
+            .trim();
+            
+          try {
+            policies = JSON.parse(basicCleanContent);
+            console.log('Successfully parsed content after basic cleanup');
+          } catch (basicCleanError) {
+            console.warn('Basic cleaned JSON parse failed, attempting advanced cleanup');
+            
+            // Step 3: More aggressive cleanup for difficult cases
+            const advancedCleanContent = basicCleanContent
+              .replace(/\\"/g, '"')              // Replace escaped quotes
+              .replace(/\\\\/g, '\\')            // Replace double backslashes
+              .replace(/,\s*\}/g, '}')           // Remove trailing commas
+              .replace(/,\s*\]/g, ']')           // Remove trailing commas in arrays
+              .trim();
+              
+            try {
+              policies = JSON.parse(advancedCleanContent);
+              console.log('Successfully parsed content after advanced cleanup');
+            } catch (advancedCleanError) {
+              console.error('All JSON parsing attempts failed');
+              
+              // Step 4: Try to extract JSON from the text using regex as a last resort
+              const jsonPattern = /\[[\s\S]*\]/g;
+              const match = content.match(jsonPattern);
+              
+              if (match) {
+                try {
+                  policies = JSON.parse(match[0]);
+                  console.log('Successfully extracted and parsed JSON using regex');
+                } catch (regexError) {
+                  throw new Error('Failed to parse content as JSON after all attempts');
+                }
+              } else {
+                throw new Error('Could not locate JSON pattern in content');
+              }
+            }
+          }
+        }
         
-        console.log('Clean content after processing:', cleanContent);
-        
-        const policies = JSON.parse(cleanContent);
-        console.log('=== PARSED POLICIES ===');
-        console.log('Final parsed policies:', JSON.stringify(policies, null, 2));
+        // Ensure policies is an array
+        const enrichedPolicies = Array.isArray(policies) ? policies : [policies];
         
         // Extract citation URLs if available
         const citationUrls = annotations
@@ -128,7 +172,6 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
           }));
         
         // Add citations to each policy
-        const enrichedPolicies = Array.isArray(policies) ? policies : [policies];
         if (citationUrls.length > 0) {
           enrichedPolicies.forEach(policy => {
             if (!policy.citations) {
@@ -137,19 +180,22 @@ export async function analyzePolicies(country: Country, openaiKey: string): Prom
           });
         }
         
-        // Add raw response for debugging
-        enrichedPolicies._raw_api_response = content;
+        // Add raw response for debugging to the returned array itself
+        enrichedPolicies._raw_api_response = rawResponse;
+        
+        console.log('=== PARSED POLICIES SUCCESSFULLY ===');
+        console.log('Parsed policies count:', enrichedPolicies.length);
         
         return enrichedPolicies;
       } catch (parseError) {
-        console.error('Failed to parse API response. Parse error:', parseError);
-        console.error('Content that failed to parse:', content);
+        console.error('Failed to parse API response after all attempts. Error:', parseError.message);
+        console.error('First 200 chars of content that failed to parse:', content.substring(0, 200));
         
         // Return a special object indicating parsing failure but including raw response
         return [{
           _parsing_failed: true,
-          _raw_api_response: content,
-          error_message: 'Invalid policy data format'
+          _raw_api_response: rawResponse,
+          error_message: 'Invalid policy data format: ' + parseError.message
         }];
       }
 
