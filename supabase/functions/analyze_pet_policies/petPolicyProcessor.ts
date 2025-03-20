@@ -157,25 +157,30 @@ export async function processPetPoliciesBatch(
   
   // Calculate next offset - always advance by the batch size we processed
   const nextOffset = offset + airlines.length;
-  const hasMore = nextOffset < currentProgress.total;
+  
+  // Calculate if we've processed everything now
+  const updatedProcessed = currentProgress.processed + airlines.length;
+  const hasMore = updatedProcessed < currentProgress.total;
+  
   const lastProcessedIata = airlines.length > 0 ? airlines[airlines.length - 1].iata_code : null;
 
   console.log(`Processed batch complete. Current offset: ${offset}, Next offset: ${nextOffset}`);
-  console.log(`Total: ${currentProgress.total}, Processed: ${currentProgress.processed + airlines.length}, HasMore: ${hasMore}`);
+  console.log(`Total: ${currentProgress.total}, Processed: ${updatedProcessed}, HasMore: ${hasMore}`);
   console.log(`Results: ${processedItems.length} successes, ${errorItems.length} errors`);
   console.log(`Last processed IATA: ${lastProcessedIata}`);
 
-  // Update sync progress
-  const updatedProcessed = currentProgress.processed + airlines.length;
+  // Update sync progress - now check if we've processed everything
+  const isComplete = !hasMore;
   await syncManager.updateProgress({
     processed: updatedProcessed,
     last_processed: lastProcessedIata,
     processed_items: processedItems,
     error_items: errorItems,
-    needs_continuation: hasMore
+    needs_continuation: hasMore,
+    is_complete: isComplete
   });
 
-  console.log(`Updated progress: processed=${updatedProcessed}/${currentProgress.total}, needs_continuation=${hasMore}, last_processed=${lastProcessedIata}`);
+  console.log(`Updated progress: processed=${updatedProcessed}/${currentProgress.total}, needs_continuation=${hasMore}, is_complete=${isComplete}, last_processed=${lastProcessedIata}`);
 
   return {
     data: {
