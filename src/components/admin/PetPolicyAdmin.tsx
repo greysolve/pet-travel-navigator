@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const PetPolicyAdmin = () => {
   return (
-    <Tabs defaultValue="update" className="w-full">
+    <Tabs defaultValue="analyze" className="w-full">
       <TabsList className="mb-4">
         <TabsTrigger value="update">Update Policies</TabsTrigger>
         <TabsTrigger value="analyze">Analyze Single Airline</TabsTrigger>
