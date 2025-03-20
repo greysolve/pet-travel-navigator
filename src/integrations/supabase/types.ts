@@ -744,6 +744,12 @@ export type Database = {
           airlineName: string
         }[]
       }
+      get_airlines_needing_policy_update: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+        }[]
+      }
       get_distinct_countries: {
         Args: Record<PropertyKey, never>
         Returns: {

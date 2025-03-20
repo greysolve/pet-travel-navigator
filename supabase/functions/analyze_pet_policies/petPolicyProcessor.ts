@@ -14,6 +14,7 @@ export async function processPetPoliciesBatch(
 ) {
   console.log(`Processing pet policies batch with offset ${offset}, limit ${limit}`);
   console.log(`Compare content: ${compareContent}, Force comparison: ${forceContentComparison}`);
+  console.log(`Specific airlines provided: ${specificAirlines ? 'yes, count=' + specificAirlines.length : 'no'}`);
   
   try {
     // Fetch API key from environment
@@ -27,7 +28,7 @@ export async function processPetPoliciesBatch(
     
     // Handle specific airlines case
     if (specificAirlines && specificAirlines.length > 0) {
-      console.log(`Processing specific airlines: ${specificAirlines.join(', ')}`);
+      console.log(`Processing specific airlines: ${specificAirlines.length} ids provided`);
       query = query.in('id', specificAirlines);
     } else {
       // Get already processed items to exclude from query

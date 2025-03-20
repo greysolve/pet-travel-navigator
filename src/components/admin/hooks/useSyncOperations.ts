@@ -61,13 +61,14 @@ export const useSyncOperations = () => {
       if (syncType === 'petPolicies' && options.smartUpdate) {
         console.log('Smart Update mode enabled - fetching airlines that need updates');
         try {
-          const { data, error } = await supabase.rpc('get_airlines_needing_policy_update');
+          // Explicitly type the return value structure
+          const { data, error } = await supabase.rpc<string[]>('get_airlines_needing_policy_update');
           
           if (error) {
             throw new Error(`Failed to get airlines needing updates: ${error.message}`);
           }
           
-          if (data && data.length > 0) {
+          if (data && Array.isArray(data) && data.length > 0) {
             specificAirlines = data;
             console.log(`Found ${specificAirlines.length} airlines that need updates`);
           } else {
