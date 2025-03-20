@@ -1,7 +1,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { Airline } from './types.ts';
-import { hasPolicyContentChanged } from '../../src/utils/policyContentSignature.ts';
+import { hasPolicyContentChanged } from './policyContentSignature.ts';
 
 /**
  * Saves the processed pet policy data to the database and updates the airline record
