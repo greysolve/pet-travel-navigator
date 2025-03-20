@@ -46,7 +46,6 @@ Do not include any generalized information or assumptions. Only include specific
         web_search_options: {
           search_context_size: "medium"
         },
-        temperature: 0.1,
         max_tokens: 2000,
       };
 
