@@ -1,7 +1,7 @@
 
 import { Airline } from './types.ts';
 
-const systemPrompt = `You're an expert on airline pet policies. Your task is to extract clear, detailed information about pet travel policies from a provided airline.
+const systemPrompt = `You're an expert on airline pet policies. Your task is to extract clear, detailed information about a provided airline.
 
 Please search for and examine the airline's most recent official pet policy. Return a structured analysis with these sections:
 - What pets are allowed (in cabin & cargo)
@@ -83,22 +83,42 @@ Do not include any generalized information or assumptions. Only include specific
 
       const content = data.choices[0].message.content.trim();
       console.log('=== CONTENT PROCESSING ===');
-      console.log('Raw content:', content);
+      console.log('Raw content length:', content.length);
+      console.log('First 200 characters of raw content:', content.substring(0, 200));
       
-      // Always save the raw content before attempting to parse
+      // ALWAYS capture the raw response before any parsing attempt
       rawResponse = content;
       
       try {
+        // Clean and parse the content
         const cleanContent = content
           .replace(/```json\n?|\n?```/g, '')
           .replace(/^\s*\{/, '{')
           .replace(/\}\s*$/, '}')
           .trim();
           
-        let parsedData = JSON.parse(cleanContent);
+        console.log('Cleaned content length:', cleanContent.length);
+        console.log('First 200 characters of cleaned content:', cleanContent.substring(0, 200));
         
-        // Add raw API response for debugging purposes
-        parsedData._raw_api_response = content;
+        let parsedData;
+        try {
+          parsedData = JSON.parse(cleanContent);
+        } catch (parseError) {
+          console.error('Initial JSON parse failed, attempting secondary cleanup...');
+          
+          // Try more aggressive cleanup if initial parse fails
+          const secondaryCleanContent = cleanContent
+            .replace(/\\"/g, '"')  // Replace escaped quotes
+            .replace(/\\\\/g, '\\') // Replace double backslashes
+            .replace(/\n/g, ' ')    // Replace newlines with spaces
+            .trim();
+          
+          console.log('Secondary cleaned content length:', secondaryCleanContent.length);
+          console.log('First 200 characters after secondary cleanup:', secondaryCleanContent.substring(0, 200));
+          
+          // Attempt to parse again
+          parsedData = JSON.parse(secondaryCleanContent);
+        }
         
         // Extract the airline info and pet policy
         const airlineInfo = parsedData.airline_info || {};
@@ -109,21 +129,22 @@ Do not include any generalized information or assumptions. Only include specific
           ...petPolicy,
           official_website: airlineInfo.official_website,
           policy_url: airlineInfo.pet_policy_url || petPolicy.policy_url,
-          _raw_api_response: content // Store raw response for debugging
+          _raw_api_response: rawResponse  // ALWAYS include raw response
         };
         
-        console.log('=== PARSED DATA ===');
+        console.log('=== PARSED DATA SUCCESSFULLY ===');
         console.log('Successfully parsed policy data');
         
         return result;
       } catch (parseError) {
         console.error('Failed to parse API response. Parse error:', parseError);
-        console.error('Content that failed to parse:', content);
+        console.error('Content that failed to parse first 200 chars:', content.substring(0, 200));
         
-        // Return a special object indicating parsing failure but including raw response
+        // Instead of throwing, ALWAYS return an object with the raw response
+        // This is critical - we're changing from throwing to returning a special object
         return {
           _parsing_failed: true,
-          _raw_api_response: content,
+          _raw_api_response: rawResponse,
           error_message: 'Invalid policy data format'
         };
       }
@@ -143,6 +164,7 @@ Do not include any generalized information or assumptions. Only include specific
           _raw_api_response: rawResponse,
           error_message: `Failed after ${maxRetries} attempts: ${lastError.message}`
         };
+        console.log('Returning error with raw response:', !!rawResponse);
         return errorWithResponse;
       }
     }

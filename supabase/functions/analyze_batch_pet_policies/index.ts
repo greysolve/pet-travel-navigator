@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 import { analyzePetPolicy } from './openAIClient.ts'
@@ -48,12 +47,18 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicyResponse = await analyzePetPolicy(airline, openaiKey);
         
+        // CRITICAL CHANGE: Always capture the raw API response
+        // This ensures it's available regardless of success or failure
+        if (petPolicyResponse._raw_api_response) {
+          rawApiResponse = petPolicyResponse._raw_api_response;
+          console.log(`Captured raw API response (${rawApiResponse.length} chars)`);
+        } else {
+          console.warn(`No raw API response was captured for ${airline.name}`);
+        }
+        
         // Check if parsing failed but we still have raw response
         if (petPolicyResponse._parsing_failed) {
-          console.error(`Parsing failed for ${airline.name}, but captured raw response`);
-          
-          // Store the raw response for the client
-          rawApiResponse = petPolicyResponse._raw_api_response;
+          console.error(`Parsing failed for ${airline.name}, but captured raw response of length: ${rawApiResponse ? rawApiResponse.length : 0}`);
           
           // Add to errors
           errors.push({
@@ -65,16 +70,17 @@ Deno.serve(async (req) => {
           continue; // Skip to the next airline
         }
         
-        // Store raw API response for debugging (available regardless of success/failure)
-        rawApiResponse = petPolicyResponse._raw_api_response; 
-        delete petPolicyResponse._raw_api_response; // Remove from policy object before saving
+        // Remove raw API response from policy object before saving to database
+        // but keep a copy for the response
+        const rawResponseForDb = petPolicyResponse._raw_api_response;
+        delete petPolicyResponse._raw_api_response; 
         
         // Save to database and get detailed results
         const saveResult = await savePetPolicyToDatabase(
           supabase, 
           airline, 
           petPolicyResponse, 
-          rawApiResponse
+          rawResponseForDb  // Pass the raw response to database handler
         );
         
         contentChanged = saveResult.content_changed;
@@ -109,13 +115,13 @@ Deno.serve(async (req) => {
       results,
       errors,
       execution_time: executionTime,
-      raw_api_response: rawApiResponse,
+      raw_api_response: rawApiResponse,  // Always include raw API response in the final response
       content_changed: contentChanged,
       comparison_details: comparisonDetails
     };
     
     console.log(`Batch processing complete. Success: ${response.success}, Results: ${results.length}, Errors: ${errors.length}, Content changed: ${contentChanged}`);
-    console.log(`Raw API response captured: ${rawApiResponse ? 'Yes' : 'No'}`);
+    console.log(`Raw API response captured: ${rawApiResponse ? 'Yes' : 'No'}, Length: ${rawApiResponse ? rawApiResponse.length : 0}`);
     
     return new Response(
       JSON.stringify(response),
@@ -126,8 +132,14 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Fatal error:', error);
+    
+    // CRITICAL CHANGE: Even on fatal errors, try to return any raw API response that was captured
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        raw_api_response: rawApiResponse, // Include raw response even on errors
+        success: false 
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
