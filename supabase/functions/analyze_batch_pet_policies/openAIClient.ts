@@ -87,7 +87,8 @@ Do not include any generalized information or assumptions. Only include specific
       console.log('Raw content length:', content.length);
       console.log('First 200 characters of raw content:', content.substring(0, 200));
       
-      // ALWAYS capture the raw response immediately before any parsing or processing
+      // IMPORTANT: Capture the raw API response FIRST, before any processing
+      // This is the complete, unmodified response from OpenAI
       rawResponse = content;
       
       try {
@@ -145,23 +146,35 @@ Do not include any generalized information or assumptions. Only include specific
           }
         }
         
-        // Extract the airline info and pet policy
+        // Extract data from the nested structure
         const airlineInfo = parsedData.airline_info || {};
         const petPolicy = parsedData.pet_policy || {};
         
         // If we reach here, we successfully parsed the data
-        // Combine them into a single object with normalized field names
-        const result = {
-          ...petPolicy,
+        // Combine the data into a normalized object with our expected field structure
+        const normalizedData = {
+          // Extract specific fields from pet_policy
+          pet_types_allowed: petPolicy.allowed_pets || {},
+          size_restrictions: petPolicy.size_weight_restrictions || {},
+          carrier_requirements_cabin: petPolicy.carrier_requirements?.in_cabin || {},
+          carrier_requirements_cargo: petPolicy.carrier_requirements?.cargo || "Not specified",
+          documentation_needed: petPolicy.documentation_needed || [],
+          fees: petPolicy.fees || {},
+          temperature_restrictions: petPolicy.temperature_breed_restrictions?.temperature || "Not specified",
+          breed_restrictions: petPolicy.temperature_breed_restrictions?.breed || [],
+          
+          // Extract website URLs from airline_info
           official_website: airlineInfo.official_website,
           policy_url: airlineInfo.pet_policy_url || petPolicy.policy_url,
-          _raw_api_response: rawResponse  // ALWAYS include raw response
+          
+          // IMPORTANT: Store the complete unmodified response
+          _raw_api_response: rawResponse
         };
         
         console.log('=== PARSED DATA SUCCESSFULLY ===');
-        console.log('Successfully parsed policy data');
+        console.log('Successfully parsed and normalized policy data');
         
-        return result;
+        return normalizedData;
       } catch (parseError) {
         console.error('Failed to parse API response after all attempts. Error:', parseError.message);
         console.error('First 200 chars of content that failed to parse:', content.substring(0, 200));

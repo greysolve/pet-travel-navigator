@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
 import { analyzePetPolicy } from './openAIClient.ts'
@@ -50,7 +49,8 @@ Deno.serve(async (req) => {
         console.log(`Processing airline: ${airline.name}`);
         const petPolicyResponse = await analyzePetPolicy(airline, openaiKey);
         
-        // ALWAYS capture the raw API response
+        // Capture the raw API response if available
+        // This should be the complete, unmodified response from the API
         if (petPolicyResponse._raw_api_response) {
           rawApiResponse = petPolicyResponse._raw_api_response;
           console.log(`Captured raw API response (${rawApiResponse.length} chars)`);
@@ -72,16 +72,21 @@ Deno.serve(async (req) => {
           continue; // Skip to the next airline
         }
         
-        // Make a copy of the raw response for database, but remove from policy object
+        // Store the raw response for the database
+        // This preserves the original response without modifications
         const rawResponseForDb = petPolicyResponse._raw_api_response;
-        delete petPolicyResponse._raw_api_response; 
+        
+        // Remove the raw response from the object we'll use for processing
+        // to avoid duplicating it unnecessarily, but keep a copy for the DB
+        const processingData = { ...petPolicyResponse };
+        delete processingData._raw_api_response;
         
         // Save to database and get detailed results
         const saveResult = await savePetPolicyToDatabase(
           supabase, 
           airline, 
-          petPolicyResponse, 
-          rawResponseForDb  // Pass the raw response to database handler
+          processingData, 
+          rawResponseForDb  // Pass the raw response separately
         );
         
         contentChanged = saveResult.content_changed;
@@ -116,7 +121,7 @@ Deno.serve(async (req) => {
       results,
       errors,
       execution_time: executionTime,
-      raw_api_response: rawApiResponse,  // Always include raw API response in the final response
+      raw_api_response: rawApiResponse,  // Include the raw API response in the final response
       content_changed: contentChanged,
       comparison_details: comparisonDetails
     };
