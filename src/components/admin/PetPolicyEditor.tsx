@@ -25,7 +25,6 @@ const PetPolicyEditor = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [apiResponse, setApiResponse] = useState<any>(null);
   const [responseStatus, setResponseStatus] = useState<string | null>(null);
-  const [showComparison, setShowComparison] = useState(false);
 
   // First, fetch the airline data
   const { 
@@ -171,6 +170,21 @@ const PetPolicyEditor = () => {
     };
     
     return JSON.stringify(formattedData, null, 2);
+  };
+
+  // Safely parse JSON or return the original string if it's not valid JSON
+  const safelyParseJson = (jsonString) => {
+    if (!jsonString) return null;
+    try {
+      // Check if it's already an object
+      if (typeof jsonString === 'object') return jsonString;
+      
+      return JSON.parse(jsonString);
+    } catch (e) {
+      // If parsing fails, return the original string
+      console.log("Could not parse JSON, returning raw string");
+      return { rawContent: jsonString };
+    }
   };
 
   const isLoading = isAirlineLoading || isPolicyLoading;
@@ -321,7 +335,11 @@ const PetPolicyEditor = () => {
                   <AccordionContent>
                     <ScrollArea className="h-[400px] rounded-md border p-4">
                       {apiResponse.raw_api_response ? (
-                        <JsonRenderer data={JSON.parse(apiResponse.raw_api_response)} />
+                        typeof apiResponse.raw_api_response === 'string' ? (
+                          <pre className="whitespace-pre-wrap text-xs">{apiResponse.raw_api_response}</pre>
+                        ) : (
+                          <JsonRenderer data={apiResponse.raw_api_response} />
+                        )
                       ) : (
                         <div className="text-sm text-gray-500">No raw API response available</div>
                       )}
@@ -343,6 +361,20 @@ const PetPolicyEditor = () => {
                       {apiResponse.comparison_details && (
                         <div className="rounded-md border p-3 bg-gray-50">
                           <h4 className="font-medium mb-2">Comparison Details:</h4>
+                          
+                          {apiResponse.comparison_details.urls_compared && (
+                            <div className="mb-3 p-2 bg-white rounded border">
+                              <h5 className="font-medium text-sm">URL Comparison:</h5>
+                              <div className="text-xs mt-1">
+                                <div><strong>Existing URL:</strong> {apiResponse.comparison_details.urls_compared.existing_url || 'None'}</div>
+                                <div><strong>New URL:</strong> {apiResponse.comparison_details.urls_compared.new_url || 'None'}</div>
+                                <div className={apiResponse.comparison_details.urls_compared.urls_different ? "text-green-600 font-bold" : "text-gray-600"}>
+                                  URLs are {apiResponse.comparison_details.urls_compared.urls_different ? "different" : "identical"}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
                           <pre className="text-xs whitespace-pre-wrap">
                             {JSON.stringify(apiResponse.comparison_details, null, 2)}
                           </pre>

@@ -44,6 +44,10 @@ export async function savePetPolicyToDatabase(
       throw fetchError;
     }
 
+    // Log for debugging purposes
+    console.log(`Existing policy URL: ${existingPolicy?.policy_url || 'none'}`);
+    console.log(`New policy URL from API: ${petPolicy.policy_url || 'none'}`);
+    
     // Common data to be inserted/updated
     const policyData = {
       airline_id: airline.id,
@@ -55,7 +59,7 @@ export async function savePetPolicyToDatabase(
       fees: petPolicy.fees,
       temperature_restrictions: petPolicy.temperature_restrictions,
       breed_restrictions: petPolicy.breed_restrictions,
-      policy_url: petPolicy.policy_url
+      policy_url: petPolicy.policy_url || null
     };
 
     // Check if content has changed (important for updating timestamp)
@@ -67,6 +71,11 @@ export async function savePetPolicyToDatabase(
       existing_policy_id: existingPolicy?.id || null,
       has_existing_policy: !!existingPolicy,
       content_signature_changed: contentChanged,
+      urls_compared: {
+        existing_url: existingPolicy?.policy_url || null,
+        new_url: petPolicy.policy_url || null,
+        urls_different: existingPolicy?.policy_url !== petPolicy.policy_url
+      },
       content_comparison: {
         existing: existingPolicy ? JSON.stringify(existingPolicy).substring(0, 100) + "..." : null,
         new: JSON.stringify(policyData).substring(0, 100) + "..."

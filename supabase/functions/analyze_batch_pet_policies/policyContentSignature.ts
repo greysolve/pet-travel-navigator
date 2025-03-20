@@ -9,6 +9,20 @@
 export const generatePolicyContentSignature = (policy: any): string => {
   if (!policy) return '';
   
+  // Normalize URLs (if any) to ensure consistent comparison
+  const normalizeUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    
+    try {
+      // Remove any trailing slashes and force to lowercase for comparison
+      const normalizedUrl = url.trim().toLowerCase().replace(/\/+$/, '');
+      return normalizedUrl;
+    } catch (e) {
+      console.error('Error normalizing URL:', e);
+      return url; // Return original if normalization fails
+    }
+  };
+  
   // Extract relevant fields for comparison
   const relevantFields = {
     pet_types_allowed: policy.pet_types_allowed,
@@ -20,7 +34,7 @@ export const generatePolicyContentSignature = (policy: any): string => {
     carrier_requirements_cabin: policy.carrier_requirements_cabin,
     carrier_requirements_cargo: policy.carrier_requirements_cargo,
     temperature_restrictions: policy.temperature_restrictions,
-    policy_url: typeof policy.policy_url === 'string' ? policy.policy_url : null
+    policy_url: normalizeUrl(policy.policy_url)
   };
   
   // Create a stable string representation by sorting keys
@@ -38,8 +52,16 @@ export const hasPolicyContentChanged = (oldPolicy: any | null, newPolicy: any | 
   if (!oldPolicy && !newPolicy) return false;
   if (!oldPolicy || !newPolicy) return true;
   
+  // Log for debugging
+  console.log(`Comparing old policy URL: ${oldPolicy.policy_url || 'none'}`);
+  console.log(`with new policy URL: ${newPolicy.policy_url || 'none'}`);
+  
   const oldSignature = generatePolicyContentSignature(oldPolicy);
   const newSignature = generatePolicyContentSignature(newPolicy);
+  
+  // Log signatures for debugging
+  console.log(`Old signature: ${oldSignature.substring(0, 100)}...`);
+  console.log(`New signature: ${newSignature.substring(0, 100)}...`);
   
   return oldSignature !== newSignature;
 };
