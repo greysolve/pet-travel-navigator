@@ -47,11 +47,14 @@ Deno.serve(async (req) => {
         
         await savePetPolicyToDatabase(supabase, airline, petPolicy);
 
+        // If we reach here, processing was successful
         results.push({
           airline_id: airline.id,
           success: true,
           iata_code: airline.iata_code
         });
+        
+        console.log(`Successfully processed ${airline.name} (${airline.iata_code})`);
 
         // Add delay between API calls
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -68,11 +71,13 @@ Deno.serve(async (req) => {
 
     const executionTime = Date.now() - startTime;
     const response: ProcessingResponse = {
-      success: true,
+      success: results.length > 0, // Consider success if at least one airline was processed
       results,
       errors,
       execution_time: executionTime
     };
+    
+    console.log(`Batch processing complete. Success: ${response.success}, Results: ${results.length}, Errors: ${errors.length}`);
     
     return new Response(
       JSON.stringify(response),

@@ -133,23 +133,24 @@ export async function processPetPoliciesBatch(
     const result = await response.json();
     console.log('Batch processing result:', result);
 
-    // Collect success and error items
-    if (result.results) {
-      result.results.forEach((item: any) => {
-        processedItems.push(item.iata_code);
-      });
+    // Fix: Properly separate success and error items
+    if (result.results && Array.isArray(result.results)) {
+      processedItems = result.results.map((item: any) => item.iata_code);
       totalUpdated = result.results.length;
     }
     
-    if (result.errors) {
-      result.errors.forEach((item: any) => {
-        errorItems.push(item.iata_code);
-      });
+    if (result.errors && Array.isArray(result.errors)) {
+      errorItems = result.errors.map((item: any) => item.iata_code);
     }
+    
+    console.log(`Processed ${processedItems.length} airlines successfully: ${processedItems.join(', ')}`);
+    console.log(`Failed to process ${errorItems.length} airlines: ${errorItems.join(', ')}`);
+    
   } catch (error) {
     console.error('Error processing batch:', error);
-    // Continue execution despite error, but log it
-    errorItems = [...errorItems, ...airlines.map(a => a.iata_code)];
+    // If the entire batch fails, mark all airlines as errors
+    errorItems = airlines.map(a => a.iata_code);
+    processedItems = []; // Clear processed items if batch fails entirely
   }
 
   const executionTime = Date.now() - startTime;
