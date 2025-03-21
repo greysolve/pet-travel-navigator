@@ -20,9 +20,76 @@ export const ensureArray = (value: any): string[] => {
 };
 
 /**
+ * Detects if a string response indicates that no pet policy was found
+ * Returns true if the response appears to be a natural language "no policy" response
+ */
+const isNoPolicyResponse = (content: string): boolean => {
+  const noPolicyPhrases = [
+    "does not provide specific information",
+    "does not have a specific pet policy",
+    "does not have a dedicated pet policy",
+    "lacks a dedicated pet policy page",
+    "could not find specific information",
+    "no specific pet policy",
+    "no detailed pet policy",
+    "no publicly available pet policy",
+    "no official pet policy",
+    "information is not available",
+    "pet policy is not available",
+    "policy is not publicly available",
+    "not available on their website",
+    "contact the airline directly",
+    "contact customer service",
+    "check with the airline"
+  ];
+  
+  const contentLower = content.toLowerCase();
+  
+  // Check if any of the "no policy" phrases appear in the content
+  return noPolicyPhrases.some(phrase => contentLower.includes(phrase.toLowerCase()));
+};
+
+/**
+ * Creates a standardized "no policy found" object
+ */
+const createNoPolicyObject = (): any => {
+  return {
+    airline_info: {
+      official_website: "Not specified",
+      pet_policy_url: "Not specified"
+    },
+    pet_policy: {
+      allowed_pets: ["Not specified"],
+      size_weight_restrictions: "Contact airline for details",
+      carrier_requirements: {
+        in_cabin: "Contact airline for details",
+        cargo: "Contact airline for details"
+      },
+      documentation_needed: ["Contact airline for details"],
+      fees: {
+        in_cabin: "Contact airline for details",
+        cargo: "Contact airline for details"
+      },
+      temperature_breed_restrictions: {
+        temperature: "Contact airline for details",
+        breed: ["Contact airline for details"]
+      },
+      policy_url: "Not specified",
+      policy_found: false
+    }
+  };
+};
+
+/**
  * Attempts to parse JSON content using multiple strategies
  */
 export const parseJsonContent = (content: string): any => {
+  // First check if this appears to be a natural language "no policy found" response
+  if (isNoPolicyResponse(content)) {
+    console.log('Detected natural language "no policy found" response, creating standardized response object');
+    return createNoPolicyObject();
+  }
+  
   // Step 1: Try parsing the content as-is first
   try {
     return JSON.parse(content);
@@ -63,9 +130,19 @@ export const parseJsonContent = (content: string): any => {
           try {
             return JSON.parse(match[0]);
           } catch (regexError) {
+            // After all parsing strategies have failed, check if this is a natural language "no policy found" response
+            if (isNoPolicyResponse(content)) {
+              console.log('Detected natural language "no policy found" response after parsing failure, creating standardized response object');
+              return createNoPolicyObject();
+            }
             throw new Error('Failed to parse content as JSON after all attempts');
           }
         } else {
+          // After failing to find JSON pattern, check if this is a natural language "no policy found" response
+          if (isNoPolicyResponse(content)) {
+            console.log('Detected natural language "no policy found" response after pattern matching failure, creating standardized response object');
+            return createNoPolicyObject();
+          }
           throw new Error('Could not locate JSON pattern in content');
         }
       }
@@ -79,6 +156,9 @@ export const parseJsonContent = (content: string): any => {
 export const normalizePetPolicyData = (parsedData: any, rawResponse: string): any => {
   const airlineInfo = parsedData.airline_info || {};
   const petPolicy = parsedData.pet_policy || {};
+  
+  // Check if this was a "no policy found" response
+  const isNoPolicyResult = petPolicy.policy_found === false;
   
   // Combine the data into a normalized object with our expected field structure
   return {
@@ -96,6 +176,9 @@ export const normalizePetPolicyData = (parsedData: any, rawResponse: string): an
     // Extract website URLs from airline_info
     official_website: airlineInfo.official_website,
     policy_url: airlineInfo.pet_policy_url || petPolicy.policy_url,
+    
+    // Flag to indicate whether this was a "no policy found" response
+    _no_policy_found: isNoPolicyResult,
     
     // Store the complete unmodified response
     _raw_api_response: rawResponse

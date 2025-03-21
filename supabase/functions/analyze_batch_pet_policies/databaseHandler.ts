@@ -62,14 +62,22 @@ export async function savePetPolicyToDatabase(
       policy_url: petPolicy.policy_url || null
     };
 
+    // Check if this is a "no policy found" result
+    const isNoPolicyResult = petPolicy._no_policy_found === true;
+    if (isNoPolicyResult) {
+      console.log(`This is a "no policy found" result for airline ${airline.name}`);
+    }
+
     // Check if content has changed (important for updating timestamp)
-    const contentChanged = !existingPolicy || hasPolicyContentChanged(existingPolicy, policyData);
+    // For "no policy found" results, consider it changed so we update timestamp
+    const contentChanged = isNoPolicyResult || !existingPolicy || hasPolicyContentChanged(existingPolicy, policyData);
     result.content_changed = contentChanged;
     
     // Store comparison details for debugging
     result.comparison_details = {
       existing_policy_id: existingPolicy?.id || null,
       has_existing_policy: !!existingPolicy,
+      is_no_policy_result: isNoPolicyResult,
       content_signature_changed: contentChanged,
       urls_compared: {
         existing_url: existingPolicy?.policy_url || null,

@@ -46,6 +46,11 @@ export async function analyzePetPolicy(airline: Airline, openaiKey: string): Pro
         console.log('Successfully parsed and normalized policy data');
         console.log('Breed restrictions (should be array):', normalizedData.breed_restrictions);
         
+        // If this is a "no policy found" response, log it but still return as success
+        if (normalizedData._no_policy_found) {
+          console.log('This is a "no policy found" response, but treating as a valid result');
+        }
+        
         return normalizedData;
         
       } catch (parseError) {
