@@ -10,12 +10,14 @@ import { useSyncProgressSubscription } from "./hooks/useSyncProgressSubscription
 import { SyncProgressDB } from "./types/sync-types";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { WandSparkles } from "lucide-react";
 
 export const SyncSection = () => {
   const { toast } = useToast();
   const [countryInput, setCountryInput] = useState<string>("");
   const [forceContentComparison, setForceContentComparison] = useState<boolean>(false);
+  const [smartUpdateBatchSize, setSmartUpdateBatchSize] = useState<number>(25);
   const { isInitializing, clearData, setClearData, handleSync } = useSyncOperations();
   
   // Set up sync progress subscription
@@ -68,9 +70,19 @@ export const SyncSection = () => {
 
   // Handle smart update for pet policies
   const handleSmartUpdate = () => {
+    if (smartUpdateBatchSize <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Batch Size",
+        description: "Please enter a positive number for the batch size.",
+      });
+      return;
+    }
+    
     handleSync('petPolicies', false, 'update', { 
       smartUpdate: true,
-      compareContent: true // Always enable content comparison for smart updates
+      compareContent: true, // Always enable content comparison for smart updates
+      batchSize: smartUpdateBatchSize
     });
   };
 
@@ -89,19 +101,40 @@ export const SyncSection = () => {
         />
       </div>
 
-      {/* Smart Update button for pet policies */}
-      <div className="mb-8">
-        <Button 
-          variant="outline" 
-          size="lg" 
-          className="w-full border-dashed border-2 text-lg"
-          onClick={handleSmartUpdate}
-          disabled={isInitializing.petPolicies}
-        >
-          <WandSparkles className="mr-2" />
-          Smart Update Pet Policies
-          <span className="text-xs ml-2 text-muted-foreground">(Only updates policies that need it)</span>
-        </Button>
+      {/* Smart Update section for pet policies */}
+      <div className="mb-8 border p-4 rounded-lg space-y-4">
+        <h3 className="text-lg font-semibold">Smart Update Pet Policies</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+          <div className="md:col-span-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm whitespace-nowrap">Batch Size:</span>
+              <Input
+                type="number"
+                min="1"
+                max="100"
+                value={smartUpdateBatchSize}
+                onChange={(e) => setSmartUpdateBatchSize(parseInt(e.target.value) || 25)}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground">
+                (Recommended: 25-50 airlines per batch)
+              </span>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            className="border-dashed border-2 h-full"
+            onClick={handleSmartUpdate}
+            disabled={isInitializing.petPolicies}
+          >
+            <WandSparkles className="mr-2" />
+            Run Smart Update
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Smart Update analyzes airline websites and prioritizes those with pet policies that need updating.
+          The improved algorithm identifies specific pet policy URLs and ensures more accurate updates.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

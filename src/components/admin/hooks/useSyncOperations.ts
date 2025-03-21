@@ -11,6 +11,7 @@ interface SyncOptions {
   compareContent?: boolean;
   offset?: number;
   smartUpdate?: boolean;
+  batchSize?: number;
   [key: string]: any;
 }
 
@@ -60,7 +61,7 @@ export const useSyncOperations = () => {
       if (syncType === 'petPolicies' && options.smartUpdate) {
         console.log('Smart Update mode enabled - fetching airlines that need updates');
         try {
-          // Updated implementation to use the fixed database function
+          // Use the updated database function
           const { data, error } = await supabase.rpc('get_airlines_needing_policy_update');
           
           if (error) {
@@ -68,9 +69,22 @@ export const useSyncOperations = () => {
           }
           
           if (data && Array.isArray(data) && data.length > 0) {
-            // The function now returns objects with an id field (text type)
+            // The function returns objects with an id field (text type)
             specificAirlines = data.map(item => item.id);
+            const batchSize = options.batchSize || 25; // Default to 25 if not specified
+            
             console.log(`Found ${specificAirlines.length} airlines that need updates`);
+            
+            // If we have a lot of airlines, warn the user but proceed with the first batch
+            if (specificAirlines.length > batchSize) {
+              toast({
+                title: "Smart Update - Large Batch",
+                description: `Found ${specificAirlines.length} airlines needing updates. Processing the first ${batchSize} now.`,
+              });
+              
+              // Take only the first batch based on batchSize
+              specificAirlines = specificAirlines.slice(0, batchSize);
+            }
           } else {
             toast({
               title: "No Updates Needed",
@@ -129,7 +143,7 @@ export const useSyncOperations = () => {
             forceContentComparison: options.forceContentComparison || false,
             compareContent: options.compareContent || false,
             offset: currentOffset,
-            limit: 10, // Process 10 airlines per batch
+            limit: options.batchSize || 10, // Use provided batchSize or default to 10
             airlines: specificAirlines // Pass specific airlines for smart update
           };
           
