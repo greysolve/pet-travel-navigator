@@ -75,9 +75,7 @@ export async function processPetPoliciesBatch(
       console.log('No airlines to process');
       
       // If this was a paginated request and we've reached the end, mark sync as complete
-      if (!specificAirlines && offset > 0) {
-        await syncManager.completeSync();
-      }
+      await syncManager.completeSync();
       
       return { data: { success: true, message: 'No airlines to process', needsContinuation: false } };
     }
@@ -127,10 +125,8 @@ export async function processPetPoliciesBatch(
         console.log(`Successfully processed ${airline.name}`);
         processedAirlines.push(`${airline.iata_code} - ${airline.name}`);
         
-        // Update sync progress if not processing specific airlines
-        if (!specificAirlines) {
-          await syncManager.incrementProgress(airline.iata_code);
-        }
+        // Always update sync progress regardless of whether specificAirlines is set
+        await syncManager.incrementProgress(airline.iata_code);
         
         // Add delay between API calls to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -145,23 +141,43 @@ export async function processPetPoliciesBatch(
     }
     
     // Determine if we need to continue processing more airlines
-    if (!specificAirlines) {
-      // Always need continuation if we successfully got any airlines, 
-      // unless we've reached the end of all airlines to process
-      let countQuery = supabase
-        .from('airlines')
-        .select('id', { count: 'exact', head: true });
+    // Always check for continuation regardless of whether specificAirlines is set
+    // Get current progress to exclude already processed and error items
+    const currentProgress = await syncManager.getCurrentProgress();
+    const processedItems = currentProgress?.processed_items || [];
+    const errorItems = currentProgress?.error_items || [];
+    
+    // Exclude both successfully processed and error items
+    const excludeItems = [...processedItems, ...errorItems]
+      .map(item => item.split(' - ')[0]) // Extract airline codes
+      .filter(Boolean);
+    
+    let countQuery = supabase
+      .from('airlines')
+      .select('id', { count: 'exact', head: true });
+    
+    // If we're processing specific airlines, check only for those
+    if (specificAirlines && specificAirlines.length > 0) {
+      const remainingAirlines = specificAirlines.filter(id => 
+        !excludeItems.includes(id)
+      );
       
-      // Get current progress to exclude already processed and error items
-      const currentProgress = await syncManager.getCurrentProgress();
-      const processedItems = currentProgress?.processed_items || [];
-      const errorItems = currentProgress?.error_items || [];
-      
-      // Exclude both successfully processed and error items
-      const excludeItems = [...processedItems, ...errorItems]
-        .map(item => item.split(' - ')[0]) // Extract airline codes
-        .filter(Boolean);
-      
+      if (remainingAirlines.length > 0) {
+        console.log(`${remainingAirlines.length} more specific airlines need processing`);
+        needsContinuation = true;
+        
+        // Update sync state to indicate continuation is needed with the next offset
+        await syncManager.updateSyncState({
+          needs_continuation: true,
+          // Store the next processed count
+          processed: currentProgress?.processed || 0
+        });
+      } else {
+        console.log('All specific airlines processed, completing sync');
+        await syncManager.completeSync();
+      }
+    } else {
+      // For regular processing, use the standard filters
       if (excludeItems.length > 0) {
         // Using not.in with airline codes
         countQuery = countQuery.not('iata_code', 'in', `(${excludeItems.join(',')})`);

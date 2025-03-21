@@ -79,40 +79,58 @@ Deno.serve(async (req) => {
       }
     }
 
-    // For specific airline processing, we don't need to manage sync state
-    if (!airlines) {
-      // Initialize or resume sync progress
-      if (resumeSync) {
-        console.log('Resuming sync progress...');
-        
-        // Get the current state to ensure we're using the right offset
-        const currentState = await syncManager.getCurrentProgress();
-        console.log('Current sync state:', currentState);
-        
-        // If we have processed count in the state, use it as the next offset
-        // Otherwise, stay with the provided offset
-        if (currentState && currentState.processed > offset) {
-          console.log(`Updating offset from ${offset} to ${currentState.processed} based on processed count`);
-          // Update the offset to match the processed count
-          offset = currentState.processed;
-        }
-        
-        await syncManager.continueSyncProgress();
+    // Initialize or resume sync progress - always do this regardless of specificAirlines
+    let airlinesCount = 0;
+    
+    if (resumeSync) {
+      console.log('Resuming sync progress...');
+      
+      // Get the current state to ensure we're using the right offset
+      const currentState = await syncManager.getCurrentProgress();
+      console.log('Current sync state:', currentState);
+      
+      // If we have processed count in the state, use it as the next offset
+      // Otherwise, stay with the provided offset
+      if (currentState && currentState.processed > offset) {
+        console.log(`Updating offset from ${offset} to ${currentState.processed} based on processed count`);
+        // Update the offset to match the processed count
+        offset = currentState.processed;
+      }
+      
+      await syncManager.continueSyncProgress();
+    } else {
+      // Get count of airlines to process - either specific ones or filtered by criteria
+      if (airlines && airlines.length > 0) {
+        airlinesCount = airlines.length;
+        console.log(`Initializing sync with ${airlinesCount} specific airlines`);
       } else {
-        // Count total airlines for progress tracking
-        const { count, error: countError } = await supabase
+        // Count total airlines for progress tracking based on the same filtering
+        let countQuery = supabase
           .from('airlines')
           .select('*', { count: 'exact', head: true });
+          
+        // Apply the same filtering logic as the main query in processor
+        if (!forceContentComparison) {
+          countQuery = countQuery.or(
+            'last_policy_update.is.null,' +
+            'last_policy_update.lt.now()-interval\'30 days\''
+          );
+        } else {
+          // No filtering when force comparing - count all active airlines
+          countQuery = countQuery.eq('active', true);
+        }
+        
+        const { count, error: countError } = await countQuery;
         
         if (countError) {
           throw new Error(`Failed to count airlines: ${countError.message}`);
         }
         
-        console.log(`Initializing sync with total count: ${count}`);
-        await syncManager.initialize(count || 0);
+        airlinesCount = count || 0;
+        console.log(`Initializing sync with total count: ${airlinesCount}`);
       }
-    } else {
-      console.log(`Processing specific airlines: ${airlines.join(', ')}`);
+      
+      await syncManager.initialize(airlinesCount);
     }
 
     // Process the current batch of airlines
