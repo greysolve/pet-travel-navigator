@@ -99,20 +99,30 @@ export async function processPetPoliciesBatch(
         if (error) {
           console.error(`Error processing ${airline.name}: ${error.message}`);
           errorAirlines.push(`${airline.iata_code} - ${error.message}`);
+          
           // Immediately add to error items list in sync manager
           await syncManager.updateSyncState({
             error_items: [`${airline.iata_code} - ${error.message}`]
           });
+          
+          // *** NEW CODE: Increment the processed count for failed airlines too
+          await syncManager.incrementProgress(`${airline.iata_code}`);
+          
           continue;
         }
         
         if (!data.success) {
           console.error(`Failed to process ${airline.name}: ${data.error || 'Unknown error'}`);
           errorAirlines.push(`${airline.iata_code} - Processing failed`);
+          
           // Immediately add to error items list in sync manager
           await syncManager.updateSyncState({
             error_items: [`${airline.iata_code} - Processing failed`]
           });
+          
+          // *** NEW CODE: Increment the processed count for failed airlines too
+          await syncManager.incrementProgress(`${airline.iata_code}`);
+          
           continue;
         }
 
@@ -133,10 +143,14 @@ export async function processPetPoliciesBatch(
       } catch (airlineError) {
         console.error(`Error processing airline ${airline.name}: ${airlineError.message}`);
         errorAirlines.push(`${airline.iata_code} - ${airlineError.message}`);
+        
         // Immediately add to error items list in sync manager
         await syncManager.updateSyncState({
           error_items: [`${airline.iata_code} - ${airlineError.message}`]
         });
+        
+        // *** NEW CODE: Increment the processed count for failed airlines too
+        await syncManager.incrementProgress(`${airline.iata_code}`);
       }
     }
     
