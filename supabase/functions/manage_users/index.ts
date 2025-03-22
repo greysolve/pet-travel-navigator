@@ -144,21 +144,82 @@ Deno.serve(async (req) => {
     // Handle DELETE request for user deletion
     if (req.method === 'DELETE') {
       const { userId } = await req.json();
-      console.log('Starting hard deletion process for user:', userId);
+      console.log('Starting deletion process for user:', userId);
 
       try {
-        // Delete the auth user using admin client with hard delete (soft_delete = false)
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
+        // STEP 1: Delete from profiles first (has no dependencies)
+        console.log('Deleting user profile...');
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .delete()
+          .eq('id', userId);
+
+        if (profileError) {
+          console.error('Error deleting profile:', profileError);
+          throw profileError;
+        }
+        
+        // STEP 2: Delete from user_roles
+        console.log('Deleting user roles...');
+        const { error: rolesError } = await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+
+        if (rolesError) {
+          console.error('Error deleting user roles:', rolesError);
+          throw rolesError;
+        }
+        
+        // STEP 3: Check for and delete any other related data
+        // For example, delete any pet profiles, saved searches, or other user-specific data
+        
+        // Example: Delete pet profiles
+        const { error: petProfilesError } = await supabaseAdmin
+          .from('pet_profiles')
+          .delete()
+          .eq('user_id', userId);
+          
+        if (petProfilesError) {
+          console.log('Warning: Error deleting pet profiles (or none exist):', petProfilesError);
+          // Non-critical - continue with deletion
+        }
+        
+        // Example: Delete saved searches
+        const { error: savedSearchesError } = await supabaseAdmin
+          .from('saved_searches')
+          .delete()
+          .eq('user_id', userId);
+          
+        if (savedSearchesError) {
+          console.log('Warning: Error deleting saved searches (or none exist):', savedSearchesError);
+          // Non-critical - continue with deletion
+        }
+        
+        // Example: Delete route searches
+        const { error: routeSearchesError } = await supabaseAdmin
+          .from('route_searches')
+          .delete()
+          .eq('user_id', userId);
+          
+        if (routeSearchesError) {
+          console.log('Warning: Error deleting route searches (or none exist):', routeSearchesError);
+          // Non-critical - continue with deletion
+        }
+
+        // STEP 4: Finally delete the auth user
+        console.log('Deleting auth user...');
+        const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(
           userId,
           false // Set soft delete to false to ensure hard deletion
         );
         
-        if (deleteError) {
-          console.error('Error deleting auth user:', deleteError);
-          throw deleteError;
+        if (deleteAuthError) {
+          console.error('Error deleting auth user:', deleteAuthError);
+          throw deleteAuthError;
         }
 
-        console.log('User hard deleted successfully:', userId);
+        console.log('User deleted successfully:', userId);
         return new Response(
           JSON.stringify({ message: 'User deleted successfully' }),
           {
