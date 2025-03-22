@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { JsonRenderer } from "@/components/ui/json-renderer";
 import { PremiumFeature } from "@/components/ui/premium-feature";
 import type { PetPolicy } from "./types";
+import { useMemo } from "react";
 
 type PolicyDetailsProps = {
   policy?: PetPolicy;
@@ -54,8 +55,38 @@ const renderPolicyField = (value: any, label?: string) => {
   return renderValue(value);
 };
 
+// Utility function to create a content hash for policy comparison
+const generateContentSignature = (policy: PetPolicy): string => {
+  // Get relevant fields for comparison
+  const relevantFields = {
+    pet_types_allowed: policy.pet_types_allowed,
+    size_restrictions: policy.size_restrictions,
+    documentation_needed: policy.documentation_needed,
+    fees: policy.fees,
+    breed_restrictions: policy.breed_restrictions,
+    carrier_requirements: policy.carrier_requirements,
+    carrier_requirements_cabin: policy.carrier_requirements_cabin,
+    carrier_requirements_cargo: policy.carrier_requirements_cargo,
+    temperature_restrictions: policy.temperature_restrictions
+  };
+  
+  // Create a stable string representation
+  return JSON.stringify(relevantFields, Object.keys(relevantFields).sort());
+};
+
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   console.log('Rendering policy:', policy);
+
+  // Calculate content signature for display in admin console or debugging
+  const contentSignature = useMemo(() => {
+    if (!policy) return null;
+    return generateContentSignature(policy);
+  }, [policy]);
+
+  // Store content signature as a data attribute for admin tools
+  const dataAttributes = policy ? {
+    'data-content-signature': btoa(contentSignature || '')
+  } : {};
 
   if (!policy) {
     return (
@@ -66,7 +97,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   }
 
   return (
-    <div className="text-sm space-y-4 border-t pt-4">
+    <div className="text-sm space-y-4 border-t pt-4" {...dataAttributes}>
       {/* Pet Types */}
       {policy.pet_types_allowed && (
         <div>

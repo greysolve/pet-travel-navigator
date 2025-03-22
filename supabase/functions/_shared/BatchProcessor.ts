@@ -8,7 +8,7 @@ export class BatchProcessor {
   constructor(
     timeout = 30000,
     maxRetries = 3,
-    batchSize = 3, // Reduced from 5 to 3 to prevent timeouts
+    batchSize = 5, // Default batch size of 5
     delayBetweenBatches = 2000
   ) {
     this.REQUEST_TIMEOUT = timeout;
@@ -58,5 +58,11 @@ export class BatchProcessor {
 
   getTimeout() {
     return this.REQUEST_TIMEOUT;
+  }
+  
+  // New method to set batch size dynamically
+  setBatchSize(size: number) {
+    this.BATCH_SIZE = size;
+    return this;
   }
 }

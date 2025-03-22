@@ -17,6 +17,7 @@ export interface SyncProgress {
   errorItems: string[];
   startTime: string | null;
   isComplete: boolean;
+  needsContinuation: boolean; // Add this flag
   errorDetails?: { [key: string]: string };
 }
 

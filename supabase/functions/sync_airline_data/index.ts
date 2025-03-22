@@ -57,11 +57,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-      syncManager = new SyncManager(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-        'airlines'
-      );
+      syncManager = new SyncManager(supabase, 'airlines');
       console.log('Sync manager initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Sync Manager:', error);
