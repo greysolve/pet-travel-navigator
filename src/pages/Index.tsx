@@ -4,6 +4,7 @@ import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -12,6 +13,7 @@ const Index = () => {
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
   const resultsRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   // Reset all search states when auth changes
   useEffect(() => {
@@ -25,7 +27,7 @@ const Index = () => {
     results: FlightData[], 
     policies?: Record<string, PetPolicy>
   ) => {
-    console.log('Index: received search results:', { results, policies });
+    console.log('Index: received search results:', { results, policies, isMobile });
     setFlights(results || []);
     setPetPolicies(policies);
     setSearchPerformed(true);
@@ -48,7 +50,8 @@ const Index = () => {
         <ResultsSection 
           searchPerformed={searchPerformed} 
           flights={flights}
-          petPolicies={petPolicies} 
+          petPolicies={petPolicies}
+          isMobile={isMobile}
         />
       </div>
     </div>
