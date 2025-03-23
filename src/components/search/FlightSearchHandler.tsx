@@ -3,26 +3,18 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 
-interface FlightSearchParams {
-  origin: string;
-  destination: string;
-  date: Date;
-  onSearchResults?: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
-  onSearchComplete?: () => void;
-}
-
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [searchCount, setSearchCount] = useState<number>(0);
   const [isPetCaddie, setIsPetCaddie] = useState(false);
 
-  const handleFlightSearch = async ({ 
-    origin, 
-    destination, 
-    date,
-    onSearchResults,
-    onSearchComplete
-  }: FlightSearchParams): Promise<FlightData[]> => {
+  const handleFlightSearch = async (
+    origin: string, 
+    destination: string, 
+    date: Date,
+    onSearchResults?: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void,
+    onSearchComplete?: () => void
+  ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
     try {
       console.log('Searching flights:', { origin, destination, date });
