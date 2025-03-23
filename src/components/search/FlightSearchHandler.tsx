@@ -32,7 +32,7 @@ export const useFlightSearch = () => {
       }
 
       // Ensure each flight segment has the airline name
-      const processedFlights = flightData.flights.map((flight: FlightData) => ({
+      const processedFlights = flightData.connections.map((flight: FlightData) => ({
         ...flight,
         segments: flight.segments?.map(segment => ({
           ...segment,
