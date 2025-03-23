@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
@@ -45,6 +46,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   console.log("Rendering FlightResults with flights:", flights);
   console.log("Airline names mapping:", airlineNames);
+  console.log("Pet policies:", petPolicies);
   
   if (flights.length === 0) {
     return (
@@ -82,8 +84,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
             {/* Journey Summary */}
             <div className="bg-accent p-4 flex justify-between items-center">
               <p className="text-sm font-medium text-accent-foreground">
-                {stops === 0 ? 'Direct Flight' : `${stops} Stop${stops > 1 ? 's' : ''}`}
-                {totalDuration && ` • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
+                {stops === 0 ? 'Non-Stop Flight' : `${stops} Stop${stops > 1 ? 's' : ''} • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
               </p>
               <Button
                 variant="ghost"
@@ -126,6 +127,9 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                     
                     {petPolicies?.[segment.carrierFsCode] && (
                       <div className="mt-4">
+                        <h2 className="text-xl font-semibold mb-4">
+                          Pet Policy {petPolicies[segment.carrierFsCode].isSummary ? "Summary" : ""} for {airlineName || segment.carrierFsCode}
+                        </h2>
                         <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
                       </div>
                     )}

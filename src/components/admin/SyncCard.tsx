@@ -1,20 +1,24 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle2, AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { SyncProgress } from "@/types/sync";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface SyncCardProps {
   title: string;
   clearData: boolean;
   onClearDataChange: (checked: boolean) => void;
   isLoading: boolean;
-  onSync: (resume?: boolean) => void;
+  onSync: (resume?: boolean, mode?: string) => void;
   syncProgress?: SyncProgress;
+  forceContentComparison?: boolean;
+  onForceContentComparisonChange?: (checked: boolean) => void;
+  showForceContentComparison?: boolean;
 }
 
 const formatTitle = (title: string) => {
@@ -32,9 +36,13 @@ export const SyncCard = ({
   isLoading,
   onSync,
   syncProgress,
+  forceContentComparison = false,
+  onForceContentComparisonChange,
+  showForceContentComparison = false,
 }: SyncCardProps) => {
   const [elapsedTime, setElapsedTime] = useState('');
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState('Calculating...');
+  const [syncMode, setSyncMode] = useState('clear');
 
   useEffect(() => {
     let intervalId: number;
@@ -63,7 +71,10 @@ export const SyncCard = ({
     };
   }, [syncProgress?.startTime, syncProgress?.processed, syncProgress?.total, syncProgress?.isComplete]);
 
-  const isSyncInProgress = () => syncProgress && !syncProgress.isComplete;
+  const isSyncInProgress = () => 
+    syncProgress && 
+    (!syncProgress.isComplete || syncProgress.needsContinuation);
+  
   const progressPercentage = syncProgress ? ((syncProgress.processed / syncProgress.total) * 100).toFixed(1) : 0;
   const processedItems = syncProgress?.processedItems || [];
   const errorItems = syncProgress?.errorItems || [];
@@ -71,7 +82,8 @@ export const SyncCard = ({
 
   const getStatusIcon = () => {
     if (isLoading) return <Loader2 className="w-5 h-5 animate-spin text-primary" />;
-    if (syncProgress?.isComplete) return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+    if (syncProgress?.isComplete && !syncProgress?.needsContinuation) 
+      return <CheckCircle2 className="w-5 h-5 text-green-500" />;
     if (isSyncInProgress()) return <ArrowUp className="w-5 h-5 text-blue-500 animate-bounce" />;
     return null;
   };
@@ -80,29 +92,48 @@ export const SyncCard = ({
     <div className={cn(
       "p-8 border rounded-lg bg-card shadow-sm transition-all duration-200 hover:shadow-md",
       isSyncInProgress() && "border-blue-500/50",
-      syncProgress?.isComplete && "border-green-500/50"
+      syncProgress?.isComplete && !syncProgress?.needsContinuation && "border-green-500/50"
     )}>
       <h2 className="text-2xl font-semibold mb-6 flex items-center justify-between">
         <span>{formattedTitle}</span>
         {getStatusIcon()}
       </h2>
       
-      <div className="flex items-center space-x-3 mb-6">
-        <Checkbox 
-          id={`clear${title.replace(/\s+/g, '')}`}
-          checked={clearData}
-          onCheckedChange={(checked) => onClearDataChange(checked === true)}
-          disabled={isLoading || isSyncInProgress()}
-        />
-        <Label 
-          htmlFor={`clear${title.replace(/\s+/g, '')}`} 
-          className={cn("text-lg", (isLoading || isSyncInProgress()) && "opacity-50")}
-        >
-          Clear existing {formattedTitle.toLowerCase()} data first
-        </Label>
+      <div className="space-y-4 mb-6">
+        <div className="flex items-center space-x-3">
+          <Checkbox 
+            id={`clear${title.replace(/\s+/g, '')}`}
+            checked={clearData}
+            onCheckedChange={(checked) => onClearDataChange(checked === true)}
+            disabled={isLoading || isSyncInProgress()}
+          />
+          <Label 
+            htmlFor={`clear${title.replace(/\s+/g, '')}`} 
+            className={cn("text-lg", (isLoading || isSyncInProgress()) && "opacity-50")}
+          >
+            Clear existing {formattedTitle.toLowerCase()} data first
+          </Label>
+        </div>
+
+        {showForceContentComparison && onForceContentComparisonChange && (
+          <div className="flex items-center space-x-3 pt-2">
+            <Checkbox 
+              id={`force-content${title.replace(/\s+/g, '')}`}
+              checked={forceContentComparison}
+              onCheckedChange={(checked) => onForceContentComparisonChange(checked === true)}
+              disabled={isLoading || isSyncInProgress()}
+            />
+            <Label 
+              htmlFor={`force-content${title.replace(/\s+/g, '')}`} 
+              className={cn("text-lg", (isLoading || isSyncInProgress()) && "opacity-50")}
+            >
+              Force content comparison (detects policy changes regardless of timestamps)
+            </Label>
+          </div>
+        )}
       </div>
 
-      {syncProgress?.total > 0 && !syncProgress.isComplete ? (
+      {syncProgress?.total > 0 && !syncProgress.isComplete || syncProgress?.needsContinuation ? (
         <div className="mb-6 space-y-4">
           <div className="space-y-2">
             <Progress 
@@ -110,7 +141,7 @@ export const SyncCard = ({
               className="h-2 transition-all"
             />
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{syncProgress.processed} of {syncProgress.total} items</span>
+              <span>{syncProgress.processed} of {syncProgress.total} items processed</span>
               <span>{progressPercentage}%</span>
             </div>
           </div>
@@ -190,7 +221,7 @@ export const SyncCard = ({
       <div className="space-y-2">
         {isSyncInProgress() && (
           <Button 
-            onClick={() => onSync(true)}
+            onClick={() => onSync(true, syncMode)}
             disabled={isLoading}
             size="lg"
             className="w-full text-lg relative overflow-hidden group bg-primary hover:bg-primary/90"
@@ -212,7 +243,7 @@ export const SyncCard = ({
         )}
         
         <Button 
-          onClick={() => onSync()}
+          onClick={() => onSync(false, syncMode)}
           disabled={isLoading || isSyncInProgress()}
           size="lg"
           variant={isSyncInProgress() ? "outline" : "default"}

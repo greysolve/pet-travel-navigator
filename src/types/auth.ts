@@ -1,9 +1,12 @@
-export type UserRole = 'pet_lover' | 'site_manager';
+
+export type UserRole = 'pet_lover' | 'site_manager' | 'pet_caddie';
+
+export type SubscriptionPlan = 'free' | 'premium' | 'teams';
 
 export interface UserProfile {
   id: string;
   user_id?: string;
-  role?: UserRole;
+  userRole: UserRole; // No longer optional
   created_at?: string;
   updated_at?: string;
   full_name?: string;
@@ -16,9 +19,11 @@ export interface UserProfile {
   postal_code?: string;
   country_id?: string;
   address_format?: string;
+  plan?: SubscriptionPlan;
+  search_count: number; // No longer optional
   notification_preferences?: {
     travel_alerts: boolean;
     policy_changes: boolean;
     documentation_reminders: boolean;
-  };
+  } | null;
 }

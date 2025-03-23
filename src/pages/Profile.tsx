@@ -1,192 +1,94 @@
-import { useState, useEffect } from "react";
-import { ContactInformation } from "@/components/profile/ContactInformation";
-import { AddressInformation } from "@/components/profile/AddressInformation";
-import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
-import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { UserProfile } from "@/types/auth";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
+import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import { ProfileForm } from "@/components/profile/ProfileForm";
 
 const Profile = () => {
   const { toast } = useToast();
-  const [userId, setUserId] = useState<string>("");
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  // State for contact information
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-
-  // State for address information
-  const [addressLine1, setAddressLine1] = useState("");
-  const [addressLine2, setAddressLine2] = useState("");
-  const [addressLine3, setAddressLine3] = useState("");
-  const [locality, setLocality] = useState("");
-  const [administrativeArea, setAdministrativeArea] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [selectedCountryId, setSelectedCountryId] = useState("");
-
-  // Fetch user session and profile data
-  useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        setUserId(session.user.id);
-        setEmail(session.user.email || "");
-      }
-    };
-    fetchSession();
-  }, []);
-
-  // Fetch profile data
-  const { data: profile, refetch: refetchProfile } = useQuery<UserProfile>({
-    queryKey: ['profile', userId],
-    queryFn: async () => {
-      if (!userId) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      return data as UserProfile;
-    },
-    enabled: !!userId,
+  const { user } = useAuth();
+  const { profile, updateProfile: updateProfileContext } = useProfile();
+  const [formData, setFormData] = useState({
+    fullName: "",
+    addressLine1: "",
+    addressLine2: "",
+    addressLine3: "",
+    locality: "",
+    administrativeArea: "",
+    postalCode: "",
+    selectedCountryId: "",
   });
 
-  // Update state when profile data is loaded
   useEffect(() => {
+    console.log('Profile - Received profile from context:', profile);
     if (profile) {
-      const fullName = profile.full_name || "";
-      const [firstName = "", lastName = ""] = fullName.split(" ");
-      setFirstName(firstName);
-      setLastName(lastName);
-      setAddressLine1(profile.address_line1 || "");
-      setAddressLine2(profile.address_line2 || "");
-      setAddressLine3(profile.address_line3 || "");
-      setLocality(profile.locality || "");
-      setAdministrativeArea(profile.administrative_area || "");
-      setPostalCode(profile.postal_code || "");
-      setSelectedCountryId(profile.country_id || "");
+      const newFormData = {
+        fullName: profile.full_name || "",
+        addressLine1: profile.address_line1 || "",
+        addressLine2: profile.address_line2 || "",
+        addressLine3: profile.address_line3 || "",
+        locality: profile.locality || "",
+        administrativeArea: profile.administrative_area || "",
+        postalCode: profile.postal_code || "",
+        selectedCountryId: profile.country_id || "",
+      };
+      console.log('Profile - Setting form data with profile:', profile);
+      console.log('Profile - Resulting form data:', newFormData);
+      setFormData(newFormData);
     }
   }, [profile]);
 
-  const handleAvatarUpdate = async () => {
-    toast({
-      title: "Profile updated",
-      description: "Your profile picture has been updated successfully.",
-    });
-  };
-
-  const updateProfile = async () => {
-    if (!userId) return;
+  const handleProfileUpdate = async (updates: any) => {
+    if (!user?.id) {
+      console.error('Profile page - Cannot update profile: No user ID');
+      toast({
+        title: "Error",
+        description: "Unable to update profile: User not found",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    setIsUpdating(true);
+    console.log('Profile page - Updating profile with:', updates);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: `${firstName} ${lastName}`,
-          address_line1: addressLine1,
-          address_line2: addressLine2,
-          address_line3: addressLine3,
-          locality: locality,
-          administrative_area: administrativeArea,
-          postal_code: postalCode,
-          country_id: selectedCountryId,
-        })
-        .eq('id', userId);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update profile.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await refetchProfile();
+      await updateProfileContext(updates);
       toast({
         title: "Success",
         description: "Profile updated successfully.",
       });
-    } finally {
-      setIsUpdating(false);
+    } catch (error) {
+      console.error('Profile page - Update failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile.",
+        variant: "destructive",
+      });
     }
   };
 
+  if (!profile || !user) {
+    return null;
+  }
+
   return (
-    <div className="container max-w-[70%] mx-auto py-8 space-y-8">
+    <div className="container mx-auto px-4 md:px-8 py-8 pt-[15vh] md:pt-8 max-w-full md:max-w-[70%]">
       <h1 className="text-3xl font-bold text-center">Profile</h1>
       
       <div className="grid gap-8">
-        <Card>
-          <CardContent className="pt-6">
-            <ProfileAvatar 
-              userId={userId}
-              avatarUrl={profile?.avatar_url}
-              onAvatarUpdate={handleAvatarUpdate}
-            />
-          </CardContent>
-        </Card>
+        <ProfileHeader 
+          userId={user.id}
+          avatarUrl={profile.avatar_url}
+        />
         
-        <div className="space-y-8">
-          <Card>
-            <CardContent className="pt-6">
-              <ContactInformation
-                firstName={firstName}
-                lastName={lastName}
-                email={email}
-                onFirstNameChange={setFirstName}
-                onLastNameChange={setLastName}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <AddressInformation
-                addressLine1={addressLine1}
-                addressLine2={addressLine2}
-                addressLine3={addressLine3}
-                locality={locality}
-                administrativeArea={administrativeArea}
-                postalCode={postalCode}
-                selectedCountryId={selectedCountryId}
-                onAddressLine1Change={setAddressLine1}
-                onAddressLine2Change={setAddressLine2}
-                onAddressLine3Change={setAddressLine3}
-                onLocalityChange={setLocality}
-                onAdministrativeAreaChange={setAdministrativeArea}
-                onPostalCodeChange={setPostalCode}
-                onCountryChange={setSelectedCountryId}
-              />
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button 
-              onClick={updateProfile} 
-              disabled={isUpdating}
-              className="w-32"
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </div>
-        </div>
+        <ProfileForm
+          email={user.email || ""}
+          initialData={formData}
+          onSubmit={handleProfileUpdate}
+        />
 
         <Card>
           <CardContent className="pt-6">

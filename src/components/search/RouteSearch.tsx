@@ -1,30 +1,19 @@
+
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-
-type Airport = {
-  iata_code: string;
-  name: string;
-  city: string;
-  country: string;
-};
-
-interface RouteSearchProps {
-  origin: string;
-  destination: string;
-  setOrigin: (value: string) => void;
-  setDestination: (value: string) => void;
-  setDestinationCountry: (value: string) => void;
-}
+import type { RouteSearchProps, Airport } from "./types";
 
 export const RouteSearch = ({
   origin,
   destination,
   setOrigin,
   setDestination,
-  setDestinationCountry,
+  isLoading,
+  disabled,
+  onFocus
 }: RouteSearchProps) => {
   const [airports, setAirports] = useState<Airport[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -40,16 +29,14 @@ export const RouteSearch = ({
     
     setIsSearching(true);
     try {
-      // Split the search term by comma and get the parts
-      const parts = searchTerm.split(',').map(part => part.trim());
-      const cityTerm = parts[0];
-      const countryTerm = parts[1] || '';
+      // Split the search term by comma and get the first part (ignore country for now as we have scoring)
+      const searchPart = searchTerm.split(',')[0].trim();
       
-      console.log('Fetching airports with:', { cityTerm, countryTerm });
+      console.log('Fetching airports with:', { searchPart });
       
       const { data, error } = await supabase
         .rpc('search_airports_insensitive', {
-          search_term: cityTerm
+          search_term: searchPart
         });
 
       if (error) {
@@ -62,16 +49,8 @@ export const RouteSearch = ({
         return;
       }
 
-      // Filter results client-side if a country term is provided
-      let filteredData = data;
-      if (countryTerm) {
-        filteredData = data.filter((airport: Airport) => 
-          airport.country.toLowerCase().startsWith(countryTerm.toLowerCase())
-        );
-      }
-
-      console.log('Filtered airports:', filteredData);
-      setAirports(filteredData || []);
+      console.log('Airports search results:', data);
+      setAirports(data || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
       toast({
@@ -83,6 +62,20 @@ export const RouteSearch = ({
       setIsSearching(false);
     }
   }, [toast]);
+
+  const formatAirportDisplay = (airport: Airport): string => {
+    if (airport.search_score >= 80) {
+      // IATA code match - prioritize airport name
+      return `${airport.name} (${airport.iata_code}), ${airport.city}, ${airport.country}`;
+    } else {
+      // City or other match - keep city first
+      return `${airport.city}, ${airport.country} (${airport.iata_code})`;
+    }
+  };
+
+  const handleInputFocus = () => {
+    onFocus?.();
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -98,11 +91,14 @@ export const RouteSearch = ({
             fetchAirports(value);
             setShowOriginSuggestions(true);
           }}
-          onFocus={() => setShowOriginSuggestions(true)}
+          onFocus={() => {
+            setShowOriginSuggestions(true);
+            handleInputFocus();
+          }}
           onBlur={() => {
-            // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowOriginSuggestions(false), 200);
           }}
+          disabled={isLoading || disabled}
         />
         {showOriginSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -115,13 +111,13 @@ export const RouteSearch = ({
                 {airports.map((airport) => (
                   <li
                     key={airport.iata_code}
-                    className="px-4 py-2 hover:bg-accent cursor-pointer"
+                    className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
                     onClick={() => {
                       setOrigin(airport.iata_code);
                       setShowOriginSuggestions(false);
                     }}
                   >
-                    {airport.city}, {airport.country} ({airport.iata_code})
+                    {formatAirportDisplay(airport)}
                   </li>
                 ))}
               </ul>
@@ -142,11 +138,14 @@ export const RouteSearch = ({
             fetchAirports(value);
             setShowDestinationSuggestions(true);
           }}
-          onFocus={() => setShowDestinationSuggestions(true)}
+          onFocus={() => {
+            setShowDestinationSuggestions(true);
+            handleInputFocus();
+          }}
           onBlur={() => {
-            // Delay hiding suggestions to allow for click events
             setTimeout(() => setShowDestinationSuggestions(false), 200);
           }}
+          disabled={isLoading || disabled}
         />
         {showDestinationSuggestions && airports.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
@@ -159,14 +158,13 @@ export const RouteSearch = ({
                 {airports.map((airport) => (
                   <li
                     key={airport.iata_code}
-                    className="px-4 py-2 hover:bg-accent cursor-pointer"
+                    className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
                     onClick={() => {
                       setDestination(airport.iata_code);
-                      setDestinationCountry(airport.country);
                       setShowDestinationSuggestions(false);
                     }}
                   >
-                    {airport.city}, {airport.country} ({airport.iata_code})
+                    {formatAirportDisplay(airport)}
                   </li>
                 ))}
               </ul>
@@ -177,3 +175,4 @@ export const RouteSearch = ({
     </div>
   );
 };
+

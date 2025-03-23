@@ -129,6 +129,8 @@ export type Database = {
       country_policies: {
         Row: {
           additional_notes: string | null
+          all_blood_tests: string | null
+          all_other_biological_tests: string | null
           country_code: string
           created_at: string | null
           description: string | null
@@ -139,6 +141,7 @@ export type Database = {
           policy_type: Database["public"]["Enums"]["policy_type"]
           policy_url: string | null
           quarantine_requirements: string | null
+          required_ports_of_entry: string | null
           requirements: string[] | null
           restrictions: Json | null
           title: string
@@ -147,6 +150,8 @@ export type Database = {
         }
         Insert: {
           additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
           country_code: string
           created_at?: string | null
           description?: string | null
@@ -157,6 +162,7 @@ export type Database = {
           policy_type: Database["public"]["Enums"]["policy_type"]
           policy_url?: string | null
           quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
           title: string
@@ -165,6 +171,8 @@ export type Database = {
         }
         Update: {
           additional_notes?: string | null
+          all_blood_tests?: string | null
+          all_other_biological_tests?: string | null
           country_code?: string
           created_at?: string | null
           description?: string | null
@@ -175,6 +183,7 @@ export type Database = {
           policy_type?: Database["public"]["Enums"]["policy_type"]
           policy_url?: string | null
           quarantine_requirements?: string | null
+          required_ports_of_entry?: string | null
           requirements?: string[] | null
           restrictions?: Json | null
           title?: string
@@ -183,11 +192,99 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string | null
+          current_period_end: string | null
+          id: string
+          plan_id: string | null
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_plans: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          environment: string
+          features: Json | null
+          id: string
+          name: string
+          price: number
+          stripe_price_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          environment?: string
+          features?: Json | null
+          id?: string
+          name: string
+          price: number
+          stripe_price_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          environment?: string
+          features?: Json | null
+          id?: string
+          name?: string
+          price?: number
+          stripe_price_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pet_policies: {
         Row: {
           airline_id: string | null
           breed_restrictions: string[] | null
           carrier_requirements: string | null
+          carrier_requirements_cabin: string | null
+          carrier_requirements_cargo: string | null
           created_at: string | null
           documentation_needed: string[] | null
           fees: Json | null
@@ -202,6 +299,8 @@ export type Database = {
           airline_id?: string | null
           breed_restrictions?: string[] | null
           carrier_requirements?: string | null
+          carrier_requirements_cabin?: string | null
+          carrier_requirements_cargo?: string | null
           created_at?: string | null
           documentation_needed?: string[] | null
           fees?: Json | null
@@ -216,6 +315,8 @@ export type Database = {
           airline_id?: string | null
           breed_restrictions?: string[] | null
           carrier_requirements?: string | null
+          carrier_requirements_cabin?: string | null
+          carrier_requirements_cargo?: string | null
           created_at?: string | null
           documentation_needed?: string[] | null
           fees?: Json | null
@@ -308,6 +409,33 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_field_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          field_name: string
+          id: string
+          is_premium: boolean
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          field_name: string
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          field_name?: string
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_format: string | null
@@ -322,7 +450,9 @@ export type Database = {
           id: string
           locality: string | null
           notification_preferences: Json | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code: string | null
+          search_count: number | null
           updated_at: string | null
         }
         Insert: {
@@ -338,7 +468,9 @@ export type Database = {
           id: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -354,7 +486,9 @@ export type Database = {
           id?: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -365,7 +499,44 @@ export type Database = {
             referencedRelation: "countries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_user_role_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_roles"
+            referencedColumns: ["user_id"]
+          },
         ]
+      }
+      route_searches: {
+        Row: {
+          created_at: string | null
+          destination: string
+          id: string
+          origin: string
+          search_date: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          destination: string
+          id?: string
+          origin: string
+          search_date: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          destination?: string
+          id?: string
+          origin?: string
+          search_date?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       routes: {
         Row: {
@@ -425,6 +596,30 @@ export type Database = {
           },
         ]
       }
+      sample_files: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          file_path: string
+          id: string
+          view_count: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          file_path: string
+          id?: string
+          view_count?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          file_path?: string
+          id?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       saved_searches: {
         Row: {
           created_at: string | null
@@ -454,7 +649,9 @@ export type Database = {
       }
       sync_progress: {
         Row: {
+          batch_metrics: Json | null
           created_at: string | null
+          error_details: Json | null
           error_items: string[] | null
           id: string
           is_complete: boolean | null
@@ -462,13 +659,16 @@ export type Database = {
           needs_continuation: boolean | null
           processed: number
           processed_items: string[] | null
+          resume_token: string | null
           start_time: string | null
           total: number
           type: string
           updated_at: string | null
         }
         Insert: {
+          batch_metrics?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           error_items?: string[] | null
           id?: string
           is_complete?: boolean | null
@@ -476,13 +676,16 @@ export type Database = {
           needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
+          resume_token?: string | null
           start_time?: string | null
           total?: number
           type: string
           updated_at?: string | null
         }
         Update: {
+          batch_metrics?: Json | null
           created_at?: string | null
+          error_details?: Json | null
           error_items?: string[] | null
           id?: string
           is_complete?: boolean | null
@@ -490,6 +693,7 @@ export type Database = {
           needs_continuation?: boolean | null
           processed?: number
           processed_items?: string[] | null
+          resume_token?: string | null
           start_time?: string | null
           total?: number
           type?: string
@@ -540,11 +744,23 @@ export type Database = {
           airlineName: string
         }[]
       }
+      get_airlines_needing_policy_update: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+        }[]
+      }
       get_distinct_countries: {
         Args: Record<PropertyKey, never>
         Returns: {
           country: string
         }[]
+      }
+      get_profile_with_role: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
       }
       has_role: {
         Args: {
@@ -552,6 +768,12 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      increment_view_count: {
+        Args: {
+          file_id: string
+        }
+        Returns: undefined
       }
       search_airports_insensitive: {
         Args: {
@@ -562,6 +784,7 @@ export type Database = {
           name: string
           city: string
           country: string
+          search_score: number
         }[]
       }
       unaccent: {
@@ -578,8 +801,24 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "site_manager" | "pet_lover"
+      app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      premium_field_type:
+        | "carrier_requirements"
+        | "carrier_requirements_cabin"
+        | "carrier_requirements_cargo"
+        | "temperature_restrictions"
+        | "policy_url"
+        | "fees_cargo"
+        | "fees_in_cabin"
+        | "size_restrictions_cabin"
+        | "pet_types_allowed"
+        | "documentation_needed"
+        | "breed_restrictions"
+        | "size_restrictions_max_weight_cabin"
+        | "size_restrictions_max_weight_cargo"
+        | "size_restrictions_carrier_dimensions_cabin"
+      subscription_plan: "free" | "premium" | "teams"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +14,7 @@ interface PetBasicInfoProps {
   onBreedChange: (value: string) => void;
   onAgeChange: (value: string) => void;
   onWeightChange: (value: string) => void;
+  readOnly?: boolean;
 }
 
 export const PetBasicInfo = ({
@@ -26,34 +28,53 @@ export const PetBasicInfo = ({
   onBreedChange,
   onAgeChange,
   onWeightChange,
+  readOnly = false,
 }: PetBasicInfoProps) => {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Name *</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="Pet's name"
-          required
-          className="border-gray-400"
-        />
+        <Label htmlFor="name">Name</Label>
+        {readOnly ? (
+          <Input
+            id="name"
+            value={name}
+            readOnly
+            className="bg-gray-50"
+          />
+        ) : (
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="Pet's name"
+            required
+            className="border-gray-400"
+          />
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="type">Type *</Label>
-        <Select value={type} onValueChange={onTypeChange} required>
-          <SelectTrigger className="border-gray-400">
-            <SelectValue placeholder="Select pet type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="dog">Dog</SelectItem>
-            <SelectItem value="cat">Cat</SelectItem>
-            <SelectItem value="bird">Bird</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
+        <Label htmlFor="type">Type</Label>
+        {readOnly ? (
+          <Input
+            id="type"
+            value={type}
+            readOnly
+            className="bg-gray-50 capitalize"
+          />
+        ) : (
+          <Select value={type} onValueChange={onTypeChange} required>
+            <SelectTrigger className="border-gray-400">
+              <SelectValue placeholder="Select pet type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dog">Dog</SelectItem>
+              <SelectItem value="cat">Cat</SelectItem>
+              <SelectItem value="bird">Bird</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -63,7 +84,8 @@ export const PetBasicInfo = ({
           value={breed}
           onChange={(e) => onBreedChange(e.target.value)}
           placeholder="Pet's breed"
-          className="border-gray-400"
+          className={readOnly ? "bg-gray-50" : "border-gray-400"}
+          readOnly={readOnly}
         />
       </div>
 
@@ -78,7 +100,8 @@ export const PetBasicInfo = ({
             placeholder="Age in years"
             min="0"
             step="0.1"
-            className="border-gray-400"
+            className={readOnly ? "bg-gray-50" : "border-gray-400"}
+            readOnly={readOnly}
           />
         </div>
 
@@ -92,7 +115,8 @@ export const PetBasicInfo = ({
             placeholder="Weight in kg"
             min="0"
             step="0.1"
-            className="border-gray-400"
+            className={readOnly ? "bg-gray-50" : "border-gray-400"}
+            readOnly={readOnly}
           />
         </div>
       </div>

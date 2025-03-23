@@ -1,85 +1,194 @@
-import { supabase } from "@/lib/supabase";
-import { UserProfile } from "@/types/auth";
-import { toast } from "@/components/ui/use-toast";
 
-export async function fetchOrCreateProfile(userId: string): Promise<UserProfile | null> {
-  try {
-    console.log('Fetching profile for user:', userId);
-    
-    // Changed from user_id to id since that's the correct column name
-    const { data: existingProfile, error: fetchError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+import { supabase } from "@/integrations/supabase/client";
+import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
 
-    if (fetchError) {
-      console.error('Error fetching profile:', fetchError);
-      throw fetchError;
-    }
+// Interface for the direct RPC response
+interface ProfileWithRoleResponse {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  notification_preferences: {
+    travel_alerts: boolean;
+    policy_changes: boolean;
+    documentation_reminders: boolean;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_line3: string | null;
+  locality: string | null;
+  administrative_area: string | null;
+  postal_code: string | null;
+  address_format: string | null;
+  country_id: string | null;
+  search_count: number;
+  plan: SubscriptionPlan | null;
+  userRole: string;
+}
 
-    if (existingProfile) {
-      console.log('Fetched existing profile:', existingProfile);
-      return existingProfile;
-    }
-
-    return await createNewProfile(userId);
-  } catch (error) {
-    console.error('Error in profile management:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load or create user profile",
-      variant: "destructive",
-    });
-    return null;
+// Define the class without export keyword
+class ProfileError extends Error {
+  constructor(
+    message: string,
+    public readonly type: 'not_found' | 'network' | 'unknown'
+  ) {
+    super(message);
+    this.name = 'ProfileError';
   }
 }
 
-async function createNewProfile(userId: string): Promise<UserProfile | null> {
-  console.log('No profile found, creating one...');
-  // Changed to use id instead of user_id
-  const { data: newProfile, error: insertError } = await supabase
-    .from('profiles')
-    .insert([{ 
-      id: userId,
-      notification_preferences: {
-        travel_alerts: true,
-        policy_changes: true,
-        documentation_reminders: true
-      }
-    }])
-    .select()
-    .maybeSingle();
+// Helper to validate subscription plan
+const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
+  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
+  return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+};
 
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return await handleDuplicateProfile(userId);
-    }
-    console.error('Error creating profile:', insertError);
-    throw insertError;
+// Helper to validate notification preferences
+const validateNotificationPreferences = (preferences: unknown) => {
+  const defaultPreferences = {
+    travel_alerts: true,
+    policy_changes: true,
+    documentation_reminders: true
+  };
+
+  if (!preferences || typeof preferences !== 'object') {
+    return defaultPreferences;
   }
 
-  if (newProfile) {
-    console.log('Created new profile:', newProfile);
-    return newProfile;
-  }
+  const prefs = preferences as Record<string, unknown>;
   
-  return null;
-}
+  return {
+    travel_alerts: typeof prefs.travel_alerts === 'boolean' ? prefs.travel_alerts : defaultPreferences.travel_alerts,
+    policy_changes: typeof prefs.policy_changes === 'boolean' ? prefs.policy_changes : defaultPreferences.policy_changes,
+    documentation_reminders: typeof prefs.documentation_reminders === 'boolean' ? prefs.documentation_reminders : defaultPreferences.documentation_reminders
+  };
+};
 
-async function handleDuplicateProfile(userId: string): Promise<UserProfile | null> {
-  console.log('Profile already exists (race condition), fetching it...');
-  // Changed from user_id to id
-  const { data: retryProfile, error: retryError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+  console.log('profileManagement - Starting update:', { userId, updates });
+  console.log('profileManagement - Raw updates object:', JSON.stringify(updates, null, 2));
 
-  if (retryError) throw retryError;
-  if (retryProfile) {
-    console.log('Successfully fetched profile after retry:', retryProfile);
-    return retryProfile;
+  if (!userId) {
+    throw new ProfileError('User ID is required for profile update', 'not_found');
   }
-  return null;
+
+  try {
+    // Log entries before transformation
+    console.log('profileManagement - Update entries before transformation:', Object.entries(updates));
+
+    // Filter out undefined values and empty strings, and prepare the update object
+    const updateData = Object.entries(updates).reduce((acc, [key, value]) => {
+      console.log('profileManagement - Processing key:', key, 'with value:', value);
+      // Only include the field if:
+      // 1. It's defined (not undefined)
+      // 2. It's not an empty string
+      // 3. For string fields that can be null, we'll allow null values through
+      if (value !== undefined && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Remove id and userRole from updates as they shouldn't be modified
+    delete updateData.id;
+    delete updateData.userRole;
+    
+    console.log('profileManagement - Final updateData being sent to Supabase:', updateData);
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('profileManagement - Supabase update error:', error);
+      throw new ProfileError(
+        error.message || 'Failed to update user profile',
+        error.code === 'PGRST116' ? 'not_found' : 'network'
+      );
+    }
+
+    console.log('profileManagement - Update successful, fetching updated profile');
+    // Fetch the updated profile
+    return await fetchProfile(userId);
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      throw error;
+    }
+    console.error('profileManagement - Unexpected error updating profile:', error);
+    throw new ProfileError('Unexpected error updating profile', 'unknown');
+  }
 }
+
+async function fetchProfile(userId: string): Promise<UserProfile> {
+  console.log('Fetching profile for user:', userId);
+  
+  try {
+    const { data, error } = await supabase.rpc('get_profile_with_role', {
+      p_user_id: userId
+    });
+
+    console.log('fetchProfile - Raw data from RPC:', data);
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      throw new ProfileError('Failed to fetch user profile', 'network');
+    }
+
+    if (!data) {
+      console.error('No profile data returned');
+      throw new ProfileError('User profile not found', 'not_found');
+    }
+
+    // Type guard to verify the response structure
+    const isValidProfileResponse = (response: any): response is ProfileWithRoleResponse => {
+      return response 
+        && typeof response === 'object'
+        && 'id' in response
+        && 'userRole' in response;
+    };
+
+    if (!isValidProfileResponse(data)) {
+      console.error('Invalid response structure:', data);
+      throw new ProfileError('Invalid profile data structure', 'unknown');
+    }
+
+    console.log('fetchProfile - Validated profile response:', data);
+
+    // Create the user profile object with direct value mapping
+    const userProfile: UserProfile = {
+      id: userId,
+      userRole: data.userRole as UserRole,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      full_name: data.full_name ?? undefined,
+      avatar_url: data.avatar_url ?? undefined,
+      address_line1: data.address_line1 ?? undefined,
+      address_line2: data.address_line2 ?? undefined,
+      address_line3: data.address_line3 ?? undefined,
+      locality: data.locality ?? undefined,
+      administrative_area: data.administrative_area ?? undefined,
+      postal_code: data.postal_code ?? undefined,
+      country_id: data.country_id ?? undefined,
+      address_format: data.address_format ?? undefined,
+      plan: validatePlan(data.plan),
+      search_count: data.search_count,
+      notification_preferences: validateNotificationPreferences(data.notification_preferences)
+    };
+
+    console.log('fetchProfile - Mapped profile data:', userProfile);
+    console.log('Successfully mapped profile:', userProfile);
+    return userProfile;
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      throw error;
+    }
+    console.error('Unexpected error in profile management:', error);
+    throw new ProfileError('Unexpected error fetching profile', 'unknown');
+  }
+}
+
+// Export everything once at the bottom
+export { ProfileError, fetchProfile, updateProfile };

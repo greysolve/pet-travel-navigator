@@ -1,126 +1,180 @@
+
+import { useState } from "react";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { FlightResults } from "./flight-results/FlightResults";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
 import { PolicyDetails } from "./flight-results/PolicyDetails";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProfile } from "@/contexts/ProfileContext";
+import { usePremiumFields } from "@/hooks/usePremiumFields";
+import { decorateWithPremiumFields } from "@/utils/policyDecorator";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ExportDialog } from "./search/saved-searches/ExportDialog";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./flight-results/types";
 
 export const ResultsSection = ({ 
   searchPerformed,
   flights = [],
-  petPolicies
+  petPolicies,
 }: { 
   searchPerformed: boolean;
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
 }) => {
-  // Only fetch policies for flights if we're doing a flight search
-  const { data: flightPetPolicies } = usePetPolicies(flights);
-
-  // Extract all unique countries from the journey segments
-  const allCountries = flights.reduce((countries: Set<string>, journey) => {
-    console.log("Processing journey:", journey);
-    
-    if (!journey.segments) {
-      console.log("No segments found in journey");
-      return countries;
-    }
-
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const { profile } = useProfile();
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
+  const { data: premiumFields = [] } = usePremiumFields();
+  const { data: flightPetPolicies, isLoading: isPoliciesLoading } = usePetPolicies(flights);
+  
+  // Get unique countries from flights if available
+  const countriesFromFlights = flights.reduce((countries: Set<string>, journey) => {
+    if (!journey.segments) return countries;
     journey.segments.forEach(segment => {
-      // Log the entire segment to see what data we're working with
-      console.log("Full segment data:", segment);
-      
-      // Check if we have country data
-      if (!segment.departureCountry || !segment.arrivalCountry) {
-        console.warn("Missing country data in segment:", {
-          departure: segment.departureCountry,
-          arrival: segment.arrivalCountry,
-          departureAirport: segment.departureAirportFsCode,
-          arrivalAirport: segment.arrivalAirportFsCode
-        });
-      }
-
-      if (segment.departureCountry) {
-        console.log("Adding departure country:", segment.departureCountry);
-        countries.add(segment.departureCountry);
-      }
-      if (segment.arrivalCountry) {
-        console.log("Adding arrival country:", segment.arrivalCountry);
-        countries.add(segment.arrivalCountry);
-      }
+      if (segment.departureCountry) countries.add(segment.departureCountry);
+      if (segment.arrivalCountry) countries.add(segment.arrivalCountry);
     });
     return countries;
   }, new Set<string>());
 
-  const uniqueCountries = Array.from(allCountries);
-  console.log("Unique countries found:", uniqueCountries);
+  // Get countries from origin/destination even if no flights found
+  const allCountries = flights.reduce((countries: Set<string>, journey) => {
+    if (journey.origin?.country) countries.add(journey.origin.country);
+    if (journey.destination?.country) countries.add(journey.destination.country);
+    return countries;
+  }, new Set(countriesFromFlights));
 
-  // Fetch policies for all unique countries at once
-  const { data: countryPolicies, isLoading: isPoliciesLoading } = useCountryPolicies(uniqueCountries);
+  // Filter out undefined/null values and convert to array
+  const uniqueCountries = Array.from(allCountries).filter(Boolean);
+  const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(uniqueCountries);
+
+  const hasExportableResults = flights.length > 0 || Object.keys(petPolicies || {}).length > 0;
+  const canExport = !isPetCaddie && hasExportableResults;
 
   if (!searchPerformed) return null;
 
   // If we have a direct airline policy search result
   if (flights.length === 0 && petPolicies) {
     const airlineName = Object.keys(petPolicies)[0];
-    const policy = petPolicies[airlineName];
+    const rawPolicy = petPolicies[airlineName];
+    // Apply premium field decoration if user is pet_caddie
+    const policy = isPetCaddie 
+      ? decorateWithPremiumFields(rawPolicy, premiumFields)
+      : rawPolicy;
     
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Pet Policy for {airlineName}</h2>
+      <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
+        <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 text-left">
+          {canExport && (
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowExportDialog(true)}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                Export Results
+              </Button>
+            </div>
+          )}
+          <h2 className="text-xl font-semibold mb-4">
+            Pet Policy {policy.isSummary ? "Summary" : ""} for {airlineName}
+          </h2>
           <PolicyDetails policy={policy} />
         </div>
+
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <ExportDialog
+              isOpen={showExportDialog}
+              flights={[]}
+              petPolicies={petPolicies}
+              countryPolicies={[]}
+              onClose={() => setShowExportDialog(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
-  // Otherwise show flight results with their policies
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="space-y-8">
-        <FlightResults flights={flights} petPolicies={flightPetPolicies} />
+    <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
+      <div className="space-y-8 text-left">
+        {flights.length > 0 && (
+          <>
+            {canExport && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExportDialog(true)}
+                  className="gap-2"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Export Results
+                </Button>
+              </div>
+            )}
+            <FlightResults 
+              flights={flights} 
+              petPolicies={isPoliciesLoading ? undefined : flightPetPolicies} 
+            />
+          </>
+        )}
+        
         <div id="country-policies" className="space-y-6">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
-          {flights.length > 0 ? (
+          {searchPerformed ? (
             uniqueCountries.length > 0 ? (
               countryPolicies && countryPolicies.length > 0 ? (
                 countryPolicies.map((policy, index) => (
-                  <DestinationPolicy 
-                    key={`${policy.country_code}-${policy.policy_type}-${index}`} 
-                    policy={policy} 
-                  />
+                  <div 
+                    key={`${policy.country_code}-${policy.policy_type}-${index}`}
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <DestinationPolicy policy={policy} />
+                  </div>
                 ))
               ) : (
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <p className="text-gray-500">
-                    {isPoliciesLoading ? (
-                      `Fetching policies for ${uniqueCountries.join(', ')}...`
-                    ) : (
-                      'No pet policies found for the selected countries.'
-                    )}
-                  </p>
+                <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
+                  {isCountryPoliciesLoading ? (
+                    <div className="space-y-4">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No pet policies found for the selected countries.</p>
+                  )}
                 </div>
               )
             ) : (
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <p className="text-gray-500">
-                  No countries found in flight segments. This might be due to missing country data in segments: {
-                    flights.map(journey => 
-                      journey.segments?.map(segment => 
-                        `${segment.departureAirportFsCode}(${segment.departureCountry || 'unknown'}) -> ${segment.arrivalAirportFsCode}(${segment.arrivalCountry || 'unknown'})`
-                      ).join(', ')
-                    ).join('; ')
-                  }
-                </p>
+              <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
+                <p className="text-gray-500">No countries found in search results.</p>
               </div>
             )
           ) : (
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <p className="text-gray-500">No flights selected.</p>
+            <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
+              <p className="text-gray-500">Please perform a search to view country policies.</p>
             </div>
           )}
         </div>
       </div>
+
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <ExportDialog
+            isOpen={showExportDialog}
+            flights={flights}
+            petPolicies={petPolicies || flightPetPolicies}
+            countryPolicies={countryPolicies || []}
+            onClose={() => setShowExportDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

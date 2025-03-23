@@ -1,4 +1,41 @@
+
 project_id = "jhokkuszubzngrcamfdb"
 
-[functions.sync_country_policies]
+[functions.analyze_countries_policies]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.sync_airline_data]
+verify_jwt = false
+
+[functions.fetch_airlines]
+verify_jwt = false
+
+[functions.manage_users]
+verify_jwt = false
+
+[functions.get_user_profile]
+verify_jwt = false
+
+[functions.analyze_batch_pet_policies]
+verify_jwt = false
+
+[functions.analyze_pet_policies]
+verify_jwt = false
+
+[functions.search_flight_schedules]
+verify_jwt = false
+
+[functions.sync_airport_data]
+verify_jwt = false
+
+[functions.stripe]
+verify_jwt = false
+
+[functions.stripe-webhooks]
+verify_jwt = false
+
+[functions.analyze_batch_countries_policies]
 verify_jwt = false

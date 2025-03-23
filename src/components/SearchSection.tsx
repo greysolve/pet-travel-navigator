@@ -1,129 +1,125 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { AirlinePolicySearch } from "./search/AirlinePolicySearch";
-import { RouteSearch } from "./search/RouteSearch";
-import { DateSelector } from "./search/DateSelector";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { useFlightSearch } from "./search/FlightSearchHandler";
+import { useSavedSearches } from "./search/hooks/useSavedSearches";
+import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
+import { useSearchValidation } from "./search/hooks/useSearchValidation";
+import { useSearchHandler } from "./search/hooks/useSearchHandler";
+import { SearchFormContainer } from "./search/SearchFormContainer";
+import { getSearchCountries } from "./search/search-utils/policyCalculations";
 import type { SearchSectionProps } from "./search/types";
-import { supabase } from "@/integrations/supabase/client";
-import type { PetPolicy } from "./flight-results/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const [policySearch, setPolicySearch] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [date, setDate] = useState<Date>();
-  const [destinationCountry, setDestinationCountry] = useState<string>();
-  const { toast } = useToast();
-  const { handleFlightSearch, isLoading } = useFlightSearch();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: profileLoading, initialized } = useProfile();
+  const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
+  const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
+  const { validateSearch } = useSearchValidation();
+  const {
+    policySearch,
+    setPolicySearch,
+    origin,
+    setOrigin,
+    destination,
+    setDestination,
+    date,
+    setDate,
+    flights,
+    setFlights,
+    shouldSaveSearch,
+    setShouldSaveSearch,
+    clearRouteSearch,
+    clearPolicySearch,
+    toast
+  } = useFlightSearchState(user?.id);
 
-  const handleSearch = async () => {
-    if (policySearch && (origin || destination)) {
-      toast({
-        title: "Please choose one search method",
-        description: "You can either search by airline policy or by route, but not both at the same time.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const { handlePolicySearch, handleRouteSearch } = useSearchHandler({
+    user,
+    toast,
+    policySearch,
+    origin,
+    destination,
+    date,
+    shouldSaveSearch,
+    setFlights,
+    handleFlightSearch,
+    onSearchResults,
+  });
 
-    if (origin && destination && !date) {
+  const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
+
+  const handleLoadSearch = (searchCriteria: any) => {
+    if (!user) {
       toast({
-        title: "Please select a date",
-        description: "A departure date is required to search for flights.",
+        title: "Authentication required",
+        description: "Please sign in to load saved searches",
         variant: "destructive",
       });
       return;
     }
     
-    if (policySearch) {
-      console.log("Searching for airline policy:", policySearch);
-      const { data: airline, error: airlineError } = await supabase
-        .from('airlines')
-        .select('id')
-        .eq('name', policySearch)
-        .maybeSingle();
+    console.log('Loading saved search:', searchCriteria);
+    setOrigin(searchCriteria.origin || "");
+    setDestination(searchCriteria.destination || "");
+    setDate(searchCriteria.date ? new Date(searchCriteria.date) : undefined);
+    setPolicySearch(""); // Clear any airline policy search when loading a route search
+  };
 
-      if (airlineError || !airline?.id) {
-        console.error("Error finding airline:", airlineError);
-        toast({
-          title: "Error finding airline",
-          description: "Could not find the selected airline.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("Found airline:", airline);
-      const { data: petPolicy, error: policyError } = await supabase
-        .from('pet_policies')
-        .select('*')
-        .eq('airline_id', airline.id)
-        .maybeSingle();
-
-      if (policyError) {
-        console.error("Error fetching pet policy:", policyError);
-        toast({
-          title: "Error fetching pet policy",
-          description: "Could not fetch the pet policy for the selected airline.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("Found pet policy:", petPolicy);
-      // Just pass an empty flights array and the pet policy
-      onSearchResults([], { [policySearch]: petPolicy as PetPolicy });
-    } else if (origin && destination && date) {
-      handleFlightSearch({
-        origin,
-        destination,
-        date,
-        destinationCountry,
-        onSearchResults,
-        onSearchComplete: () => {}
+  const handleSearch = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
       });
+      return;
+    }
+
+    if (!validateSearch(policySearch, origin, destination, date)) {
+      return;
+    }
+    
+    if (policySearch) {
+      await handlePolicySearch();
+    } else if (origin && destination && date) {
+      await handleRouteSearch();
     }
   };
 
+  const hasRouteSearch = origin !== "" || destination !== "";
+
+  const { data: flightPetPolicies } = usePetPolicies(flights);
+  const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
+
   return (
-    <div className="max-w-3xl mx-auto px-4 -mt-8">
-      <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4">
-        <AirlinePolicySearch 
-          policySearch={policySearch}
-          setPolicySearch={setPolicySearch}
-        />
-        
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white/80 px-2 text-muted-foreground">
-              Or
-            </span>
-          </div>
-        </div>
-
-        <RouteSearch
-          origin={origin}
-          destination={destination}
-          setOrigin={setOrigin}
-          setDestination={setDestination}
-          setDestinationCountry={setDestinationCountry}
-        />
-
-        <DateSelector date={date} setDate={setDate} />
-
-        <Button 
-          className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
-          onClick={handleSearch}
-          disabled={isLoading}
-        >
-          {isLoading ? "Searching..." : "Search"}
-        </Button>
-      </div>
-    </div>
+    <SearchFormContainer
+      user={user}
+      isPetCaddie={isPetCaddie}
+      searchCount={searchCount}
+      savedSearches={savedSearches}
+      isLoading={isLoading}
+      policySearch={policySearch}
+      setPolicySearch={setPolicySearch}
+      hasRouteSearch={hasRouteSearch}
+      clearRouteSearch={clearRouteSearch}
+      origin={origin}
+      destination={destination}
+      setOrigin={setOrigin}
+      setDestination={setDestination}
+      date={date}
+      setDate={setDate}
+      clearPolicySearch={clearPolicySearch}
+      shouldSaveSearch={shouldSaveSearch}
+      setShouldSaveSearch={setShouldSaveSearch}
+      toast={toast}
+      onSearchResults={onSearchResults}
+      setFlights={setFlights}
+      onLoadSearch={handleLoadSearch}
+      handleDeleteSearch={handleDeleteSearch}
+      handleSearch={handleSearch}
+      onPolicySearch={handlePolicySearch}
+    />
   );
 };
