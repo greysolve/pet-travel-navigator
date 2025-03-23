@@ -77,10 +77,15 @@ const router = createBrowserRouter([
           },
         ],
       },
-      // Move catch-all route to the end
+      // Sample results route with parameter
+      {
+        path: "/:route",
+        element: <SampleResults />,
+      },
+      // Fallback route for 404
       {
         path: "*",
-        element: <SampleResults />,
+        element: <NotFound />,
       },
     ],
   },
