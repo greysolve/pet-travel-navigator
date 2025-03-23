@@ -74,11 +74,11 @@ export const useSearchHandler = ({
     if (!user) return;
 
     console.log('Handling route search with:', { origin, destination, date });
-    await handleFlightSearch({
+    await handleFlightSearch(
       origin,
       destination,
-      date: date!,
-      onSearchResults: async (results: FlightData[], policies?: Record<string, PetPolicy>) => {
+      date!,
+      async (results: FlightData[], policies?: Record<string, PetPolicy>) => {
         onSearchResults(results, policies);
         setFlights(results);
         
@@ -109,8 +109,8 @@ export const useSearchHandler = ({
           }
         }
       },
-      onSearchComplete: () => {}
-    });
+      () => {}
+    );
   };
 
   return {

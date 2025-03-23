@@ -8,7 +8,13 @@ export const useFlightSearch = () => {
   const [searchCount, setSearchCount] = useState<number>(0);
   const [isPetCaddie, setIsPetCaddie] = useState(false);
 
-  const handleFlightSearch = async (origin: string, destination: string, date: Date): Promise<FlightData[]> => {
+  const handleFlightSearch = async (
+    origin: string, 
+    destination: string, 
+    date: Date,
+    onSearchResults?: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void,
+    onSearchComplete?: () => void
+  ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
     try {
       console.log('Searching flights:', { origin, destination, date });
@@ -26,7 +32,7 @@ export const useFlightSearch = () => {
       }
 
       // Ensure each flight segment has the airline name
-      const processedFlights = flightData.flights.map((flight: FlightData) => ({
+      const processedFlights = flightData.connections.map((flight: FlightData) => ({
         ...flight,
         segments: flight.segments?.map(segment => ({
           ...segment,
@@ -35,6 +41,16 @@ export const useFlightSearch = () => {
       }));
 
       console.log('Processed flights with airline names:', processedFlights);
+      
+      // Call the callback if provided
+      if (onSearchResults) {
+        onSearchResults(processedFlights);
+      }
+      
+      if (onSearchComplete) {
+        onSearchComplete();
+      }
+      
       return processedFlights;
     } catch (error) {
       console.error('Flight search error:', error);
