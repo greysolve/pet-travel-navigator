@@ -25,12 +25,14 @@ const Index = () => {
     results: FlightData[], 
     policies?: Record<string, PetPolicy>
   ) => {
-    setFlights(results);
+    console.log('Index: received search results:', { results, policies });
+    setFlights(results || []);
     setPetPolicies(policies);
     setSearchPerformed(true);
 
     // Scroll to results after a brief delay to ensure DOM update
     setTimeout(() => {
+      console.log('Scrolling to results section');
       resultsRef.current?.scrollIntoView({ 
         behavior: 'smooth',
         block: 'start'

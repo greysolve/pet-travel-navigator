@@ -31,19 +31,31 @@ export const useFlightSearch = () => {
         throw error;
       }
 
+      console.log('Raw flight data received:', flightData);
+      
+      // Check if connections property exists
+      if (!flightData.connections) {
+        console.error('No connections property in flightData:', flightData);
+        return [];
+      }
+
       // Ensure each flight segment has the airline name
-      const processedFlights = flightData.connections.map((flight: FlightData) => ({
-        ...flight,
-        segments: flight.segments?.map(segment => ({
-          ...segment,
-          airlineName: segment.airlineName || `${segment.carrierFsCode} Airlines` // Fallback if name not provided
-        }))
-      }));
+      const processedFlights = flightData.connections.map((flight: FlightData) => {
+        console.log('Processing flight:', flight);
+        return {
+          ...flight,
+          segments: flight.segments?.map(segment => ({
+            ...segment,
+            airlineName: segment.airlineName || `${segment.carrierFsCode} Airlines` // Fallback if name not provided
+          }))
+        };
+      });
 
       console.log('Processed flights with airline names:', processedFlights);
       
       // Call the callback if provided
       if (onSearchResults) {
+        console.log('Calling onSearchResults with processed flights');
         onSearchResults(processedFlights);
       }
       

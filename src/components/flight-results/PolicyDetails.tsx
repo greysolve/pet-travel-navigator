@@ -4,6 +4,7 @@ import { JsonRenderer } from "@/components/ui/json-renderer";
 import { PremiumFeature } from "@/components/ui/premium-feature";
 import type { PetPolicy } from "./types";
 import { useMemo } from "react";
+import { generatePolicyContentSignature } from "@/utils/policyContentSignature";
 
 type PolicyDetailsProps = {
   policy?: PetPolicy;
@@ -55,23 +56,15 @@ const renderPolicyField = (value: any, label?: string) => {
   return renderValue(value);
 };
 
-// Utility function to create a content hash for policy comparison
-const generateContentSignature = (policy: PetPolicy): string => {
-  // Get relevant fields for comparison
-  const relevantFields = {
-    pet_types_allowed: policy.pet_types_allowed,
-    size_restrictions: policy.size_restrictions,
-    documentation_needed: policy.documentation_needed,
-    fees: policy.fees,
-    breed_restrictions: policy.breed_restrictions,
-    carrier_requirements: policy.carrier_requirements,
-    carrier_requirements_cabin: policy.carrier_requirements_cabin,
-    carrier_requirements_cargo: policy.carrier_requirements_cargo,
-    temperature_restrictions: policy.temperature_restrictions
-  };
-  
-  // Create a stable string representation
-  return JSON.stringify(relevantFields, Object.keys(relevantFields).sort());
+// Safely encode a string to base64, handling Unicode characters
+const safeEncode = (str: string): string => {
+  try {
+    // First convert string to UTF-8, then encode to base64
+    return btoa(unescape(encodeURIComponent(str)));
+  } catch (e) {
+    console.error("Error encoding content signature:", e);
+    return "";
+  }
 };
 
 export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
@@ -80,12 +73,12 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   // Calculate content signature for display in admin console or debugging
   const contentSignature = useMemo(() => {
     if (!policy) return null;
-    return generateContentSignature(policy);
+    return generatePolicyContentSignature(policy);
   }, [policy]);
 
   // Store content signature as a data attribute for admin tools
   const dataAttributes = policy ? {
-    'data-content-signature': btoa(contentSignature || '')
+    'data-content-signature': safeEncode(contentSignature || '')
   } : {};
 
   if (!policy) {
