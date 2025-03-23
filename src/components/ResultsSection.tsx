@@ -18,10 +18,12 @@ export const ResultsSection = ({
   searchPerformed,
   flights = [],
   petPolicies,
+  isMobile,
 }: { 
   searchPerformed: boolean;
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
+  isMobile?: boolean;
 }) => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const { profile } = useProfile();
@@ -165,7 +167,7 @@ export const ResultsSection = ({
       </div>
 
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw]' : 'max-w-4xl'} max-h-[90vh] overflow-y-auto`}>
           <ExportDialog
             isOpen={showExportDialog}
             flights={flights}
