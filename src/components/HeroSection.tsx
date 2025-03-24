@@ -26,12 +26,6 @@ export const HeroSection = () => {
             <a href="/eu-pet-passport" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4">
               EU Pet Passport
             </a>
-            <a href="/web-search" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4">
-              Web Search
-            </a>
-            <a href="/pricing" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4">
-              Pricing
-            </a>
           </div>
         </div>
       </div>
