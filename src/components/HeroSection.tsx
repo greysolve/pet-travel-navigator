@@ -18,9 +18,17 @@ export const HeroSection = () => {
           <p className="hidden md:block text-2xl text-primary-foreground/90 max-w-2xl text-center leading-relaxed">
             Find pet-friendly flights for your furry travel companion
           </p>
+          
+          <div className="flex gap-4 mt-4">
+            <a href="/us-pet-travel" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4">
+              US Pet Travel
+            </a>
+            <a href="/eu-pet-passport" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4">
+              EU Pet Passport
+            </a>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
