@@ -167,7 +167,7 @@ export function SupportSettingsManager() {
                     />
                   </FormControl>
                   <FormDescription>
-                    Use {{subject}} to include the message subject. HTML is not supported.
+                    Use {"{{"} subject {"}}"} to include the message subject. HTML is not supported.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
