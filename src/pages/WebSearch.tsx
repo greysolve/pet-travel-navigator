@@ -5,43 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-}
+import { useWebSearch } from "@/components/WebSearchApi";
 
 const WebSearch = () => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { results, isLoading, error } = useWebSearch(searchQuery);
   const isMobile = useIsMobile();
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!query.trim()) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`/api/web-search?q=${encodeURIComponent(query)}`);
-      
-      if (!response.ok) {
-        throw new Error('Search failed. Please try again later.');
-      }
-      
-      const data = await response.json();
-      setResults(data.results || []);
-    } catch (err) {
-      console.error('Search error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      setResults([]);
-    } finally {
-      setIsLoading(false);
+    if (query.trim()) {
+      setSearchQuery(query);
     }
   };
 
@@ -105,10 +80,10 @@ const WebSearch = () => {
                   <p className="text-sm">{result.snippet}</p>
                 </div>
               ))
-            ) : query.trim() !== "" ? (
+            ) : searchQuery.trim() !== "" ? (
               // No results state
               <div className="text-center py-8">
-                <p className="text-gray-500">No results found for "{query}"</p>
+                <p className="text-gray-500">No results found for "{searchQuery}"</p>
                 <p className="text-sm text-gray-400 mt-2">Try different keywords or phrases</p>
               </div>
             ) : null}
@@ -124,7 +99,7 @@ const WebSearch = () => {
                 className="bg-white rounded-lg shadow p-4 hover:bg-primary/5 cursor-pointer transition-colors"
                 onClick={() => {
                   setQuery(topic);
-                  document.querySelector<HTMLFormElement>('form')?.requestSubmit();
+                  setSearchQuery(topic);
                 }}
               >
                 <h3 className="font-medium">{topic}</h3>
