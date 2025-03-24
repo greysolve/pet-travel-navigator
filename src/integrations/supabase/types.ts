@@ -647,6 +647,33 @@ export type Database = {
         }
         Relationships: []
       }
+      support_settings: {
+        Row: {
+          auto_reply_subject: string
+          auto_reply_template: string
+          created_at: string
+          id: string
+          support_email: string
+          updated_at: string
+        }
+        Insert: {
+          auto_reply_subject?: string
+          auto_reply_template?: string
+          created_at?: string
+          id?: string
+          support_email?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_reply_subject?: string
+          auto_reply_template?: string
+          created_at?: string
+          id?: string
+          support_email?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sync_progress: {
         Row: {
           batch_metrics: Json | null
