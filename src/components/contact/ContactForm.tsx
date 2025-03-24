@@ -76,12 +76,16 @@ export function ContactForm() {
         await updateProfile({ full_name: data.name });
       }
 
+      // Get the Supabase JWT
+      const { data: authData } = await supabase.auth.getSession();
+      const accessToken = authData.session?.access_token || '';
+
       // Send the message via edge function
-      const response = await fetch(`${supabase.functions.url}/send-email`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${supabase.auth.session()?.access_token}`
+          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           name: data.name,
