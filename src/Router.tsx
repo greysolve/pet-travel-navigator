@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Admin from "@/pages/Admin";
 import Pricing from "@/pages/Pricing";
 import SampleResults from "@/pages/SampleResults";
+import WebSearch from "@/pages/WebSearch";
 import AuthCallback from "@/pages/AuthCallback";
 import AuthDialog from "@/components/AuthDialog";
 import { Toaster } from "@/components/ui/toaster";
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
       {
         path: "/pricing",
         element: <Pricing />,
+      },
+      {
+        path: "/web-search",
+        element: <WebSearch />,
       },
       {
         path: "/auth/callback",
