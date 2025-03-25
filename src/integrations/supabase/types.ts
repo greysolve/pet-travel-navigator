@@ -653,24 +653,48 @@ export type Database = {
           auto_reply_template: string
           created_at: string
           id: string
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_secure: boolean | null
+          smtp_username: string | null
           support_email: string
           updated_at: string
+          use_smtp: boolean | null
         }
         Insert: {
           auto_reply_subject?: string
           auto_reply_template?: string
           created_at?: string
           id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_username?: string | null
           support_email?: string
           updated_at?: string
+          use_smtp?: boolean | null
         }
         Update: {
           auto_reply_subject?: string
           auto_reply_template?: string
           created_at?: string
           id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_username?: string | null
           support_email?: string
           updated_at?: string
+          use_smtp?: boolean | null
         }
         Relationships: []
       }
