@@ -34,13 +34,11 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     setSearchCount(profile?.search_count);
   }, [profile?.search_count]);
 
-  // Fetch plan details when profile changes or when plans load
   useEffect(() => {
     const fetchPlanDetails = async () => {
       if (!profile?.plan) return;
 
       try {
-        // First check if plans are available from context
         const planFromContext = plans.find(p => p.name === profile.plan);
         
         if (planFromContext) {
@@ -48,7 +46,6 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           return;
         }
 
-        // Fallback to fetch from database if context doesn't have it
         const { data, error } = await supabase
           .from('system_plans')
           .select('*')
@@ -135,7 +132,6 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       return [];
     }
 
-    // Check if the user can make a search based on role and plan
     if (isPetCaddie) {
       const isUnlimited = planDetails?.is_search_unlimited;
       
@@ -153,7 +149,6 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     try {
       console.log('Calling search_flight_schedules with:', { origin, destination, date });
       
-      // Record search in the database
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
         const decremented = await decrementSearchCount();
         if (!decremented) {
@@ -162,7 +157,6 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         }
       }
       
-      // Call the Supabase Edge Function to search for flights
       const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
         body: {
           origin,
@@ -185,7 +179,6 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       
       const flights = data?.connections || [];
       
-      // Call the callback with the results
       if (onResults) {
         onResults(flights, {});
       }
