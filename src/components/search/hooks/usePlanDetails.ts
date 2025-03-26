@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSystemConfig } from "@/contexts/SystemConfigContext";
 import { useToast } from "@/hooks/use-toast";
 import type { SystemPlan } from "@/types/auth";
+import type { Database } from "@/integrations/supabase/types";
 
 export const usePlanDetails = (planName: string | undefined) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
@@ -22,10 +23,13 @@ export const usePlanDetails = (planName: string | undefined) => {
           return;
         }
 
+        // Cast the string to the subscription_plan enum type for the database query
+        const planNameEnum = planName as Database["public"]["Enums"]["subscription_plan"];
+        
         const { data, error } = await supabase
           .from('system_plans')
           .select('*')
-          .eq('name', planName)
+          .eq('name', planNameEnum)
           .single();
 
         if (error) {

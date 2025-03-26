@@ -1,12 +1,13 @@
 
 import type { SystemRole, SystemPlan } from '@/contexts/SystemConfigContext';
+import type { Database } from '@/integrations/supabase/types';
 
 export type { SystemRole, SystemPlan };
 
 // Create a more flexible type system that validates at runtime
 export type UserRole = string;
-export type SubscriptionPlan = string;
-export type UserPermission = string;
+export type SubscriptionPlan = Database["public"]["Enums"]["subscription_plan"];
+export type UserPermission = Database["public"]["Enums"]["user_permission"];
 
 // Interface for the direct RPC response
 export interface ProfileWithRoleResponse {
@@ -29,7 +30,7 @@ export interface ProfileWithRoleResponse {
   address_format: string | null;
   country_id: string | null;
   search_count: number;
-  plan: string | null;
+  plan: SubscriptionPlan | null;
   userRole: string;
 }
 

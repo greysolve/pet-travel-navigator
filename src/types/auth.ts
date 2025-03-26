@@ -1,13 +1,14 @@
 
 // Re-export the types from the context to maintain consistency
 import type { SystemRole, SystemPlan } from '@/contexts/SystemConfigContext';
+import type { Database } from '@/integrations/supabase/types';
 
 export type { SystemRole, SystemPlan };
 
 // Create a more flexible type system that validates at runtime
 export type UserRole = string;
-export type SubscriptionPlan = string;
-export type UserPermission = string;
+export type SubscriptionPlan = Database["public"]["Enums"]["subscription_plan"];
+export type UserPermission = Database["public"]["Enums"]["user_permission"];
 
 export interface UserProfile {
   id: string;
