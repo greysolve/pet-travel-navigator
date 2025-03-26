@@ -7,6 +7,7 @@ export interface UserProfile {
   plan: string;
   first_name: string;
   last_name: string;
+  stripe_customer_id?: string | null;
 }
 
 export interface UpdateUserData {

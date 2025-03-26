@@ -210,6 +210,17 @@ async function deleteUserRelatedData(supabaseAdmin, userId: string) {
     console.log('Warning: Error deleting route searches (or none exist):', routeSearchesError);
     // Non-critical - continue with deletion
   }
+  
+  // Delete customer subscriptions
+  const { error: subscriptionsError } = await supabaseAdmin
+    .from('customer_subscriptions')
+    .delete()
+    .eq('user_id', userId);
+    
+  if (subscriptionsError) {
+    console.log('Warning: Error deleting customer subscriptions (or none exist):', subscriptionsError);
+    // Non-critical - continue with deletion
+  }
 }
 
 export async function fetchUsers(supabaseAdmin) {
@@ -242,11 +253,23 @@ export async function fetchUsers(supabaseAdmin) {
     throw rolesError;
   }
   console.log('Roles fetched:', roles?.length);
+  
+  // Get all customer subscriptions to check for Stripe links
+  console.log('Fetching customer subscriptions...');
+  const { data: subscriptions, error: subscriptionsError } = await supabaseAdmin
+    .from('customer_subscriptions')
+    .select('*');
+  if (subscriptionsError) {
+    console.error('Error fetching subscriptions:', subscriptionsError);
+    throw subscriptionsError;
+  }
+  console.log('Subscriptions fetched:', subscriptions?.length);
 
   // Map users with their profile and role data
   const userProfiles: UserProfile[] = users.map((user) => {
     const profile = profiles?.find((p) => p.id === user.id);
     const userRole = roles?.find((r) => r.user_id === user.id);
+    const subscription = subscriptions?.find((s) => s.user_id === user.id);
 
     // Split full name into first and last name
     const nameParts = profile?.full_name?.split(' ') || ['', ''];
@@ -259,7 +282,8 @@ export async function fetchUsers(supabaseAdmin) {
       first_name: firstName,
       last_name: lastName,
       role: userRole?.role || 'pet_lover',
-      plan: profile?.plan || 'free'
+      plan: profile?.plan || 'free',
+      stripe_customer_id: subscription?.stripe_customer_id || null
     };
     console.log('Mapped user profile:', userProfile);
     return userProfile;

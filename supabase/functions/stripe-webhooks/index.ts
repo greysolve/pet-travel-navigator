@@ -62,6 +62,68 @@ async function getPlanFromPriceId(supabaseClient: any, priceId: string, environm
   }
 }
 
+// Function to create a new user in Supabase Auth
+async function createUserInSupabase(supabaseClient: any, email: string, customerId: string, plan: string) {
+  try {
+    console.log(`Creating new user for email: ${email} with plan: ${plan}`);
+    
+    // Generate a secure random password (the user will reset it later)
+    const password = crypto.randomUUID();
+    
+    // Create the user in Supabase Auth
+    const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Auto-confirm the email
+      user_metadata: {
+        stripe_customer_id: customerId,
+        full_name: email.split('@')[0], // Use email prefix as temporary name
+      }
+    });
+    
+    if (authError) {
+      console.error('Error creating auth user:', authError);
+      throw authError;
+    }
+    
+    const userId = authData.user.id;
+    console.log(`Created auth user with ID: ${userId}`);
+    
+    // Update the profile with the plan
+    const { error: profileError } = await supabaseClient
+      .from('profiles')
+      .update({ 
+        plan,
+        full_name: email.split('@')[0] // Use email prefix as temporary name
+      })
+      .eq('id', userId);
+      
+    if (profileError) {
+      console.error('Error updating profile:', profileError);
+      throw profileError;
+    }
+    
+    // Create subscription record
+    const { error: subscriptionError } = await supabaseClient
+      .from('customer_subscriptions')
+      .insert({
+        user_id: userId,
+        stripe_customer_id: customerId,
+        status: 'active'
+      });
+      
+    if (subscriptionError) {
+      console.error('Error creating customer subscription:', subscriptionError);
+      throw subscriptionError;
+    }
+    
+    return userId;
+  } catch (error) {
+    console.error('Error in createUserInSupabase:', error);
+    throw error;
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     // Handle CORS
@@ -113,6 +175,54 @@ Deno.serve(async (req) => {
 
     // Handle different event types
     switch (event.type) {
+      case 'customer.created': {
+        const customer = event.data.object as Stripe.Customer;
+        const email = customer.email;
+        const customerId = customer.id;
+        
+        if (!email) {
+          throw new Error('Customer email not found');
+        }
+        
+        console.log(`Processing customer.created for email: ${email}`);
+        
+        // Check if the user already exists in Supabase by email
+        const { data: existingUsers, error: userError } = await supabaseClient.auth.admin.listUsers({
+          email: email,
+        });
+        
+        if (userError) {
+          console.error('Error checking existing user:', userError);
+          throw userError;
+        }
+        
+        // If user doesn't exist, create one
+        if (!existingUsers.users || existingUsers.users.length === 0) {
+          // Set default plan to free (will be updated if they subscribe)
+          const userId = await createUserInSupabase(supabaseClient, email, customerId, 'free');
+          console.log(`Created new user with ID: ${userId} for customer: ${customerId}`);
+        } else {
+          console.log(`User with email ${email} already exists, linking customer ID`);
+          const userId = existingUsers.users[0].id;
+          
+          // Link this customer ID to the existing user
+          const { error: updateError } = await supabaseClient
+            .from('customer_subscriptions')
+            .upsert({
+              user_id: userId,
+              stripe_customer_id: customerId,
+              status: 'active'
+            });
+            
+          if (updateError) {
+            console.error('Error linking customer to existing user:', updateError);
+            throw updateError;
+          }
+        }
+        
+        break;
+      }
+      
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
