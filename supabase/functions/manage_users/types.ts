@@ -8,6 +8,7 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   stripe_customer_id?: string | null;
+  password_set?: boolean;
 }
 
 export interface UpdateUserData {

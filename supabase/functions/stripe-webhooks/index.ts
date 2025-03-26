@@ -63,12 +63,19 @@ async function getPlanFromPriceId(supabaseClient: any, priceId: string, environm
 }
 
 // Function to create a new user in Supabase Auth
-async function createUserInSupabase(supabaseClient: any, email: string, customerId: string, plan: string) {
+async function createUserInSupabase(supabaseClient: any, email: string, customerId: string, plan: string = 'free') {
   try {
     console.log(`Creating new user for email: ${email} with plan: ${plan}`);
     
     // Generate a secure random password (the user will reset it later)
     const password = crypto.randomUUID();
+    
+    // Extract a name from the email for temporary user details
+    const tempName = email.split('@')[0];
+    // Convert to Title Case and replace dots/underscores with spaces
+    const formattedName = tempName
+      .replace(/[._]/g, ' ')
+      .replace(/\b\w/g, char => char.toUpperCase());
     
     // Create the user in Supabase Auth
     const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
@@ -77,7 +84,7 @@ async function createUserInSupabase(supabaseClient: any, email: string, customer
       email_confirm: true, // Auto-confirm the email
       user_metadata: {
         stripe_customer_id: customerId,
-        full_name: email.split('@')[0], // Use email prefix as temporary name
+        full_name: formattedName, // Use formatted name for better display
       }
     });
     
@@ -89,12 +96,12 @@ async function createUserInSupabase(supabaseClient: any, email: string, customer
     const userId = authData.user.id;
     console.log(`Created auth user with ID: ${userId}`);
     
-    // Update the profile with the plan
+    // Update the profile with the plan and formatted name
     const { error: profileError } = await supabaseClient
       .from('profiles')
       .update({ 
         plan,
-        full_name: email.split('@')[0] // Use email prefix as temporary name
+        full_name: formattedName
       })
       .eq('id', userId);
       
@@ -115,6 +122,19 @@ async function createUserInSupabase(supabaseClient: any, email: string, customer
     if (subscriptionError) {
       console.error('Error creating customer subscription:', subscriptionError);
       throw subscriptionError;
+    }
+    
+    // Create default user role
+    const { error: roleError } = await supabaseClient
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: 'pet_lover' // Default role
+      });
+      
+    if (roleError) {
+      console.error('Error creating user role:', roleError);
+      throw roleError;
     }
     
     return userId;
@@ -172,6 +192,9 @@ Deno.serve(async (req) => {
     );
 
     console.log('Processing webhook event:', event.type);
+    
+    // Define the environment based on event livemode
+    const environment = event.livemode ? 'production' : 'test';
 
     // Handle different event types
     switch (event.type) {
@@ -198,9 +221,23 @@ Deno.serve(async (req) => {
         
         // If user doesn't exist, create one
         if (!existingUsers.users || existingUsers.users.length === 0) {
-          // Set default plan to free (will be updated if they subscribe)
-          const userId = await createUserInSupabase(supabaseClient, email, customerId, 'free');
-          console.log(`Created new user with ID: ${userId} for customer: ${customerId}`);
+          // Check if the customer has an active subscription to determine plan
+          const stripe = getStripeInstance(event.livemode);
+          const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 1
+          });
+          
+          let planType = 'free';
+          if (subscriptions.data.length > 0) {
+            // Get the price ID from the subscription
+            const priceId = subscriptions.data[0].items.data[0].price.id;
+            planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+          }
+          
+          const userId = await createUserInSupabase(supabaseClient, email, customerId, planType);
+          console.log(`Created new user with ID: ${userId} for customer: ${customerId} with plan: ${planType}`);
         } else {
           console.log(`User with email ${email} already exists, linking customer ID`);
           const userId = existingUsers.users[0].id;
@@ -218,6 +255,14 @@ Deno.serve(async (req) => {
             console.error('Error linking customer to existing user:', updateError);
             throw updateError;
           }
+          
+          // Update user metadata with Stripe customer ID
+          await supabaseClient.auth.admin.updateUserById(userId, {
+            user_metadata: {
+              ...existingUsers.users[0].user_metadata,
+              stripe_customer_id: customerId
+            }
+          });
         }
         
         break;
@@ -227,7 +272,6 @@ Deno.serve(async (req) => {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        const environment = subscription.livemode ? 'production' : 'test';
         
         // Get stripe instance matching the event environment
         const stripe = getStripeInstance(subscription.livemode);
@@ -268,6 +312,56 @@ Deno.serve(async (req) => {
           if (subData?.user_id) {
             userId = subData.user_id;
             console.log('Found user ID in customer_subscriptions table:', userId);
+          }
+        }
+
+        // If still not found, see if there's a user with this customer ID in profile metadata
+        if (!userId) {
+          const { data: users, error: usersError } = await supabaseClient.auth.admin.listUsers({});
+          if (!usersError && users.users) {
+            const userWithCustomerId = users.users.find(user => 
+              user.user_metadata?.stripe_customer_id === customerId
+            );
+            if (userWithCustomerId) {
+              userId = userWithCustomerId.id;
+              console.log('Found user by customer ID in user metadata:', userId);
+            }
+          }
+        }
+
+        // If still not found, check if we can find a user by customer email
+        if (!userId) {
+          try {
+            const { data: customerData } = await stripe.customers.retrieve(customerId);
+            if (customerData && !('deleted' in customerData) && customerData.email) {
+              const { data: emailUsers } = await supabaseClient.auth.admin.listUsers({
+                email: customerData.email
+              });
+              
+              if (emailUsers.users && emailUsers.users.length > 0) {
+                userId = emailUsers.users[0].id;
+                console.log('Found user by email address:', userId);
+                
+                // Link this customer ID to the found user
+                await supabaseClient
+                  .from('customer_subscriptions')
+                  .upsert({
+                    user_id: userId,
+                    stripe_customer_id: customerId,
+                    status: 'active'
+                  });
+              } else {
+                // Create a new user if no matching email found
+                console.log('No user found by email, creating new user');
+                userId = await createUserInSupabase(
+                  supabaseClient, 
+                  customerData.email, 
+                  customerId
+                );
+              }
+            }
+          } catch (error) {
+            console.error('Error looking up customer or creating user:', error);
           }
         }
 
