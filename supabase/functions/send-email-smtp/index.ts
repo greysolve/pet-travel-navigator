@@ -181,16 +181,20 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         
         try {
-          // Send to support with proper reply-to header - RESTORED ORIGINAL FROM FORMAT
+          // Send to support with proper reply-to header - DOUBLE-CHECK REPLY-TO FUNCTIONALITY
           const supportEmailMessage = {
             from: `${requestData.name} via PetJumper <${fromEmail}>`,
             to: settings.support_email,
+            reply_to: requestData.email, // Using both formats to ensure compatibility
             replyTo: requestData.email,
             subject: requestData.subject,
             text: supportEmailHTML.replace(/<[^>]*>?/gm, ''),
             attachment: [
               { data: supportEmailHTML, alternative: true }
-            ]
+            ],
+            header: {
+              'Reply-To': requestData.email // Adding explicit header as well
+            }
           };
           
           const supportInfo = await client.sendAsync(supportEmailMessage);
