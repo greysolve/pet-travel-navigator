@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,12 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Infinity } from "lucide-react";
 import { useProfile } from "@/contexts/ProfileContext";
+import { useDynamicTypes } from "@/hooks/useDynamicTypes";
 import type { SystemPlan } from "@/types/auth";
 
 export function SubscriptionManager({ userId }: { userId: string }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { profile } = useProfile();
+  const { getSystemPlanByName, isLoading: typesLoading } = useDynamicTypes();
 
   const { data: currentPlan } = useQuery({
     queryKey: ['profile-plan'],
@@ -101,7 +104,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     window.location.href = '/pricing';
   };
 
-  if (!currentPlan) {
+  if (typesLoading || !currentPlan) {
     return (
       <Card>
         <CardHeader>

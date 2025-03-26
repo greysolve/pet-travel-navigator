@@ -5,7 +5,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData } from "../flight-results/types";
 import { useSearchParams } from "react-router-dom";
-import type { SystemPlan } from "@/types/auth";
+import { useSystemConfig } from "@/contexts/SystemConfigContext";
 
 interface UseFlightSearchReturn {
   isSearchLoading: boolean;
@@ -23,10 +23,11 @@ interface UseFlightSearchReturn {
 export const useFlightSearch = (): UseFlightSearchReturn => {
   const { toast } = useToast();
   const { profile } = useProfile();
+  const { plans } = useSystemConfig();
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchCount, setSearchCount] = useState<number | undefined>(profile?.search_count);
-  const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
+  const [planDetails, setPlanDetails] = useState<any | null>(null);
 
   const isPetCaddie = profile?.userRole === 'pet_caddie';
 
@@ -34,12 +35,21 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     setSearchCount(profile?.search_count);
   }, [profile?.search_count]);
 
-  // Fetch plan details when profile changes
+  // Fetch plan details when profile changes or when plans load
   useEffect(() => {
     const fetchPlanDetails = async () => {
       if (!profile?.plan) return;
 
       try {
+        // First check if plans are available from context
+        const planFromContext = plans.find(p => p.name === profile.plan);
+        
+        if (planFromContext) {
+          setPlanDetails(planFromContext);
+          return;
+        }
+
+        // Fallback to fetch from database if context doesn't have it
         const { data, error } = await supabase
           .from('system_plans')
           .select('*')
@@ -51,7 +61,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           return;
         }
 
-        setPlanDetails(data as SystemPlan);
+        setPlanDetails(data);
       } catch (error) {
         console.error("Unexpected error fetching plan details:", error);
       }
@@ -60,7 +70,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     if (profile?.plan) {
       fetchPlanDetails();
     }
-  }, [profile?.plan]);
+  }, [profile?.plan, plans]);
 
   const decrementSearchCount = useCallback(async () => {
     if (!profile?.id) {
@@ -69,7 +79,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         description: "Could not decrement search count: user not found",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (profile.search_count === undefined || profile.search_count <= 0) {
