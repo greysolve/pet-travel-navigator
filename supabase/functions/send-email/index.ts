@@ -82,8 +82,11 @@ const handler = async (req: Request): Promise<Response> => {
         requestData.subject
       );
       
-      // Simplified email content
+      // Enhanced email content with prominent customer email
       const supportEmailHTML = `
+        <p><strong>REPLY DIRECTLY TO THE CUSTOMER AT: ${requestData.email}</strong></p>
+        <p>(The customer has been CC'd on this email)</p>
+        <hr>
         <p><strong>From:</strong> ${requestData.name} (${requestData.email})</p>
         <p><strong>Subject:</strong> ${requestData.subject}</p>
         <p><strong>Message:</strong></p>
@@ -96,11 +99,12 @@ const handler = async (req: Request): Promise<Response> => {
         <p>Best regards,<br>The PetJumper Support Team</p>
       `;
       
-      // Send to support with reply-to set to the user's email
+      // Send to support with CC to user and replyTo set
       const supportEmailResponse = await resend.emails.send({
         from: "PetJumper Contact <onboarding@resend.dev>",
         to: [settings.support_email],
-        replyTo: requestData.email,
+        cc: [requestData.email], // Add user as CC recipient
+        replyTo: requestData.email, // Keep Reply-To as well just in case
         subject: requestData.subject,
         html: supportEmailHTML,
       });

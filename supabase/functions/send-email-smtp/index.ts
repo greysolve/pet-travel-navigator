@@ -166,8 +166,11 @@ const handler = async (req: Request): Promise<Response> => {
           requestData.subject
         );
         
-        // Simplified email content
+        // Enhanced email content with prominent customer email
         const supportEmailHTML = `
+          <p><strong>REPLY DIRECTLY TO THE CUSTOMER AT: ${requestData.email}</strong></p>
+          <p>(The customer has been CC'd on this email)</p>
+          <hr>
           <p><strong>From:</strong> ${requestData.name} (${requestData.email})</p>
           <p><strong>Subject:</strong> ${requestData.subject}</p>
           <p><strong>Message:</strong></p>
@@ -181,23 +184,24 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         
         try {
-          // Properly format the support email with the correct Reply-To header format
+          // Add CC to the user's email address in addition to the Reply-To header
           const supportEmailMessage = {
             from: `${requestData.name} via PetJumper <${fromEmail}>`,
             to: settings.support_email,
+            cc: requestData.email, // Add user as CC recipient
             subject: requestData.subject,
             text: supportEmailHTML.replace(/<[^>]*>?/gm, ''),
             attachment: [
               { data: supportEmailHTML, alternative: true }
             ],
             headers: {
-              'Reply-To': requestData.email, // Standard Reply-To header with proper capitalization
+              'Reply-To': requestData.email, // Keep Reply-To header just in case
               'X-Original-From': requestData.email,
               'X-Original-Name': requestData.name
             }
           };
           
-          console.log("About to send email with Reply-To:", requestData.email);
+          console.log("About to send email with CC and Reply-To:", requestData.email);
           const supportInfo = await client.sendAsync(supportEmailMessage);
           console.log("SMTP support email sent:", supportInfo);
           
