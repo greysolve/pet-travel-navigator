@@ -3,6 +3,24 @@ export type UserRole = 'pet_lover' | 'site_manager' | 'pet_caddie';
 
 export type SubscriptionPlan = 'free' | 'premium' | 'teams' | 'personal';
 
+export type UserPermission = 'view_all_fields' | 'view_restricted_fields';
+
+export interface SystemRole {
+  id: string;
+  name: UserRole;
+  description?: string;
+  permissions: UserPermission[];
+}
+
+export interface SystemPlan {
+  id: string;
+  name: SubscriptionPlan;
+  description?: string;
+  search_limit: number;
+  is_search_unlimited: boolean;
+  renews_monthly: boolean;
+}
+
 export interface UserProfile {
   id: string;
   user_id?: string;

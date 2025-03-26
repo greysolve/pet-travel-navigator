@@ -1,9 +1,11 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData } from "../flight-results/types";
 import { useSearchParams } from "react-router-dom";
+import type { SystemPlan } from "@/types/auth";
 
 interface UseFlightSearchReturn {
   isSearchLoading: boolean;
@@ -18,12 +20,41 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchCount, setSearchCount] = useState<number | undefined>(profile?.search_count);
+  const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
 
   const isPetCaddie = profile?.userRole === 'pet_caddie';
 
   useEffect(() => {
     setSearchCount(profile?.search_count);
   }, [profile?.search_count]);
+
+  // Fetch plan details when profile changes
+  useEffect(() => {
+    const fetchPlanDetails = async () => {
+      if (!profile?.plan) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('system_plans')
+          .select('*')
+          .eq('name', profile.plan)
+          .single();
+
+        if (error) {
+          console.error("Error fetching plan details:", error);
+          return;
+        }
+
+        setPlanDetails(data as SystemPlan);
+      } catch (error) {
+        console.error("Unexpected error fetching plan details:", error);
+      }
+    };
+
+    if (profile?.plan) {
+      fetchPlanDetails();
+    }
+  }, [profile?.plan]);
 
   const decrementSearchCount = useCallback(async () => {
     if (!profile?.id) {
@@ -80,13 +111,18 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       return;
     }
 
-    if (isPetCaddie && (profile.search_count === undefined || profile.search_count <= 0)) {
-      toast({
-        title: "No searches remaining",
-        description: "You have reached your search limit. Please upgrade your plan.",
-        variant: "destructive",
-      });
-      return;
+    // Check if the user can make a search based on role and plan
+    if (isPetCaddie) {
+      const isUnlimited = planDetails?.is_search_unlimited;
+      
+      if (!isUnlimited && (profile.search_count === undefined || profile.search_count <= 0)) {
+        toast({
+          title: "No searches remaining",
+          description: "You have reached your search limit. Please upgrade your plan.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsSearchLoading(true);
@@ -94,8 +130,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       // Simulate flight search API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Decrement search count if user is a pet caddie
-      if (isPetCaddie) {
+      // Decrement search count if user is a pet caddie with a limited search plan
+      if (isPetCaddie && !planDetails?.is_search_unlimited) {
         await decrementSearchCount();
       }
     } finally {

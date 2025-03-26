@@ -14,8 +14,8 @@ interface UpdateUserData {
   id: string;
   first_name?: string;
   last_name?: string;
-  role?: 'pet_lover' | 'pet_caddie';
-  plan?: 'free' | 'basic' | 'premium' | 'enterprise';
+  role?: 'pet_lover' | 'pet_caddie' | 'site_manager';
+  plan?: 'free' | 'premium' | 'teams' | 'personal';
 }
 
 Deno.serve(async (req) => {
@@ -69,6 +69,18 @@ Deno.serve(async (req) => {
           }
 
           if (updateData.plan !== undefined) {
+            // Validate plan against system_plans
+            const { data: planData, error: planError } = await supabaseAdmin
+              .from('system_plans')
+              .select('name')
+              .eq('name', updateData.plan)
+              .single();
+
+            if (planError) {
+              console.error('Error validating plan:', planError);
+              throw new Error(`Invalid plan: ${updateData.plan}`);
+            }
+
             updateObject.plan = updateData.plan;
           }
 
@@ -85,6 +97,18 @@ Deno.serve(async (req) => {
 
         // Update role if provided
         if (updateData.role) {
+          // Validate role against system_roles
+          const { data: roleData, error: roleError } = await supabaseAdmin
+            .from('system_roles')
+            .select('name')
+            .eq('name', updateData.role)
+            .single();
+
+          if (roleError) {
+            console.error('Error validating role:', roleError);
+            throw new Error(`Invalid role: ${updateData.role}`);
+          }
+
           // First check if a role exists for this user
           const { data: existingRole, error: fetchError } = await supabaseAdmin
             .from('user_roles')

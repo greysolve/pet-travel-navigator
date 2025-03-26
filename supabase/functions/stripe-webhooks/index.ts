@@ -7,25 +7,48 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
 });
 
-// Map Stripe price IDs to our subscription plans
+// Get plan from Stripe price ID by looking up the payment_plans table
+// and then finding the associated system_plan
 async function getPlanFromPriceId(supabaseClient: any, priceId: string, environment: string) {
-  const { data: plan } = await supabaseClient
-    .from('payment_plans')
-    .select('name')
-    .eq('stripe_price_id', priceId)
-    .eq('environment', environment)
-    .single();
+  try {
+    // First, look up the payment plan with this price ID
+    const { data: paymentPlan, error: paymentPlanError } = await supabaseClient
+      .from('payment_plans')
+      .select('system_plan_id, name')
+      .eq('stripe_price_id', priceId)
+      .eq('environment', environment)
+      .single();
 
-  if (!plan) {
-    console.error(`No plan found for price ID: ${priceId}`);
+    if (paymentPlanError || !paymentPlan) {
+      console.error(`No payment plan found for price ID: ${priceId}`, paymentPlanError);
+      return 'free';
+    }
+
+    // If we have a system_plan_id, use that to get the plan name
+    if (paymentPlan.system_plan_id) {
+      const { data: systemPlan, error: systemPlanError } = await supabaseClient
+        .from('system_plans')
+        .select('name')
+        .eq('id', paymentPlan.system_plan_id)
+        .single();
+
+      if (systemPlanError || !systemPlan) {
+        console.error(`No system plan found for ID: ${paymentPlan.system_plan_id}`, systemPlanError);
+        return 'free';
+      }
+
+      return systemPlan.name;
+    }
+    
+    // If no system_plan_id yet (during transition period), extract from name
+    if (paymentPlan.name.toLowerCase().includes('premium')) return 'premium';
+    if (paymentPlan.name.toLowerCase().includes('teams')) return 'teams';
+    if (paymentPlan.name.toLowerCase().includes('personal')) return 'personal';
+    return 'free';
+  } catch (error) {
+    console.error('Error in getPlanFromPriceId:', error);
     return 'free';
   }
-
-  // Extract the plan type from the name (assuming names are like "Premium Plan ($10 USD)")
-  if (plan.name.toLowerCase().includes('premium')) return 'premium';
-  if (plan.name.toLowerCase().includes('teams')) return 'teams';
-  if (plan.name.toLowerCase().includes('personal')) return 'personal';
-  return 'free';
 }
 
 Deno.serve(async (req) => {
@@ -51,7 +74,7 @@ Deno.serve(async (req) => {
     // Verify the webhook signature
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
         webhookSecret

@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, SubscriptionPlan, UserRole } from "@/types/auth";
+import { UserProfile, SubscriptionPlan, UserRole, UserPermission, SystemRole, SystemPlan } from "@/types/auth";
 
 // Interface for the direct RPC response
 interface ProfileWithRoleResponse {
@@ -64,6 +64,48 @@ const validateNotificationPreferences = (preferences: unknown) => {
     documentation_reminders: typeof prefs.documentation_reminders === 'boolean' ? prefs.documentation_reminders : defaultPreferences.documentation_reminders
   };
 };
+
+// Fetch role permissions from the database
+async function fetchRolePermissions(roleName: UserRole): Promise<UserPermission[]> {
+  try {
+    const { data, error } = await supabase
+      .from('system_roles')
+      .select('permissions')
+      .eq('name', roleName)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching role permissions:', error);
+      return [];
+    }
+    
+    return data?.permissions || [];
+  } catch (error) {
+    console.error('Unexpected error fetching role permissions:', error);
+    return [];
+  }
+}
+
+// Fetch plan details from the database
+async function fetchPlanDetails(planName: SubscriptionPlan): Promise<SystemPlan | null> {
+  try {
+    const { data, error } = await supabase
+      .from('system_plans')
+      .select('*')
+      .eq('name', planName)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching plan details:', error);
+      return null;
+    }
+    
+    return data as SystemPlan;
+  } catch (error) {
+    console.error('Unexpected error fetching plan details:', error);
+    return null;
+  }
+}
 
 async function updateProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
   console.log('profileManagement - Starting update:', { userId, updates });
@@ -191,4 +233,4 @@ async function fetchProfile(userId: string): Promise<UserProfile> {
 }
 
 // Export everything once at the bottom
-export { ProfileError, fetchProfile, updateProfile };
+export { ProfileError, fetchProfile, updateProfile, fetchRolePermissions, fetchPlanDetails };
