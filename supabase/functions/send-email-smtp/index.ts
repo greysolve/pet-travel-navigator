@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { SMTPClient } from "npm:emailjs@4.0.3";
 
@@ -180,25 +181,23 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         
         try {
-          // Send to support with comprehensive Reply-To implementation
+          // Properly format the support email with the correct Reply-To header format
           const supportEmailMessage = {
             from: `${requestData.name} via PetJumper <${fromEmail}>`,
             to: settings.support_email,
-            reply_to: requestData.email,
-            replyTo: requestData.email,
             subject: requestData.subject,
             text: supportEmailHTML.replace(/<[^>]*>?/gm, ''),
             attachment: [
               { data: supportEmailHTML, alternative: true }
             ],
             headers: {
-              'Reply-To': requestData.email,
+              'Reply-To': requestData.email, // Standard Reply-To header with proper capitalization
               'X-Original-From': requestData.email,
               'X-Original-Name': requestData.name
             }
           };
           
-          console.log("About to send email with reply-to:", requestData.email);
+          console.log("About to send email with Reply-To:", requestData.email);
           const supportInfo = await client.sendAsync(supportEmailMessage);
           console.log("SMTP support email sent:", supportInfo);
           
