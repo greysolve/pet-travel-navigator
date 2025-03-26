@@ -48,16 +48,8 @@ export const decorateWithPremiumFields = (
   
   const decoratedPolicy = { ...policy } as DecoratedPetPolicy;
   
-  // Always preserve these fields as non-premium arrays
-  const preservedArrayFields = ['pet_types_allowed', 'documentation_needed', 'breed_restrictions'];
-  
-  // First pass: handle all direct premium fields
+  // Process all fields based solely on database configuration
   Object.keys(policy).forEach(key => {
-    // Skip preserved array fields
-    if (preservedArrayFields.includes(key)) {
-      return;
-    }
-
     // Normalize key for comparison
     const normalizedKey = normalizeFieldName(key);
     console.log(`Checking field: ${key} (normalized: ${normalizedKey})`);
@@ -76,7 +68,7 @@ export const decorateWithPremiumFields = (
     decoratedPolicy.size_restrictions = {} as SizeRestrictions;
   }
 
-  // Second pass: handle nested objects while preserving structure
+  // Handle nested objects while preserving structure
   if (isObject(policy.size_restrictions)) {
     const nestedObj: Record<string, any> = {};
     for (const key in policy.size_restrictions) {
