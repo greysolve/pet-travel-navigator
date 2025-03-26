@@ -166,9 +166,8 @@ const handler = async (req: Request): Promise<Response> => {
           requestData.subject
         );
         
-        // Prepare email content
+        // Simplified email content
         const supportEmailHTML = `
-          <h2>New Contact Form Submission</h2>
           <p><strong>From:</strong> ${requestData.name} (${requestData.email})</p>
           <p><strong>Subject:</strong> ${requestData.subject}</p>
           <p><strong>Message:</strong></p>
@@ -182,12 +181,12 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         
         try {
-          // Send to support with customer name in the From field and Reply-To set to customer email
+          // Send to support with proper reply-to header
           const supportEmailMessage = {
-            from: `${requestData.name} via PetJumper <${fromEmail}>`,
+            from: `${fromName} <${fromEmail}>`,
             to: settings.support_email,
             replyTo: requestData.email,
-            subject: `Contact Form: ${requestData.subject}`,
+            subject: requestData.subject,
             text: supportEmailHTML.replace(/<[^>]*>?/gm, ''),
             attachment: [
               { data: supportEmailHTML, alternative: true }
@@ -197,11 +196,10 @@ const handler = async (req: Request): Promise<Response> => {
           const supportInfo = await client.sendAsync(supportEmailMessage);
           console.log("SMTP support email sent:", supportInfo);
           
-          // Send auto-reply to user with support email as the sender
+          // Send auto-reply to user
           const userEmailMessage = {
             from: `${fromName} <${fromEmail}>`,
             to: requestData.email,
-            replyTo: settings.support_email,
             subject: settings.auto_reply_subject || "Thank you for your message",
             text: userEmailHTML.replace(/<[^>]*>?/gm, ''),
             attachment: [

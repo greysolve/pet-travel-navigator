@@ -82,9 +82,8 @@ const handler = async (req: Request): Promise<Response> => {
         requestData.subject
       );
       
-      // Prepare email content
+      // Simplified email content
       const supportEmailHTML = `
-        <h2>New Contact Form Submission</h2>
         <p><strong>From:</strong> ${requestData.name} (${requestData.email})</p>
         <p><strong>Subject:</strong> ${requestData.subject}</p>
         <p><strong>Message:</strong></p>
@@ -97,11 +96,12 @@ const handler = async (req: Request): Promise<Response> => {
         <p>Best regards,<br>The PetJumper Support Team</p>
       `;
       
-      // Send to support
+      // Send to support with reply-to set to the user's email
       const supportEmailResponse = await resend.emails.send({
         from: "PetJumper Contact <onboarding@resend.dev>",
         to: [settings.support_email],
-        subject: `Contact Form: ${requestData.subject}`,
+        replyTo: requestData.email,
+        subject: requestData.subject,
         html: supportEmailHTML,
       });
       
