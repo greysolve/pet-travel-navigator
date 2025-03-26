@@ -102,11 +102,8 @@ export function ContactForm() {
       const { data: authData } = await supabase.auth.getSession();
       const accessToken = authData.session?.access_token || '';
 
-      // Get the Supabase URL from environment variables
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) {
-        throw new Error('VITE_SUPABASE_URL is not defined');
-      }
+      // Use the hardcoded Supabase URL from the client file
+      const supabaseUrl = "https://jhokkuszubzngrcamfdb.supabase.co";
 
       // Determine which email function to use based on SMTP setting
       const endpoint = useSmtp 
