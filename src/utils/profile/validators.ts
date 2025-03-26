@@ -1,5 +1,5 @@
 
-import { SubscriptionPlan } from './types';
+import { SubscriptionPlan, UserProfile } from '@/types/auth';
 
 /**
  * Helper to validate subscription plan

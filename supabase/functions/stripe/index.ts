@@ -61,6 +61,24 @@ Deno.serve(async (req) => {
             const priceAmount = price.unit_amount ? price.unit_amount / 100 : 0;
             console.log(`Processing price ${price.id} (${priceAmount} ${price.currency.toUpperCase()})`);
             
+            // Extract plan type from product metadata if available
+            const planType = product.metadata.plan_type || 
+                             (product.name.toLowerCase().includes('premium') ? 'premium' : 
+                              product.name.toLowerCase().includes('teams') ? 'teams' :
+                              product.name.toLowerCase().includes('personal') ? 'personal' : 'free');
+            
+            // First find or create the system plan
+            let systemPlanId = null;
+            const { data: existingSystemPlan } = await supabaseClient
+              .from('system_plans')
+              .select('id')
+              .eq('name', planType)
+              .single();
+            
+            if (existingSystemPlan) {
+              systemPlanId = existingSystemPlan.id;
+            }
+            
             const planData = {
               name: `${product.name} (${priceAmount} ${price.currency.toUpperCase()})`,
               description: product.description,
@@ -70,7 +88,8 @@ Deno.serve(async (req) => {
               features: product.metadata.features ? 
                 JSON.parse(product.metadata.features) : 
                 [],
-              environment: environment
+              environment: environment,
+              system_plan_id: systemPlanId
             };
 
             const { error } = await supabaseClient
@@ -110,11 +129,19 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'create-subscription') {
-      const { data: profiles } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Get user email directly from auth.users table
+      const { data: userData, error: userError } = await supabaseClient
+        .auth.admin.getUserById(userId);
+      
+      if (userError || !userData) {
+        throw new Error(`Error fetching user data: ${userError?.message || 'User not found'}`);
+      }
+      
+      const userEmail = userData.user.email;
+      
+      if (!userEmail) {
+        throw new Error('User email not found');
+      }
 
       let customerId: string;
       const { data: existingSubscription } = await supabaseClient
@@ -126,8 +153,9 @@ Deno.serve(async (req) => {
       if (existingSubscription?.stripe_customer_id) {
         customerId = existingSubscription.stripe_customer_id;
       } else {
+        // Create Stripe customer with proper metadata
         const customer = await stripe.customers.create({
-          email: profiles?.email,
+          email: userEmail,
           metadata: {
             supabase_user_id: userId,
           },

@@ -3,9 +3,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-});
+// Function to get the appropriate Stripe instance based on event livemode
+const getStripeInstance = (livemode: boolean) => {
+  const secretKey = livemode 
+    ? Deno.env.get('STRIPE_PROD_SECRET_KEY')
+    : Deno.env.get('STRIPE_TEST_SECRET_KEY');
+    
+  if (!secretKey) {
+    throw new Error(`Stripe secret key not found for ${livemode ? 'production' : 'test'} environment`);
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: '2023-10-16',
+  });
+};
 
 // Get plan from Stripe price ID by looking up the payment_plans table
 // and then finding the associated system_plan
@@ -74,6 +85,11 @@ Deno.serve(async (req) => {
     // Verify the webhook signature
     let event: Stripe.Event;
     try {
+      // Parse the event without verification first to get livemode
+      const unverifiedEvent = JSON.parse(body);
+      const livemode = unverifiedEvent.livemode === true;
+      const stripe = getStripeInstance(livemode);
+      
       event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
@@ -102,13 +118,48 @@ Deno.serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         const environment = subscription.livemode ? 'production' : 'test';
+        
+        // Get stripe instance matching the event environment
+        const stripe = getStripeInstance(subscription.livemode);
 
         // Get the price ID from the subscription
         const priceId = subscription.items.data[0].price.id;
         
-        // Get the user ID from the customer metadata
-        const { data: customerData } = await stripe.customers.retrieve(customerId);
-        const userId = customerData.metadata?.supabase_user_id;
+        // Get the user ID from various sources
+        let userId = null;
+        
+        // Try from subscription metadata first
+        if (subscription.metadata?.user_id) {
+          userId = subscription.metadata.user_id;
+          console.log('Found user ID in subscription metadata:', userId);
+        }
+        
+        // If not found, try from customer metadata
+        if (!userId) {
+          try {
+            const { data: customerData } = await stripe.customers.retrieve(customerId);
+            if (customerData && !('deleted' in customerData)) {
+              userId = customerData.metadata?.supabase_user_id;
+              console.log('Found user ID in customer metadata:', userId);
+            }
+          } catch (error) {
+            console.error('Error retrieving customer:', error);
+          }
+        }
+        
+        // If still not found, try from customer_subscriptions table
+        if (!userId) {
+          const { data: subData } = await supabaseClient
+            .from('customer_subscriptions')
+            .select('user_id')
+            .eq('stripe_customer_id', customerId)
+            .maybeSingle();
+            
+          if (subData?.user_id) {
+            userId = subData.user_id;
+            console.log('Found user ID in customer_subscriptions table:', userId);
+          }
+        }
 
         if (!userId) {
           throw new Error(`No user ID found for customer: ${customerId}`);
@@ -116,6 +167,7 @@ Deno.serve(async (req) => {
 
         // Map the Stripe price to our plan type
         const planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+        console.log(`Mapped price ${priceId} to plan: ${planType}`);
 
         // Update subscription details
         await supabaseClient
@@ -132,10 +184,15 @@ Deno.serve(async (req) => {
           });
 
         // Update user's plan in profiles
-        await supabaseClient
+        const { error: updateError } = await supabaseClient
           .from('profiles')
           .update({ plan: planType })
           .eq('id', userId);
+          
+        if (updateError) {
+          console.error(`Error updating user plan: ${updateError.message}`);
+          throw new Error(`Failed to update user plan: ${updateError.message}`);
+        }
 
         console.log(`Updated subscription for user ${userId} to plan: ${planType}`);
         break;
@@ -181,7 +238,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error processing webhook:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to process webhook' }),
+      JSON.stringify({ error: 'Failed to process webhook', details: error.message }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
