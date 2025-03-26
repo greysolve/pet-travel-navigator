@@ -4,10 +4,9 @@ import type { SystemRole, SystemPlan } from '@/contexts/SystemConfigContext';
 
 export type { SystemRole, SystemPlan };
 
-// These types are now just string type aliases that will be validated at runtime
+// Create a more flexible type system that validates at runtime
 export type UserRole = string;
 export type SubscriptionPlan = string;
-// Add UserPermission type that was missing
 export type UserPermission = string;
 
 export interface UserProfile {
