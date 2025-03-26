@@ -181,9 +181,9 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         
         try {
-          // Send to support with proper reply-to header
+          // Send to support with proper reply-to header - RESTORED ORIGINAL FROM FORMAT
           const supportEmailMessage = {
-            from: `${fromName} <${fromEmail}>`,
+            from: `${requestData.name} via PetJumper <${fromEmail}>`,
             to: settings.support_email,
             replyTo: requestData.email,
             subject: requestData.subject,
