@@ -13,6 +13,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Define email security types for the dropdown
+type SmtpSecurityType = "tls" | "ssl" | "none";
 
 const supportSettingsSchema = z.object({
   support_email: z.string().email({ message: "Please enter a valid email address." }),
@@ -25,10 +29,38 @@ const supportSettingsSchema = z.object({
   smtp_password: z.string().optional(),
   smtp_from_email: z.string().email().optional(),
   smtp_from_name: z.string().optional(),
-  smtp_secure: z.boolean().default(true)
+  smtp_security: z.enum(["tls", "ssl", "none"]).default("tls")
 });
 
 type SupportSettingsValues = z.infer<typeof supportSettingsSchema>;
+
+// Common SMTP providers configuration
+const emailProviders = [
+  { 
+    name: "Rackspace", 
+    host: "secure.emailsrvr.com",
+    ports: { tls: 587, ssl: 465 },
+    description: "Rackspace Email (secure.emailsrvr.com)"
+  },
+  { 
+    name: "Gmail", 
+    host: "smtp.gmail.com",
+    ports: { tls: 587, ssl: 465 },
+    description: "Gmail (smtp.gmail.com)"
+  },
+  { 
+    name: "Outlook/Office 365", 
+    host: "smtp.office365.com",
+    ports: { tls: 587, ssl: null },
+    description: "Outlook/Office 365 (smtp.office365.com)"
+  },
+  { 
+    name: "Yahoo", 
+    host: "smtp.mail.yahoo.com",
+    ports: { tls: 587, ssl: 465 },
+    description: "Yahoo Mail (smtp.mail.yahoo.com)"
+  }
+];
 
 export function SupportSettingsManager() {
   const { toast } = useToast();
@@ -37,6 +69,7 @@ export function SupportSettingsManager() {
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
 
   const form = useForm<SupportSettingsValues>({
     resolver: zodResolver(supportSettingsSchema),
@@ -51,18 +84,18 @@ export function SupportSettingsManager() {
       smtp_password: "",
       smtp_from_email: "",
       smtp_from_name: "",
-      smtp_secure: true
+      smtp_security: "tls"
     }
   });
 
-  // Watch the use_smtp field to conditionally render SMTP settings
+  // Watch the necessary fields
   const useSmtp = form.watch("use_smtp");
   const smtpHost = form.watch("smtp_host");
   const smtpPort = form.watch("smtp_port");
   const smtpUsername = form.watch("smtp_username");
   const smtpPassword = form.watch("smtp_password");
   const smtpFromEmail = form.watch("smtp_from_email");
-  const smtpSecure = form.watch("smtp_secure");
+  const smtpSecurity = form.watch("smtp_security");
 
   // Check if all required SMTP settings are filled
   const isSmtpConfigured = !!(
@@ -72,6 +105,19 @@ export function SupportSettingsManager() {
     smtpPassword &&
     smtpFromEmail
   );
+
+  // Update port based on security selection
+  useEffect(() => {
+    if (selectedProvider && smtpSecurity) {
+      const provider = emailProviders.find(p => p.name === selectedProvider);
+      if (provider) {
+        const recommendedPort = provider.ports[smtpSecurity as keyof typeof provider.ports];
+        if (recommendedPort) {
+          form.setValue("smtp_port", recommendedPort);
+        }
+      }
+    }
+  }, [selectedProvider, smtpSecurity, form]);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -88,6 +134,15 @@ export function SupportSettingsManager() {
         if (data && data.length > 0) {
           const settings = data[0];
           setSettingsId(settings.id);
+          
+          // Map the old smtp_secure boolean to the new smtp_security enum
+          let securityType: SmtpSecurityType = "tls";
+          if (settings.smtp_secure === false) {
+            securityType = "none";
+          } else if (settings.smtp_port === 465) {
+            securityType = "ssl";
+          }
+          
           form.reset({
             support_email: settings.support_email,
             auto_reply_subject: settings.auto_reply_subject,
@@ -99,8 +154,20 @@ export function SupportSettingsManager() {
             smtp_password: settings.smtp_password || "",
             smtp_from_email: settings.smtp_from_email || "",
             smtp_from_name: settings.smtp_from_name || "",
-            smtp_secure: settings.smtp_secure !== false // Default to true if not explicitly set to false
+            smtp_security: securityType
           });
+          
+          // Check if the current host matches any of our predefined providers
+          if (settings.smtp_host) {
+            const matchedProvider = emailProviders.find(
+              provider => provider.host.toLowerCase() === settings.smtp_host?.toLowerCase()
+            );
+            if (matchedProvider) {
+              setSelectedProvider(matchedProvider.name);
+            } else {
+              setSelectedProvider(null);
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching support settings:", error);
@@ -138,7 +205,7 @@ export function SupportSettingsManager() {
       const supabaseUrl = "https://jhokkuszubzngrcamfdb.supabase.co";
       const testEndpoint = `${supabaseUrl}/functions/v1/send-email-smtp`;
 
-      console.log("Testing SMTP connection to:", formData.smtp_host);
+      console.log(`Testing SMTP connection to: ${formData.smtp_host} with security: ${formData.smtp_security}`);
       
       // Send a test email using the SMTP settings
       const response = await fetch(testEndpoint, {
@@ -187,6 +254,21 @@ export function SupportSettingsManager() {
     }
   };
 
+  const handleProviderSelect = (providerName: string) => {
+    setSelectedProvider(providerName);
+    const provider = emailProviders.find(p => p.name === providerName);
+    if (provider) {
+      form.setValue("smtp_host", provider.host);
+      
+      // Set appropriate port based on security setting
+      const security = form.getValues("smtp_security");
+      const portKey = security as keyof typeof provider.ports;
+      if (provider.ports[portKey]) {
+        form.setValue("smtp_port", provider.ports[portKey] || 587);
+      }
+    }
+  };
+
   const onSubmit = async (data: SupportSettingsValues) => {
     if (!settingsId) return;
 
@@ -203,6 +285,21 @@ export function SupportSettingsManager() {
         formData.smtp_from_name = null;
       }
 
+      // Map the security type back to the old schema format temporarily
+      // We'll store the security type as a string, but for backwards compatibility
+      // we also set the smtp_secure flag
+      let smtp_secure: boolean;
+      switch (formData.smtp_security) {
+        case "none":
+          smtp_secure = false;
+          break;
+        case "ssl":
+        case "tls":
+        default:
+          smtp_secure = true;
+          break;
+      }
+
       const { error } = await supabase
         .from('support_settings')
         .update({
@@ -216,7 +313,8 @@ export function SupportSettingsManager() {
           smtp_password: formData.smtp_password,
           smtp_from_email: formData.smtp_from_email,
           smtp_from_name: formData.smtp_from_name,
-          smtp_secure: formData.smtp_secure
+          smtp_secure: smtp_secure,
+          smtp_security: formData.smtp_security // Store the new security type
         })
         .eq('id', settingsId);
 
@@ -357,6 +455,33 @@ export function SupportSettingsManager() {
                   </Alert>
                 )}
                 
+                {/* Email Provider Selector */}
+                <div className="mb-6">
+                  <FormItem>
+                    <FormLabel>Email Provider Presets (Optional)</FormLabel>
+                    <Select
+                      onValueChange={handleProviderSelect}
+                      value={selectedProvider || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a provider or enter details manually" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {emailProviders.map((provider) => (
+                          <SelectItem key={provider.name} value={provider.name}>
+                            {provider.description}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Select a common email provider to automatically fill the server details, or enter manually below.
+                    </FormDescription>
+                  </FormItem>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -387,6 +512,11 @@ export function SupportSettingsManager() {
                             value={field.value}
                           />
                         </FormControl>
+                        <FormDescription>
+                          {smtpSecurity === "tls" ? "Common TLS port: 587" : 
+                           smtpSecurity === "ssl" ? "Common SSL port: 465" : 
+                           "Common non-secure port: 25"}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -403,6 +533,9 @@ export function SupportSettingsManager() {
                         <FormControl>
                           <Input placeholder="username@example.com" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          Usually your full email address
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -465,24 +598,47 @@ export function SupportSettingsManager() {
 
                 <FormField
                   control={form.control}
-                  name="smtp_secure"
+                  name="smtp_security"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Use Secure Connection (TLS)</FormLabel>
-                        <FormDescription>
-                          Enable TLS for secure SMTP connection. Usually required for port 465.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
+                    <FormItem>
+                      <FormLabel>Connection Security</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select security type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="tls">TLS (usually port 587)</SelectItem>
+                          <SelectItem value="ssl">SSL (usually port 465)</SelectItem>
+                          <SelectItem value="none">None (not recommended)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Select the appropriate security type for your SMTP server.
+                        The recommended port will update automatically.
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
+                
+                <Alert variant="info" className="mt-4">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Email Provider Security</AlertTitle>
+                  <AlertDescription>
+                    <p>Most modern email providers require a secure connection:</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li><strong>TLS</strong> - Typically uses port 587 (recommended)</li>
+                      <li><strong>SSL</strong> - Typically uses port 465</li>
+                      <li>Port selection should match your security setting</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
                 
                 <div className="mt-6">
                   <Button 

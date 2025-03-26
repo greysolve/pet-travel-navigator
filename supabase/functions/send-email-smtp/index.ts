@@ -60,7 +60,7 @@ const handler = async (req: Request): Promise<Response> => {
       port: settings.smtp_port,
       username: !!settings.smtp_username,
       has_password: !!settings.smtp_password,
-      secure: settings.smtp_secure,
+      security_type: settings.smtp_security || (settings.smtp_secure ? "tls" : "none"),
       from_email: !!settings.smtp_from_email,
       from_name: !!settings.smtp_from_name
     });
@@ -76,20 +76,48 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const port = settings.smtp_port || 587;
-    const secure = settings.smtp_secure !== false;
     
-    console.log(`Setting up SMTP client for ${settings.smtp_host}:${port} (secure: ${secure})`);
+    // Determine security settings based on the smtp_security field or fall back to the old secure flag
+    const securityType = settings.smtp_security || (settings.smtp_secure ? "tls" : "none");
+    
+    console.log(`Setting up SMTP client for ${settings.smtp_host}:${port} (security: ${securityType})`);
+    
+    let smtpConfig: Record<string, any> = {
+      user: settings.smtp_username,
+      password: settings.smtp_password,
+      host: settings.smtp_host,
+      port: port,
+      timeout: 10000, // 10 second timeout
+    };
+    
+    // Configure SMTP security options based on the selected type
+    switch (securityType) {
+      case "ssl":
+        smtpConfig.ssl = true;
+        smtpConfig.tls = false;
+        break;
+      case "tls":
+        smtpConfig.ssl = false;
+        smtpConfig.tls = true;
+        break;
+      case "none":
+      default:
+        smtpConfig.ssl = false;
+        smtpConfig.tls = false;
+        break;
+    }
     
     try {
-      const client = new SMTPClient({
-        user: settings.smtp_username,
-        password: settings.smtp_password,
+      console.log("SMTP client configuration:", {
         host: settings.smtp_host,
         port: port,
-        ssl: secure,
-        tls: !secure,
-        timeout: 10000, // 10 second timeout
+        user: settings.smtp_username ? "✓" : "✗",
+        password: settings.smtp_password ? "✓" : "✗",
+        ssl: smtpConfig.ssl, 
+        tls: smtpConfig.tls
       });
+      
+      const client = new SMTPClient(smtpConfig);
       
       const fromName = settings.smtp_from_name || "PetJumper Support";
       const fromEmail = settings.smtp_from_email || settings.smtp_username;
