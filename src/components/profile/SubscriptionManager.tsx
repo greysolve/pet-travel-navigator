@@ -237,7 +237,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {systemPlan.description && (
+          {'description' in systemPlan && systemPlan.description && (
             <p className="text-sm text-muted-foreground">
               {systemPlan.description}
             </p>
@@ -260,7 +260,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
             </div>
           )}
 
-          {systemPlan.is_search_unlimited ? (
+          {'is_search_unlimited' in systemPlan && systemPlan.is_search_unlimited ? (
             <p className="text-sm flex items-center">
               <Infinity className="h-4 w-4 mr-1 text-green-500" />
               Unlimited searches
