@@ -12,6 +12,7 @@ export function useContactFormSubmit() {
   const { profile, updateProfile } = useProfile();
   const [submitting, setSubmitting] = useState(false);
   const [useSmtp, setUseSmtp] = useState(false);
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
 
   // Check if SMTP is configured on component mount
   useEffect(() => {
@@ -19,12 +20,18 @@ export function useContactFormSubmit() {
       try {
         const { data } = await supabase
           .from('support_settings')
-          .select('use_smtp')
+          .select('use_smtp, smtp_host, smtp_username, smtp_password')
           .limit(1)
           .single();
         
         if (data && data.use_smtp) {
           setUseSmtp(true);
+          // Check if all required SMTP settings are configured
+          setSmtpConfigured(
+            !!data.smtp_host && 
+            !!data.smtp_username && 
+            !!data.smtp_password
+          );
         }
       } catch (error) {
         console.error("Error checking SMTP settings:", error);
@@ -60,11 +67,18 @@ export function useContactFormSubmit() {
       const supabaseUrl = "https://jhokkuszubzngrcamfdb.supabase.co";
 
       // Determine which email function to use based on SMTP setting
-      const endpoint = useSmtp 
-        ? `${supabaseUrl}/functions/v1/send-email-smtp`
-        : `${supabaseUrl}/functions/v1/send-email`;
+      let endpoint;
+      
+      if (useSmtp) {
+        if (!smtpConfigured) {
+          throw new Error("SMTP settings are not configured properly");
+        }
+        endpoint = `${supabaseUrl}/functions/v1/send-email-smtp`;
+      } else {
+        endpoint = `${supabaseUrl}/functions/v1/send-email`;
+      }
 
-      console.log(`Using email endpoint: ${endpoint} (SMTP: ${useSmtp})`);
+      console.log(`Using email endpoint: ${endpoint} (SMTP: ${useSmtp}, Configured: ${smtpConfigured})`);
 
       // Send the message via the appropriate edge function
       const response = await fetch(endpoint, {
@@ -108,6 +122,7 @@ export function useContactFormSubmit() {
   return {
     onSubmit,
     submitting,
-    useSmtp
+    useSmtp,
+    smtpConfigured
   };
 }

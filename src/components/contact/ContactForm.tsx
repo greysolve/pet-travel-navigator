@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 import { contactFormSchema, ContactFormValues } from "./form-schema";
 import { ContactNameField } from "./ContactNameField";
 import { ContactEmailField } from "./ContactEmailField";
@@ -16,7 +18,7 @@ import { useContactFormSubmit } from "./useContactFormSubmit";
 export function ContactForm() {
   const { user } = useAuth();
   const { profile } = useProfile();
-  const { onSubmit, submitting } = useContactFormSubmit();
+  const { onSubmit, submitting, useSmtp, smtpConfigured } = useContactFormSubmit();
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -47,21 +49,36 @@ export function ContactForm() {
     }
   };
 
+  // Show a warning if SMTP is enabled but not properly configured
+  const showSmtpWarning = useSmtp && !smtpConfigured;
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ContactNameField form={form} />
-          <ContactEmailField form={form} />
-        </div>
+    <>
+      {showSmtpWarning && (
+        <Alert variant="destructive" className="mb-6">
+          <Info className="h-4 w-4" />
+          <AlertTitle>SMTP Configuration Issue</AlertTitle>
+          <AlertDescription>
+            SMTP is enabled but not properly configured. Please complete the SMTP settings in the admin panel.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ContactNameField form={form} />
+            <ContactEmailField form={form} />
+          </div>
 
-        <ContactSubjectField form={form} />
-        <ContactMessageField form={form} />
+          <ContactSubjectField form={form} />
+          <ContactMessageField form={form} />
 
-        <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "Sending..." : "Send Message"}
-        </Button>
-      </form>
-    </Form>
+          <Button type="submit" className="w-full" disabled={submitting || showSmtpWarning}>
+            {submitting ? "Sending..." : "Send Message"}
+          </Button>
+        </form>
+      </Form>
+    </>
   );
 }
