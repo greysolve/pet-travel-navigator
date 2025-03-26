@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile, SubscriptionPlan, UserRole, UserPermission, SystemRole, SystemPlan } from "@/types/auth";
 
@@ -23,7 +22,7 @@ interface ProfileWithRoleResponse {
   address_format: string | null;
   country_id: string | null;
   search_count: number;
-  plan: SubscriptionPlan | null;
+  plan: string | null;
   userRole: string;
 }
 
@@ -40,8 +39,7 @@ class ProfileError extends Error {
 
 // Helper to validate subscription plan
 const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
-  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams', 'personal'];
-  return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
+  return plan || undefined;
 };
 
 // Helper to validate notification preferences
@@ -87,7 +85,7 @@ async function fetchRolePermissions(roleName: UserRole): Promise<UserPermission[
 }
 
 // Fetch plan details from the database
-async function fetchPlanDetails(planName: SubscriptionPlan): Promise<SystemPlan | null> {
+async function fetchPlanDetails(planName: string): Promise<SystemPlan | null> {
   try {
     const { data, error } = await supabase
       .from('system_plans')

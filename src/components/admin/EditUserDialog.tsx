@@ -71,14 +71,16 @@ export function EditUserDialog({
     e.preventDefault();
     if (!userData) return;
 
-    onSubmit({
+    const updatedUserData: EditUserData = {
       id: userData.id,
       email: userData.email,
       first_name: firstName,
       last_name: lastName,
       role,
       plan,
-    });
+    };
+
+    onSubmit(updatedUserData);
   };
 
   const roleNames = getRoleNames();
