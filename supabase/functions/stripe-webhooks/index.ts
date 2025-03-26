@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -278,9 +279,9 @@ Deno.serve(async (req) => {
         // Get the price ID from the subscription
         const priceId = subscription.items.data[0].price.id;
         
-        // SIMPLIFIED USER MATCHING: Only use customer email to find the user
-        // Retrieve the customer to get their email
+        // ONLY use customer email to find the user - avoid ambiguous matching
         try {
+          // Retrieve the customer to get their email
           const { data: customerData } = await stripe.customers.retrieve(customerId);
           
           if (!customerData || ('deleted' in customerData) || !customerData.email) {
