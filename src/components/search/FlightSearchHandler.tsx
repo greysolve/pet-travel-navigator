@@ -11,7 +11,13 @@ interface UseFlightSearchReturn {
   isSearchLoading: boolean;
   searchCount: number | undefined;
   isPetCaddie: boolean;
-  handleFlightSearch: () => Promise<void>;
+  handleFlightSearch: (
+    origin: string, 
+    destination: string, 
+    date: Date, 
+    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
+    onComplete?: () => void
+  ) => Promise<FlightData[]>;
 }
 
 export const useFlightSearch = (): UseFlightSearchReturn => {
@@ -72,7 +78,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         description: "You have reached your search limit. Please upgrade your plan.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     try {
@@ -88,8 +94,10 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           description: "Failed to update search count. Please try again.",
           variant: "destructive",
         });
+        return false;
       } else {
         setSearchCount(profile.search_count - 1);
+        return true;
       }
     } catch (error) {
       console.error("Unexpected error decrementing search count:", error);
@@ -98,17 +106,24 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
+      return false;
     }
   }, [profile, toast, setSearchCount]);
 
-  const handleFlightSearch = async () => {
+  const handleFlightSearch = async (
+    origin: string, 
+    destination: string, 
+    date: Date,
+    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
+    onComplete?: () => void
+  ) => {
     if (!profile) {
       toast({
         title: "Authentication required",
         description: "Please sign in to search",
         variant: "destructive",
       });
-      return;
+      return [];
     }
 
     // Check if the user can make a search based on role and plan
@@ -121,21 +136,65 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           description: "You have reached your search limit. Please upgrade your plan.",
           variant: "destructive",
         });
-        return;
+        return [];
       }
     }
 
     setIsSearchLoading(true);
     try {
-      // Simulate flight search API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Decrement search count if user is a pet caddie with a limited search plan
+      console.log('Calling search_flight_schedules with:', { origin, destination, date });
+      
+      // Record search in the database
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
-        await decrementSearchCount();
+        const decremented = await decrementSearchCount();
+        if (!decremented) {
+          setIsSearchLoading(false);
+          return [];
+        }
       }
+      
+      // Call the Supabase Edge Function to search for flights
+      const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
+        body: {
+          origin,
+          destination,
+          date: date.toISOString(),
+        },
+      });
+
+      if (error) {
+        console.error('Error calling search_flight_schedules:', error);
+        toast({
+          title: "Search failed",
+          description: "There was an error fetching flight data. Please try again.",
+          variant: "destructive",
+        });
+        return [];
+      }
+
+      console.log('Received flight search results:', data);
+      
+      const flights = data?.connections || [];
+      
+      // Call the callback with the results
+      if (onResults) {
+        onResults(flights, {});
+      }
+      
+      return flights;
+    } catch (error) {
+      console.error('Error in flight search:', error);
+      toast({
+        title: "Search failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      return [];
     } finally {
       setIsSearchLoading(false);
+      if (onComplete) {
+        onComplete();
+      }
     }
   };
 
