@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -279,126 +278,88 @@ Deno.serve(async (req) => {
         // Get the price ID from the subscription
         const priceId = subscription.items.data[0].price.id;
         
-        // Get the user ID from various sources
-        let userId = null;
-        
-        // Try from subscription metadata first
-        if (subscription.metadata?.user_id) {
-          userId = subscription.metadata.user_id;
-          console.log('Found user ID in subscription metadata:', userId);
-        }
-        
-        // If not found, try from customer metadata
-        if (!userId) {
-          try {
-            const { data: customerData } = await stripe.customers.retrieve(customerId);
-            if (customerData && !('deleted' in customerData)) {
-              userId = customerData.metadata?.supabase_user_id;
-              console.log('Found user ID in customer metadata:', userId);
-            }
-          } catch (error) {
-            console.error('Error retrieving customer:', error);
-          }
-        }
-        
-        // If still not found, try from customer_subscriptions table
-        if (!userId) {
-          const { data: subData } = await supabaseClient
-            .from('customer_subscriptions')
-            .select('user_id')
-            .eq('stripe_customer_id', customerId)
-            .maybeSingle();
-            
-          if (subData?.user_id) {
-            userId = subData.user_id;
-            console.log('Found user ID in customer_subscriptions table:', userId);
-          }
-        }
-
-        // If still not found, see if there's a user with this customer ID in profile metadata
-        if (!userId) {
-          const { data: users, error: usersError } = await supabaseClient.auth.admin.listUsers({});
-          if (!usersError && users.users) {
-            const userWithCustomerId = users.users.find(user => 
-              user.user_metadata?.stripe_customer_id === customerId
-            );
-            if (userWithCustomerId) {
-              userId = userWithCustomerId.id;
-              console.log('Found user by customer ID in user metadata:', userId);
-            }
-          }
-        }
-
-        // If still not found, check if we can find a user by customer email
-        if (!userId) {
-          try {
-            const { data: customerData } = await stripe.customers.retrieve(customerId);
-            if (customerData && !('deleted' in customerData) && customerData.email) {
-              const { data: emailUsers } = await supabaseClient.auth.admin.listUsers({
-                email: customerData.email
-              });
-              
-              if (emailUsers.users && emailUsers.users.length > 0) {
-                userId = emailUsers.users[0].id;
-                console.log('Found user by email address:', userId);
-                
-                // Link this customer ID to the found user
-                await supabaseClient
-                  .from('customer_subscriptions')
-                  .upsert({
-                    user_id: userId,
-                    stripe_customer_id: customerId,
-                    status: 'active'
-                  });
-              } else {
-                // Create a new user if no matching email found
-                console.log('No user found by email, creating new user');
-                userId = await createUserInSupabase(
-                  supabaseClient, 
-                  customerData.email, 
-                  customerId
-                );
-              }
-            }
-          } catch (error) {
-            console.error('Error looking up customer or creating user:', error);
-          }
-        }
-
-        if (!userId) {
-          throw new Error(`No user ID found for customer: ${customerId}`);
-        }
-
-        // Map the Stripe price to our plan type
-        const planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
-        console.log(`Mapped price ${priceId} to plan: ${planType}`);
-
-        // Update subscription details
-        await supabaseClient
-          .from('customer_subscriptions')
-          .upsert({
-            user_id: userId,
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscription.id,
-            status: subscription.status,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            cancel_at_period_end: subscription.cancel_at_period_end,
-          }, {
-            onConflict: 'stripe_subscription_id'
-          });
-
-        // Update user's plan in profiles
-        const { error: updateError } = await supabaseClient
-          .from('profiles')
-          .update({ plan: planType })
-          .eq('id', userId);
+        // SIMPLIFIED USER MATCHING: Only use customer email to find the user
+        // Retrieve the customer to get their email
+        try {
+          const { data: customerData } = await stripe.customers.retrieve(customerId);
           
-        if (updateError) {
-          console.error(`Error updating user plan: ${updateError.message}`);
-          throw new Error(`Failed to update user plan: ${updateError.message}`);
-        }
+          if (!customerData || ('deleted' in customerData) || !customerData.email) {
+            throw new Error(`No valid customer data or email found for customer: ${customerId}`);
+          }
+          
+          const customerEmail = customerData.email;
+          console.log(`Looking up user by email: ${customerEmail}`);
+          
+          // Find the user by email
+          const { data: emailUsers, error: emailLookupError } = await supabaseClient.auth.admin.listUsers({
+            email: customerEmail
+          });
+          
+          if (emailLookupError) {
+            console.error('Error looking up user by email:', emailLookupError);
+            throw emailLookupError;
+          }
+          
+          let userId;
+          
+          // If user exists, use that user
+          if (emailUsers.users && emailUsers.users.length > 0) {
+            userId = emailUsers.users[0].id;
+            console.log(`Found existing user by email: ${userId}`);
+            
+            // Link this customer ID to the found user if not already linked
+            await supabaseClient
+              .from('customer_subscriptions')
+              .upsert({
+                user_id: userId,
+                stripe_customer_id: customerId,
+                status: 'active'
+              });
+          } else {
+            // Create a new user if no matching email found
+            console.log(`No user found by email ${customerEmail}, creating new user`);
+            userId = await createUserInSupabase(
+              supabaseClient, 
+              customerEmail, 
+              customerId
+            );
+          }
 
-        console.log(`Updated subscription for user ${userId} to plan: ${planType}`);
+          // Map the Stripe price to our plan type
+          const planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+          console.log(`Mapped price ${priceId} to plan: ${planType}`);
+
+          // Update subscription details
+          await supabaseClient
+            .from('customer_subscriptions')
+            .upsert({
+              user_id: userId,
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscription.id,
+              status: subscription.status,
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              cancel_at_period_end: subscription.cancel_at_period_end,
+            }, {
+              onConflict: 'stripe_subscription_id'
+            });
+
+          // Update user's plan in profiles
+          const { error: updateError } = await supabaseClient
+            .from('profiles')
+            .update({ plan: planType })
+            .eq('id', userId);
+            
+          if (updateError) {
+            console.error(`Error updating user plan: ${updateError.message}`);
+            throw new Error(`Failed to update user plan: ${updateError.message}`);
+          }
+
+          console.log(`Updated subscription for user ${userId} to plan: ${planType}`);
+        } catch (error) {
+          console.error('Error processing subscription:', error);
+          throw error;
+        }
+        
         break;
       }
 
