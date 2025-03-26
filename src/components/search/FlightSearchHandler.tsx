@@ -174,35 +174,11 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
 
       console.log('Received flight search results:', data);
       
-      // Check that we have a valid connections array
-      if (!data || !data.connections || !Array.isArray(data.connections)) {
-        console.error('Invalid or empty connections array in response:', data);
-        toast({
-          title: "No flights found",
-          description: "We couldn't find any flights matching your search criteria.",
-          variant: "destructive",
-        });
-        return [];
-      }
-      
-      // Ensure each flight has the required properties
-      const flights = data.connections.map((flight: any) => {
-        // Make sure each flight has segments array
-        if (!flight.segments && flight.scheduledFlight) {
-          flight.segments = flight.scheduledFlight;
-        }
-        return flight;
-      });
-      
-      console.log('Processed flights to return:', flights);
+      const flights = data?.connections || [];
       
       // Call the callback with the results
       if (onResults) {
         onResults(flights, {});
-      }
-      
-      if (onComplete) {
-        onComplete();
       }
       
       return flights;
@@ -216,6 +192,9 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       return [];
     } finally {
       setIsSearchLoading(false);
+      if (onComplete) {
+        onComplete();
+      }
     }
   };
 

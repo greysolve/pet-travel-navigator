@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy } from "../../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
@@ -89,7 +90,7 @@ export const useSearchHandler = ({
     console.log('Handling route search with:', { origin, destination, date });
     try {
       // Call the handleFlightSearch function to get flight data
-      const flightResults = await handleFlightSearch(
+      await handleFlightSearch(
         origin,
         destination,
         date,
@@ -129,10 +130,6 @@ export const useSearchHandler = ({
           console.log("Search completed");
         }
       );
-      
-      // Ensure flightResults is properly processed before returning
-      console.log("Final flight results from handleRouteSearch:", flightResults);
-      return flightResults;
     } catch (error) {
       console.error("Error in handleRouteSearch:", error);
       toast({
@@ -140,7 +137,6 @@ export const useSearchHandler = ({
         description: "There was an error performing your search. Please try again.",
         variant: "destructive",
       });
-      return [];
     }
   };
 
