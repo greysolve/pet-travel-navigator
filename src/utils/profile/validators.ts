@@ -5,7 +5,14 @@ import { SubscriptionPlan } from './types';
  * Helper to validate subscription plan
  */
 export const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
-  return plan || undefined;
+  // Check if the plan is one of the valid options
+  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams', 'personal'];
+  
+  if (plan && validPlans.includes(plan as SubscriptionPlan)) {
+    return plan as SubscriptionPlan;
+  }
+  
+  return undefined;
 };
 
 /**

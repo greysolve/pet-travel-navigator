@@ -49,7 +49,8 @@ export function EditUserDialog({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState<UserRole>("");
-  const [plan, setPlan] = useState<SubscriptionPlan>("");
+  // Initialize with null instead of empty string to avoid type errors
+  const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   
   const { 
     getRoleNames, 
@@ -63,7 +64,7 @@ export function EditUserDialog({
       setFirstName(userData.first_name || "");
       setLastName(userData.last_name || "");
       setRole(userData.role || "");
-      setPlan(userData.plan || "");
+      setPlan(userData.plan || null);
     }
   }, [userData]);
 
@@ -77,10 +78,24 @@ export function EditUserDialog({
       first_name: firstName,
       last_name: lastName,
       role,
-      plan,
+      // Only include plan if it's not null
+      ...(plan && { plan }),
     };
 
     onSubmit(updatedUserData);
+  };
+
+  // Convert plan to string for Select component
+  const planValue = plan || "";
+  
+  // Handler for plan selection
+  const handlePlanChange = (value: string) => {
+    // Type assertion here is safe because we're ensuring only valid options are in the select
+    if (value) {
+      setPlan(value as SubscriptionPlan);
+    } else {
+      setPlan(null);
+    }
   };
 
   const roleNames = getRoleNames();
@@ -163,8 +178,8 @@ export function EditUserDialog({
               </Label>
               <div className="col-span-3">
                 <Select
-                  value={plan}
-                  onValueChange={setPlan}
+                  value={planValue}
+                  onValueChange={handlePlanChange}
                   disabled={typesLoading}
                 >
                   <SelectTrigger>
