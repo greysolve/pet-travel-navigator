@@ -659,6 +659,7 @@ export type Database = {
           smtp_password: string | null
           smtp_port: number | null
           smtp_secure: boolean | null
+          smtp_security: string | null
           smtp_username: string | null
           support_email: string
           updated_at: string
@@ -675,6 +676,7 @@ export type Database = {
           smtp_password?: string | null
           smtp_port?: number | null
           smtp_secure?: boolean | null
+          smtp_security?: string | null
           smtp_username?: string | null
           support_email?: string
           updated_at?: string
@@ -691,6 +693,7 @@ export type Database = {
           smtp_password?: string | null
           smtp_port?: number | null
           smtp_secure?: boolean | null
+          smtp_security?: string | null
           smtp_username?: string | null
           support_email?: string
           updated_at?: string

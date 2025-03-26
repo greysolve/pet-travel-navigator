@@ -77,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const port = settings.smtp_port || 587;
     
-    // Determine security settings based on the smtp_security field or fall back to the old secure flag
+    // Prioritize the new smtp_security field but fall back to the old secure flag
     const securityType = settings.smtp_security || (settings.smtp_secure ? "tls" : "none");
     
     console.log(`Setting up SMTP client for ${settings.smtp_host}:${port} (security: ${securityType})`);

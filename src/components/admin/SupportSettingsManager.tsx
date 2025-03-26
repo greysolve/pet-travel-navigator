@@ -135,9 +135,12 @@ export function SupportSettingsManager() {
           const settings = data[0];
           setSettingsId(settings.id);
           
-          // Map the old smtp_secure boolean to the new smtp_security enum
+          // Now directly use the smtp_security field if available, or fall back to the old method
           let securityType: SmtpSecurityType = "tls";
-          if (settings.smtp_secure === false) {
+          if (settings.smtp_security) {
+            // Use the new field directly
+            securityType = settings.smtp_security as SmtpSecurityType;
+          } else if (settings.smtp_secure === false) {
             securityType = "none";
           } else if (settings.smtp_port === 465) {
             securityType = "ssl";
@@ -285,9 +288,8 @@ export function SupportSettingsManager() {
         formData.smtp_from_name = null;
       }
 
-      // Map the security type back to the old schema format temporarily
-      // We'll store the security type as a string, but for backwards compatibility
-      // we also set the smtp_secure flag
+      // Set the smtp_secure flag for backward compatibility
+      // while also saving the new smtp_security field
       let smtp_secure: boolean;
       switch (formData.smtp_security) {
         case "none":
