@@ -24,6 +24,7 @@ async function getPlanFromPriceId(supabaseClient: any, priceId: string, environm
   // Extract the plan type from the name (assuming names are like "Premium Plan ($10 USD)")
   if (plan.name.toLowerCase().includes('premium')) return 'premium';
   if (plan.name.toLowerCase().includes('teams')) return 'teams';
+  if (plan.name.toLowerCase().includes('personal')) return 'personal';
   return 'free';
 }
 

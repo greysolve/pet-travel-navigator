@@ -40,7 +40,7 @@ class ProfileError extends Error {
 
 // Helper to validate subscription plan
 const validatePlan = (plan: string | null): SubscriptionPlan | undefined => {
-  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams'];
+  const validPlans: SubscriptionPlan[] = ['free', 'premium', 'teams', 'personal'];
   return plan && validPlans.includes(plan as SubscriptionPlan) ? (plan as SubscriptionPlan) : undefined;
 };
 

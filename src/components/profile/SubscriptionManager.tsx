@@ -135,6 +135,60 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
+  // Personal Plan View
+  if (currentPlan.name.toLowerCase().includes('personal')) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Personal Plan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            You're on the Personal plan with a limited number of total searches.
+          </p>
+          <div className="space-y-4">
+            <div className="text-lg font-semibold">
+              {currentPlan.price} {currentPlan.currency}
+            </div>
+
+            {currentPlan.features.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-medium">Features:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {currentPlan.features.map((feature, index) => (
+                    <li key={index} className="text-sm">{feature}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <p className="text-sm font-medium">
+              Searches remaining: {currentPlan.searchCount}
+            </p>
+            <p className="text-xs text-amber-600">
+              Note: This plan has a limited number of total searches that cannot be reset.
+            </p>
+
+            <Button 
+              onClick={handleManageSubscription} 
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Manage Subscription'
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Free plan view
   if (currentPlan.price === 0) {
     return (

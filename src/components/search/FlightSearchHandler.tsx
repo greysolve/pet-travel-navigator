@@ -1,72 +1,103 @@
-
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData, PetPolicy } from "../flight-results/types";
+import type { FlightData } from "../flight-results/types";
+import { useSearchParams } from "react-router-dom";
 
-export const useFlightSearch = () => {
+interface UseFlightSearchReturn {
+  isSearchLoading: boolean;
+  searchCount: number | undefined;
+  isPetCaddie: boolean;
+  handleFlightSearch: () => Promise<void>;
+}
+
+export const useFlightSearch = (): UseFlightSearchReturn => {
+  const { toast } = useToast();
+  const { profile } = useProfile();
   const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const [searchCount, setSearchCount] = useState<number>(0);
-  const [isPetCaddie, setIsPetCaddie] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchCount, setSearchCount] = useState<number | undefined>(profile?.search_count);
 
-  const handleFlightSearch = async (
-    origin: string, 
-    destination: string, 
-    date: Date,
-    onSearchResults?: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void,
-    onSearchComplete?: () => void
-  ): Promise<FlightData[]> => {
-    setIsSearchLoading(true);
-    try {
-      console.log('Searching flights:', { origin, destination, date });
-      const { data: flightData, error } = await supabase.functions.invoke('search_flight_schedules', {
-        body: JSON.stringify({
-          origin,
-          destination,
-          date: date.toISOString(),
-        }),
+  const isPetCaddie = profile?.userRole === 'pet_caddie';
+
+  useEffect(() => {
+    setSearchCount(profile?.search_count);
+  }, [profile?.search_count]);
+
+  const decrementSearchCount = useCallback(async () => {
+    if (!profile?.id) {
+      toast({
+        title: "Error",
+        description: "Could not decrement search count: user not found",
+        variant: "destructive",
       });
+      return;
+    }
+
+    if (profile.search_count === undefined || profile.search_count <= 0) {
+      toast({
+        title: "No searches remaining",
+        description: "You have reached your search limit. Please upgrade your plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ search_count: profile.search_count - 1 })
+        .eq('id', profile.id);
 
       if (error) {
-        console.error('Error fetching flights:', error);
-        throw error;
+        console.error("Error decrementing search count:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update search count. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        setSearchCount(profile.search_count - 1);
       }
-
-      console.log('Raw flight data received:', flightData);
-      
-      // Check if connections property exists
-      if (!flightData.connections) {
-        console.error('No connections property in flightData:', flightData);
-        return [];
-      }
-
-      // Ensure each flight segment has the airline name
-      const processedFlights = flightData.connections.map((flight: FlightData) => {
-        console.log('Processing flight:', flight);
-        return {
-          ...flight,
-          segments: flight.segments?.map(segment => ({
-            ...segment,
-            airlineName: segment.airlineName || `${segment.carrierFsCode} Airlines` // Fallback if name not provided
-          }))
-        };
-      });
-
-      console.log('Processed flights with airline names:', processedFlights);
-      
-      // Call the callback if provided
-      if (onSearchResults) {
-        console.log('Calling onSearchResults with processed flights');
-        onSearchResults(processedFlights);
-      }
-      
-      if (onSearchComplete) {
-        onSearchComplete();
-      }
-      
-      return processedFlights;
     } catch (error) {
-      console.error('Flight search error:', error);
-      throw error;
+      console.error("Unexpected error decrementing search count:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [profile, toast, setSearchCount]);
+
+  const handleFlightSearch = async () => {
+    if (!profile) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isPetCaddie && (profile.search_count === undefined || profile.search_count <= 0)) {
+      toast({
+        title: "No searches remaining",
+        description: "You have reached your search limit. Please upgrade your plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearchLoading(true);
+    try {
+      // Simulate flight search API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Decrement search count if user is a pet caddie
+      if (isPetCaddie) {
+        await decrementSearchCount();
+      }
     } finally {
       setIsSearchLoading(false);
     }

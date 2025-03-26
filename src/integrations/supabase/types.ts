@@ -872,7 +872,7 @@ export type Database = {
         | "size_restrictions_max_weight_cabin"
         | "size_restrictions_max_weight_cargo"
         | "size_restrictions_carrier_dimensions_cabin"
-      subscription_plan: "free" | "premium" | "teams"
+      subscription_plan: "free" | "premium" | "teams" | "personal"
     }
     CompositeTypes: {
       [_ in never]: never
