@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSystemConfig } from "@/contexts/SystemConfigContext";
 import { useToast } from "@/hooks/use-toast";
+import type { SystemPlan } from "@/types/auth";
 
 export const usePlanDetails = (planName: string | undefined) => {
-  const [planDetails, setPlanDetails] = useState<any | null>(null);
+  const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const { toast } = useToast();
   const { plans } = useSystemConfig();
 
@@ -37,7 +38,7 @@ export const usePlanDetails = (planName: string | undefined) => {
           return;
         }
 
-        setPlanDetails(data);
+        setPlanDetails(data as SystemPlan);
       } catch (error) {
         console.error("Unexpected error fetching plan details:", error);
         toast({
