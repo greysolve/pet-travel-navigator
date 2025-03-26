@@ -113,10 +113,11 @@ const handler = async (req: Request): Promise<Response> => {
         <p>Best regards,<br>The PetJumper Support Team</p>
       `;
       
-      // Send to support
+      // Send to support with customer name in the From field and Reply-To set to customer email
       const supportEmailMessage = {
-        from: `${fromName} <${fromEmail}>`,
+        from: `${requestData.name} via PetJumper <${fromEmail}>`,
         to: settings.support_email,
+        replyTo: requestData.email,
         subject: `Contact Form: ${requestData.subject}`,
         text: supportEmailHTML.replace(/<[^>]*>?/gm, ''),
         attachment: [
@@ -127,10 +128,11 @@ const handler = async (req: Request): Promise<Response> => {
       const supportInfo = await client.sendAsync(supportEmailMessage);
       console.log("SMTP support email sent:", supportInfo);
       
-      // Send auto-reply to user
+      // Send auto-reply to user with support email as the sender
       const userEmailMessage = {
         from: `${fromName} <${fromEmail}>`,
         to: requestData.email,
+        replyTo: settings.support_email,
         subject: settings.auto_reply_subject,
         text: userEmailHTML.replace(/<[^>]*>?/gm, ''),
         attachment: [
