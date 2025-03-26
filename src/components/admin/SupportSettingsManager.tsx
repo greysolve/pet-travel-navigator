@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,6 +34,8 @@ export function SupportSettingsManager() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [testingSmtp, setTestingSmtp] = useState(false);
+  const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [settingsId, setSettingsId] = useState<string | null>(null);
 
   const form = useForm<SupportSettingsValues>({
@@ -52,6 +57,21 @@ export function SupportSettingsManager() {
 
   // Watch the use_smtp field to conditionally render SMTP settings
   const useSmtp = form.watch("use_smtp");
+  const smtpHost = form.watch("smtp_host");
+  const smtpPort = form.watch("smtp_port");
+  const smtpUsername = form.watch("smtp_username");
+  const smtpPassword = form.watch("smtp_password");
+  const smtpFromEmail = form.watch("smtp_from_email");
+  const smtpSecure = form.watch("smtp_secure");
+
+  // Check if all required SMTP settings are filled
+  const isSmtpConfigured = !!(
+    smtpHost && 
+    smtpPort && 
+    smtpUsername && 
+    smtpPassword &&
+    smtpFromEmail
+  );
 
   useEffect(() => {
     async function fetchSettings() {
@@ -97,6 +117,76 @@ export function SupportSettingsManager() {
     fetchSettings();
   }, [form, toast]);
 
+  const testSmtpConnection = async () => {
+    // Clear previous test results
+    setTestResult(null);
+    setTestingSmtp(true);
+    
+    try {
+      // Get form values
+      const formData = form.getValues();
+      
+      if (!formData.use_smtp || !isSmtpConfigured) {
+        throw new Error("SMTP settings are not fully configured");
+      }
+
+      // Get the Supabase JWT for authorization
+      const { data: authData } = await supabase.auth.getSession();
+      const accessToken = authData.session?.access_token || '';
+      
+      // Use the hardcoded Supabase URL from the client file
+      const supabaseUrl = "https://jhokkuszubzngrcamfdb.supabase.co";
+      const testEndpoint = `${supabaseUrl}/functions/v1/send-email-smtp`;
+
+      console.log("Testing SMTP connection to:", formData.smtp_host);
+      
+      // Send a test email using the SMTP settings
+      const response = await fetch(testEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          to: formData.support_email,
+          subject: "SMTP Test Email",
+          html: "<p>This is a test email to verify your SMTP settings.</p>"
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send test email");
+      }
+
+      setTestResult({
+        success: true,
+        message: "SMTP test successful! A test email has been sent to your support email address."
+      });
+      
+      toast({
+        title: "SMTP Test Successful",
+        description: "Your SMTP settings are working correctly.",
+      });
+    } catch (error) {
+      console.error("SMTP test error:", error);
+      
+      setTestResult({
+        success: false,
+        message: `SMTP test failed: ${error.message}`
+      });
+      
+      toast({
+        title: "SMTP Test Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setTestingSmtp(false);
+    }
+  };
+
   const onSubmit = async (data: SupportSettingsValues) => {
     if (!settingsId) return;
 
@@ -133,6 +223,9 @@ export function SupportSettingsManager() {
       if (error) {
         throw error;
       }
+
+      // Clear test result after saving
+      setTestResult(null);
 
       toast({
         title: "Settings updated",
@@ -248,6 +341,22 @@ export function SupportSettingsManager() {
             {useSmtp && (
               <div className="space-y-6 border-t pt-6">
                 <h3 className="text-lg font-medium mb-4">SMTP Configuration</h3>
+                
+                {testResult && (
+                  <Alert 
+                    variant={testResult.success ? "info" : "destructive"} 
+                    className="mb-6"
+                  >
+                    {testResult.success ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" />
+                    )}
+                    <AlertTitle>{testResult.success ? "Test Successful" : "Test Failed"}</AlertTitle>
+                    <AlertDescription>{testResult.message}</AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -374,6 +483,29 @@ export function SupportSettingsManager() {
                     </FormItem>
                   )}
                 />
+                
+                <div className="mt-6">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={testSmtpConnection}
+                    disabled={testingSmtp || !isSmtpConfigured}
+                    className="mr-4"
+                  >
+                    {testingSmtp ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>Test SMTP Connection</>
+                    )}
+                  </Button>
+                  <FormDescription className="inline-block ml-2">
+                    {!isSmtpConfigured && useSmtp ? 
+                      "Complete all SMTP fields to enable testing" : ""}
+                  </FormDescription>
+                </div>
               </div>
             )}
 

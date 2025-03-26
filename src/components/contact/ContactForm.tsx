@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { AlertCircle, Info } from "lucide-react";
 import { contactFormSchema, ContactFormValues } from "./form-schema";
 import { ContactNameField } from "./ContactNameField";
 import { ContactEmailField } from "./ContactEmailField";
@@ -56,10 +56,12 @@ export function ContactForm() {
     <>
       {showSmtpWarning && (
         <Alert variant="destructive" className="mb-6">
-          <Info className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" />
           <AlertTitle>SMTP Configuration Issue</AlertTitle>
           <AlertDescription>
-            SMTP is enabled but not properly configured. Please complete the SMTP settings in the admin panel.
+            SMTP is enabled but not properly configured. Please check the SMTP settings in the admin panel.
+            <br />
+            <span className="font-semibold">Note for administrators:</span> Use the Test SMTP button in the admin panel to diagnose the issue.
           </AlertDescription>
         </Alert>
       )}
