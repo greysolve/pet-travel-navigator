@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -71,14 +72,14 @@ export const useUserManagement = () => {
     mutationFn: async (userId: string) => {
       console.log("Deleting user:", userId);
       
-      const { error: deleteAuthError } = await supabase.functions.invoke('manage_users', {
+      const { error } = await supabase.functions.invoke('manage_users', {
         method: 'DELETE',
         body: { userId }
       });
 
-      if (deleteAuthError) {
-        console.error("Error deleting auth user:", deleteAuthError);
-        throw deleteAuthError;
+      if (error) {
+        console.error("Error deleting user:", error);
+        throw error;
       }
 
       toast({

@@ -121,25 +121,25 @@ Deno.serve(async (req) => {
             throw fetchError;
           }
 
-          let roleError;
+          let error;
           if (existingRole) {
             // Update existing role
-            const { error } = await supabaseAdmin
+            const { error: updateError } = await supabaseAdmin
               .from('user_roles')
               .update({ role: updateData.role })
               .eq('user_id', updateData.id);
-            roleError = error;
+            error = updateError;
           } else {
             // Insert new role
-            const { error } = await supabaseAdmin
+            const { error: insertError } = await supabaseAdmin
               .from('user_roles')
               .insert({ user_id: updateData.id, role: updateData.role });
-            roleError = error;
+            error = insertError;
           }
 
-          if (roleError) {
-            console.error('Error updating role:', roleError);
-            throw roleError;
+          if (error) {
+            console.error('Error updating role:', error);
+            throw error;
           }
         }
 
