@@ -102,10 +102,16 @@ export function ContactForm() {
       const { data: authData } = await supabase.auth.getSession();
       const accessToken = authData.session?.access_token || '';
 
+      // Get the Supabase URL from environment variables
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('VITE_SUPABASE_URL is not defined');
+      }
+
       // Determine which email function to use based on SMTP setting
       const endpoint = useSmtp 
-        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-smtp`
-        : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`;
+        ? `${supabaseUrl}/functions/v1/send-email-smtp`
+        : `${supabaseUrl}/functions/v1/send-email`;
 
       console.log(`Using email endpoint: ${endpoint} (SMTP: ${useSmtp})`);
 
