@@ -1,12 +1,12 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserManagement } from "@/components/admin/UserManagement";
-import { PetPolicyUpdate } from "@/components/admin/PetPolicyUpdate";
+import UserManagement from "@/components/admin/UserManagement";
+import PetPolicyUpdate from "@/components/admin/PetPolicyUpdate";
 import { SyncSection } from "@/components/admin/SyncSection";
-import { CountryPolicyUpdate } from "@/components/admin/CountryPolicyUpdate";
+import CountryPolicyUpdate from "@/components/admin/CountryPolicyUpdate";
 import { AirlineDataManager } from "@/components/admin/AirlineDataManager";
-import { SampleResultsManager } from "@/components/admin/SampleResultsManager";
+import SampleResultsManager from "@/components/admin/SampleResultsManager";
 import { PremiumFieldsManager } from "@/components/admin/PremiumFieldsManager";
 import { PaymentPlansManager } from "@/components/admin/PaymentPlansManager";
 import { SupportSettingsManager } from "@/components/admin/support-settings/SupportSettingsManager";
