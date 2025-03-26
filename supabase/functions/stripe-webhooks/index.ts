@@ -330,51 +330,91 @@ Deno.serve(async (req) => {
             .replace(/\b\w/g, char => char.toUpperCase());
         }
         
-        // Check if the customer has an active subscription to determine plan
+        // Get stripe instance
         const stripe = getStripeInstance(event.livemode);
-        const subscriptions = await stripe.subscriptions.list({
+        
+        // Check if the customer has a completed payment intent (for one-time payments)
+        const paymentIntents = await stripe.paymentIntents.list({
           customer: customerId,
-          status: 'active',
           limit: 1
         });
         
         let planType = 'free';
-        let subscriptionId = null;
         
-        if (subscriptions.data.length > 0) {
-          // Get the subscription and price info
-          const subscription = subscriptions.data[0];
-          subscriptionId = subscription.id;
-          const priceId = subscription.items.data[0].price.id;
-          planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
-          console.log(`Customer has active subscription with plan: ${planType}`);
+        if (paymentIntents.data.length > 0 && paymentIntents.data[0].status === 'succeeded') {
+          // This is a one-time payment, get the plan from the payment intent metadata
+          const paymentIntent = paymentIntents.data[0];
+          if (paymentIntent.metadata.price_id) {
+            planType = await getPlanFromPriceId(supabaseClient, paymentIntent.metadata.price_id, environment);
+            console.log(`Customer has a successful payment with plan: ${planType}`);
+          }
         } else {
-          console.log('Customer has no active subscriptions, using free plan');
+          // Check for subscriptions
+          const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 1
+          });
+          
+          if (subscriptions.data.length > 0) {
+            // Get the subscription and price info
+            const subscription = subscriptions.data[0];
+            const priceId = subscription.items.data[0].price.id;
+            planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+            console.log(`Customer has active subscription with plan: ${planType}`);
+          } else {
+            console.log('Customer has no active subscriptions or payments, using free plan');
+          }
         }
         
         // Create or link the user and set their plan
         const userId = await ensureUserExists(supabaseClient, email, fullName, customerId, planType);
         
-        // If we have a subscription, update the subscription details
-        if (subscriptionId) {
-          const subscription = subscriptions.data[0];
-          
-          await supabaseClient
-            .from('customer_subscriptions')
-            .upsert({
-              user_id: userId,
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId,
-              status: subscription.status,
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-              cancel_at_period_end: subscription.cancel_at_period_end,
-            }, {
-              onConflict: 'user_id',
-              ignoreDuplicates: false
-            });
-          
-          console.log(`Updated subscription details for user ${userId}`);
+        break;
+      }
+      
+      case 'payment_intent.succeeded': {
+        // Handle one-time payment success (like for Personal plan)
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const customerId = paymentIntent.customer as string;
+        
+        if (!customerId) {
+          console.error('No customer ID found in payment intent');
+          throw new Error('No customer ID found in payment intent');
         }
+        
+        // Get stripe instance for this environment
+        const stripe = getStripeInstance(event.livemode);
+        
+        // Get the customer details to get their email
+        const customer = await stripe.customers.retrieve(customerId);
+        
+        if (!customer || ('deleted' in customer) || !customer.email) {
+          throw new Error(`No valid customer data or email found for customer: ${customerId}`);
+        }
+        
+        const customerEmail = customer.email;
+        const customerName = customer.name || customerEmail.split('@')[0].replace(/[._]/g, ' ');
+        
+        console.log(`Processing one-time payment for email: ${customerEmail}, customer ID: ${customerId}`);
+        
+        // Get the plan type from the price ID in metadata
+        let planType = 'free';
+        if (paymentIntent.metadata.price_id) {
+          planType = await getPlanFromPriceId(supabaseClient, paymentIntent.metadata.price_id, environment);
+          console.log(`Mapped price ${paymentIntent.metadata.price_id} to plan: ${planType}`);
+        }
+        
+        // Ensure user exists (or create them)
+        const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
+        
+        // Update profile with the plan
+        await supabaseClient
+          .from('profiles')
+          .update({ plan: planType })
+          .eq('id', userId);
+        
+        console.log(`Updated user ${userId} to plan: ${planType} after one-time payment`);
         
         break;
       }
@@ -473,6 +513,14 @@ Deno.serve(async (req) => {
 
           console.log(`Downgraded user ${subscriptionData.user_id} to free plan`);
         }
+        break;
+      }
+      
+      case 'customer.deleted': {
+        // If a customer is deleted in Stripe, we might want to update our database
+        // This is optional and depends on your business logic
+        const customer = event.data.object as Stripe.Customer;
+        console.log(`Customer deleted: ${customer.id}`);
         break;
       }
     }

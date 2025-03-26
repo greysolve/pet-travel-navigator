@@ -162,7 +162,18 @@ Deno.serve(async (req) => {
         });
         customerId = customer.id;
       }
-
+      
+      // First, check if this is a one-time payment plan (like personal)
+      const { data: paymentPlan } = await supabaseClient
+        .from('payment_plans')
+        .select('*')
+        .eq('stripe_price_id', priceId)
+        .single();
+        
+      // Determine if this is a subscription or one-time payment
+      const isSubscription = !paymentPlan?.name?.toLowerCase().includes('personal');
+      
+      // Create checkout session with appropriate mode
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [
@@ -171,12 +182,18 @@ Deno.serve(async (req) => {
             quantity: 1,
           },
         ],
-        mode: 'subscription',
+        mode: isSubscription ? 'subscription' : 'payment',
         success_url: `${req.headers.get('origin')}/profile?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.get('origin')}/pricing`,
         metadata: {
           user_id: userId,
+          price_id: priceId // Store price ID to use in webhook
         },
+        payment_intent_data: !isSubscription ? {
+          metadata: {
+            price_id: priceId // Store price ID in payment intent for webhook
+          }
+        } : undefined
       });
 
       return new Response(
