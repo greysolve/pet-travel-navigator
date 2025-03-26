@@ -149,27 +149,62 @@ async function ensureUserExists(supabaseClient: any, email: string, customerId: 
   console.log(`Ensuring user exists for email: ${email}`);
   
   try {
+    // Log the exact parameters we're using for the listUsers call
+    console.log(`Looking for users with email filter: [email=${email}]`);
+    
     // Check if user exists by EXACT email match
-    const { data: usersByEmail, error: userEmailError } = await supabaseClient.auth.admin.listUsers({
+    const listUsersResponse = await supabaseClient.auth.admin.listUsers({
       filter: {
         email: email
       }
     });
+    
+    // Log the raw response from listUsers
+    console.log('Raw listUsers response:', JSON.stringify(listUsersResponse));
+    
+    const { data: usersByEmail, error: userEmailError } = listUsersResponse;
     
     if (userEmailError) {
       console.error('Error checking existing user by email:', userEmailError);
       throw userEmailError;
     }
     
-    console.log(`Found ${usersByEmail?.users?.length || 0} users with exact email: ${email}`);
+    // Log detailed info about what we found
+    if (usersByEmail?.users) {
+      console.log(`Found ${usersByEmail.users.length} users with exact email filter`);
+      
+      // Log each user found with their email for verification
+      usersByEmail.users.forEach((user, index) => {
+        console.log(`User ${index + 1} - ID: ${user.id}, Email: ${user.email}`);
+      });
+      
+      // Additional check - see if any user has an exact email match
+      const exactMatchUser = usersByEmail.users.find(u => u.email === email);
+      if (exactMatchUser) {
+        console.log(`Found user with EXACT email match: ${exactMatchUser.id}, Email: ${exactMatchUser.email}`);
+      } else if (usersByEmail.users.length > 0) {
+        console.log(`WARNING: Found users but none with exact email match!`);
+      }
+    } else {
+      console.log(`No users object in response or it's empty`);
+    }
     
     // If user doesn't exist, create one
     if (!usersByEmail?.users || usersByEmail.users.length === 0) {
       console.log(`No user found with email ${email}, creating new user`);
       return await createUserInSupabase(supabaseClient, email, customerId, plan);
     } else {
-      const userId = usersByEmail.users[0].id;
-      console.log(`Found existing user with ID: ${userId} for email: ${email}`);
+      // Get the first user that exactly matches the email
+      const exactMatchUser = usersByEmail.users.find(u => u.email === email);
+      
+      // If no exact match, use the first one but log a warning
+      const userId = exactMatchUser ? exactMatchUser.id : usersByEmail.users[0].id;
+      
+      if (!exactMatchUser && usersByEmail.users.length > 0) {
+        console.warn(`⚠️ No exact email match found! Using first user returned: ${userId} with email: ${usersByEmail.users[0].email}`);
+      } else {
+        console.log(`Found existing user with ID: ${userId} for exact email match: ${email}`);
+      }
       
       // Make sure customer subscription record exists and is linked
       await supabaseClient
@@ -180,11 +215,14 @@ async function ensureUserExists(supabaseClient: any, email: string, customerId: 
           status: 'active'
         });
         
+      // Find the user object we're going to use
+      const userToUpdate = exactMatchUser || usersByEmail.users[0];
+        
       // Update user metadata with Stripe customer ID if needed
-      if (!usersByEmail.users[0].user_metadata?.stripe_customer_id) {
+      if (!userToUpdate.user_metadata?.stripe_customer_id) {
         await supabaseClient.auth.admin.updateUserById(userId, {
           user_metadata: {
-            ...usersByEmail.users[0].user_metadata,
+            ...userToUpdate.user_metadata,
             stripe_customer_id: customerId
           }
         });
