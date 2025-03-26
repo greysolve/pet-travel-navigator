@@ -7,6 +7,9 @@ verify_jwt = false
 [functions.send-email]
 verify_jwt = false
 
+[functions.send-email-smtp]
+verify_jwt = false
+
 [functions.sync_airline_data]
 verify_jwt = false
 

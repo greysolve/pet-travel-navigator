@@ -11,6 +11,7 @@ import SampleResults from "@/pages/SampleResults";
 import WebSearch from "@/pages/WebSearch";
 import USPetTravel from "@/pages/USPetTravel";
 import EUPetPassport from "@/pages/EUPetPassport";
+import Contact from "@/pages/Contact";
 import AuthCallback from "@/pages/AuthCallback";
 import AuthDialog from "@/components/AuthDialog";
 import { Toaster } from "@/components/ui/toaster";
@@ -57,6 +58,10 @@ const router = createBrowserRouter([
       {
         path: "/eu-pet-passport",
         element: <EUPetPassport />,
+      },
+      {
+        path: "/contact",
+        element: <Contact />,
       },
       {
         path: "/auth/callback",

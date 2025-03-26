@@ -9,6 +9,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import SampleResultsManager from "@/components/admin/SampleResultsManager";
 import { PremiumFieldsManager } from "@/components/admin/PremiumFieldsManager";
 import { PaymentPlansManager } from "@/components/admin/PaymentPlansManager";
+import { SupportSettingsManager } from "@/components/admin/SupportSettingsManager";
 import AuthDialog from "@/components/AuthDialog";
 
 const Admin = () => {
@@ -31,6 +32,7 @@ const Admin = () => {
             <TabsTrigger value="payment-plans">Payment Plans</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="sample-results">Sample Results</TabsTrigger>
+            <TabsTrigger value="support">Support</TabsTrigger>
           </TabsList>
         </div>
 
@@ -68,6 +70,10 @@ const Admin = () => {
 
         <TabsContent value="sample-results">
           <SampleResultsManager />
+        </TabsContent>
+
+        <TabsContent value="support">
+          <SupportSettingsManager />
         </TabsContent>
       </Tabs>
     </div>
