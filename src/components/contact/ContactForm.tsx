@@ -37,6 +37,7 @@ export function ContactForm() {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
   const [submitting, setSubmitting] = useState(false);
+  const [useSmtp, setUseSmtp] = useState(false);
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -57,6 +58,27 @@ export function ContactForm() {
       }
     }
   }, [profile, user, form]);
+
+  // Check if SMTP is configured on component mount
+  useEffect(() => {
+    const checkSmtpSettings = async () => {
+      try {
+        const { data } = await supabase
+          .from('support_settings')
+          .select('use_smtp')
+          .limit(1)
+          .single();
+        
+        if (data && data.use_smtp) {
+          setUseSmtp(true);
+        }
+      } catch (error) {
+        console.error("Error checking SMTP settings:", error);
+      }
+    };
+
+    checkSmtpSettings();
+  }, []);
 
   const onSubmit = async (data: ContactFormValues) => {
     if (!user) {
@@ -80,8 +102,15 @@ export function ContactForm() {
       const { data: authData } = await supabase.auth.getSession();
       const accessToken = authData.session?.access_token || '';
 
-      // Send the message via edge function
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+      // Determine which email function to use based on SMTP setting
+      const endpoint = useSmtp 
+        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-smtp`
+        : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`;
+
+      console.log(`Using email endpoint: ${endpoint} (SMTP: ${useSmtp})`);
+
+      // Send the message via the appropriate edge function
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,7 +125,8 @@ export function ContactForm() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
       }
 
       toast({
@@ -111,7 +141,7 @@ export function ContactForm() {
       console.error("Error sending message:", error);
       toast({
         title: "Error",
-        description: "Failed to send your message. Please try again later.",
+        description: `Failed to send your message: ${error.message}`,
         variant: "destructive"
       });
     } finally {
