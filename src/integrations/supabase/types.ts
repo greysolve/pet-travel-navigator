@@ -772,7 +772,7 @@ export type Database = {
           description: string | null
           id: string
           is_search_unlimited: boolean
-          name: string
+          name: Database["public"]["Enums"]["subscription_plan"]
           renews_monthly: boolean
           search_limit: number
           updated_at: string | null
@@ -782,7 +782,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_search_unlimited?: boolean
-          name: string
+          name: Database["public"]["Enums"]["subscription_plan"]
           renews_monthly?: boolean
           search_limit?: number
           updated_at?: string | null
@@ -792,7 +792,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_search_unlimited?: boolean
-          name?: string
+          name?: Database["public"]["Enums"]["subscription_plan"]
           renews_monthly?: boolean
           search_limit?: number
           updated_at?: string | null

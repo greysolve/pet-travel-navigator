@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -102,7 +101,6 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     window.location.href = '/pricing';
   };
 
-  // Show loading state while query is running
   if (!currentPlan) {
     return (
       <Card>
@@ -120,7 +118,6 @@ export function SubscriptionManager({ userId }: { userId: string }) {
 
   const { systemPlan, paymentPlan, searchCount } = currentPlan;
 
-  // Site Manager view
   if (profile?.userRole === 'site_manager') {
     return (
       <Card>
@@ -146,7 +143,6 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
-  // Personal Plan View
   if (systemPlan.name === 'personal') {
     return (
       <Card>
@@ -202,7 +198,6 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
-  // Free plan view
   if (systemPlan.name === 'free') {
     return (
       <Card>
@@ -229,7 +224,6 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
-  // Paid plan view (Premium or Teams)
   return (
     <Card>
       <CardHeader>
