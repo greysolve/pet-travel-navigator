@@ -130,17 +130,24 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
       throw subscriptionError;
     }
     
-    // Create default user role
-    const { error: roleError } = await supabaseClient
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: 'pet_lover' // Default role
-      });
-      
-    if (roleError) {
-      console.error('Error creating user role:', roleError);
-      throw roleError;
+    // Update user role to pet_lover for paid plans
+    // Note: The trigger will have already created a pet_caddie role
+    // so we use upsert with onConflict to update it for paid plans
+    if (plan !== 'free') {
+      const { error: roleError } = await supabaseClient
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          role: 'pet_lover' // Paid users get pet_lover role
+        }, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
+        
+      if (roleError) {
+        console.error('Error updating user role:', roleError);
+        throw roleError;
+      }
     }
     
     return userId;
@@ -232,17 +239,35 @@ async function ensureUserExists(supabaseClient: any, email: string, fullName: st
             full_name: fullName
           }
         });
-        
-        // Also update profile with fullName
-        await supabaseClient
-          .from('profiles')
-          .update({ 
-            full_name: fullName,
-            plan: plan
-          })
-          .eq('id', userId);
-        
-        console.log(`Updated user ${userId} with full name and Stripe customer ID: ${customerId}`);
+      }
+      
+      // Update profile with fullName and plan
+      await supabaseClient
+        .from('profiles')
+        .update({ 
+          full_name: fullName,
+          plan: plan
+        })
+        .eq('id', userId);
+      
+      // Update user role to pet_lover for paid plans
+      if (plan !== 'free') {
+        const { error: roleError } = await supabaseClient
+          .from('user_roles')
+          .upsert({
+            user_id: userId,
+            role: 'pet_lover' // Paid users get pet_lover role
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          });
+          
+        if (roleError) {
+          console.error('Error updating user role:', roleError);
+          // Continue despite error - not critical
+        } else {
+          console.log(`Updated user ${userId} role to pet_lover for paid plan`);
+        }
       }
       
       return userId;
@@ -433,12 +458,6 @@ Deno.serve(async (req) => {
         // Ensure user exists (or create them)
         const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
         
-        // Update profile with the plan
-        await supabaseClient
-          .from('profiles')
-          .update({ plan: planType })
-          .eq('id', userId);
-        
         console.log(`Updated user ${userId} to plan: ${planType} after checkout`);
         
         break;
@@ -478,12 +497,6 @@ Deno.serve(async (req) => {
         
         // Ensure user exists (or create them)
         const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
-        
-        // Update profile with the plan
-        await supabaseClient
-          .from('profiles')
-          .update({ plan: planType })
-          .eq('id', userId);
         
         console.log(`Updated user ${userId} to plan: ${planType} after one-time payment`);
         
@@ -536,17 +549,6 @@ Deno.serve(async (req) => {
               ignoreDuplicates: false
             });
 
-          // Update user's plan in profiles
-          const { error: updateError } = await supabaseClient
-            .from('profiles')
-            .update({ plan: planType })
-            .eq('id', userId);
-            
-          if (updateError) {
-            console.error(`Error updating user plan: ${updateError.message}`);
-            throw new Error(`Failed to update user plan: ${updateError.message}`);
-          }
-
           console.log(`Updated subscription for user ${userId} to plan: ${planType}`);
         } catch (error) {
           console.error('Error processing subscription:', error);
@@ -581,8 +583,19 @@ Deno.serve(async (req) => {
             .from('profiles')
             .update({ plan: 'free' })
             .eq('id', subscriptionData.user_id);
+            
+          // Update role back to pet_caddie
+          await supabaseClient
+            .from('user_roles')
+            .upsert({
+              user_id: subscriptionData.user_id,
+              role: 'pet_caddie'
+            }, {
+              onConflict: 'user_id',
+              ignoreDuplicates: false
+            });
 
-          console.log(`Downgraded user ${subscriptionData.user_id} to free plan`);
+          console.log(`Downgraded user ${subscriptionData.user_id} to free plan and pet_caddie role`);
         }
         break;
       }
