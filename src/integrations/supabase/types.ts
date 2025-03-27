@@ -250,6 +250,7 @@ export type Database = {
           name: string
           price: number
           stripe_price_id: string | null
+          system_plan_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -262,6 +263,7 @@ export type Database = {
           name: string
           price: number
           stripe_price_id?: string | null
+          system_plan_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -274,9 +276,18 @@ export type Database = {
           name?: string
           price?: number
           stripe_price_id?: string | null
+          system_plan_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_plans_system_plan_id_fkey"
+            columns: ["system_plan_id"]
+            isOneToOne: false
+            referencedRelation: "system_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pet_policies: {
         Row: {
@@ -647,6 +658,60 @@ export type Database = {
         }
         Relationships: []
       }
+      support_settings: {
+        Row: {
+          auto_reply_subject: string
+          auto_reply_template: string
+          created_at: string
+          id: string
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_secure: boolean | null
+          smtp_security: string | null
+          smtp_username: string | null
+          support_email: string
+          updated_at: string
+          use_smtp: boolean | null
+        }
+        Insert: {
+          auto_reply_subject?: string
+          auto_reply_template?: string
+          created_at?: string
+          id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_security?: string | null
+          smtp_username?: string | null
+          support_email?: string
+          updated_at?: string
+          use_smtp?: boolean | null
+        }
+        Update: {
+          auto_reply_subject?: string
+          auto_reply_template?: string
+          created_at?: string
+          id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_security?: string | null
+          smtp_username?: string | null
+          support_email?: string
+          updated_at?: string
+          use_smtp?: boolean | null
+        }
+        Relationships: []
+      }
       sync_progress: {
         Row: {
           batch_metrics: Json | null
@@ -697,6 +762,66 @@ export type Database = {
           start_time?: string | null
           total?: number
           type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      system_plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_search_unlimited?: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly?: boolean
+          search_limit?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_search_unlimited?: boolean
+          name?: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly?: boolean
+          search_limit?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      system_roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          permissions?: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          permissions?: Database["public"]["Enums"]["user_permission"][] | null
           updated_at?: string | null
         }
         Relationships: []
@@ -818,7 +943,8 @@ export type Database = {
         | "size_restrictions_max_weight_cabin"
         | "size_restrictions_max_weight_cargo"
         | "size_restrictions_carrier_dimensions_cabin"
-      subscription_plan: "free" | "premium" | "teams"
+      subscription_plan: "free" | "premium" | "teams" | "personal"
+      user_permission: "view_all_fields" | "view_restricted_fields"
     }
     CompositeTypes: {
       [_ in never]: never

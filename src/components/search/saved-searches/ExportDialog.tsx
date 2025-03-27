@@ -1,10 +1,12 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PdfExportView } from "../PdfExportView";
+import { MobileExportView } from "../MobileExportView";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { FlightData, PetPolicy, CountryPolicy } from "../../flight-results/types";
@@ -26,7 +28,10 @@ export const ExportDialog = ({
 }: ExportDialogProps) => {
   const [isExporting, setIsExporting] = useState(false);
   const [filename, setFilename] = useState("travel-requirements");
+  const [exportError, setExportError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleExport = async () => {
     if (!filename.trim()) {
@@ -39,17 +44,23 @@ export const ExportDialog = ({
     }
 
     setIsExporting(true);
+    setExportError(null);
+    
     try {
       const element = document.getElementById('pdf-export-content');
       if (!element) {
         throw new Error("Export content not found");
       }
 
-      console.log("Starting PDF export with enhanced text spacing settings");
-
+      console.log(`Starting PDF export on ${isMobile ? 'mobile' : 'desktop'} device`);
+      
+      // Different settings for mobile vs desktop
+      const scale = isMobile ? 1.2 : 1.5;
+      const quality = isMobile ? 0.8 : 0.95;
+      
       const canvas = await html2canvas(element, {
-        scale: 1.5,
-        logging: false,
+        scale: scale,
+        logging: true, // Enable logging for debugging
         useCORS: true,
         allowTaint: true,
         imageTimeout: 0,
@@ -57,9 +68,17 @@ export const ExportDialog = ({
         onclone: (clonedDoc) => {
           const exportElement = clonedDoc.getElementById('pdf-export-content');
           if (exportElement instanceof HTMLElement) {
+            // More spacing for better readability
             exportElement.style.wordSpacing = '0.05em';
             exportElement.style.letterSpacing = '0.01em';
             exportElement.style.lineHeight = '1.5';
+            
+            // If on mobile, make sure everything fits within the viewport width
+            if (isMobile) {
+              exportElement.style.width = '100%';
+              exportElement.style.maxWidth = '100%';
+              exportElement.style.overflowX = 'hidden';
+            }
           }
 
           // Handle headings
@@ -100,12 +119,13 @@ export const ExportDialog = ({
         }
       });
 
-      console.log("Canvas generated with enhanced text spacing, creating PDF");
+      console.log(`Canvas generated (${canvas.width}x${canvas.height}), creating PDF`);
 
+      // Create PDF with proper dimensions based on the canvas
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width, canvas.height],
+        format: isMobile ? 'a4' : [canvas.width, canvas.height],
         compress: true,
         hotfixes: ['px_scaling'],
       });
@@ -118,9 +138,18 @@ export const ExportDialog = ({
         creator: 'PawsOnBoard PDF Export'
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', quality);
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
+      // Add image to PDF with proper scaling
+      if (isMobile) {
+        // For mobile, fit the image to the page width
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, '', 'FAST');
+      } else {
+        // For desktop, use the original dimensions
+        pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, '', 'MEDIUM');
+      }
       
       const safeFilename = filename.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeFilename}.pdf`);
@@ -130,10 +159,11 @@ export const ExportDialog = ({
         description: "Your travel requirements have been exported to PDF",
       });
 
-      console.log("PDF export completed successfully with enhanced text spacing");
+      console.log(`PDF export completed successfully on ${isMobile ? 'mobile' : 'desktop'}`);
       onClose();
     } catch (error) {
       console.error('Error generating PDF:', error);
+      setExportError(String(error));
       toast({
         title: "Export Failed",
         description: "There was an error generating your PDF. Please try again.",
@@ -144,6 +174,7 @@ export const ExportDialog = ({
     }
   };
 
+  // For mobile devices, we'll use a simplified view
   return (
     <>
       <DialogHeader>
@@ -169,14 +200,28 @@ export const ExportDialog = ({
         </Button>
       </div>
 
-      <div id="pdf-export-content" className="bg-white">
-        <PdfExportView
-          flights={flights}
-          petPolicies={petPolicies}
-          countryPolicies={countryPolicies}
-        />
+      {exportError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+          <p className="font-semibold">Export Error:</p>
+          <p className="text-xs overflow-auto max-h-20">{exportError}</p>
+        </div>
+      )}
+
+      <div id="pdf-export-content" className="bg-white" ref={contentRef}>
+        {isMobile ? (
+          <MobileExportView
+            flights={flights}
+            petPolicies={petPolicies}
+            countryPolicies={countryPolicies}
+          />
+        ) : (
+          <PdfExportView
+            flights={flights}
+            petPolicies={petPolicies}
+            countryPolicies={countryPolicies}
+          />
+        )}
       </div>
     </>
   );
 };
-

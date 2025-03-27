@@ -12,7 +12,13 @@ interface SearchHandlerProps {
   date: Date | undefined;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: any;
+  handleFlightSearch: (
+    origin: string, 
+    destination: string, 
+    date: Date, 
+    onResults: (results: FlightData[], policies?: Record<string, PetPolicy>) => void,
+    onComplete?: () => void
+  ) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
 }
 
@@ -72,45 +78,66 @@ export const useSearchHandler = ({
 
   const handleRouteSearch = async () => {
     if (!user) return;
+    if (!date) {
+      toast({
+        title: "Date required",
+        description: "Please select a date for your travel",
+        variant: "destructive",
+      });
+      return;
+    }
 
     console.log('Handling route search with:', { origin, destination, date });
-    await handleFlightSearch(
-      origin,
-      destination,
-      date!,
-      async (results: FlightData[], policies?: Record<string, PetPolicy>) => {
-        onSearchResults(results, policies);
-        setFlights(results);
-        
-        if (shouldSaveSearch && user) {
-          const { error: saveError } = await supabase
-            .from('saved_searches')
-            .insert({
-              user_id: user.id,
-              search_criteria: {
-                origin,
-                destination,
-                date: date!.toISOString()
-              }
-            });
+    try {
+      // Call the handleFlightSearch function to get flight data
+      await handleFlightSearch(
+        origin,
+        destination,
+        date,
+        async (results: FlightData[], policies?: Record<string, PetPolicy>) => {
+          console.log("Search results callback received:", { results, policies });
+          onSearchResults(results, policies);
+          setFlights(results);
+          
+          if (shouldSaveSearch && user) {
+            const { error: saveError } = await supabase
+              .from('saved_searches')
+              .insert({
+                user_id: user.id,
+                search_criteria: {
+                  origin,
+                  destination,
+                  date: date.toISOString()
+                }
+              });
 
-          if (saveError) {
-            console.error("Error saving search:", saveError);
-            toast({
-              title: "Error saving search",
-              description: "Could not save your search. Please try again.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Search saved",
-              description: "Your search has been saved successfully.",
-            });
+            if (saveError) {
+              console.error("Error saving search:", saveError);
+              toast({
+                title: "Error saving search",
+                description: "Could not save your search. Please try again.",
+                variant: "destructive",
+              });
+            } else {
+              toast({
+                title: "Search saved",
+                description: "Your search has been saved successfully.",
+              });
+            }
           }
+        },
+        () => {
+          console.log("Search completed");
         }
-      },
-      () => {}
-    );
+      );
+    } catch (error) {
+      console.error("Error in handleRouteSearch:", error);
+      toast({
+        title: "Search failed",
+        description: "There was an error performing your search. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return {

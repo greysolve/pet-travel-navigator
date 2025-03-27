@@ -5,59 +5,70 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Infinity } from "lucide-react";
 import { useProfile } from "@/contexts/ProfileContext";
-
-interface PlanDetails {
-  name: string;
-  description: string | null;
-  price: number;
-  currency: string;
-  features: string[];
-}
+import { useDynamicTypes } from "@/hooks/useDynamicTypes";
+import type { SystemPlan } from "@/types/auth";
 
 export function SubscriptionManager({ userId }: { userId: string }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { profile } = useProfile();
+  const { getSystemPlanByName, isLoading: typesLoading } = useDynamicTypes();
 
   const { data: currentPlan } = useQuery({
     queryKey: ['profile-plan'],
     queryFn: async () => {
       // First get the user's profile
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('plan, search_count')
         .eq('id', userId)
         .maybeSingle();
       
-      if (!profile) return null;
+      if (!profileData) return null;
 
-      // If user has a plan, find it in payment_plans
-      if (profile.plan) {
-        const { data: plans } = await supabase
-          .from('payment_plans')
+      // If user has a plan, find it in system_plans
+      if (profileData.plan) {
+        const { data: systemPlan } = await supabase
+          .from('system_plans')
           .select('*')
-          .ilike('name', `%${profile.plan}%`);
+          .eq('name', profileData.plan)
+          .single();
 
-        const planDetails = plans?.[0];
-        if (planDetails) {
+        if (systemPlan) {
+          // Now get the payment plan details if they exist
+          const { data: paymentPlans } = await supabase
+            .from('payment_plans')
+            .select('*')
+            .eq('system_plan_id', systemPlan.id);
+
+          const paymentPlan = paymentPlans?.[0];
+          
           return {
-            ...planDetails,
-            searchCount: profile.search_count,
-            features: Array.isArray(planDetails.features) ? planDetails.features : []
+            systemPlan,
+            paymentPlan,
+            searchCount: profileData.search_count
           };
         }
       }
 
-      // Return basic free plan info if no paid plan found
+      // Return basic free plan info if no plan found
+      const { data: freePlan } = await supabase
+        .from('system_plans')
+        .select('*')
+        .eq('name', 'free')
+        .single();
+
       return {
-        name: "Free Plan",
-        description: null,
-        price: 0,
-        currency: "USD",
-        features: [],
-        searchCount: profile.search_count ?? 5
+        systemPlan: freePlan || {
+          name: "free",
+          search_limit: 5,
+          is_search_unlimited: false,
+          renews_monthly: false
+        },
+        paymentPlan: null,
+        searchCount: profileData.search_count ?? 5
       };
     },
   });
@@ -93,8 +104,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     window.location.href = '/pricing';
   };
 
-  // Show loading state while query is running
-  if (!currentPlan) {
+  if (typesLoading || !currentPlan) {
     return (
       <Card>
         <CardHeader>
@@ -109,7 +119,8 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
-  // Site Manager view
+  const { systemPlan, paymentPlan, searchCount } = currentPlan;
+
   if (profile?.userRole === 'site_manager') {
     return (
       <Card>
@@ -135,8 +146,62 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
-  // Free plan view
-  if (currentPlan.price === 0) {
+  if (systemPlan.name === 'personal') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Personal Plan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            You're on the Personal plan with a limited number of total searches.
+          </p>
+          <div className="space-y-4">
+            {paymentPlan && (
+              <div className="text-lg font-semibold">
+                {paymentPlan.price} {paymentPlan.currency}
+              </div>
+            )}
+
+            {paymentPlan?.features && Array.isArray(paymentPlan.features) && (
+              <div className="space-y-2">
+                <p className="font-medium">Features:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {paymentPlan.features.map((feature, index) => (
+                    <li key={index} className="text-sm">{feature}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <p className="text-sm font-medium">
+              Searches remaining: {searchCount}
+            </p>
+            <p className="text-xs text-amber-600">
+              Note: This plan has a limited number of total searches that cannot be reset.
+            </p>
+
+            <Button 
+              onClick={handleManageSubscription} 
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Manage Subscription'
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (systemPlan.name === 'free') {
     return (
       <Card>
         <CardHeader>
@@ -147,7 +212,7 @@ export function SubscriptionManager({ userId }: { userId: string }) {
             You're currently on the free plan. Upgrade to access premium features!
           </p>
           <p className="text-sm mb-4">
-            Searches remaining: {currentPlan.searchCount}
+            Searches remaining: {searchCount}
           </p>
           <div className="flex justify-center">
             <Button 
@@ -162,38 +227,46 @@ export function SubscriptionManager({ userId }: { userId: string }) {
     );
   }
 
-  // Paid plan view
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{currentPlan.name}</CardTitle>
+        <CardTitle>{systemPlan.name.charAt(0).toUpperCase() + systemPlan.name.slice(1)} Plan</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {currentPlan.description && (
+          {'description' in systemPlan && systemPlan.description && (
             <p className="text-sm text-muted-foreground">
-              {currentPlan.description}
+              {systemPlan.description}
             </p>
           )}
           
-          <div className="text-lg font-semibold">
-            {currentPlan.price} {currentPlan.currency}
-          </div>
+          {paymentPlan && (
+            <div className="text-lg font-semibold">
+              {paymentPlan.price} {paymentPlan.currency}
+            </div>
+          )}
 
-          {currentPlan.features.length > 0 && (
+          {paymentPlan?.features && Array.isArray(paymentPlan.features) && (
             <div className="space-y-2">
               <p className="font-medium">Features:</p>
               <ul className="list-disc list-inside space-y-1">
-                {currentPlan.features.map((feature, index) => (
+                {paymentPlan.features.map((feature, index) => (
                   <li key={index} className="text-sm">{feature}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          <p className="text-sm">
-            Searches remaining: {currentPlan.searchCount}
-          </p>
+          {'is_search_unlimited' in systemPlan && systemPlan.is_search_unlimited ? (
+            <p className="text-sm flex items-center">
+              <Infinity className="h-4 w-4 mr-1 text-green-500" />
+              Unlimited searches
+            </p>
+          ) : (
+            <p className="text-sm">
+              Searches remaining: {searchCount}
+            </p>
+          )}
 
           <Button 
             onClick={handleManageSubscription} 

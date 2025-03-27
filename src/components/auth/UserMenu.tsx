@@ -2,8 +2,8 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ChevronDown, Mail } from "lucide-react";
 import { UserProfile } from "@/types/auth";
 
 interface UserMenuProps {
@@ -69,6 +69,12 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
         <DropdownMenuItem onClick={() => handleNavigation("pets")}>
           My Pets
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleNavigation("contact")} className="flex items-center gap-2">
+          <Mail className="h-4 w-4" />
+          Contact Us
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onSignOut}>
           Sign Out
         </DropdownMenuItem>

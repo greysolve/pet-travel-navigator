@@ -70,34 +70,41 @@ Deno.serve(async (req) => {
     // Process non-stop flights
     const nonStopFlights = schedulesData.scheduledFlights
       ?.filter(flight => !flight.isCodeshare)
-      ?.map(flight => ({
-        segments: [{
-          carrierFsCode: flight.carrierFsCode,
-          flightNumber: flight.flightNumber,
-          departureTime: flight.departureTime,
-          arrivalTime: flight.arrivalTime,
-          departureAirportFsCode: flight.departureAirportFsCode,
-          arrivalAirportFsCode: flight.arrivalAirportFsCode,
-          departureTerminal: flight.departureTerminal,
-          arrivalTerminal: flight.arrivalTerminal,
-          stops: flight.stops,
-          elapsedTime: 0,
-          isCodeshare: flight.isCodeshare,
-          codeshares: flight.codeshares,
-          departureCountry: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
-          arrivalCountry: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
-        }],
-        totalDuration: 0,
-        stops: 0,
-        origin: {
-          country: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
-          code: flight.departureAirportFsCode
-        },
-        destination: {
-          country: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
-          code: flight.arrivalAirportFsCode
-        }
-      })) || []
+      ?.map(flight => {
+        // Calculate the elapsed time in minutes for non-stop flights
+        const departureTime = new Date(flight.departureTime);
+        const arrivalTime = new Date(flight.arrivalTime);
+        const elapsedTimeMinutes = Math.round((arrivalTime.getTime() - departureTime.getTime()) / (1000 * 60));
+        
+        return {
+          segments: [{
+            carrierFsCode: flight.carrierFsCode,
+            flightNumber: flight.flightNumber,
+            departureTime: flight.departureTime,
+            arrivalTime: flight.arrivalTime,
+            departureAirportFsCode: flight.departureAirportFsCode,
+            arrivalAirportFsCode: flight.arrivalAirportFsCode,
+            departureTerminal: flight.departureTerminal,
+            arrivalTerminal: flight.arrivalTerminal,
+            stops: flight.stops,
+            elapsedTime: elapsedTimeMinutes,
+            isCodeshare: flight.isCodeshare,
+            codeshares: flight.codeshares,
+            departureCountry: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
+            arrivalCountry: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
+          }],
+          totalDuration: elapsedTimeMinutes,
+          stops: 0,
+          origin: {
+            country: schedulesData.appendix.airports.find(a => a.fs === flight.departureAirportFsCode)?.countryName,
+            code: flight.departureAirportFsCode
+          },
+          destination: {
+            country: schedulesData.appendix.airports.find(a => a.fs === flight.arrivalAirportFsCode)?.countryName,
+            code: flight.arrivalAirportFsCode
+          }
+        };
+      }) || []
 
     // Process connecting flights
     const connectingFlights = connectionsData.connections?.map(connection => ({
@@ -157,4 +164,3 @@ Deno.serve(async (req) => {
     )
   }
 })
-
