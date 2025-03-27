@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -89,10 +88,9 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     const userId = authData.user.id;
     console.log(`Created auth user with ID: ${userId}`);
 
-    // Send password reset email
-    const { error: resetError } = await supabaseClient.auth.admin.generateLink({
-      type: 'recovery',
-      email,
+    // Send password reset email with redirect to application
+    const { error: resetError } = await supabaseClient.auth.admin.sendPasswordResetEmail(email, {
+      redirectTo: 'https://www.petjumper.com/auth/callback?reset_password=true'
     });
     
     if (resetError) {
