@@ -74,16 +74,15 @@ export function ManualSubscriptionUpdate() {
   const searchUser = async (email: string) => {
     setIsSearching(true);
     try {
-      // Since find_user_by_email is not an allowed RPC, use a direct query instead
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', (await supabase.auth.admin.listUsers({
-          filter: { email }
-        })).data?.users[0]?.id || '')
-        .single();
+      // Query the auth users directly without using filter parameter
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
       
-      if (userError || !userData) {
+      if (authError) throw authError;
+      
+      // Find the user with the matching email
+      const matchingUser = authUsers.users.find(user => user.email === email);
+      
+      if (!matchingUser) {
         toast({
           title: "User not found",
           description: "No user found with this email address",
@@ -93,18 +92,11 @@ export function ManualSubscriptionUpdate() {
         return null;
       }
       
-      // Get auth data for the user
-      const { data: authData } = await supabase.auth.admin.getUserById(userData.id);
-      
-      if (!authData || !authData.user) {
-        throw new Error('User not found');
-      }
-      
       // Get profile data for the user
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userData.id)
+        .eq('id', matchingUser.id)
         .single();
         
       if (profileError) {
@@ -115,7 +107,7 @@ export function ManualSubscriptionUpdate() {
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userData.id)
+        .eq('user_id', matchingUser.id)
         .single();
         
       if (roleError && roleError.code !== 'PGRST116') { // PGRST116 is "not found" error
@@ -123,9 +115,9 @@ export function ManualSubscriptionUpdate() {
       }
       
       const user: UserData = {
-        id: authData.user.id,
-        email: authData.user.email || '',
-        user_metadata: authData.user.user_metadata,
+        id: matchingUser.id,
+        email: matchingUser.email || '',
+        user_metadata: matchingUser.user_metadata,
         profile: profileData,
         role: roleData?.role
       };
