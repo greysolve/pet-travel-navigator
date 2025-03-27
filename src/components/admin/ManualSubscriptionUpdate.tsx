@@ -56,6 +56,13 @@ interface UserData {
   role?: UserRole;
 }
 
+// Define interface for auth users returned from Supabase
+interface AuthUser {
+  id: string;
+  email?: string | null;
+  user_metadata: Record<string, any>;
+}
+
 export function ManualSubscriptionUpdate() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -79,8 +86,8 @@ export function ManualSubscriptionUpdate() {
       
       if (authError) throw authError;
       
-      // Find the user with the matching email
-      const matchingUser = authUsers.users.find(user => user.email === email);
+      // Find the user with the matching email - add type assertion to fix the error
+      const matchingUser = authUsers.users.find(user => user.email === email) as AuthUser | undefined;
       
       if (!matchingUser) {
         toast({
