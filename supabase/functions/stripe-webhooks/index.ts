@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
+import { SupabaseClientManager } from '../_shared/SupabaseClient.ts';
 
 // Function to get the appropriate Stripe instance based on event livemode
 const getStripeInstance = (livemode: boolean) => {
@@ -48,6 +49,7 @@ async function getPlanFromPriceId(supabaseClient: any, priceId: string, environm
         return 'free';
       }
 
+      console.log(`Found system plan name: ${systemPlan.name} for price ID: ${priceId}`);
       return systemPlan.name;
     }
     
@@ -102,8 +104,24 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
       console.log('Password reset email sent successfully');
     }
     
+    // Re-establish the admin client before performing database operations
+    // This ensures we don't lose admin privileges after calling resetPasswordForEmail
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      }
+    );
+    
+    console.log(`Updating profile for user ${userId} with plan: ${plan}`);
+    
     // Update the profile with the plan and formatted name
-    const { error: profileError } = await supabaseClient
+    const { error: profileError } = await adminClient
       .from('profiles')
       .update({ 
         plan,
@@ -117,7 +135,7 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     }
     
     // Create subscription record
-    const { error: subscriptionError } = await supabaseClient
+    const { error: subscriptionError } = await adminClient
       .from('customer_subscriptions')
       .insert({
         user_id: userId,
@@ -134,7 +152,7 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     // Note: The trigger will have already created a pet_caddie role
     // so we use upsert with onConflict to update it for paid plans
     if (plan !== 'free') {
-      const { error: roleError } = await supabaseClient
+      const { error: roleError } = await adminClient
         .from('user_roles')
         .upsert({
           user_id: userId,
@@ -204,7 +222,7 @@ async function findUserByEmail(supabaseClient: any, email: string) {
 
 // Ensure user exists and is properly linked to Stripe customer
 async function ensureUserExists(supabaseClient: any, email: string, fullName: string, customerId: string, plan: string = 'free') {
-  console.log(`Ensuring user exists for email: ${email}`);
+  console.log(`Ensuring user exists for email: ${email} with plan: ${plan}`);
   
   try {
     // First try to find user by exact email match
@@ -218,8 +236,21 @@ async function ensureUserExists(supabaseClient: any, email: string, fullName: st
       const userId = user.id;
       console.log(`Found existing user with ID: ${userId} for email: ${email}`);
       
+      // Re-establish the admin client to ensure we have admin privileges
+      const adminClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        }
+      );
+      
       // Make sure customer subscription record exists and is linked
-      await supabaseClient
+      await adminClient
         .from('customer_subscriptions')
         .upsert({
           user_id: userId,
@@ -232,7 +263,7 @@ async function ensureUserExists(supabaseClient: any, email: string, fullName: st
         
       // Update user metadata with Stripe customer ID if needed
       if (!user.user_metadata?.stripe_customer_id) {
-        await supabaseClient.auth.admin.updateUserById(userId, {
+        await adminClient.auth.admin.updateUserById(userId, {
           user_metadata: {
             ...user.user_metadata,
             stripe_customer_id: customerId,
@@ -241,8 +272,10 @@ async function ensureUserExists(supabaseClient: any, email: string, fullName: st
         });
       }
       
+      console.log(`Updating profile for user ${userId} with plan: ${plan}`);
+      
       // Update profile with fullName and plan
-      await supabaseClient
+      await adminClient
         .from('profiles')
         .update({ 
           full_name: fullName,
@@ -252,7 +285,7 @@ async function ensureUserExists(supabaseClient: any, email: string, fullName: st
       
       // Update user role to pet_lover for paid plans
       if (plan !== 'free') {
-        const { error: roleError } = await supabaseClient
+        const { error: roleError } = await adminClient
           .from('user_roles')
           .upsert({
             user_id: userId,
@@ -319,11 +352,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Initialize Supabase client manager
+    const clientManager = new SupabaseClientManager();
+    // Initialize Supabase client with consistent authentication settings
+    const supabaseClient = await clientManager.initialize();
 
     console.log('Processing webhook event:', event.type);
     
