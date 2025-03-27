@@ -63,6 +63,11 @@ interface AuthUser {
   user_metadata: Record<string, any>;
 }
 
+// Define the structure of the response from listUsers
+interface ListUsersResponse {
+  users: AuthUser[];
+}
+
 export function ManualSubscriptionUpdate() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -82,12 +87,15 @@ export function ManualSubscriptionUpdate() {
     setIsSearching(true);
     try {
       // Query the auth users directly without using filter parameter
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const { data, error: authError } = await supabase.auth.admin.listUsers();
       
       if (authError) throw authError;
       
-      // Find the user with the matching email - add type assertion to fix the error
-      const matchingUser = authUsers.users.find(user => user.email === email) as AuthUser | undefined;
+      // Add explicit type assertion for the response data
+      const authUsers = data as ListUsersResponse;
+      
+      // Find the user with the matching email
+      const matchingUser = authUsers.users.find(user => user.email === email);
       
       if (!matchingUser) {
         toast({
