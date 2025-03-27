@@ -89,7 +89,7 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     console.log(`Created auth user with ID: ${userId}`);
 
     // Send password reset email with redirect to application
-    const { error: resetError } = await supabaseClient.auth.admin.sendPasswordResetEmail(email, {
+    const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://www.petjumper.com/auth/callback?reset_password=true'
     });
     
