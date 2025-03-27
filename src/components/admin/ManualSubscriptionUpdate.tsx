@@ -33,6 +33,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2 } from "lucide-react";
 import { useDynamicTypes } from "@/hooks/useDynamicTypes";
+import type { SubscriptionPlan } from "@/types/auth";
 
 const formSchema = z.object({
   userEmail: z.string().email("Please enter a valid email address"),
@@ -41,10 +42,23 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// Define interface for user data to ensure proper typing
+interface UserData {
+  id: string;
+  email: string;
+  user_metadata?: Record<string, any>;
+  profile?: {
+    id: string;
+    full_name?: string;
+    plan?: SubscriptionPlan;
+    search_count?: number;
+  };
+}
+
 export function ManualSubscriptionUpdate() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const { getPlanNames, isLoading: typesLoading } = useDynamicTypes();
 
@@ -59,14 +73,16 @@ export function ManualSubscriptionUpdate() {
   const searchUser = async (email: string) => {
     setIsSearching(true);
     try {
-      // Call our find_user_by_email function
-      const { data, error } = await supabase.rpc('find_user_by_email', { user_email: email });
+      // Since find_user_by_email is not an allowed RPC, use a direct query instead
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', (await supabase.auth.admin.listUsers({
+          filter: { email }
+        })).data?.users[0]?.id || '')
+        .single();
       
-      if (error) {
-        throw error;
-      }
-      
-      if (!data) {
+      if (userError || !userData) {
         toast({
           title: "User not found",
           description: "No user found with this email address",
@@ -76,29 +92,38 @@ export function ManualSubscriptionUpdate() {
         return null;
       }
       
+      // Get auth data for the user
+      const { data: authData } = await supabase.auth.admin.getUserById(userData.id);
+      
+      if (!authData || !authData.user) {
+        throw new Error('User not found');
+      }
+      
       // Get profile data for the user
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', data.id)
+        .eq('id', userData.id)
         .single();
         
       if (profileError) {
         throw profileError;
       }
       
-      const userData = {
-        ...data,
+      const user: UserData = {
+        id: authData.user.id,
+        email: authData.user.email || '',
+        user_metadata: authData.user.user_metadata,
         profile: profileData
       };
       
-      setUser(userData);
+      setUser(user);
       toast({
         title: "User found",
-        description: `User found: ${userData.email}`,
+        description: `User found: ${user.email}`,
       });
       
-      return userData;
+      return user;
     } catch (error) {
       console.error('Error searching for user:', error);
       toast({
@@ -117,7 +142,7 @@ export function ManualSubscriptionUpdate() {
     mutationFn: async ({ userId, plan }: { userId: string; plan: string }) => {
       const { error } = await supabase
         .from('profiles')
-        .update({ plan })
+        .update({ plan: plan as SubscriptionPlan })
         .eq('id', userId);
         
       if (error) throw error;
@@ -132,13 +157,16 @@ export function ManualSubscriptionUpdate() {
       });
       
       // Update the local user state
-      setUser((prev: any) => ({
-        ...prev,
-        profile: {
-          ...prev.profile,
-          plan: data.plan
-        }
-      }));
+      setUser((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            plan: data.plan as SubscriptionPlan
+          }
+        };
+      });
     },
     onError: (error) => {
       console.error("Error updating plan:", error);
