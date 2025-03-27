@@ -12,7 +12,13 @@ interface SearchHandlerProps {
   date: Date | undefined;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: any;
+  handleFlightSearch: (
+    origin: string, 
+    destination: string, 
+    date: Date, 
+    onResults: (results: FlightData[], policies?: Record<string, PetPolicy>) => void,
+    onComplete?: () => void
+  ) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
 }
 
@@ -83,7 +89,8 @@ export const useSearchHandler = ({
 
     console.log('Handling route search with:', { origin, destination, date });
     try {
-      const flights = await handleFlightSearch(
+      // Call the handleFlightSearch function to get flight data
+      await handleFlightSearch(
         origin,
         destination,
         date,
@@ -123,8 +130,6 @@ export const useSearchHandler = ({
           console.log("Search completed");
         }
       );
-      
-      console.log("Final flights returned from handleFlightSearch:", flights);
     } catch (error) {
       console.error("Error in handleRouteSearch:", error);
       toast({

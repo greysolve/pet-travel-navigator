@@ -30,9 +30,15 @@ const UserManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { users, isLoading, error, updateUser, deleteUser } = useUserManagement();
 
-  const handleUpdateUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
+  const handleUpdateUser = (userData: {
+    id: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    role?: UserRole;
+    plan?: SubscriptionPlan;
+  }) => {
+    if (!userData) return;
 
     const updateData: { 
       id: string; 
@@ -41,23 +47,23 @@ const UserManagement = () => {
       role?: UserRole; 
       plan?: SubscriptionPlan 
     } = {
-      id: selectedUser.id,
+      id: userData.id,
     };
 
-    if (selectedUser.first_name !== undefined) {
-      updateData.first_name = selectedUser.first_name;
+    if (userData.first_name !== undefined) {
+      updateData.first_name = userData.first_name;
     }
 
-    if (selectedUser.last_name !== undefined) {
-      updateData.last_name = selectedUser.last_name;
+    if (userData.last_name !== undefined) {
+      updateData.last_name = userData.last_name;
     }
 
-    if (selectedUser.role !== undefined) {
-      updateData.role = selectedUser.role as UserRole;
+    if (userData.role !== undefined) {
+      updateData.role = userData.role;
     }
 
-    if (selectedUser.plan !== undefined) {
-      updateData.plan = selectedUser.plan;
+    if (userData.plan !== undefined) {
+      updateData.plan = userData.plan;
     }
 
     updateUser.mutate(updateData);
@@ -124,10 +130,10 @@ const UserManagement = () => {
 
       <EditUserDialog
         isOpen={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        selectedUser={selectedUser}
-        onUserChange={setSelectedUser}
+        onClose={() => setIsEditDialogOpen(false)}
         onSubmit={handleUpdateUser}
+        isLoading={updateUser.isPending}
+        userData={selectedUser}
       />
     </div>
   );

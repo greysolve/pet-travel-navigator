@@ -35,6 +35,19 @@ const AuthCallback = () => {
             return;
           }
 
+          // Check for parameter indicating user needs to reset password (for Stripe payment link signups)
+          const urlParams = new URLSearchParams(window.location.search);
+          const needsPasswordReset = urlParams.get('reset_password');
+          
+          if (needsPasswordReset === 'true') {
+            // Check if user came from Stripe (has a stripe_customer_id)
+            if (session.user.user_metadata?.stripe_customer_id) {
+              console.log("User from Stripe payment link, redirecting to password reset");
+              if (mounted) navigate("/profile?setup=true");
+              return;
+            }
+          }
+
           console.log("Role verified, redirecting to home");
           if (mounted) navigate("/");
         }
