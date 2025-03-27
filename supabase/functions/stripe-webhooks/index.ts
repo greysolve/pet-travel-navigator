@@ -70,7 +70,7 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     // Generate a secure random password (the user will reset it later)
     const password = crypto.randomUUID();
     
-    // Create the user in Supabase Auth
+    // Create the user in Supabase Auth using admin API
     const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
       email,
       password,
@@ -90,8 +90,8 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     console.log(`Created auth user with ID: ${userId}`);
 
     // Send password reset email with redirect to application
-    // Using the correct admin function here
-    const { error: resetError } = await supabaseClient.auth.admin.resetPasswordForEmail(email, {
+    // Using the regular auth function (NOT admin) for password reset
+    const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://www.petjumper.com/auth/callback?reset_password=true'
     });
     
