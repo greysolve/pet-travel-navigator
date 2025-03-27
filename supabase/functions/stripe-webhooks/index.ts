@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -472,46 +473,6 @@ Deno.serve(async (req) => {
         const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
         
         console.log(`Updated user ${userId} to plan: ${planType} after checkout`);
-        
-        break;
-      }
-      
-      case 'payment_intent.succeeded': {
-        // Handle one-time payment success (like for Personal plan)
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const customerId = paymentIntent.customer as string;
-        
-        if (!customerId) {
-          console.error('No customer ID found in payment intent');
-          throw new Error('No customer ID found in payment intent');
-        }
-        
-        // Get stripe instance for this environment
-        const stripe = getStripeInstance(event.livemode);
-        
-        // Get the customer details to get their email
-        const customer = await stripe.customers.retrieve(customerId);
-        
-        if (!customer || ('deleted' in customer) || !customer.email) {
-          throw new Error(`No valid customer data or email found for customer: ${customerId}`);
-        }
-        
-        const customerEmail = customer.email;
-        const customerName = customer.name || customerEmail.split('@')[0].replace(/[._]/g, ' ');
-        
-        console.log(`Processing one-time payment for email: ${customerEmail}, customer ID: ${customerId}`);
-        
-        // Get the plan type from the price ID in metadata
-        let planType = 'free';
-        if (paymentIntent.metadata.price_id) {
-          planType = await getPlanFromPriceId(supabaseClient, paymentIntent.metadata.price_id, environment);
-          console.log(`Mapped price ${paymentIntent.metadata.price_id} to plan: ${planType}`);
-        }
-        
-        // Ensure user exists (or create them)
-        const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
-        
-        console.log(`Updated user ${userId} to plan: ${planType} after one-time payment`);
         
         break;
       }
