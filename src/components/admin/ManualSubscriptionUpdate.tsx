@@ -33,7 +33,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2 } from "lucide-react";
 import { useDynamicTypes } from "@/hooks/useDynamicTypes";
-import type { SubscriptionPlan } from "@/types/auth";
+import type { SubscriptionPlan, UserRole } from "@/types/auth";
 
 const formSchema = z.object({
   userEmail: z.string().email("Please enter a valid email address"),
@@ -53,6 +53,7 @@ interface UserData {
     plan?: SubscriptionPlan;
     search_count?: number;
   };
+  role?: UserRole;
 }
 
 export function ManualSubscriptionUpdate() {
@@ -110,11 +111,23 @@ export function ManualSubscriptionUpdate() {
         throw profileError;
       }
       
+      // Get user's current role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userData.id)
+        .single();
+        
+      if (roleError && roleError.code !== 'PGRST116') { // PGRST116 is "not found" error
+        throw roleError;
+      }
+      
       const user: UserData = {
         id: authData.user.id,
         email: authData.user.email || '',
         user_metadata: authData.user.user_metadata,
-        profile: profileData
+        profile: profileData,
+        role: roleData?.role
       };
       
       setUser(user);
@@ -140,20 +153,52 @@ export function ManualSubscriptionUpdate() {
   
   const updatePlanMutation = useMutation({
     mutationFn: async ({ userId, plan }: { userId: string; plan: string }) => {
-      const { error } = await supabase
+      // Determine the appropriate role based on the plan
+      const role = plan === 'free' ? 'pet_caddie' : 'pet_lover';
+      
+      // Update profile with the new plan
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ plan: plan as SubscriptionPlan })
         .eq('id', userId);
         
-      if (error) throw error;
+      if (profileError) throw profileError;
       
-      return { userId, plan };
+      // Update user role
+      const { data: existingRole, error: roleCheckError } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+        
+      if (roleCheckError && roleCheckError.code !== 'PGRST116') {
+        throw roleCheckError;
+      }
+      
+      if (existingRole) {
+        // Update existing role
+        const { error: updateRoleError } = await supabase
+          .from('user_roles')
+          .update({ role })
+          .eq('user_id', userId);
+          
+        if (updateRoleError) throw updateRoleError;
+      } else {
+        // Insert new role
+        const { error: insertRoleError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: userId, role });
+          
+        if (insertRoleError) throw insertRoleError;
+      }
+      
+      return { userId, plan, role };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({
         title: "Success",
-        description: `User plan updated to ${data.plan}`,
+        description: `User plan updated to ${data.plan} with role ${data.role}`,
       });
       
       // Update the local user state
@@ -164,7 +209,8 @@ export function ManualSubscriptionUpdate() {
           profile: {
             ...prev.profile,
             plan: data.plan as SubscriptionPlan
-          }
+          },
+          role: data.role as UserRole
         };
       });
     },
@@ -252,6 +298,9 @@ export function ManualSubscriptionUpdate() {
               <div className="font-medium">Current Plan:</div>
               <div>{user.profile?.plan || 'free'}</div>
               
+              <div className="font-medium">Current Role:</div>
+              <div>{user.role || 'pet_caddie'}</div>
+              
               <div className="font-medium">Search Count:</div>
               <div>{user.profile?.search_count || 0}</div>
             </div>
@@ -283,7 +332,7 @@ export function ManualSubscriptionUpdate() {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        This will update the user's subscription plan.
+                        This will update the user's subscription plan and role. Free plan = pet_caddie, Paid plans = pet_lover.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
