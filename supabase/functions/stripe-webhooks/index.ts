@@ -435,7 +435,10 @@ Deno.serve(async (req) => {
           // For payment links, get the price ID from the payment link configuration
           if (session.payment_link) {
             try {
-              const paymentLink = await stripe.paymentLinks.retrieve(session.payment_link);
+              // Make sure to expand line_items to get the price information
+              const paymentLink = await stripe.paymentLinks.retrieve(session.payment_link, {
+                expand: ['line_items', 'line_items.data.price']
+              });
               console.log('Retrieved payment link:', paymentLink.id);
               
               if (paymentLink.line_items?.data && paymentLink.line_items.data.length > 0) {
