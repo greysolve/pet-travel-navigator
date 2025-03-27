@@ -187,11 +187,11 @@ Deno.serve(async (req) => {
         cancel_url: `${req.headers.get('origin')}/pricing`,
         metadata: {
           user_id: userId,
-          price_id: priceId // Store price ID to use in webhook
+          price_id: priceId // Store price ID in metadata
         },
         payment_intent_data: !isSubscription ? {
           metadata: {
-            price_id: priceId // Store price ID in payment intent for webhook
+            price_id: priceId // Store price ID in payment intent
           }
         } : undefined
       });

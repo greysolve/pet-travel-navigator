@@ -373,6 +373,77 @@ Deno.serve(async (req) => {
         break;
       }
       
+      case 'checkout.session.completed': {
+        // Handle checkout session completion - this is critical for one-time payments
+        const session = event.data.object as Stripe.Checkout.Session;
+        const customerId = session.customer as string;
+        
+        if (!customerId) {
+          console.error('No customer ID found in checkout session');
+          throw new Error('No customer ID found in checkout session');
+        }
+        
+        // Get stripe instance for this environment
+        const stripe = getStripeInstance(event.livemode);
+        
+        // Get the customer details
+        const customer = await stripe.customers.retrieve(customerId);
+        
+        if (!customer || ('deleted' in customer) || !customer.email) {
+          throw new Error(`No valid customer data or email found for customer: ${customerId}`);
+        }
+        
+        const customerEmail = customer.email;
+        const customerName = customer.name || customerEmail.split('@')[0].replace(/[._]/g, ' ');
+        
+        console.log(`Processing checkout session for email: ${customerEmail}, customer ID: ${customerId}`);
+        
+        // Get the price ID from the checkout session
+        let planType = 'free';
+        let priceId = null;
+        
+        // First check the metadata for plan_type directly
+        if (session.metadata && session.metadata.plan_type) {
+          planType = session.metadata.plan_type;
+          console.log(`Found plan type in session metadata: ${planType}`);
+        }
+        // If no plan_type in metadata, get it from price ID
+        else if (session.metadata && session.metadata.price_id) {
+          priceId = session.metadata.price_id;
+          planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+          console.log(`Mapped price ${priceId} from metadata to plan: ${planType}`);
+        }
+        // If no metadata, try to get the price from line items
+        else {
+          // Get the session with line items expanded
+          const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ['line_items']
+          });
+          
+          if (expandedSession.line_items && expandedSession.line_items.data.length > 0) {
+            const lineItem = expandedSession.line_items.data[0];
+            if (lineItem.price && lineItem.price.id) {
+              priceId = lineItem.price.id;
+              planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+              console.log(`Mapped price ${priceId} from line items to plan: ${planType}`);
+            }
+          }
+        }
+        
+        // Ensure user exists (or create them)
+        const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
+        
+        // Update profile with the plan
+        await supabaseClient
+          .from('profiles')
+          .update({ plan: planType })
+          .eq('id', userId);
+        
+        console.log(`Updated user ${userId} to plan: ${planType} after checkout`);
+        
+        break;
+      }
+      
       case 'payment_intent.succeeded': {
         // Handle one-time payment success (like for Personal plan)
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
