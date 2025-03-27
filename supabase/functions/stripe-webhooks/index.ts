@@ -64,8 +64,44 @@ async function getPlanFromPriceId(supabaseClient: any, priceId: string, environm
   }
 }
 
+// Function to send a password reset email only
+async function sendPasswordResetEmail(email: string) {
+  try {
+    console.log(`Sending password reset email to: ${email}`);
+    
+    // Create a regular client just for sending the email
+    const emailClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      }
+    );
+    
+    // Send password reset email with redirect to application
+    const { error: resetError } = await emailClient.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://www.petjumper.com/auth/callback?reset_password=true'
+    });
+    
+    if (resetError) {
+      console.error('Error sending password reset email:', resetError);
+      return false;
+    }
+    
+    console.log('Password reset email sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error in sendPasswordResetEmail:', error);
+    return false;
+  }
+}
+
 // Function to create a new user in Supabase Auth with password reset
-async function createUserInSupabase(supabaseClient: any, email: string, fullName: string, customerId: string, plan: string = 'free') {
+async function createUserInSupabase(adminClient: any, email: string, fullName: string, customerId: string, plan: string = 'free') {
   try {
     console.log(`Creating new user for email: ${email} with plan: ${plan} and name: ${fullName}`);
     
@@ -73,7 +109,7 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     const password = crypto.randomUUID();
     
     // Create the user in Supabase Auth using admin API
-    const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Auto-confirm the email
@@ -90,33 +126,15 @@ async function createUserInSupabase(supabaseClient: any, email: string, fullName
     
     const userId = authData.user.id;
     console.log(`Created auth user with ID: ${userId}`);
-
-    // Send password reset email with redirect to application
-    // Using the regular auth function (NOT admin) for password reset
-    const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://www.petjumper.com/auth/callback?reset_password=true'
-    });
     
-    if (resetError) {
-      console.error('Error sending password reset email:', resetError);
-      // Continue even if reset email fails - we can manually reset later
-    } else {
-      console.log('Password reset email sent successfully');
-    }
-    
-    // Re-establish the admin client before performing database operations
-    // This ensures we don't lose admin privileges after calling resetPasswordForEmail
-    const adminClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
+    // Send password reset email separately
+    sendPasswordResetEmail(email).then(success => {
+      if (success) {
+        console.log(`Password reset email sent successfully to ${email}`);
+      } else {
+        console.error(`Failed to send password reset email to ${email}`);
       }
-    );
+    });
     
     console.log(`Updating profile for user ${userId} with plan: ${plan}`);
     
@@ -221,33 +239,20 @@ async function findUserByEmail(supabaseClient: any, email: string) {
 }
 
 // Ensure user exists and is properly linked to Stripe customer
-async function ensureUserExists(supabaseClient: any, email: string, fullName: string, customerId: string, plan: string = 'free') {
+async function ensureUserExists(adminClient: any, email: string, fullName: string, customerId: string, plan: string = 'free') {
   console.log(`Ensuring user exists for email: ${email} with plan: ${plan}`);
   
   try {
     // First try to find user by exact email match
-    const user = await findUserByEmail(supabaseClient, email);
+    const user = await findUserByEmail(adminClient, email);
     
     // If user doesn't exist, create one
     if (!user) {
       console.log(`No user found with email ${email}, creating new user`);
-      return await createUserInSupabase(supabaseClient, email, fullName, customerId, plan);
+      return await createUserInSupabase(adminClient, email, fullName, customerId, plan);
     } else {
       const userId = user.id;
       console.log(`Found existing user with ID: ${userId} for email: ${email}`);
-      
-      // Re-establish the admin client to ensure we have admin privileges
-      const adminClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false
-          }
-        }
-      );
       
       // Make sure customer subscription record exists and is linked
       await adminClient
@@ -352,10 +357,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Initialize Supabase client manager
+    // Initialize Supabase client manager for admin operations
     const clientManager = new SupabaseClientManager();
-    // Initialize Supabase client with consistent authentication settings
-    const supabaseClient = await clientManager.initialize();
+    // Initialize Supabase admin client with consistent authentication settings
+    const adminClient = await clientManager.initialize();
 
     console.log('Processing webhook event:', event.type);
     
@@ -402,7 +407,7 @@ Deno.serve(async (req) => {
           // This is a one-time payment, get the plan from the payment intent metadata
           const paymentIntent = paymentIntents.data[0];
           if (paymentIntent.metadata.price_id) {
-            planType = await getPlanFromPriceId(supabaseClient, paymentIntent.metadata.price_id, environment);
+            planType = await getPlanFromPriceId(adminClient, paymentIntent.metadata.price_id, environment);
             console.log(`Customer has a successful payment with plan: ${planType}`);
           }
         } else {
@@ -417,7 +422,7 @@ Deno.serve(async (req) => {
             // Get the subscription and price info
             const subscription = subscriptions.data[0];
             const priceId = subscription.items.data[0].price.id;
-            planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+            planType = await getPlanFromPriceId(adminClient, priceId, environment);
             console.log(`Customer has active subscription with plan: ${planType}`);
           } else {
             console.log('Customer has no active subscriptions or payments, using free plan');
@@ -425,7 +430,7 @@ Deno.serve(async (req) => {
         }
         
         // Create or link the user and set their plan
-        const userId = await ensureUserExists(supabaseClient, email, fullName, customerId, planType);
+        const userId = await ensureUserExists(adminClient, email, fullName, customerId, planType);
         
         break;
       }
@@ -478,7 +483,7 @@ Deno.serve(async (req) => {
                 if (price) {
                   priceId = price.id;
                   console.log(`Found price ID ${priceId} from payment link`);
-                  planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+                  planType = await getPlanFromPriceId(adminClient, priceId, environment);
                   console.log(`Mapped price from payment link to plan: ${planType}`);
                 }
               }
@@ -499,13 +504,13 @@ Deno.serve(async (req) => {
           if (subscriptions.data.length > 0) {
             const subscription = subscriptions.data[0];
             priceId = subscription.items.data[0].price.id;
-            planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+            planType = await getPlanFromPriceId(adminClient, priceId, environment);
             console.log(`Found active subscription with plan: ${planType}`);
           }
         }
         
         // Ensure user exists (or create them)
-        const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
+        const userId = await ensureUserExists(adminClient, customerEmail, customerName, customerId, planType);
         
         console.log(`Updated user ${userId} to plan: ${planType} after checkout`);
         
@@ -537,14 +542,14 @@ Deno.serve(async (req) => {
           console.log(`Processing subscription for email: ${customerEmail}, customer ID: ${customerId}`);
           
           // Map the Stripe price to our plan type
-          const planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+          const planType = await getPlanFromPriceId(adminClient, priceId, environment);
           console.log(`Mapped price ${priceId} to plan: ${planType}`);
           
           // Make sure the user exists in our system
-          const userId = await ensureUserExists(supabaseClient, customerEmail, customerName, customerId, planType);
+          const userId = await ensureUserExists(adminClient, customerEmail, customerName, customerId, planType);
           
           // Update subscription details
-          await supabaseClient
+          await adminClient
             .from('customer_subscriptions')
             .upsert({
               user_id: userId,
@@ -571,7 +576,7 @@ Deno.serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         
         // Find the user by subscription ID
-        const { data: subscriptionData } = await supabaseClient
+        const { data: subscriptionData } = await adminClient
           .from('customer_subscriptions')
           .select('user_id')
           .eq('stripe_subscription_id', subscription.id)
@@ -579,7 +584,7 @@ Deno.serve(async (req) => {
 
         if (subscriptionData) {
           // Update subscription status
-          await supabaseClient
+          await adminClient
             .from('customer_subscriptions')
             .update({
               status: 'canceled',
@@ -588,13 +593,13 @@ Deno.serve(async (req) => {
             .eq('stripe_subscription_id', subscription.id);
 
           // Downgrade user to free plan
-          await supabaseClient
+          await adminClient
             .from('profiles')
             .update({ plan: 'free' })
             .eq('id', subscriptionData.user_id);
             
           // Update role back to pet_caddie
-          await supabaseClient
+          await adminClient
             .from('user_roles')
             .upsert({
               user_id: subscriptionData.user_id,
