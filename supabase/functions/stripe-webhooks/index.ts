@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 import Stripe from 'https://esm.sh/stripe@13.11.0'
 import { corsHeaders } from '../_shared/cors.ts';
@@ -423,35 +422,49 @@ Deno.serve(async (req) => {
         
         console.log(`Processing checkout session for email: ${customerEmail}, customer ID: ${customerId}`);
         
-        // Get the price ID from the checkout session
+        // Get the price ID - for one-time payments we need to get the price from payment_link
         let planType = 'free';
         let priceId = null;
         
-        // First check the metadata for plan_type directly
-        if (session.metadata && session.metadata.plan_type) {
-          planType = session.metadata.plan_type;
-          console.log(`Found plan type in session metadata: ${planType}`);
+        // Get payment intent for one-time payments
+        if (session.payment_intent) {
+          const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string);
+          console.log('Retrieved payment intent:', paymentIntent.id);
+          
+          // For payment links, get the price ID from the payment link configuration
+          if (session.payment_link) {
+            try {
+              const paymentLink = await stripe.paymentLinks.retrieve(session.payment_link);
+              console.log('Retrieved payment link:', paymentLink.id);
+              
+              if (paymentLink.line_items?.data && paymentLink.line_items.data.length > 0) {
+                const price = paymentLink.line_items.data[0].price;
+                if (price) {
+                  priceId = price.id;
+                  console.log(`Found price ID ${priceId} from payment link`);
+                  planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+                  console.log(`Mapped price from payment link to plan: ${planType}`);
+                }
+              }
+            } catch (e) {
+              console.error('Error retrieving payment link:', e);
+            }
+          }
         }
-        // If no plan_type in metadata, get it from price ID
-        else if (session.metadata && session.metadata.price_id) {
-          priceId = session.metadata.price_id;
-          planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
-          console.log(`Mapped price ${priceId} from metadata to plan: ${planType}`);
-        }
-        // If no metadata, try to get the price from line items
-        else {
-          // Get the session with line items expanded
-          const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
-            expand: ['line_items']
+        
+        // If we still don't have a plan, check if there's a subscription
+        if (planType === 'free') {
+          const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 1
           });
           
-          if (expandedSession.line_items && expandedSession.line_items.data.length > 0) {
-            const lineItem = expandedSession.line_items.data[0];
-            if (lineItem.price && lineItem.price.id) {
-              priceId = lineItem.price.id;
-              planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
-              console.log(`Mapped price ${priceId} from line items to plan: ${planType}`);
-            }
+          if (subscriptions.data.length > 0) {
+            const subscription = subscriptions.data[0];
+            priceId = subscription.items.data[0].price.id;
+            planType = await getPlanFromPriceId(supabaseClient, priceId, environment);
+            console.log(`Found active subscription with plan: ${planType}`);
           }
         }
         
