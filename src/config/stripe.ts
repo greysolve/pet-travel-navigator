@@ -4,7 +4,7 @@ export const TEST_STRIPE_PUBLISHABLE_KEY = "pk_test_51NqfHjElvVFKoCN6Lsnm2iuMMTy
 export const TEST_STRIPE_PRICING_TABLE_ID = "prctbl_1QsXnwElvVFKoCN6vbUHDEL5";
 
 // Production Mode Credentials (to be filled when ready for production)
-export const PROD_STRIPE_PUBLISHABLE_KEY = "pk_live_51NqfHjElvVFKoCN6OixBsOFRLvkSJ9yVmc39qF1FqjyC5j393FdiXeimOK15aFggykHammzvKQM3lzawM35mHy5Y00aZf5okYX";  // Add your production publishable key here
+export const PROD_STRIPE_PUBLISHABLE_KEY = "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";  // Add your production publishable key here
 export const PROD_STRIPE_PRICING_TABLE_ID = "prctbl_1R77usElvVFKoCN6GAFlKWCd"; // Add your production pricing table ID here
 
 // Active credentials (switch these when moving to production)
