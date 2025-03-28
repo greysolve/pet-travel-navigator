@@ -1,64 +1,59 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
-import { useAuth } from "@/contexts/AuthContext";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useMobile } from "@/hooks/use-mobile";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [flights, setFlights] = useState<FlightData[]>([]);
-  const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
-  const [apiProvider, setApiProvider] = useState<string>();
-  const resultsRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
-  const isMobile = useIsMobile();
-
-  // Reset all search states when auth changes
-  useEffect(() => {
-    console.log('Auth state changed, resetting search state');
-    setSearchPerformed(false);
-    setFlights([]);
-    setPetPolicies(undefined);
-    setApiProvider(undefined);
-  }, [user?.id]);
+  const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy> | undefined>(undefined);
+  const [apiProvider, setApiProvider] = useState<string | undefined>(undefined);
+  const [apiError, setApiError] = useState<string | undefined>(undefined);
+  const { isMobile } = useMobile();
 
   const handleSearchResults = (
-    results: FlightData[], 
+    flightResults: FlightData[], 
     policies?: Record<string, PetPolicy>,
-    provider?: string
+    provider?: string,
+    error?: string
   ) => {
-    console.log('Index: received search results:', { results, policies, provider, isMobile });
-    setFlights(results || []);
+    setSearchPerformed(true);
+    setFlights(flightResults);
     setPetPolicies(policies);
     setApiProvider(provider);
-    setSearchPerformed(true);
-
-    // Scroll to results after a brief delay to ensure DOM update
-    setTimeout(() => {
-      console.log('Scrolling to results section');
-      resultsRef.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
+    setApiError(error);
+    
+    // Scroll to results if we have any
+    if (flightResults.length > 0 || (policies && Object.keys(policies).length > 0)) {
+      const resultsElement = document.getElementById('search-results');
+      if (resultsElement) {
+        resultsElement.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F0FB]">
+    <div className="min-h-screen bg-gray-50">
       <HeroSection />
-      <SearchSection onSearchResults={handleSearchResults} />
-      <div ref={resultsRef} className="scroll-mt-8">
-        <ResultsSection 
-          searchPerformed={searchPerformed} 
-          flights={flights}
-          petPolicies={petPolicies}
-          isMobile={isMobile}
-          apiProvider={apiProvider}
-        />
-      </div>
+      <section className="py-10 md:py-16">
+        <div className="container mx-auto px-4">
+          <Card className="p-6 shadow-lg bg-white/90 backdrop-blur-sm">
+            <SearchSection onSearchResults={handleSearchResults} />
+          </Card>
+        </div>
+      </section>
+      <ResultsSection 
+        searchPerformed={searchPerformed} 
+        flights={flights} 
+        petPolicies={petPolicies}
+        isMobile={isMobile}
+        apiProvider={apiProvider}
+        apiError={apiError}
+      />
     </div>
   );
 };

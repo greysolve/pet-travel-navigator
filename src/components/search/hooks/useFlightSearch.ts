@@ -16,7 +16,7 @@ interface UseFlightSearchReturn {
     origin: string, 
     destination: string, 
     date: Date, 
-    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
+    onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
     onComplete?: () => void,
     apiProvider?: ApiProvider,
     enableFallback?: boolean
@@ -35,7 +35,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     origin: string, 
     destination: string, 
     date: Date,
-    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
+    onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
     onComplete?: () => void,
     requestedApiProvider?: ApiProvider,
     enableFallback?: boolean
@@ -107,13 +107,38 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       
       const flights = data?.connections || [];
       const responseApiProvider = data?.api_provider;
+      const apiError = data?.error;
+      const fallbackError = data?.fallback_error;
+      const fallbackUsed = data?.fallback_used;
       
       if (responseApiProvider) {
-        console.log(`Flight data provided by: ${responseApiProvider} API`);
+        console.log(`Flight data provided by: ${responseApiProvider} API${fallbackUsed ? ' (Fallback)' : ''}`);
+      }
+      
+      if (apiError) {
+        console.warn(`API error: ${apiError}${fallbackError ? `, Fallback error: ${fallbackError}` : ''}`);
+        
+        // If we have flights but also an error, it means fallback worked but primary failed
+        if (flights.length > 0) {
+          toast({
+            title: `Warning: Primary API (${selectedApiProvider}) failed`,
+            description: `Using fallback data from ${responseApiProvider}. Error: ${apiError}`,
+            variant: "warning",
+          });
+        } else {
+          // Both APIs failed or fallback was disabled
+          toast({
+            title: "Search failed",
+            description: fallbackError 
+              ? `Both APIs failed. Primary: ${apiError}, Fallback: ${fallbackError}` 
+              : `API error: ${apiError}`,
+            variant: "destructive",
+          });
+        }
       }
       
       if (onResults) {
-        onResults(flights, {});
+        onResults(flights, {}, apiError);
       }
       
       return flights;

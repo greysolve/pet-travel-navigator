@@ -11,7 +11,8 @@ import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ExportDialog } from "./search/saved-searches/ExportDialog";
 import { Button } from "@/components/ui/button";
-import { FileDown } from "lucide-react";
+import { FileDown, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { FlightData, PetPolicy } from "./flight-results/types";
 
 export const ResultsSection = ({ 
@@ -20,12 +21,14 @@ export const ResultsSection = ({
   petPolicies,
   isMobile,
   apiProvider,
+  apiError,
 }: { 
   searchPerformed: boolean;
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
   isMobile?: boolean;
   apiProvider?: string;
+  apiError?: string;
 }) => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const { profile } = useProfile();
@@ -107,6 +110,16 @@ export const ResultsSection = ({
   return (
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
       <div className="space-y-8 text-left">
+        {apiError && (
+          <Alert variant="warning" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>API Warning</AlertTitle>
+            <AlertDescription>
+              {apiError}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {flights.length > 0 && (
           <>
             {canExport && (

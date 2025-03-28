@@ -19,12 +19,12 @@ interface UseSearchHandlerProps {
     origin: string,
     destination: string,
     date: Date,
-    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
+    onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
     onComplete?: () => void,
     apiProvider?: ApiProvider,
     enableFallback?: boolean
   ) => Promise<FlightData[]>;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string) => void;
+  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
 }
@@ -111,9 +111,9 @@ export const useSearchHandler = ({
         origin,
         destination,
         date,
-        (flights, policies) => {
+        (flights, policies, apiError) => {
           // Pass along the API provider in the response
-          onSearchResults(flights, policies, apiProvider);
+          onSearchResults(flights, policies, apiProvider, apiError);
         },
         undefined,
         apiProvider,

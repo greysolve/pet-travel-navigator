@@ -114,6 +114,11 @@ async function searchAmadeusFlights(origin, destination, date) {
     const data = await response.json();
     console.log(`Amadeus returned ${data.data?.length || 0} flight offers`);
     
+    // Validate that we have actual flight data
+    if (!data.data || data.data.length === 0) {
+      throw new Error('Amadeus returned no flight data');
+    }
+    
     return data;
   } catch (error) {
     console.error('Error searching Amadeus flights:', error);
@@ -234,12 +239,24 @@ async function searchCiriumFlights(origin, destination, date, appId, appKey) {
     fetch(connectionsUrl)
   ]);
   
+  // Check for HTTP errors
   if (!schedulesResponse.ok || !connectionsResponse.ok) {
-    throw new Error('Failed to fetch flight data from Cirium');
+    throw new Error(`Failed to fetch flight data from Cirium: Schedules ${schedulesResponse.status}, Connections ${connectionsResponse.status}`);
   }
   
   const schedulesData = await schedulesResponse.json();
   const connectionsData = await connectionsResponse.json();
+  
+  // Validate the response data
+  if (!schedulesData.scheduledFlights || !Array.isArray(schedulesData.scheduledFlights) || 
+      !connectionsData.connections || !Array.isArray(connectionsData.connections)) {
+    throw new Error('Invalid response data from Cirium API: Missing expected data structure');
+  }
+  
+  // Check if we have any flights at all
+  if (schedulesData.scheduledFlights.length === 0 && connectionsData.connections.length === 0) {
+    throw new Error('No flights found in Cirium API response');
+  }
   
   // Process non-stop flights
   const nonStopFlights = schedulesData.scheduledFlights
@@ -310,7 +327,15 @@ async function searchCiriumFlights(origin, destination, date, appId, appKey) {
     }
   })) || [];
   
-  return [...nonStopFlights, ...connectingFlights];
+  const allFlights = [...nonStopFlights, ...connectingFlights];
+  
+  // Ensure we actually have processed flights
+  if (allFlights.length === 0) {
+    throw new Error('Failed to process any valid flights from Cirium API response');
+  }
+  
+  console.log(`Cirium search returned ${allFlights.length} connections`);
+  return allFlights;
 }
 
 Deno.serve(async (req) => {
@@ -367,62 +392,71 @@ Deno.serve(async (req) => {
     
     let connections = [];
     let actualApiProvider = selectedApiProvider; // Track which API actually provided the data
+    let originalError = null; // Store the original error for fallback reporting
+    let fallbackError = null; // Store any fallback error
     
-    // Use the selected API provider
-    if (selectedApiProvider === 'amadeus') {
-      try {
+    // Try the selected API provider first
+    try {
+      if (selectedApiProvider === 'amadeus') {
         // Get flights from Amadeus
         const amadeusData = await searchAmadeusFlights(origin, destination, date);
         connections = mapAmadeusToFlightData(amadeusData);
         
         console.log(`Amadeus search returned ${connections.length} connections`);
-      } catch (error) {
-        console.error('Error with Amadeus search:', error);
+      } else {
+        // Use Cirium API
+        const appId = Deno.env.get('CIRIUM_APP_ID');
+        const appKey = Deno.env.get('CIRIUM_APP_KEY');
         
-        // Fall back to Cirium if Amadeus fails and fallback is enabled
-        if (fallbackEnabled) {
-          console.log('Fallback is enabled, trying Cirium API');
-          const appId = Deno.env.get('CIRIUM_APP_ID');
-          const appKey = Deno.env.get('CIRIUM_APP_KEY');
-          
-          if (!appId || !appKey) {
-            throw new Error('Missing Cirium API credentials for fallback');
-          }
-          
-          connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
-          actualApiProvider = 'cirium';
-          console.log(`Fallback to Cirium returned ${connections.length} connections`);
-        } else {
-          // If fallback is disabled, re-throw the error
-          throw error;
+        if (!appId || !appKey) {
+          throw new Error('Missing Cirium API credentials');
         }
-      }
-    } else {
-      // Use Cirium API
-      const appId = Deno.env.get('CIRIUM_APP_ID');
-      const appKey = Deno.env.get('CIRIUM_APP_KEY');
-      
-      if (!appId || !appKey) {
-        throw new Error('Missing Cirium API credentials');
-      }
-      
-      try {
+        
         connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
         console.log(`Cirium search returned ${connections.length} connections`);
-      } catch (error) {
-        console.error('Error with Cirium search:', error);
+      }
+    } catch (error) {
+      // Store the original error
+      originalError = error;
+      console.error(`Error with ${selectedApiProvider} search:`, error.message);
+      
+      // Try fallback if enabled
+      if (fallbackEnabled) {
+        const fallbackProvider = selectedApiProvider === 'amadeus' ? 'cirium' : 'amadeus';
+        console.log(`Fallback is enabled, trying ${fallbackProvider} API`);
         
-        // Fall back to Amadeus if Cirium fails and fallback is enabled
-        if (fallbackEnabled) {
-          console.log('Fallback is enabled, trying Amadeus API');
-          const amadeusData = await searchAmadeusFlights(origin, destination, date);
-          connections = mapAmadeusToFlightData(amadeusData);
-          actualApiProvider = 'amadeus';
-          console.log(`Fallback to Amadeus returned ${connections.length} connections`);
-        } else {
-          // If fallback is disabled, re-throw the error
-          throw error;
+        try {
+          if (fallbackProvider === 'amadeus') {
+            const amadeusData = await searchAmadeusFlights(origin, destination, date);
+            connections = mapAmadeusToFlightData(amadeusData);
+            actualApiProvider = 'amadeus';
+            console.log(`Fallback to Amadeus returned ${connections.length} connections`);
+          } else {
+            const appId = Deno.env.get('CIRIUM_APP_ID');
+            const appKey = Deno.env.get('CIRIUM_APP_KEY');
+            
+            if (!appId || !appKey) {
+              throw new Error('Missing Cirium API credentials for fallback');
+            }
+            
+            connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
+            actualApiProvider = 'cirium';
+            console.log(`Fallback to Cirium returned ${connections.length} connections`);
+          }
+        } catch (fallbackErr) {
+          // Store the fallback error
+          fallbackError = fallbackErr;
+          console.error(`Fallback to ${fallbackProvider} also failed:`, fallbackErr.message);
+          
+          // Both primary and fallback failed, throw a comprehensive error
+          throw new Error(
+            `Primary API (${selectedApiProvider}) failed: ${originalError.message}. ` +
+            `Fallback API (${fallbackProvider}) also failed: ${fallbackErr.message}`
+          );
         }
+      } else {
+        // Fallback is disabled, re-throw the original error
+        throw new Error(`${selectedApiProvider} API error: ${originalError.message}`);
       }
     }
 
@@ -430,7 +464,9 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         connections,
         api_provider: actualApiProvider,
-        fallback_used: actualApiProvider !== selectedApiProvider
+        fallback_used: actualApiProvider !== selectedApiProvider,
+        error: originalError ? originalError.message : null,
+        fallback_error: fallbackError ? fallbackError.message : null
       }),
       { 
         headers: { 
@@ -441,9 +477,14 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in flight schedule search:', error);
+    console.error('Error in flight schedule search:', error.message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        connections: [],
+        api_provider: null,
+        fallback_used: false
+      }),
       { 
         status: 500,
         headers: { 

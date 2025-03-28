@@ -129,6 +129,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         handleDeleteSearch={handleDeleteSearch}
         handleSearch={handleSearch}
         onPolicySearch={handlePolicySearch}
+        apiProvider={apiProvider}
+        enableFallback={enableFallback}
       />
     </div>
   );
