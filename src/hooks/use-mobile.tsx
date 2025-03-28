@@ -4,7 +4,7 @@ import * as React from "react"
 const MOBILE_BREAKPOINT = 768
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  const [isMobile, setIsMobile] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     // Initial check on mount
@@ -29,8 +29,7 @@ export function useIsMobile() {
     return () => mql.removeEventListener("change", onChange)
   }, [])
 
-  // Ensure we always return a boolean (defaulting to false if undefined)
-  return isMobile === undefined ? false : isMobile;
+  return { isMobile };
 }
 
 // Add alias for backward compatibility

@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -50,7 +49,7 @@ export const RouteSearch = ({
       }
 
       console.log('Airports search results:', data);
-      setAirports(data || []);
+      setAirports(data as Airport[]);
     } catch (error) {
       console.error('Error fetching airports:', error);
       toast({
@@ -64,7 +63,7 @@ export const RouteSearch = ({
   }, [toast]);
 
   const formatAirportDisplay = (airport: Airport): string => {
-    if (airport.search_score >= 80) {
+    if (airport.search_score && airport.search_score >= 80) {
       // IATA code match - prioritize airport name
       return `${airport.name} (${airport.iata_code}), ${airport.city}, ${airport.country}`;
     } else {
@@ -175,4 +174,3 @@ export const RouteSearch = ({
     </div>
   );
 };
-

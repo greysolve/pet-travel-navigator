@@ -123,7 +123,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           toast({
             title: `Warning: Primary API (${selectedApiProvider}) failed`,
             description: `Using fallback data from ${responseApiProvider}. Error: ${apiError}`,
-            variant: "warning",
+            variant: "default",
           });
         } else {
           // Both APIs failed or fallback was disabled

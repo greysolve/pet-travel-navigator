@@ -50,22 +50,29 @@ export interface FormContainerProps {
 
 // Add missing type definitions for components
 export interface SearchFormHeaderProps {
+  user: User | null;
   isPetCaddie: boolean;
   searchCount: number | undefined;
+  savedSearches: SavedSearch[];
+  onLoadSearch: (searchCriteria: any) => void;
+  onDeleteSearch: (e: any, id: string) => void;
+  isLoading: boolean;
 }
 
 export interface AirlinePolicySearchProps {
   policySearch: string;
   setPolicySearch: (value: string) => void;
-  clearRouteSearch: () => void;
-  hasRouteSearch: boolean;
+  isLoading?: boolean;
+  disabled?: boolean;
+  onFocus?: () => void;
 }
 
 export interface Airport {
-  iata: string;
+  iata_code: string;
   name: string;
   city: string;
   country: string;
+  search_score?: number;
 }
 
 export interface RouteSearchProps {
@@ -74,6 +81,9 @@ export interface RouteSearchProps {
   setOrigin: (value: string) => void;
   setDestination: (value: string) => void;
   date: Date | undefined;
-  setDate: (value: Date | undefined) => void;
-  clearPolicySearch: () => void;
+  setDate?: (value: Date | undefined) => void;
+  clearPolicySearch?: () => void;
+  isLoading?: boolean;
+  disabled?: boolean;
+  onFocus?: () => void;
 }

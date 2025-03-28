@@ -111,7 +111,7 @@ export const ResultsSection = ({
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
       <div className="space-y-8 text-left">
         {apiError && (
-          <Alert variant="warning" className="mb-4">
+          <Alert variant="info" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>API Warning</AlertTitle>
             <AlertDescription>
