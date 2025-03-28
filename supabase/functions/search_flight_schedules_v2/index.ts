@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
@@ -318,7 +319,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { origin, destination, date, api = 'amadeus' } = await req.json();
+    const { origin, destination, date, api = 'amadeus', enable_fallback = false } = await req.json();
     const authHeader = req.headers.get('Authorization');
     
     if (!authHeader) {
@@ -342,14 +343,33 @@ Deno.serve(async (req) => {
       .single();
 
     console.log('User role:', userRole);
+
+    // Get app settings to check if there's an override
+    const { data: appSettings } = await supabase
+      .from('app_settings')
+      .select('*')
+      .eq('key', 'api_provider')
+      .single();
+      
+    // Use the database setting if available, otherwise use the requested API
+    let selectedApiProvider = api;
+    let fallbackEnabled = enable_fallback;
+    
+    if (appSettings?.value) {
+      console.log('Found API provider settings in database:', appSettings.value);
+      selectedApiProvider = appSettings.value.provider || api;
+      fallbackEnabled = appSettings.value.enable_fallback !== undefined ? 
+        appSettings.value.enable_fallback : enable_fallback;
+    }
     
     // Log which API we're using for this search
-    console.log(`Using API provider: ${api}`);
+    console.log(`Using API provider: ${selectedApiProvider} (Fallback: ${fallbackEnabled ? 'Enabled' : 'Disabled'})`);
     
     let connections = [];
+    let actualApiProvider = selectedApiProvider; // Track which API actually provided the data
     
     // Use the selected API provider
-    if (api === 'amadeus') {
+    if (selectedApiProvider === 'amadeus') {
       try {
         // Get flights from Amadeus
         const amadeusData = await searchAmadeusFlights(origin, destination, date);
@@ -357,18 +377,25 @@ Deno.serve(async (req) => {
         
         console.log(`Amadeus search returned ${connections.length} connections`);
       } catch (error) {
-        console.error('Error with Amadeus search, falling back to Cirium:', error);
+        console.error('Error with Amadeus search:', error);
         
-        // Fall back to Cirium if Amadeus fails
-        const appId = Deno.env.get('CIRIUM_APP_ID');
-        const appKey = Deno.env.get('CIRIUM_APP_KEY');
-        
-        if (!appId || !appKey) {
-          throw new Error('Missing Cirium API credentials for fallback');
+        // Fall back to Cirium if Amadeus fails and fallback is enabled
+        if (fallbackEnabled) {
+          console.log('Fallback is enabled, trying Cirium API');
+          const appId = Deno.env.get('CIRIUM_APP_ID');
+          const appKey = Deno.env.get('CIRIUM_APP_KEY');
+          
+          if (!appId || !appKey) {
+            throw new Error('Missing Cirium API credentials for fallback');
+          }
+          
+          connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
+          actualApiProvider = 'cirium';
+          console.log(`Fallback to Cirium returned ${connections.length} connections`);
+        } else {
+          // If fallback is disabled, re-throw the error
+          throw error;
         }
-        
-        connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
-        console.log(`Fallback to Cirium returned ${connections.length} connections`);
       }
     } else {
       // Use Cirium API
@@ -379,14 +406,31 @@ Deno.serve(async (req) => {
         throw new Error('Missing Cirium API credentials');
       }
       
-      connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
-      console.log(`Cirium search returned ${connections.length} connections`);
+      try {
+        connections = await searchCiriumFlights(origin, destination, date, appId, appKey);
+        console.log(`Cirium search returned ${connections.length} connections`);
+      } catch (error) {
+        console.error('Error with Cirium search:', error);
+        
+        // Fall back to Amadeus if Cirium fails and fallback is enabled
+        if (fallbackEnabled) {
+          console.log('Fallback is enabled, trying Amadeus API');
+          const amadeusData = await searchAmadeusFlights(origin, destination, date);
+          connections = mapAmadeusToFlightData(amadeusData);
+          actualApiProvider = 'amadeus';
+          console.log(`Fallback to Amadeus returned ${connections.length} connections`);
+        } else {
+          // If fallback is disabled, re-throw the error
+          throw error;
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         connections,
-        api_provider: api
+        api_provider: actualApiProvider,
+        fallback_used: actualApiProvider !== selectedApiProvider
       }),
       { 
         headers: { 

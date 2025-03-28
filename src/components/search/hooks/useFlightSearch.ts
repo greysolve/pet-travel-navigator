@@ -18,7 +18,8 @@ interface UseFlightSearchReturn {
     date: Date, 
     onResults: (results: FlightData[], policies?: Record<string, any>) => void,
     onComplete?: () => void,
-    apiProvider?: ApiProvider
+    apiProvider?: ApiProvider,
+    enableFallback?: boolean
   ) => Promise<FlightData[]>;
 }
 
@@ -36,7 +37,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     date: Date,
     onResults: (results: FlightData[], policies?: Record<string, any>) => void,
     onComplete?: () => void,
-    requestedApiProvider?: ApiProvider
+    requestedApiProvider?: ApiProvider,
+    enableFallback?: boolean
   ) => {
     if (!profile) {
       toast({
@@ -64,7 +66,13 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     try {
       // Use the provided API provider or fall back to the default
       const selectedApiProvider = requestedApiProvider || DEFAULT_API_PROVIDER;
-      console.log('Calling flight search with:', { origin, destination, date, apiProvider: selectedApiProvider });
+      console.log('Calling flight search with:', { 
+        origin, 
+        destination, 
+        date, 
+        apiProvider: selectedApiProvider,
+        enableFallback
+      });
       
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
         const decremented = await decrementSearchCount();
@@ -74,13 +82,14 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         }
       }
       
-      // Call the new v2 search function
+      // Call the search function
       const { data, error } = await supabase.functions.invoke('search_flight_schedules_v2', {
         body: {
           origin,
           destination,
           date: date.toISOString(),
-          api: selectedApiProvider
+          api: selectedApiProvider,
+          enable_fallback: enableFallback
         },
       });
 

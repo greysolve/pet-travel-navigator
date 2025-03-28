@@ -9,8 +9,8 @@ import { useSearchValidation } from "./search/hooks/useSearchValidation";
 import { useSearchHandler } from "./search/hooks/useSearchHandler";
 import { SearchFormContainer } from "./search/SearchFormContainer";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
-import { useState } from "react";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
@@ -19,7 +19,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(DEFAULT_API_PROVIDER);
+  
+  // Use app settings for API provider
+  const { apiProvider = DEFAULT_API_PROVIDER, enableFallback = false } = useAppSettings();
   
   const {
     policySearch,
@@ -51,6 +53,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     handleFlightSearch,
     onSearchResults,
     apiProvider,
+    enableFallback,
   });
 
   const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;

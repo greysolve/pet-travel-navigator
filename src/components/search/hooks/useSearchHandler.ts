@@ -21,10 +21,12 @@ interface UseSearchHandlerProps {
     date: Date,
     onResults: (results: FlightData[], policies?: Record<string, any>) => void,
     onComplete?: () => void,
-    apiProvider?: ApiProvider
+    apiProvider?: ApiProvider,
+    enableFallback?: boolean
   ) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string) => void;
   apiProvider?: ApiProvider;
+  enableFallback?: boolean;
 }
 
 export const useSearchHandler = ({
@@ -39,6 +41,7 @@ export const useSearchHandler = ({
   handleFlightSearch,
   onSearchResults,
   apiProvider,
+  enableFallback = false,
 }: UseSearchHandlerProps) => {
   // Use the policy fetcher hook for airline policy searches
   const { data: airlinePolicy, refetch: refetchPolicy } = useSingleAirlinePolicy(policySearch);
@@ -113,7 +116,8 @@ export const useSearchHandler = ({
           onSearchResults(flights, policies, apiProvider);
         },
         undefined,
-        apiProvider
+        apiProvider,
+        enableFallback
       );
 
       // Save search criteria if needed
