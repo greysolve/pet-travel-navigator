@@ -32,3 +32,6 @@ export function useIsMobile() {
   // Ensure we always return a boolean (defaulting to false if undefined)
   return isMobile === undefined ? false : isMobile;
 }
+
+// Add alias for backward compatibility
+export const useMobile = useIsMobile;

@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
@@ -13,7 +12,7 @@ const Index = () => {
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy> | undefined>(undefined);
   const [apiProvider, setApiProvider] = useState<string | undefined>(undefined);
   const [apiError, setApiError] = useState<string | undefined>(undefined);
-  const { isMobile } = useMobile();
+  const { isMobile } = useIsMobile();
 
   const handleSearchResults = (
     flightResults: FlightData[], 

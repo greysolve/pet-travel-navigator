@@ -47,3 +47,33 @@ export interface FormContainerProps {
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
 }
+
+// Add missing type definitions for components
+export interface SearchFormHeaderProps {
+  isPetCaddie: boolean;
+  searchCount: number | undefined;
+}
+
+export interface AirlinePolicySearchProps {
+  policySearch: string;
+  setPolicySearch: (value: string) => void;
+  clearRouteSearch: () => void;
+  hasRouteSearch: boolean;
+}
+
+export interface Airport {
+  iata: string;
+  name: string;
+  city: string;
+  country: string;
+}
+
+export interface RouteSearchProps {
+  origin: string;
+  destination: string;
+  setOrigin: (value: string) => void;
+  setDestination: (value: string) => void;
+  date: Date | undefined;
+  setDate: (value: Date | undefined) => void;
+  clearPolicySearch: () => void;
+}
