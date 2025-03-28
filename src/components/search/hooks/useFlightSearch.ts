@@ -36,7 +36,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     date: Date,
     onResults: (results: FlightData[], policies?: Record<string, any>) => void,
     onComplete?: () => void,
-    apiProvider?: ApiProvider
+    requestedApiProvider?: ApiProvider
   ) => {
     if (!profile) {
       toast({
@@ -63,8 +63,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     setIsSearchLoading(true);
     try {
       // Use the provided API provider or fall back to the default
-      const api = apiProvider || DEFAULT_API_PROVIDER;
-      console.log('Calling flight search with:', { origin, destination, date, api });
+      const apiProvider = requestedApiProvider || DEFAULT_API_PROVIDER;
+      console.log('Calling flight search with:', { origin, destination, date, apiProvider });
       
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
         const decremented = await decrementSearchCount();
@@ -80,7 +80,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           origin,
           destination,
           date: date.toISOString(),
-          api
+          api: apiProvider
         },
       });
 

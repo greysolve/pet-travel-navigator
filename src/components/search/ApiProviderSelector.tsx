@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ApiProvider, DEFAULT_API_PROVIDER, ENABLE_API_PROVIDER_SELECTION } from "@/config/feature-flags";
-import { InfoCircledIcon } from "@radix-ui/react-icons";
+import { InfoIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ApiProviderSelectorProps {
@@ -32,7 +32,7 @@ export const ApiProviderSelector = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <InfoCircledIcon className="h-3.5 w-3.5 text-gray-400" />
+              <InfoIcon className="h-3.5 w-3.5 text-gray-400" />
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <p>Toggle between Amadeus (modern) and Cirium (legacy) flight data providers</p>

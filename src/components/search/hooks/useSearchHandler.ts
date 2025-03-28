@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,7 @@ interface UseSearchHandlerProps {
     onComplete?: () => void,
     apiProvider?: ApiProvider
   ) => Promise<FlightData[]>;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
+  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string) => void;
   apiProvider?: ApiProvider;
 }
 
