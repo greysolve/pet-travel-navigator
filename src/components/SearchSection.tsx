@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
@@ -100,14 +99,12 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
 
   return (
-    <div className="relative">
-      <div className="absolute right-0 top-[-30px]">
-        <ApiProviderSelector 
-          apiProvider={apiProvider}
-          onChange={setApiProvider}
-          disabled={isLoading}
-        />
-      </div>
+    <div>
+      <ApiProviderSelector 
+        apiProvider={apiProvider}
+        onChange={setApiProvider}
+        disabled={isLoading}
+      />
       <SearchFormContainer
         user={user}
         isPetCaddie={isPetCaddie}
