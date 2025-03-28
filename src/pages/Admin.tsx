@@ -11,14 +11,17 @@ import { PremiumFieldsManager } from "@/components/admin/PremiumFieldsManager";
 import { PaymentPlansManager } from "@/components/admin/PaymentPlansManager";
 import { SupportSettingsManager } from "@/components/admin/support-settings/SupportSettingsManager";
 import { ManualSubscriptionUpdate } from "@/components/admin/ManualSubscriptionUpdate";
+import { ApiProviderSelector } from "@/components/search/ApiProviderSelector";
+import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("users");
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(DEFAULT_API_PROVIDER);
 
   return (
     <div className="container mx-auto px-4 py-8 pt-[15vh] md:pt-8 max-w-full md:max-w-[90%]">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-8">
+        <TabsList className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="premium-fields">Premium Fields</TabsTrigger>
           <TabsTrigger value="payment-plans">Payment Plans</TabsTrigger>
@@ -29,6 +32,7 @@ const Admin = () => {
           <TabsTrigger value="samples">Sample Results</TabsTrigger>
           <TabsTrigger value="support">Support Settings</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+          <TabsTrigger value="api-settings">API Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-6">
@@ -69,6 +73,27 @@ const Admin = () => {
 
         <TabsContent value="subscriptions" className="mt-6">
           <ManualSubscriptionUpdate />
+        </TabsContent>
+
+        <TabsContent value="api-settings" className="mt-6">
+          <div className="p-4 bg-white rounded-lg shadow-sm border">
+            <h2 className="text-xl font-semibold mb-4">API Provider Settings</h2>
+            <p className="text-gray-600 mb-6">
+              Configure which flight data API provider to use for search operations.
+            </p>
+            <ApiProviderSelector 
+              apiProvider={apiProvider}
+              onChange={setApiProvider}
+            />
+            <div className="mt-4 p-4 bg-gray-50 rounded-md">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Notes:</h3>
+              <ul className="text-xs text-gray-600 list-disc pl-5 space-y-1">
+                <li>Amadeus API provides more modern and comprehensive flight data but may have different rate limits.</li>
+                <li>Cirium API is the legacy provider with more historical data availability.</li>
+                <li>API provider selection affects all flight searches performed across the application.</li>
+              </ul>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
@@ -8,7 +9,6 @@ import { useSearchValidation } from "./search/hooks/useSearchValidation";
 import { useSearchHandler } from "./search/hooks/useSearchHandler";
 import { SearchFormContainer } from "./search/SearchFormContainer";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
-import { ApiProviderSelector } from "./search/ApiProviderSelector";
 import { useState } from "react";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import type { SearchSectionProps } from "./search/types";
@@ -100,11 +100,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
   return (
     <div>
-      <ApiProviderSelector 
-        apiProvider={apiProvider}
-        onChange={setApiProvider}
-        disabled={isLoading}
-      />
       <SearchFormContainer
         user={user}
         isPetCaddie={isPetCaddie}
