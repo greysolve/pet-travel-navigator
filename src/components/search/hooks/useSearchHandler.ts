@@ -1,25 +1,29 @@
-
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData, PetPolicy } from "../../flight-results/types";
-import type { ToastFunction } from "@/hooks/use-toast";
+import { useSingleAirlinePolicy } from "@/components/flight-results/PolicyFetcher";
+import { ApiProvider } from "@/config/feature-flags";
+import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
-interface SearchHandlerProps {
+interface UseSearchHandlerProps {
   user: any;
-  toast: ToastFunction;
+  toast: any;
   policySearch: string;
   origin: string;
   destination: string;
-  date: Date | undefined;
+  date?: Date;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
   handleFlightSearch: (
-    origin: string, 
-    destination: string, 
-    date: Date, 
-    onResults: (results: FlightData[], policies?: Record<string, PetPolicy>) => void,
-    onComplete?: () => void
+    origin: string,
+    destination: string,
+    date: Date,
+    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
+    onComplete?: () => void,
+    apiProvider?: ApiProvider
   ) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
+  apiProvider?: ApiProvider;
 }
 
 export const useSearchHandler = ({
@@ -33,115 +37,135 @@ export const useSearchHandler = ({
   setFlights,
   handleFlightSearch,
   onSearchResults,
-}: SearchHandlerProps) => {
+  apiProvider,
+}: UseSearchHandlerProps) => {
+  // Use the policy fetcher hook for airline policy searches
+  const { data: airlinePolicy, refetch: refetchPolicy } = useSingleAirlinePolicy(policySearch);
+  
   const handlePolicySearch = async () => {
-    if (!user) return;
-
-    const { data: airline, error: airlineError } = await supabase
-      .from('airlines')
-      .select('id')
-      .eq('name', policySearch)
-      .maybeSingle();
-
-    if (airlineError || !airline?.id) {
-      console.error("Error finding airline:", airlineError);
+    if (!user) {
       toast({
-        title: "Error finding airline",
-        description: "Could not find the selected airline.",
+        title: "Authentication required",
+        description: "Please sign in to search",
         variant: "destructive",
       });
       return;
     }
 
-    console.log("Found airline:", airline);
-    const { data: petPolicy, error: policyError } = await supabase
-      .from('pet_policies')
-      .select('*')
-      .eq('airline_id', airline.id)
-      .maybeSingle();
+    try {
+      // Refetch the policy
+      await refetchPolicy();
 
-    if (policyError) {
-      console.error("Error fetching pet policy:", policyError);
+      if (airlinePolicy) {
+        setFlights([]);
+        onSearchResults([], { [policySearch]: airlinePolicy });
+
+        // Save search if needed
+        if (shouldSaveSearch) {
+          saveSearch({
+            policySearch,
+          });
+        }
+      } else {
+        toast({
+          title: "No policy found",
+          description: `We couldn't find a pet policy for ${policySearch}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error searching for policy:", error);
       toast({
-        title: "Error fetching pet policy",
-        description: "Could not fetch the pet policy for the selected airline.",
+        title: "Search error",
+        description: "There was a problem searching for this airline policy",
         variant: "destructive",
       });
-      return;
     }
-
-    console.log("Found pet policy:", petPolicy);
-    const results: FlightData[] = [];
-    onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
-    setFlights(results);
   };
 
   const handleRouteSearch = async () => {
-    if (!user) return;
-    if (!date) {
+    if (!user) {
       toast({
-        title: "Date required",
-        description: "Please select a date for your travel",
+        title: "Authentication required",
+        description: "Please sign in to search",
         variant: "destructive",
       });
       return;
     }
 
-    console.log('Handling route search with:', { origin, destination, date });
+    if (!date) {
+      toast({
+        title: "Date required",
+        description: "Please select a travel date",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Call the handleFlightSearch function to get flight data
       await handleFlightSearch(
         origin,
         destination,
         date,
-        async (results: FlightData[], policies?: Record<string, PetPolicy>) => {
-          console.log("Search results callback received:", { results, policies });
-          onSearchResults(results, policies);
-          setFlights(results);
-          
-          if (shouldSaveSearch && user) {
-            const { error: saveError } = await supabase
-              .from('saved_searches')
-              .insert({
-                user_id: user.id,
-                search_criteria: {
-                  origin,
-                  destination,
-                  date: date.toISOString()
-                }
-              });
-
-            if (saveError) {
-              console.error("Error saving search:", saveError);
-              toast({
-                title: "Error saving search",
-                description: "Could not save your search. Please try again.",
-                variant: "destructive",
-              });
-            } else {
-              toast({
-                title: "Search saved",
-                description: "Your search has been saved successfully.",
-              });
-            }
-          }
+        (flights, policies) => {
+          // Pass along the API provider in the response
+          onSearchResults(flights, policies, apiProvider);
         },
-        () => {
-          console.log("Search completed");
-        }
+        undefined,
+        apiProvider
       );
+
+      // Save search criteria if needed
+      if (shouldSaveSearch) {
+        saveSearch({
+          origin,
+          destination,
+          date: date.toISOString(),
+        });
+      }
     } catch (error) {
-      console.error("Error in handleRouteSearch:", error);
+      console.error("Error in route search:", error);
       toast({
-        title: "Search failed",
-        description: "There was an error performing your search. Please try again.",
+        title: "Search error",
+        description: "There was a problem searching for flights",
         variant: "destructive",
       });
+    }
+  };
+
+  // Helper function to save a search
+  const saveSearch = async (searchCriteria: any) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase.from("saved_searches").insert({
+        user_id: user.id,
+        search_criteria: searchCriteria,
+      });
+
+      if (error) {
+        if (error.message.includes("saved searches")) {
+          toast({
+            title: "Limit reached",
+            description: "You've reached the maximum number of saved searches",
+            variant: "destructive",
+          });
+        } else {
+          console.error("Error saving search:", error);
+          toast({
+            title: "Failed to save",
+            description: "There was a problem saving your search",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error saving search:", error);
     }
   };
 
   return {
     handlePolicySearch,
-    handleRouteSearch
+    handleRouteSearch,
   };
 };

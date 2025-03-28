@@ -5,6 +5,7 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlanDetails } from "./usePlanDetails";
 import { useSearchCount } from "./useSearchCount";
+import { DEFAULT_API_PROVIDER, ApiProvider } from "@/config/feature-flags";
 import type { FlightData } from "../../flight-results/types";
 
 interface UseFlightSearchReturn {
@@ -16,7 +17,8 @@ interface UseFlightSearchReturn {
     destination: string, 
     date: Date, 
     onResults: (results: FlightData[], policies?: Record<string, any>) => void,
-    onComplete?: () => void
+    onComplete?: () => void,
+    apiProvider?: ApiProvider
   ) => Promise<FlightData[]>;
 }
 
@@ -33,7 +35,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     destination: string, 
     date: Date,
     onResults: (results: FlightData[], policies?: Record<string, any>) => void,
-    onComplete?: () => void
+    onComplete?: () => void,
+    apiProvider?: ApiProvider
   ) => {
     if (!profile) {
       toast({
@@ -59,7 +62,9 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
 
     setIsSearchLoading(true);
     try {
-      console.log('Calling search_flight_schedules with:', { origin, destination, date });
+      // Use the provided API provider or fall back to the default
+      const api = apiProvider || DEFAULT_API_PROVIDER;
+      console.log('Calling flight search with:', { origin, destination, date, api });
       
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
         const decremented = await decrementSearchCount();
@@ -69,16 +74,18 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         }
       }
       
-      const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
+      // Call the new v2 search function
+      const { data, error } = await supabase.functions.invoke('search_flight_schedules_v2', {
         body: {
           origin,
           destination,
           date: date.toISOString(),
+          api
         },
       });
 
       if (error) {
-        console.error('Error calling search_flight_schedules:', error);
+        console.error('Error calling flight search:', error);
         toast({
           title: "Search failed",
           description: "There was an error fetching flight data. Please try again.",
@@ -90,6 +97,11 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       console.log('Received flight search results:', data);
       
       const flights = data?.connections || [];
+      const apiProvider = data?.api_provider;
+      
+      if (apiProvider) {
+        console.log(`Flight data provided by: ${apiProvider} API`);
+      }
       
       if (onResults) {
         onResults(flights, {});

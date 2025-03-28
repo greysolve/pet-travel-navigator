@@ -31,6 +31,9 @@ verify_jwt = false
 [functions.search_flight_schedules]
 verify_jwt = false
 
+[functions.search_flight_schedules_v2]
+verify_jwt = false
+
 [functions.sync_airport_data]
 verify_jwt = false
 

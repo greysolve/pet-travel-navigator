@@ -6,13 +6,15 @@ import { PolicyDetails } from "./PolicyDetails";
 import { FlightCard } from "./FlightCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface FlightResultsProps {
   flights: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
+  apiProvider?: string;
 }
 
-export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
+export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResultsProps) => {
   const [airlineNames, setAirlineNames] = useState<Record<string, string>>({});
   
   useEffect(() => {
@@ -65,6 +67,15 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   return (
     <div className="space-y-6">
+      {/* API Provider Badge */}
+      {apiProvider && (
+        <div className="flex justify-end">
+          <Badge variant="outline" className="text-xs">
+            Data provided by {apiProvider === 'amadeus' ? 'Amadeus' : 'Cirium'} API
+          </Badge>
+        </div>
+      )}
+      
       {flights.map((journey, journeyIndex) => {
         const segments = journey.segments || [];
         const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);

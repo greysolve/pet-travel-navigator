@@ -19,11 +19,13 @@ export const ResultsSection = ({
   flights = [],
   petPolicies,
   isMobile,
+  apiProvider,
 }: { 
   searchPerformed: boolean;
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
   isMobile?: boolean;
+  apiProvider?: string;
 }) => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const { profile } = useProfile();
@@ -121,7 +123,8 @@ export const ResultsSection = ({
             )}
             <FlightResults 
               flights={flights} 
-              petPolicies={isPoliciesLoading ? undefined : flightPetPolicies} 
+              petPolicies={isPoliciesLoading ? undefined : flightPetPolicies}
+              apiProvider={apiProvider}
             />
           </>
         )}

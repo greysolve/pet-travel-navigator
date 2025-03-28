@@ -2,13 +2,16 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
-import { useFlightSearch } from "./search/FlightSearchHandler";
+import { useFlightSearch } from "./search/hooks/useFlightSearch";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
 import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
 import { useSearchValidation } from "./search/hooks/useSearchValidation";
 import { useSearchHandler } from "./search/hooks/useSearchHandler";
 import { SearchFormContainer } from "./search/SearchFormContainer";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
+import { ApiProviderSelector } from "./search/ApiProviderSelector";
+import { useState } from "react";
+import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
@@ -17,6 +20,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(DEFAULT_API_PROVIDER);
+  
   const {
     policySearch,
     setPolicySearch,
@@ -46,6 +51,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setFlights,
     handleFlightSearch,
     onSearchResults,
+    apiProvider,
   });
 
   const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
@@ -94,32 +100,41 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
 
   return (
-    <SearchFormContainer
-      user={user}
-      isPetCaddie={isPetCaddie}
-      searchCount={searchCount}
-      savedSearches={savedSearches}
-      isLoading={isLoading}
-      policySearch={policySearch}
-      setPolicySearch={setPolicySearch}
-      hasRouteSearch={hasRouteSearch}
-      clearRouteSearch={clearRouteSearch}
-      origin={origin}
-      destination={destination}
-      setOrigin={setOrigin}
-      setDestination={setDestination}
-      date={date}
-      setDate={setDate}
-      clearPolicySearch={clearPolicySearch}
-      shouldSaveSearch={shouldSaveSearch}
-      setShouldSaveSearch={setShouldSaveSearch}
-      toast={toast}
-      onSearchResults={onSearchResults}
-      setFlights={setFlights}
-      onLoadSearch={handleLoadSearch}
-      handleDeleteSearch={handleDeleteSearch}
-      handleSearch={handleSearch}
-      onPolicySearch={handlePolicySearch}
-    />
+    <div className="relative">
+      <div className="absolute right-0 top-[-30px]">
+        <ApiProviderSelector 
+          apiProvider={apiProvider}
+          onChange={setApiProvider}
+          disabled={isLoading}
+        />
+      </div>
+      <SearchFormContainer
+        user={user}
+        isPetCaddie={isPetCaddie}
+        searchCount={searchCount}
+        savedSearches={savedSearches}
+        isLoading={isLoading}
+        policySearch={policySearch}
+        setPolicySearch={setPolicySearch}
+        hasRouteSearch={hasRouteSearch}
+        clearRouteSearch={clearRouteSearch}
+        origin={origin}
+        destination={destination}
+        setOrigin={setOrigin}
+        setDestination={setDestination}
+        date={date}
+        setDate={setDate}
+        clearPolicySearch={clearPolicySearch}
+        shouldSaveSearch={shouldSaveSearch}
+        setShouldSaveSearch={setShouldSaveSearch}
+        toast={toast}
+        onSearchResults={onSearchResults}
+        setFlights={setFlights}
+        onLoadSearch={handleLoadSearch}
+        handleDeleteSearch={handleDeleteSearch}
+        handleSearch={handleSearch}
+        onPolicySearch={handlePolicySearch}
+      />
+    </div>
   );
 };
