@@ -4,7 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ApiProvider } from "@/config/feature-flags";
+import { Database } from "@/integrations/supabase/types";
 
+// Define the structure of our app settings
 interface AppSettingsValue {
   provider: ApiProvider;
   enable_fallback: boolean;
@@ -18,6 +20,9 @@ interface AppSetting {
   created_at: string;
   updated_at: string;
 }
+
+// Type for direct database records
+type AppSettingRecord = Database["public"]["Tables"]["app_settings"]["Row"];
 
 export function useAppSettings() {
   const { toast } = useToast();
@@ -37,7 +42,12 @@ export function useAppSettings() {
         throw error;
       }
 
-      return data as AppSetting[];
+      // Transform the raw data to our expected AppSetting type
+      return (data as AppSettingRecord[]).map(record => ({
+        ...record,
+        // Explicitly cast the value to our expected type
+        value: record.value as unknown as AppSettingsValue
+      })) as AppSetting[];
     },
   });
 
