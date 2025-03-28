@@ -63,8 +63,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     setIsSearchLoading(true);
     try {
       // Use the provided API provider or fall back to the default
-      const apiProvider = requestedApiProvider || DEFAULT_API_PROVIDER;
-      console.log('Calling flight search with:', { origin, destination, date, apiProvider });
+      const selectedApiProvider = requestedApiProvider || DEFAULT_API_PROVIDER;
+      console.log('Calling flight search with:', { origin, destination, date, apiProvider: selectedApiProvider });
       
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
         const decremented = await decrementSearchCount();
@@ -80,7 +80,7 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           origin,
           destination,
           date: date.toISOString(),
-          api: apiProvider
+          api: selectedApiProvider
         },
       });
 
@@ -97,10 +97,10 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
       console.log('Received flight search results:', data);
       
       const flights = data?.connections || [];
-      const apiProvider = data?.api_provider;
+      const responseApiProvider = data?.api_provider;
       
-      if (apiProvider) {
-        console.log(`Flight data provided by: ${apiProvider} API`);
+      if (responseApiProvider) {
+        console.log(`Flight data provided by: ${responseApiProvider} API`);
       }
       
       if (onResults) {
