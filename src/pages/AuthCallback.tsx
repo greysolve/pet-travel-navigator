@@ -22,6 +22,14 @@ const AuthCallback = () => {
         const type = urlParams.get('type');
         const code = urlParams.get('code');
         
+        console.log("AuthCallback: URL parameters:", { 
+          resetPassword, 
+          type, 
+          hasCode: !!code,
+          rawQuery: window.location.search,
+          fullUrl: window.location.href
+        });
+        
         // If explicit reset password parameter is found, redirect immediately
         if (resetPassword || type === 'recovery') {
           console.log("AuthCallback: Explicit password reset detected, redirecting to reset page");
@@ -37,7 +45,14 @@ const AuthCallback = () => {
           
           try {
             // Exchange the code for a session to determine if it's a password reset
+            console.log("AuthCallback: Attempting to exchange code for session");
             const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            console.log("AuthCallback: Code exchange result:", { 
+              hasData: !!data, 
+              hasSession: !!data?.session,
+              error: error?.message
+            });
             
             if (error) {
               console.error("AuthCallback: Error exchanging code for session:", error);
@@ -47,8 +62,16 @@ const AuthCallback = () => {
             // Check if this is a recovery/reset token (either from type in JWT or just a recovery flow)
             // The access token is a JWT that contains user info and claims we can check
             if (data?.session) {
+              console.log("AuthCallback: Session obtained, checking token type", {
+                user: data.session.user.id,
+                email: data.session.user.email,
+                hasAccessToken: !!data.session.access_token
+              });
+              
               // Use a helper function to parse JWT and check if it's a recovery token
               const isRecoveryFlow = checkIfRecoveryToken(data.session.access_token);
+              
+              console.log("AuthCallback: Recovery check result:", { isRecoveryFlow });
               
               if (isRecoveryFlow) {
                 console.log("AuthCallback: Recovery flow detected from token claims");
@@ -57,12 +80,15 @@ const AuthCallback = () => {
                 // We need to add the tokens to the hash for the reset password page to use
                 const hash = `#access_token=${data.session.access_token}&refresh_token=${data.session.refresh_token}&type=recovery`;
                 
+                console.log("AuthCallback: Preparing to redirect to reset password page");
+                
                 // Make sure not to set any session state before redirecting
                 // We want the reset password page to handle the auth flow
                 await supabase.auth.signOut();
                 clearAuthData();
                 
                 if (mounted) {
+                  console.log("AuthCallback: Redirecting to reset password page");
                   window.location.replace(`/auth/reset-password${hash}`);
                 }
                 return;
@@ -74,6 +100,8 @@ const AuthCallback = () => {
               // Check the user's role and redirect
               await handleSuccessfulAuth(data.session);
               return;
+            } else {
+              console.log("AuthCallback: No session returned after code exchange");
             }
           } catch (error) {
             console.error("AuthCallback: Error processing auth code:", error);
@@ -92,6 +120,12 @@ const AuthCallback = () => {
         // For regular auth callback, process normally
         console.log("AuthCallback: Checking for existing session");
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        console.log("AuthCallback: Get session result:", {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          error: sessionError?.message
+        });
         
         if (sessionError) {
           console.error('AuthCallback: Session error:', sessionError);
@@ -135,6 +169,8 @@ const AuthCallback = () => {
     // Helper function to check if a token is for password reset
     const checkIfRecoveryToken = (token: string): boolean => {
       try {
+        console.log("Checking if token is for recovery:", token.substring(0, 10) + "...");
+        
         // Parse the JWT token
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
