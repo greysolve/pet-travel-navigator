@@ -2,12 +2,21 @@
 import { Loader2, ArrowUp, Infinity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
-import type { SearchFormHeaderProps } from "./types";
+import type { SavedSearch } from "./types";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SystemPlan } from "@/types/auth";
-import type { User } from "@supabase/supabase-js";
+
+export interface SearchFormHeaderProps {
+  user: any;
+  isPetCaddie: boolean;
+  searchCount: number | undefined;
+  savedSearches: SavedSearch[];
+  onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
+  onDeleteSearch: (e: React.MouseEvent, id: string) => void;
+  isLoading: boolean;
+}
 
 export const SearchFormHeader = ({
   user,

@@ -1,9 +1,28 @@
+
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { RouteSearchProps, Airport } from "./types";
+
+export interface Airport {
+  iata_code: string;
+  name: string;
+  city: string;
+  country: string;
+  search_score?: number;
+}
+
+export interface RouteSearchProps {
+  origin: string;
+  destination: string;
+  setOrigin: (value: string) => void;
+  setDestination: (value: string) => void;
+  date: Date | undefined;
+  isLoading?: boolean;
+  disabled?: boolean;
+  onFocus?: () => void;
+}
 
 export const RouteSearch = ({
   origin,

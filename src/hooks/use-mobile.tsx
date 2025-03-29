@@ -29,7 +29,6 @@ export function useIsMobile() {
     return () => mql.removeEventListener("change", onChange)
   }, [])
 
-  // Return a boolean directly for compatibility with existing code
   return isMobile;
 }
 
