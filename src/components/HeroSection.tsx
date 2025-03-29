@@ -1,7 +1,7 @@
 
 export const HeroSection = () => {
   return (
-    <div className="relative bg-gradient-to-r from-primary to-secondary py-20">
+    <div className="relative bg-gradient-to-r from-primary to-secondary py-24 pb-32">
       <div className="container relative mx-auto px-4">
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-3">
@@ -19,7 +19,7 @@ export const HeroSection = () => {
             Find pet-friendly flights for your furry travel companion
           </p>
           
-          <div className="flex gap-8 mt-2">
+          <div className="flex gap-8 mt-2 mb-8">
             <a href="/us-pet-travel" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4 text-lg">
               US Pet Travel
             </a>
