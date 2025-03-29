@@ -7,11 +7,6 @@ interface FeeDetailsProps {
   fees: FeesField;
 }
 
-// Helper to safely check if a value is an object
-const isObject = (value: any): value is Record<string, any> => {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-};
-
 export const FeeDetails = ({ fees }: FeeDetailsProps) => {
   if (!fees) {
     return null;
