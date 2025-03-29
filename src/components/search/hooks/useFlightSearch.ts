@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth/AuthContext";
@@ -70,9 +71,9 @@ export const useFlightSearch = () => {
   const { profile } = useProfile();
   const isPetCaddie = profile?.userRole === 'pet_caddie';
 
-  const { data: searchCountData } = useQuery(
-    ["searchCount", user?.id],
-    async () => {
+  const { data: searchCountData } = useQuery({
+    queryKey: ["searchCount", user?.id],
+    queryFn: async () => {
       if (!user || !isPetCaddie) return 999;
 
       const { data, error } = await supabase
@@ -88,16 +89,14 @@ export const useFlightSearch = () => {
 
       return data?.search_count ?? 0;
     },
-    {
-      enabled: !!user && isPetCaddie,
-    }
-  );
+    enabled: !!user && isPetCaddie,
+  });
 
   const handleFlightSearch = async (
     origin: string,
     destination: string,
     date: Date,
-    onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
+    onResults: (results: FlightData[], policies?: Record<string, any>, apiProvider?: string, apiError?: string) => void,
     onComplete?: () => void,
     apiProvider: ApiProvider = "aerodatabox",
     enableFallback: boolean = false,
@@ -112,7 +111,7 @@ export const useFlightSearch = () => {
       return [];
     }
 
-    if (isPetCaddie && (searchCountData === undefined || searchCountData <= 0)) {
+    if (isPetCaddie && typeof searchCountData === 'number' && searchCountData <= 0) {
       toast({
         title: "No searches left",
         description: "You have reached your search limit. Please upgrade your plan.",
@@ -121,7 +120,7 @@ export const useFlightSearch = () => {
       return [];
     }
 
-    setIsSearchLoading(true);
+    setIsLoading(true);
     let flightResults: FlightData[] = [];
     let apiError: string | undefined = undefined;
 
@@ -141,7 +140,7 @@ export const useFlightSearch = () => {
               title: "Amadeus Search Failed",
               description:
                 "Falling back to AeroDataBox due to an error with Amadeus. " + apiError,
-              variant: "warning",
+              variant: "destructive",
             });
           } else if (apiProvider === "amadeus") {
             toast({
@@ -178,11 +177,11 @@ export const useFlightSearch = () => {
         }
       }
     } finally {
-      setIsSearchLoading(false);
+      setIsLoading(false);
       if (onComplete) onComplete();
     }
 
-    if (isPetCaddie && searchCountData !== undefined && flightResults.length > 0) {
+    if (isPetCaddie && typeof searchCountData === 'number' && searchCountData > 0 && flightResults.length > 0) {
       try {
         const { error } = await supabase
           .from("profiles")

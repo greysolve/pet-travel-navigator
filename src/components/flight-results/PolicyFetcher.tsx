@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy, SizeRestrictionsField, FeesField } from "./types";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
 

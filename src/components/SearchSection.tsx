@@ -110,7 +110,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       <SearchFormContainer
         user={user}
         isPetCaddie={isPetCaddie}
-        searchCount={searchCount}
+        searchCount={searchCount as number}
         savedSearches={savedSearches}
         isLoading={isLoading}
         policySearch={policySearch}
