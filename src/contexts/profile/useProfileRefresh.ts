@@ -1,7 +1,6 @@
-
 import { useState, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
-import { ProfileError, fetchProfile } from '@/utils/profileManagement';
+import { ProfileError, fetchProfile } from '@/utils/profile';
 import { toast } from '@/components/ui/use-toast';
 
 const MAX_RETRIES = 2;
