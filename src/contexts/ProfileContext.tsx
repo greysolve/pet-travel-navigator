@@ -3,7 +3,6 @@ import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile, updateProfile } from '@/utils/profileManagement';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './AuthContext';
 
 interface ProfileContextType {
   profile: UserProfile | null;
@@ -17,7 +16,11 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 const MAX_RETRIES = 2;
 
-export function ProfileProvider({ children }: { children: React.ReactNode }) {
+interface ProfileProviderProps {
+  children: React.ReactNode;
+}
+
+export function ProfileProvider({ children }: ProfileProviderProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ProfileError | null>(null);
@@ -25,7 +28,21 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const currentUserId = useRef<string | null>(null);
   const isRefreshing = useRef(false);
   const retryCount = useRef(0);
-  const { isRestoring } = useAuth();
+  const [isRestoring, setIsRestoring] = useState(true);
+
+  useEffect(() => {
+    const checkAuthContext = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setIsRestoring(false);
+      } catch (error) {
+        console.error("Error checking auth context:", error);
+        setIsRestoring(false);
+      }
+    };
+    
+    checkAuthContext();
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -101,7 +118,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     isRefreshing.current = true;
     setLoading(true);
     
-    // Keep existing profile during retries
     const existingProfile = profile;
 
     while (retryCount.current <= MAX_RETRIES) {
