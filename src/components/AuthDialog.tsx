@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -9,15 +10,17 @@ import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 
 const AuthDialog = () => {
-  const { user, signInWithEmail, signUp, signOut } = useAuth();
+  const { user, signInWithEmail, signUp, signOut, resetPasswordForEmail } = useAuth();
   const { profile } = useProfile();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   useEffect(() => {
     const showDialog = () => {
       setIsSignUp(false);
+      setIsPasswordReset(false);
       setShowAuthDialog(true);
     };
 
@@ -97,6 +100,26 @@ const AuthDialog = () => {
     }
   };
 
+  const handlePasswordReset = async (email: string) => {
+    setIsLoading(true);
+    try {
+      const result = await resetPasswordForEmail(email);
+      if (result?.error) {
+        throw result.error;
+      }
+      setShowAuthDialog(false);
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      toast({
+        title: "Error resetting password",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     setIsLoading(true);
     try {
@@ -113,6 +136,11 @@ const AuthDialog = () => {
     }
   };
 
+  const handleForgotPassword = () => {
+    setIsPasswordReset(true);
+    setIsSignUp(false);
+  };
+
   return (
     <div className="flex gap-2 items-center">
       {user ? (
@@ -127,21 +155,26 @@ const AuthDialog = () => {
             isLoading={isLoading}
             onSignIn={() => {
               setIsSignUp(false);
+              setIsPasswordReset(false);
               setShowAuthDialog(true);
             }}
             onSignUp={() => {
               setIsSignUp(true);
+              setIsPasswordReset(false);
               setShowAuthDialog(true);
             }}
           />
           <AuthDialogContent
             isOpen={showAuthDialog}
             isSignUp={isSignUp}
+            isPasswordReset={isPasswordReset}
             isLoading={isLoading}
             onOpenChange={setShowAuthDialog}
             onSignIn={handleSignIn}
             onSignUp={handleSignUp}
+            onPasswordReset={handlePasswordReset}
             onToggleMode={setIsSignUp}
+            onForgotPassword={handleForgotPassword}
           />
         </>
       )}

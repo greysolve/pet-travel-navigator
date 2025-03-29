@@ -51,6 +51,70 @@ export function useAuthOperations() {
     }
   };
 
+  const resetPasswordForEmail = async (email: string): Promise<{ error?: AuthError }> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?reset_password=true`,
+      });
+
+      if (error) {
+        console.error('Password reset error:', error);
+        toast({
+          title: "Error resetting password",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Reset email sent",
+          description: "Check your email for a password reset link",
+        });
+      }
+
+      return { error };
+    } catch (error: any) {
+      console.error('Unexpected reset password error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const updatePassword = async (newPassword: string): Promise<{ error?: AuthError }> => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        console.error('Update password error:', error);
+        toast({
+          title: "Error updating password",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Password updated",
+          description: "Your password has been successfully updated.",
+        });
+      }
+
+      return { error };
+    } catch (error: any) {
+      console.error('Unexpected update password error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       const { error } = await supabase.auth.signUp({
@@ -101,5 +165,7 @@ export function useAuthOperations() {
     signInWithEmail,
     signUp,
     signOut,
+    resetPasswordForEmail,
+    updatePassword,
   };
 }

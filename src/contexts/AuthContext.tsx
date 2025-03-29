@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +28,8 @@ interface AuthContextType extends AuthState {
   signInWithEmail: (email: string, password: string) => Promise<{ error?: AuthError }>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<{ error?: AuthError }>;
+  updatePassword: (newPassword: string) => Promise<{ error?: AuthError }>;
 }
 
 const initialState: AuthState = {
