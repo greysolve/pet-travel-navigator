@@ -2,14 +2,30 @@
 import { PolicyField } from "./PolicyField";
 
 interface SizeRestrictionsProps {
-  sizeRestrictions: Record<string, any>;
+  sizeRestrictions: Record<string, any> | string;
 }
 
 export const SizeRestrictions = ({ sizeRestrictions }: SizeRestrictionsProps) => {
-  if (!sizeRestrictions || Object.keys(sizeRestrictions).length === 0) {
+  if (!sizeRestrictions) {
     return null;
   }
 
+  // Handle case when sizeRestrictions is a string
+  if (typeof sizeRestrictions === 'string') {
+    return (
+      <div>
+        <p className="font-medium mb-2">Size and Weight Restrictions:</p>
+        <PolicyField value={sizeRestrictions} />
+      </div>
+    );
+  }
+
+  // Handle case when sizeRestrictions is an empty object
+  if (typeof sizeRestrictions === 'object' && Object.keys(sizeRestrictions).length === 0) {
+    return null;
+  }
+
+  // Handle case when sizeRestrictions is an object with key-value pairs
   return (
     <div>
       <p className="font-medium mb-2">Size and Weight Restrictions:</p>
