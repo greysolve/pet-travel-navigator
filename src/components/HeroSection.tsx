@@ -1,11 +1,11 @@
 
 export const HeroSection = () => {
   return (
-    <div className="relative bg-primary py-20">
+    <div className="relative bg-gradient-to-r from-primary to-secondary py-20">
       <div className="container relative mx-auto px-4">
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-3">
-            <div className="absolute -left-40 -top-12 hidden md:block">
+            <div className="absolute -left-60 -top-10 hidden md:block">
               <img 
                 src="/lovable-uploads/4fa0e6bf-3de6-410b-923b-207269a120a1.png" 
                 alt="Petjumper.com Logo" 
@@ -15,7 +15,7 @@ export const HeroSection = () => {
             <h1 className="text-5xl md:text-6xl font-bold text-primary-foreground">Petjumper.com</h1>
           </div>
           
-          <p className="text-xl md:text-2xl text-primary-foreground/90 max-w-2xl mx-auto mb-6">
+          <p className="text-xl md:text-2xl text-primary-foreground/90 max-w-2xl mx-auto mb-8">
             Find pet-friendly flights for your furry travel companion
           </p>
           

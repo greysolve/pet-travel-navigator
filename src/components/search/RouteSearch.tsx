@@ -102,7 +102,7 @@ export const RouteSearch = ({
           <Input
             type="text"
             placeholder="Origin (city or airport code)"
-            className="h-12 text-base bg-white shadow-sm pl-10"
+            className="h-12 text-base pl-10 border-gray-300"
             value={origin}
             onChange={(e) => {
               const value = e.target.value;
@@ -153,7 +153,7 @@ export const RouteSearch = ({
           <Input
             type="text"
             placeholder="Destination (city or airport code)"
-            className="h-12 text-base bg-white shadow-sm pl-10"
+            className="h-12 text-base pl-10 border-gray-300"
             value={destination}
             onChange={(e) => {
               const value = e.target.value;

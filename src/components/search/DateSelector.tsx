@@ -19,7 +19,7 @@ export const DateSelector = ({ date, setDate, isLoading }: DateSelectorProps) =>
         <Button
           variant="outline"
           className={cn(
-            "w-full h-12 text-base bg-white shadow-sm justify-start text-left font-normal",
+            "w-full h-12 text-base justify-start text-left font-normal border-gray-300",
             !date && "text-muted-foreground",
             isLoading && "opacity-50 cursor-not-allowed"
           )}
