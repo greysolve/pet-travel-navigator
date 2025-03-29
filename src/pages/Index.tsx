@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
@@ -39,13 +38,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <HeroSection />
-      <section className="py-10 md:py-16">
-        <div className="container mx-auto px-4">
-          <Card className="p-6 shadow-lg bg-white/90 backdrop-blur-sm">
-            <SearchSection onSearchResults={handleSearchResults} />
-          </Card>
-        </div>
-      </section>
+      <SearchSection onSearchResults={handleSearchResults} />
       <ResultsSection 
         searchPerformed={searchPerformed} 
         flights={flights} 
