@@ -7,7 +7,6 @@ import { SearchButton } from "./SearchButton";
 import { SearchDivider } from "./SearchDivider";
 import { ApiProvider } from "@/config/feature-flags";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUser } from "@/contexts/user/UserContext";
 import type { SavedSearch } from "./types";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
@@ -42,7 +41,6 @@ interface SearchFormContainerProps {
   onPolicySearch: () => Promise<void>;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
-  profileLoading?: boolean;
 }
 
 export const SearchFormContainer = ({
@@ -74,14 +72,11 @@ export const SearchFormContainer = ({
   handleSearch,
   onPolicySearch,
   apiProvider,
-  enableFallback,
-  profileLoading = false
+  enableFallback
 }: SearchFormContainerProps) => {
-  // Get profile initialization status directly
-  const { profileInitialized } = useUser();
   
-  // Combine loading states
-  const isFormLoading = isLoading || (user && (profileLoading || !profileInitialized));
+  // Simple loading condition
+  const isFormLoading = isLoading;
 
   return (
     <div className="relative max-w-3xl mx-auto px-4 -mt-28 z-10">
@@ -89,7 +84,7 @@ export const SearchFormContainer = ({
         "bg-white shadow-xl rounded-xl p-6 space-y-6",
         isFormLoading && "opacity-75"
       )}>
-        {user && profileLoading && !profileInitialized ? (
+        {isFormLoading && !user ? (
           <>
             <div className="flex justify-between items-center mb-4">
               <Skeleton className="h-8 w-32" />
@@ -106,7 +101,7 @@ export const SearchFormContainer = ({
             <SearchFormHeader
               user={user}
               isPetCaddie={isPetCaddie}
-              searchCount={searchCount}
+              searchCount={searchCount as number}
               savedSearches={savedSearches}
               passengers={passengers}
               setPassengers={setPassengers}
@@ -160,4 +155,4 @@ export const SearchFormContainer = ({
       </div>
     </div>
   );
-};
+}

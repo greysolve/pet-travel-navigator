@@ -51,21 +51,7 @@ export const SearchFormHeader = ({
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
-      if (!user || !profileInitialized) return;
-      
-      // Get user plan from profile, not directly from user
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('plan, userRole:user_roles(role)')
-        .eq('id', user.id)
-        .single();
-        
-      if (profileError || !profile) {
-        console.error("Error fetching user profile:", profileError);
-        return;
-      }
-      
-      if (!profile.plan) return;
+      if (!user || !profileInitialized || !profile?.plan) return;
       
       setIsLoadingPlan(true);
       try {
@@ -87,16 +73,13 @@ export const SearchFormHeader = ({
       }
     };
 
-    if (user && profileInitialized) {
+    if (user && profileInitialized && profile?.plan) {
       fetchPlanDetails();
     }
-  }, [user, profileInitialized]);
+  }, [user, profileInitialized, profile?.plan]);
 
   if (!user) return null;
 
-  // Check if the profile is still loading
-  const isProfileLoading = !profileInitialized;
-  
   // Check if search count is -1, which means unlimited searches
   const hasUnlimitedSearches = searchCount === -1;
   
@@ -139,7 +122,7 @@ export const SearchFormHeader = ({
       {/* Search Count / Plan Info - Only show for non-admin users */}
       {isPetCaddie && !isAdmin && (
         <div className="flex-1 flex items-center justify-center">
-          {isProfileLoading ? (
+          {isLoading ? (
             <Skeleton className="h-6 w-32" />
           ) : isLoadingPlan ? (
             <span className="flex items-center">
@@ -161,7 +144,7 @@ export const SearchFormHeader = ({
             size="sm" 
             className="text-orange hover:text-orange border-orange hover:bg-orange/10 ml-2" 
             asChild
-            disabled={isProfileLoading}
+            disabled={isLoading}
           >
             <Link to="/pricing">
               <ArrowUp className="mr-1 h-4 w-4" />

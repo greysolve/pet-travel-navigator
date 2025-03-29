@@ -8,17 +8,16 @@ import { supabase } from '@/integrations/supabase/client';
  * This handles both authenticated and unauthenticated states properly
  */
 export function useUserSearchCount() {
-  const { user, profile, profileInitialized, lifecycleState } = useUser();
+  const { user, profile, profileInitialized } = useUser();
 
   const searchCountQuery = useQuery({
-    queryKey: ['searchCount', user?.id, profileInitialized, lifecycleState],
+    queryKey: ['searchCount', user?.id, profileInitialized],
     queryFn: async () => {
-      // Don't fetch if profile isn't initialized yet
+      // Don't fetch if profile isn't initialized yet or no user
       if (!user?.id || !profileInitialized) {
         console.log('UserSearchCount: Waiting for profile initialization', { 
           userId: user?.id, 
-          profileInitialized,
-          lifecycleState
+          profileInitialized
         });
         return null;
       }
@@ -55,20 +54,9 @@ export function useUserSearchCount() {
   // Check if user is an admin directly from the profile
   const isAdmin = profile?.userRole === 'site_manager';
   
-  // If profile isn't initialized yet, return loading state
-  if (!profileInitialized && user) {
-    return {
-      searchCount: null,
-      isLoading: true,
-      isPlanReady: false,
-      error: null,
-      isUnlimited: false,
-    };
-  }
-  
   return {
     searchCount: isAdmin ? -1 : (searchCountQuery.data ?? profile?.search_count ?? 0),
-    isLoading: searchCountQuery.isLoading,
+    isLoading: searchCountQuery.isLoading && !!user,
     isPlanReady: !!profile?.plan,
     error: searchCountQuery.error,
     isUnlimited: isAdmin || (searchCountQuery.data === -1),

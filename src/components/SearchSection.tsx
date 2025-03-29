@@ -16,7 +16,7 @@ import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();
-  const { profile, profileLoading, profileInitialized } = useUser();
+  const { profile, profileInitialized } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
   const { searchCount, isLoading: searchCountLoading } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
@@ -26,7 +26,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { apiProvider = DEFAULT_API_PROVIDER, enableFallback = false } = useAppSettings();
   
   // Determine if user is a pet caddie (has a plan) or an admin
-  // Only mark as pet caddie if profile is initialized and has a plan or is admin
   const isPetCaddie = profileInitialized && (!!profile?.plan || profile?.userRole === 'site_manager');
   
   const {
@@ -66,10 +65,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   });
 
   // Combine all loading states to determine overall loading status
-  const isLoading = isSearchLoading || searchCountLoading;
+  const isLoading = isSearchLoading || (user && !profileInitialized);
   
   console.log('SearchSection - Profile state:', { 
-    profileLoading, 
     profileInitialized, 
     isPetCaddie, 
     searchCount, 
@@ -162,7 +160,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         onPolicySearch={handlePolicySearch}
         apiProvider={apiProvider}
         enableFallback={enableFallback}
-        profileLoading={profileLoading}
       />
     </div>
   );

@@ -10,7 +10,7 @@ interface SearchButtonProps {
 }
 
 export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
-  const { user, profileLoading, profileInitialized, lifecycleState } = useUser();
+  const { user } = useUser();
   const { showAuthDialog } = useAuthDialog();
 
   const handleButtonClick = () => {
@@ -22,28 +22,17 @@ export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
     }
   };
 
-  // Determine if we're waiting for profile data to load
-  const isProfileLoading = user && (profileLoading || !profileInitialized);
-  
-  // Determine if the button should be disabled
-  const isButtonDisabled = user ? (isLoading || isProfileLoading) : false;
-
   return (
     <Button 
       className="w-full h-12 mt-4 text-base font-medium bg-primary hover:bg-primary/90"
       onClick={handleButtonClick}
-      disabled={isButtonDisabled}
+      disabled={isLoading && !!user}
     >
       {user ? (
         isLoading ? (
           <>
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Searching...
-          </>
-        ) : isProfileLoading ? (
-          <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Loading Profile...
           </>
         ) : (
           "Search"
