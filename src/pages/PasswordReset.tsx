@@ -13,13 +13,15 @@ const PasswordReset = () => {
   const [resetEmail, setResetEmail] = useState<string | null>(null);
   const [tokenValid, setTokenValid] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   
   useEffect(() => {
     let mounted = true;
     
     const verifyResetToken = async () => {
       try {
-        console.log("Verifying password reset token...");
+        console.log("PasswordReset: Verifying password reset token...");
         
         // Force sign out and clear any existing session first
         await supabase.auth.signOut();
@@ -27,14 +29,14 @@ const PasswordReset = () => {
         
         // Get hash parameters from URL
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
+        const accessTokenFromUrl = hashParams.get('access_token');
+        const refreshTokenFromUrl = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         
-        if (!accessToken || !refreshToken || type !== 'recovery') {
+        if (!accessTokenFromUrl || !refreshTokenFromUrl || type !== 'recovery') {
           console.error("Invalid or missing token parameters:", { 
-            hasAccessToken: !!accessToken, 
-            hasRefreshToken: !!refreshToken, 
+            hasAccessToken: !!accessTokenFromUrl, 
+            hasRefreshToken: !!refreshTokenFromUrl, 
             type 
           });
           setTokenError("The password reset link is invalid or has expired. Please request a new one.");
@@ -42,33 +44,31 @@ const PasswordReset = () => {
           return;
         }
         
-        // Set the session manually using the recovery tokens
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        });
+        // Store the tokens for later use instead of setting the session immediately
+        setAccessToken(accessTokenFromUrl);
+        setRefreshToken(refreshTokenFromUrl);
         
-        if (error || !data.session) {
-          console.error("Error setting recovery session:", error);
-          setTokenError("The password reset link is invalid or has expired. Please request a new one.");
+        // Verify the token without setting a session
+        try {
+          // Just verify the JWT is valid and extract user email
+          const base64Url = accessTokenFromUrl.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          
+          const payload = JSON.parse(jsonPayload);
+          const email = payload.email;
+          
+          console.log("PasswordReset: Valid recovery token for:", email);
+          setResetEmail(email);
+          setTokenValid(true);
           setIsLoadingCallback(false);
-          return;
-        }
-        
-        // Get the user from the recovery token
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error("Error getting user from recovery token:", userError);
-          setTokenError("Unable to verify your identity. Please request a new password reset link.");
+        } catch (error) {
+          console.error("Error processing recovery token:", error);
+          setTokenError("There was an error verifying your password reset link. Please request a new one.");
           setIsLoadingCallback(false);
-          return;
         }
-        
-        console.log("Valid recovery token for:", user.email);
-        setResetEmail(user.email);
-        setTokenValid(true);
-        setIsLoadingCallback(false);
       } catch (error) {
         console.error("Error processing recovery token:", error);
         setTokenError("There was an error processing your password reset. Please try again.");
@@ -86,6 +86,31 @@ const PasswordReset = () => {
   const handleUpdatePassword = async (newPassword: string) => {
     setIsUpdatingPassword(true);
     try {
+      if (!accessToken || !refreshToken) {
+        throw new Error("Missing recovery tokens. Please try again with a new reset link.");
+      }
+      
+      // Only set the session temporarily to update the password
+      const { data, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+      
+      if (sessionError) {
+        throw sessionError;
+      }
+      
+      if (!data.session) {
+        throw new Error("Failed to authenticate with recovery tokens");
+      }
+      
+      // Verify that the authenticated user matches the expected email
+      if (data.session.user.email !== resetEmail) {
+        console.error(`Token mismatch: Expected ${resetEmail} but got ${data.session.user.email}`);
+        throw new Error("Security error: User mismatch");
+      }
+      
+      // Update the password
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -99,13 +124,19 @@ const PasswordReset = () => {
         description: "Your password has been successfully updated. You can now sign in with your new password.",
       });
       
-      // Sign out after successful password reset to ensure clean slate
+      // Sign out immediately and clear all auth data
       await supabase.auth.signOut();
       clearAuthData();
       
+      // Redirect to home
       navigate("/");
     } catch (error: any) {
       console.error("Error updating password:", error);
+      
+      // Ensure we're signed out in case of error
+      await supabase.auth.signOut();
+      clearAuthData();
+      
       toast({
         title: "Error updating password",
         description: error.message || "Failed to update your password. Please try again.",

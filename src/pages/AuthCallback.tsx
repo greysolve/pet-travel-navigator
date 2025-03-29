@@ -27,7 +27,8 @@ const AuthCallback = () => {
           console.log("AuthCallback: Password reset detected, redirecting to reset page");
           
           // Important: Use replace to preserve the hash fragment containing the tokens
-          window.location.href = `/auth/reset-password${window.location.hash}`;
+          // And make sure we don't set any session state before redirecting
+          window.location.replace(`/auth/reset-password${window.location.hash}`);
           return;
         }
         
