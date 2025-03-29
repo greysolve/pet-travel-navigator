@@ -1,16 +1,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "@/contexts/profile/ProfileContext";
 
 export const useSearchCount = (userId: string | undefined) => {
-  const { profile } = useProfile();
-
   return useQuery({
     queryKey: ["searchCount", userId],
     queryFn: async () => {
-      if (!userId || !profile?.plan) {
-        console.log("SearchCount: No user ID or plan, returning 0", { userId, plan: profile?.plan });
+      if (!userId) {
+        console.log("SearchCount: No user ID, returning 0");
         return 0;
       }
 
@@ -29,9 +26,9 @@ export const useSearchCount = (userId: string | undefined) => {
       console.log("SearchCount: Received count:", data?.search_count);
       return data?.search_count || 0;
     },
-    enabled: !!userId && !!profile?.plan,
-    refetchOnMount: false,
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
-    retry: false,
   });
 };

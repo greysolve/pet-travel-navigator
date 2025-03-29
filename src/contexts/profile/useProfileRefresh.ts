@@ -1,9 +1,10 @@
+
 import { useState, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError, fetchProfile } from '@/utils/profile';
 import { toast } from '@/components/ui/use-toast';
 
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 1; // Reduced retries to prevent excessive delays
 
 export interface ProfileRefreshResult {
   refreshProfile: (userId: string) => Promise<void>;
@@ -18,39 +19,38 @@ export function useProfileRefresh(
 ): ProfileRefreshResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const retryCount = useRef(0);
-  const currentUserId = useRef<string | null>(null);
+  const currentRefreshUserId = useRef<string | null>(null);
 
   const refreshProfile = async (userId: string) => {
-    if (isRefreshing && currentUserId.current === userId) {
-      console.log('Skipping profile refresh - already refreshing for this user');
+    // Prevent concurrent refreshes for the same user
+    if (isRefreshing && currentRefreshUserId.current === userId) {
+      console.log('ProfileRefresh: Already refreshing for this user, skipping');
       return;
     }
 
-    console.log('Starting profile refresh for user:', userId, {
-      currentUserId: currentUserId.current,
+    console.log('ProfileRefresh: Starting profile refresh for user:', userId, {
+      currentUserId: currentRefreshUserId.current,
       isRefreshing,
-      hasProfile: false,
       retryCount: retryCount.current
     });
 
-    if (!isRefreshing) {
+    // Reset retry count for new refreshes
+    if (currentRefreshUserId.current !== userId) {
       retryCount.current = 0;
     }
 
     setIsRefreshing(true);
     setLoading(true);
+    currentRefreshUserId.current = userId;
     
-    const existingProfile = null;
-
     while (retryCount.current <= MAX_RETRIES) {
       try {
-        console.log(`Attempt ${retryCount.current + 1}/${MAX_RETRIES + 1} to fetch profile`);
+        console.log(`ProfileRefresh: Attempt ${retryCount.current + 1}/${MAX_RETRIES + 1} to fetch profile`);
+        
         const profileData = await fetchProfile(userId);
         
-        console.log('ProfileContext - Starting profile refresh with data:', profileData);
-        
-        if (currentUserId.current === userId) {
-          console.log('ProfileContext - Setting profile state:', profileData);
+        if (currentRefreshUserId.current === userId) {
+          console.log('ProfileRefresh: Successfully fetched profile:', profileData);
           setProfile(profileData);
           setError(null);
           setInitialized(true);
@@ -59,38 +59,47 @@ export function useProfileRefresh(
         }
         return;
       } catch (error) {
-        console.error(`Profile refresh attempt ${retryCount.current + 1} failed:`, error);
+        console.error(`ProfileRefresh: Attempt ${retryCount.current + 1} failed:`, error);
         
-        if (!(error instanceof ProfileError)) {
-          console.error('Unexpected error type:', error);
-          setError(new ProfileError('Unexpected error occurred', 'unknown'));
-          break;
-        }
-
         retryCount.current++;
 
         if (retryCount.current > MAX_RETRIES) {
-          console.log('Max retries reached, keeping existing profile if available');
-          if (existingProfile && currentUserId.current === userId) {
-            setProfile(existingProfile);
-            setError(error);
+          console.log('ProfileRefresh: Max retries reached');
+          // Create a minimal fallback profile to allow the app to function
+          if (currentRefreshUserId.current === userId) {
+            setError(error instanceof ProfileError ? error : new ProfileError('Unknown error', 'unknown'));
+            
+            // Create an empty fallback profile with just the ID to allow basic functionality
+            const fallbackProfile: UserProfile = {
+              id: userId,
+              userRole: 'pet_caddie', // Default role
+              created_at: new Date().toISOString(),
+              plan: 'free',
+              search_count: 5
+            };
+            
+            console.log('ProfileRefresh: Using fallback profile:', fallbackProfile);
+            setProfile(fallbackProfile);
             setInitialized(true);
+            
             toast({
-              title: "Profile Error",
-              description: "There was a problem refreshing your profile. Please try again later.",
+              title: "Profile Issue",
+              description: "There was a problem loading your complete profile. Some features may be limited.",
               variant: "destructive",
             });
+            break;
           }
-          break;
         }
 
-        const delay = Math.min(1000 * Math.pow(2, retryCount.current), 8000);
-        console.log(`Waiting ${delay}ms before retry`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        if (retryCount.current <= MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount.current - 1), 4000);
+          console.log(`ProfileRefresh: Waiting ${delay}ms before retry`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
     }
 
-    if (currentUserId.current === userId) {
+    if (currentRefreshUserId.current === userId) {
       setIsRefreshing(false);
       setLoading(false);
     }
