@@ -3,11 +3,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, clearAuthData } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { updatePassword } = useAuth();
   const [isLoadingCallback, setIsLoadingCallback] = useState(true);
   
   useEffect(() => {
@@ -127,7 +125,7 @@ const AuthCallback = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, updatePassword]);
+  }, [navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

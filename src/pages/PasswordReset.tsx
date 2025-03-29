@@ -4,12 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase, clearAuthData } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { UpdatePasswordForm } from "@/components/auth/UpdatePasswordForm";
-import { useAuth } from "@/contexts/AuthContext";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 
 const PasswordReset = () => {
   const navigate = useNavigate();
-  const { updatePassword } = useAuth();
   const [isLoadingCallback, setIsLoadingCallback] = useState(true);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState<string | null>(null);
@@ -88,10 +86,14 @@ const PasswordReset = () => {
   const handleUpdatePassword = async (newPassword: string) => {
     setIsUpdatingPassword(true);
     try {
-      const result = await updatePassword(newPassword);
-      if (result?.error) {
-        throw result.error;
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        throw error;
       }
+      
       toast({
         title: "Password Updated",
         description: "Your password has been successfully updated. You can now sign in with your new password.",
@@ -106,7 +108,7 @@ const PasswordReset = () => {
       console.error("Error updating password:", error);
       toast({
         title: "Error updating password",
-        description: error.message,
+        description: error.message || "Failed to update your password. Please try again.",
         variant: "destructive",
       });
     } finally {
