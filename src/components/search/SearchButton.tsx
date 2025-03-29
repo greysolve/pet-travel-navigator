@@ -1,7 +1,7 @@
 
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { useAuthDialog } from "@/hooks/useAuthDialog";
 
 interface SearchButtonProps {
