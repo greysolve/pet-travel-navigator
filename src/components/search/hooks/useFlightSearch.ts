@@ -6,16 +6,19 @@ import { useSearchCount } from "./useSearchCount";
 import { ApiProvider } from "@/config/feature-flags";
 import type { FlightData } from "@/components/flight-results/types";
 import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
   const { user } = useAuth();
+  const { profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
-  // Determine if the user is a pet caddie based on subscription status
-  const isPetCaddie = false; // Replace with actual logic if needed
+  // Admin users are always treated as pet caddies
+  // Regular users are considered pet caddies if they have a plan
+  const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
 
   /**
    * Handle flight search by calling the appropriate API based on provider
@@ -172,6 +175,12 @@ export const useFlightSearch = () => {
   };
   
   const incrementSearchCount = async () => {
+    // Don't increment search count for admin users
+    if (profile?.userRole === 'site_manager') {
+      console.log("Search count not incremented for admin user");
+      return;
+    }
+    
     try {
       console.log("Incrementing search count");
       await refetchSearchCount();

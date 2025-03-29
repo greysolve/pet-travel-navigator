@@ -11,17 +11,22 @@ import { getSearchCountries } from "./search/search-utils/policyCalculations";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
+import { useUser } from "@/contexts/user/UserContext";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const { user, loading: authLoading } = useAuth();
-  const { isSearchLoading, isPetCaddie, handleFlightSearch } = useFlightSearch();
-  const { searchCount, isLoading: searchCountLoading } = useUserSearchCount();
+  const { user } = useAuth();
+  const { profile } = useUser();
+  const { isSearchLoading, handleFlightSearch } = useFlightSearch();
+  const { searchCount, isPlanReady } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   
   // Use app settings for API provider
   const { apiProvider = DEFAULT_API_PROVIDER, enableFallback = false } = useAppSettings();
+  
+  // Determine if user is a pet caddie (has a plan) or an admin
+  const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
   
   const {
     policySearch,
@@ -43,7 +48,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     toast
   } = useFlightSearchState(user?.id);
 
-  const { handlePolicySearch, handleRouteSearch } = useSearchHandler({
+  const { handlePolicySearch, handleRouteSearch, isLoading: isSearchHandlerLoading } = useSearchHandler({
     user,
     toast,
     policySearch,
@@ -59,7 +64,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     enableFallback,
   });
 
-  const isLoading = authLoading || isSearchLoading || searchCountLoading;
+  // Combine all loading states to determine overall loading status
+  const isLoading = isSearchLoading || isSearchHandlerLoading;
+  
+  console.log('SearchSection - Profile state:', { 
+    isPetCaddie, 
+    searchCount
+  });
 
   const handleLoadSearch = (searchCriteria: any) => {
     if (!user) {

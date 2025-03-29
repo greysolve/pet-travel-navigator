@@ -1,35 +1,9 @@
 
-import { useState } from "react";
-import { useAuth } from "@/contexts/auth/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useSingleAirlinePolicy } from "@/components/flight-results/PolicyFetcher";
+import { useUser } from '@/contexts/user/UserContext';
 import { ApiProvider } from "@/config/feature-flags";
-import type { FlightData, PetPolicy } from "@/components/flight-results/types";
-
-interface UseSearchHandlerProps {
-  user: any;
-  toast: any;
-  policySearch: string;
-  origin: string;
-  destination: string;
-  date?: Date;
-  passengers: number;
-  shouldSaveSearch: boolean;
-  setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: (
-    origin: string,
-    destination: string,
-    date: Date,
-    onResults: (results: FlightData[], policies?: Record<string, any>, apiProvider?: string, apiError?: string) => void,
-    onComplete?: () => void,
-    apiProvider?: ApiProvider,
-    enableFallback?: boolean,
-    passengers?: number
-  ) => Promise<FlightData[]>;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
-  apiProvider?: ApiProvider;
-  enableFallback?: boolean;
-}
+import { useUserSearchCount } from "./useUserSearchCount";
+import { useSavedSearches } from "./useSavedSearches";
+import { useToast } from "@/hooks/use-toast";
 
 export const useSearchHandler = ({
   user,
@@ -38,144 +12,121 @@ export const useSearchHandler = ({
   origin,
   destination,
   date,
-  passengers = 1,
+  passengers,
   shouldSaveSearch,
   setFlights,
   handleFlightSearch,
   onSearchResults,
   apiProvider,
-  enableFallback = false,
-}: UseSearchHandlerProps) => {
-  // Use the policy fetcher hook for airline policy searches
-  const { data: airlinePolicy, refetch: refetchPolicy } = useSingleAirlinePolicy(policySearch);
+  enableFallback,
+}) => {
+  const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
+  const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
+  const { profile, profileLoading } = useUser();
   
+  // Determine if we are still loading profile data
+  const isLoading = profileLoading || isSearchCountLoading;
+
+  // Handle policy search
   const handlePolicySearch = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to search",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!canSearch()) return;
 
     try {
-      // Refetch the policy
-      await refetchPolicy();
-
-      if (airlinePolicy) {
-        setFlights([]);
-        onSearchResults([], { [policySearch]: airlinePolicy });
-
-        // Save search if needed
-        if (shouldSaveSearch) {
-          saveSearch({
-            policySearch,
-          });
-        }
-      } else {
-        toast({
-          title: "No policy found",
-          description: `We couldn't find a pet policy for ${policySearch}`,
-          variant: "destructive",
-        });
+      // Save search if needed
+      if (shouldSaveSearch && user) {
+        await saveFlight(origin, destination, date, passengers);
       }
+
+      // Handle policy search logic
+      setFlights([]);
+      onSearchResults([], {}, apiProvider, "No flights found, searching policies instead");
+      toast({
+        title: "Policy search",
+        description: `Searching policies for ${policySearch}`,
+      });
     } catch (error) {
-      console.error("Error searching for policy:", error);
+      console.error("Policy search error:", error);
       toast({
         title: "Search error",
-        description: "There was a problem searching for this airline policy",
+        description: "Failed to search policies. Please try again.",
         variant: "destructive",
       });
     }
   };
 
+  // Handle route search
   const handleRouteSearch = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to search",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!date) {
-      toast({
-        title: "Date required",
-        description: "Please select a travel date",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!canSearch()) return;
 
     try {
-      await handleFlightSearch(
+      // Save search if needed
+      if (shouldSaveSearch && user) {
+        await saveFlight(origin, destination, date, passengers);
+      }
+
+      // Execute the flight search
+      const flights = await handleFlightSearch(
         origin,
         destination,
         date,
-        (flights, policies, apiProvider, apiError) => {
-          // Pass along the API provider in the response
-          onSearchResults(flights, policies, apiProvider, apiError);
-        },
+        onSearchResults,
         undefined,
         apiProvider,
         enableFallback,
         passengers
       );
 
-      // Save search criteria if needed
-      if (shouldSaveSearch) {
-        saveSearch({
-          origin,
-          destination,
-          date: date.toISOString(),
-          passengers,
-        });
-      }
+      setFlights(flights);
     } catch (error) {
-      console.error("Error in route search:", error);
+      console.error("Route search error:", error);
       toast({
         title: "Search error",
-        description: "There was a problem searching for flights",
+        description: "Failed to search flights. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  // Helper function to save a search
-  const saveSearch = async (searchCriteria: any) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase.from("saved_searches").insert({
-        user_id: user.id,
-        search_criteria: searchCriteria,
+  // Check if the user can perform a search
+  const canSearch = () => {
+    if (isLoading) {
+      toast({
+        title: "Loading",
+        description: "Please wait while we load your profile data",
       });
-
-      if (error) {
-        if (error.message.includes("saved searches")) {
-          toast({
-            title: "Limit reached",
-            description: "You've reached the maximum number of saved searches",
-            variant: "destructive",
-          });
-        } else {
-          console.error("Error saving search:", error);
-          toast({
-            title: "Failed to save",
-            description: "There was a problem saving your search",
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error saving search:", error);
+      return false;
     }
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Admin users can always search
+    if (profile?.userRole === 'site_manager' || isUnlimited) {
+      return true;
+    }
+
+    // Check search count for other users
+    if (searchCount !== undefined && searchCount <= 0) {
+      toast({
+        title: "Search limit reached",
+        description: "You have used all your available searches. Please upgrade to continue searching.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
   };
 
   return {
     handlePolicySearch,
     handleRouteSearch,
+    isLoading,
   };
 };

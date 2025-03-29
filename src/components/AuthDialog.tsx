@@ -124,8 +124,8 @@ const AuthDialog = () => {
     setIsLoading(true);
     try {
       await signOut();
-      // Use window.location for a clean reload of the home page
-      window.location.href = "/";
+      // Reload the page to ensure a clean state
+      window.location.reload();
     } catch (error: any) {
       toast({
         title: "Error signing out",
