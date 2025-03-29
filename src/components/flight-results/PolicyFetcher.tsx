@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData, PetPolicy } from "./types";
+import type { FlightData, PetPolicy, SizeRestrictionsField, FeesField } from "./types";
 import { useProfile } from "@/contexts/ProfileContext";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
@@ -58,8 +58,8 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         temperature_restrictions: policy.temperature_restrictions,
         breed_restrictions: policy.breed_restrictions,
         policy_url: policy.policy_url,
-        size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
-        fees: policy.fees as PetPolicy['fees']
+        size_restrictions: policy.size_restrictions as SizeRestrictionsField,
+        fees: policy.fees as FeesField
       };
       
       return isPetCaddie 
@@ -75,7 +75,6 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
 
 export const usePetPolicies = (flights: FlightData[]) => {
   const { profile } = useProfile();
-  // If we have a profile, userRole is guaranteed to exist
   const isPetCaddie = profile ? profile.userRole === 'pet_caddie' : false;
   const { data: premiumFields = [] } = usePremiumFields();
 
@@ -118,8 +117,8 @@ export const usePetPolicies = (flights: FlightData[]) => {
           temperature_restrictions: policy.temperature_restrictions,
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
-          size_restrictions: policy.size_restrictions as PetPolicy['size_restrictions'],
-          fees: policy.fees as PetPolicy['fees']
+          size_restrictions: policy.size_restrictions as SizeRestrictionsField,
+          fees: policy.fees as FeesField
         };
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
@@ -144,7 +143,6 @@ export const useCountryPolicies = (countries: string[]) => {
       
       console.log(`Looking up policies for countries:`, countries);
       
-      // Get both arrival and transit policies directly using country names
       const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')

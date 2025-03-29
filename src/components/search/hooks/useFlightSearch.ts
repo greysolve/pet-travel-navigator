@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -18,7 +19,8 @@ interface UseFlightSearchReturn {
     onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
     onComplete?: () => void,
     apiProvider?: ApiProvider,
-    enableFallback?: boolean
+    enableFallback?: boolean,
+    passengers?: number
   ) => Promise<FlightData[]>;
 }
 
@@ -37,7 +39,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
     onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
     onComplete?: () => void,
     requestedApiProvider?: ApiProvider,
-    enableFallback?: boolean
+    enableFallback?: boolean,
+    passengers: number = 1
   ) => {
     if (!profile) {
       toast({
@@ -70,7 +73,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
         destination, 
         date, 
         apiProvider: selectedApiProvider,
-        enableFallback
+        enableFallback,
+        passengers
       });
       
       if (isPetCaddie && !planDetails?.is_search_unlimited) {
@@ -88,7 +92,8 @@ export const useFlightSearch = (): UseFlightSearchReturn => {
           destination,
           date: date.toISOString(),
           api: selectedApiProvider,
-          enable_fallback: enableFallback
+          enable_fallback: enableFallback,
+          passengers
         },
       });
 

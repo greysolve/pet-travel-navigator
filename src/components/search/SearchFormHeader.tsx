@@ -1,5 +1,5 @@
 
-import { Loader2, ArrowUp, Infinity } from "lucide-react";
+import { Loader2, ArrowUp, Infinity, Users, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
 import type { SavedSearch } from "./types";
@@ -13,6 +13,8 @@ export interface SearchFormHeaderProps {
   isPetCaddie: boolean;
   searchCount: number | undefined;
   savedSearches: SavedSearch[];
+  passengers: number;
+  setPassengers: (value: number) => void;
   onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
   onDeleteSearch: (e: React.MouseEvent, id: string) => void;
   isLoading: boolean;
@@ -23,12 +25,26 @@ export const SearchFormHeader = ({
   isPetCaddie,
   searchCount,
   savedSearches,
+  passengers,
+  setPassengers,
   onLoadSearch,
   onDeleteSearch,
   isLoading
 }: SearchFormHeaderProps) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+
+  const incrementPassengers = () => {
+    if (passengers < 9) {
+      setPassengers(passengers + 1);
+    }
+  };
+
+  const decrementPassengers = () => {
+    if (passengers > 1) {
+      setPassengers(passengers - 1);
+    }
+  };
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
@@ -106,6 +122,34 @@ export const SearchFormHeader = ({
             </Button>
           </>
         )}
+        
+        <div className="flex items-center gap-2 ml-4">
+          <span className="text-muted-foreground flex items-center">
+            <Users className="h-4 w-4 mr-1" />
+            Passengers:
+          </span>
+          <div className="flex items-center border rounded-md">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-r-none" 
+              onClick={decrementPassengers}
+              disabled={passengers <= 1 || isLoading}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <span className="w-8 text-center">{passengers}</span>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-l-none" 
+              onClick={incrementPassengers}
+              disabled={passengers >= 9 || isLoading}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
       <SavedSearchesDropdown
         savedSearches={savedSearches}

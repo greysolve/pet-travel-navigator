@@ -14,6 +14,7 @@ export interface SavedSearch {
     destination?: string;
     date?: string;
     policySearch?: string;
+    passengers?: number;
   };
   created_at: string;
 }
@@ -37,6 +38,8 @@ export interface FormContainerProps {
   clearPolicySearch: () => void;
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
+  passengers: number;
+  setPassengers: (value: number) => void;
   toast: any;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   setFlights: (flights: FlightData[]) => void;
@@ -54,6 +57,8 @@ export interface SearchFormHeaderProps {
   isPetCaddie: boolean;
   searchCount: number | undefined;
   savedSearches: SavedSearch[];
+  passengers: number;
+  setPassengers: (value: number) => void;
   onLoadSearch: (searchCriteria: any) => void;
   onDeleteSearch: (e: any, id: string) => void;
   isLoading: boolean;

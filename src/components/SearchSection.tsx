@@ -36,6 +36,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setFlights,
     shouldSaveSearch,
     setShouldSaveSearch,
+    passengers,
+    setPassengers,
     clearRouteSearch,
     clearPolicySearch,
     toast
@@ -48,6 +50,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     origin,
     destination,
     date,
+    passengers,
     shouldSaveSearch,
     setFlights,
     handleFlightSearch,
@@ -72,6 +75,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setOrigin(searchCriteria.origin || "");
     setDestination(searchCriteria.destination || "");
     setDate(searchCriteria.date ? new Date(searchCriteria.date) : undefined);
+    setPassengers(searchCriteria.passengers || 1);
     setPolicySearch(""); // Clear any airline policy search when loading a route search
   };
 
@@ -122,6 +126,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         clearPolicySearch={clearPolicySearch}
         shouldSaveSearch={shouldSaveSearch}
         setShouldSaveSearch={setShouldSaveSearch}
+        passengers={passengers}
+        setPassengers={setPassengers}
         toast={toast}
         onSearchResults={onSearchResults}
         setFlights={setFlights}

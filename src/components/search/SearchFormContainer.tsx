@@ -29,6 +29,8 @@ interface SearchFormContainerProps {
   clearPolicySearch: () => void;
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
+  passengers: number;
+  setPassengers: (value: number) => void;
   toast: ToastFunction;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   setFlights: (flights: FlightData[]) => void;
@@ -59,6 +61,8 @@ export const SearchFormContainer = ({
   clearPolicySearch,
   shouldSaveSearch,
   setShouldSaveSearch,
+  passengers,
+  setPassengers,
   toast,
   onSearchResults,
   setFlights,
@@ -70,7 +74,7 @@ export const SearchFormContainer = ({
   enableFallback
 }: SearchFormContainerProps) => {
   return (
-    <div className="relative max-w-3xl mx-auto px-4 -mt-20 z-10">
+    <div className="relative max-w-3xl mx-auto px-4 -mt-28 z-10">
       <div className={cn(
         "bg-white shadow-xl rounded-xl p-6 space-y-6",
         isLoading && "opacity-75"
@@ -80,6 +84,8 @@ export const SearchFormContainer = ({
           isPetCaddie={isPetCaddie}
           searchCount={searchCount}
           savedSearches={savedSearches}
+          passengers={passengers}
+          setPassengers={setPassengers}
           onLoadSearch={onLoadSearch}
           onDeleteSearch={(e, id) => {
             e.stopPropagation();

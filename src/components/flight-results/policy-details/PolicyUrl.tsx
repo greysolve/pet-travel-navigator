@@ -1,7 +1,7 @@
 
 import { ExternalLink } from "lucide-react";
 import { PremiumFeature } from "@/components/ui/premium-feature";
-import { isPremiumField } from "./PremiumField";
+import { isPremiumContent } from "../types";
 
 interface PolicyUrlProps {
   policyUrl: any;
@@ -12,7 +12,7 @@ export const PolicyUrl = ({ policyUrl }: PolicyUrlProps) => {
     return null;
   }
 
-  if (isPremiumField(policyUrl)) {
+  if (isPremiumContent(policyUrl)) {
     return (
       <div>
         <PremiumFeature title="Full Policy">
