@@ -5,12 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchCount } from "./useSearchCount";
 import { ApiProvider } from "@/config/feature-flags";
 import type { FlightData } from "@/components/flight-results/types";
+import { useAuth } from "@/contexts/auth/AuthContext";
 
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
-  const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(null);
+  const { user } = useAuth();
+  const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
   // Determine if the user is a pet caddie based on subscription status
   const isPetCaddie = false; // Replace with actual logic if needed

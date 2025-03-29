@@ -10,9 +10,11 @@ export const useSearchCount = (userId: string | undefined) => {
     queryKey: ["searchCount", userId],
     queryFn: async () => {
       if (!userId || !profile?.plan) {
+        console.log("SearchCount: No user ID or plan, returning 0", { userId, plan: profile?.plan });
         return 0;
       }
 
+      console.log("SearchCount: Fetching search count for user:", userId);
       const { data, error } = await supabase
         .from("profiles")
         .select("search_count")
@@ -24,6 +26,7 @@ export const useSearchCount = (userId: string | undefined) => {
         return 0;
       }
 
+      console.log("SearchCount: Received count:", data?.search_count);
       return data?.search_count || 0;
     },
     enabled: !!userId && !!profile?.plan,

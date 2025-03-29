@@ -9,6 +9,7 @@ import type { SavedSearch } from "../types";
 export const useSavedSearches = (userId: string | undefined) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (userId) {

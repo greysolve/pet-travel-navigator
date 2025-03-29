@@ -14,6 +14,8 @@ const AuthCallback = () => {
     // Handle auth callback
     const handleAuthCallback = async () => {
       try {
+        console.log("AuthCallback: Starting auth callback processing");
+        
         // Check URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const resetPassword = urlParams.get('reset_password') === 'true';
@@ -22,38 +24,57 @@ const AuthCallback = () => {
         // If this is a password reset callback, redirect to the dedicated reset page
         // and preserve the hash fragment which contains the tokens
         if (resetPassword || type === 'recovery') {
-          console.log("Password reset detected, redirecting to dedicated reset page with hash preserved");
+          console.log("AuthCallback: Password reset detected, redirecting to reset page");
           
           // Important: Use replace to preserve the hash fragment containing the tokens
-          const redirectUrl = `/auth/reset-password${window.location.hash}`;
-          window.location.replace(redirectUrl);
+          window.location.href = `/auth/reset-password${window.location.hash}`;
           return;
         }
         
         // For regular auth callback, process normally
-        console.log("Regular auth callback, checking session");
+        console.log("AuthCallback: Regular auth callback, checking session");
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          console.error('AuthCallback: Session error:', sessionError);
           toast({
             title: "Authentication Error",
             description: "There was a problem signing you in. Please try again.",
             variant: "destructive",
           });
-          if (mounted) navigate("/");
+          if (mounted) {
+            console.log("AuthCallback: Redirecting to home due to session error");
+            window.location.href = "/";
+          }
           return;
         }
         
         if (session) {
-          console.log("Session found, checking role");
-          // Check if user has a role by attempting to fetch their profile
-          const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
-            p_user_id: session.user.id
-          });
+          console.log("AuthCallback: Session found, checking role for user ID:", session.user.id);
+          try {
+            // Check if user has a role by attempting to fetch their profile
+            const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
+              p_user_id: session.user.id
+            });
 
-          if (profileError || !profile) {
-            console.error("No valid role found for user:", profileError);
+            console.log("AuthCallback: Profile RPC response:", { profile, error: profileError });
+
+            if (profileError) {
+              console.error("AuthCallback: Profile RPC error:", profileError);
+              throw new Error(`No valid profile found: ${profileError.message}`);
+            }
+
+            if (!profile) {
+              console.error("AuthCallback: No profile returned from RPC");
+              throw new Error("No valid profile found");
+            }
+
+            console.log("AuthCallback: Role verified, redirecting to home");
+            if (mounted) {
+              window.location.href = "/";
+            }
+          } catch (error) {
+            console.error("AuthCallback: Error verifying user role:", error);
             await supabase.auth.signOut();
             clearAuthData();
             toast({
@@ -61,24 +82,26 @@ const AuthCallback = () => {
               description: "Unable to verify your user role. Please contact support.",
               variant: "destructive",
             });
-            if (mounted) navigate("/");
-            return;
+            if (mounted) {
+              window.location.href = "/";
+            }
           }
-
-          console.log("Role verified, redirecting to home");
-          if (mounted) navigate("/");
         } else {
-          console.log("No session found");
-          if (mounted) navigate("/");
+          console.log("AuthCallback: No session found, redirecting to home");
+          if (mounted) {
+            window.location.href = "/";
+          }
         }
       } catch (error) {
-        console.error("Error in auth callback:", error);
+        console.error("AuthCallback: General error:", error);
         toast({
           title: "Authentication Error",
           description: "There was a problem during authentication. Please try again.",
           variant: "destructive",
         });
-        if (mounted) navigate("/");
+        if (mounted) {
+          window.location.href = "/";
+        }
       } finally {
         if (mounted) {
           setIsLoadingCallback(false);
@@ -95,27 +118,36 @@ const AuthCallback = () => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
       
-      console.log("Auth state changed:", event);
+      console.log("AuthCallback: Auth state changed:", event);
       if (event === "SIGNED_IN" && session) {
-        const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
-          p_user_id: session.user.id
-        });
-
-        if (profileError || !profile) {
-          console.error("No valid role found for user:", profileError);
-          await supabase.auth.signOut();
-          clearAuthData();
-          toast({
-            title: "Authentication Error",
-            description: "Unable to verify your user role. Please contact support.",
-            variant: "destructive",
+        try {
+          console.log("AuthCallback: User signed in, verifying profile for user ID:", session.user.id);
+          const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
+            p_user_id: session.user.id
           });
-          return;
-        }
 
-        if (mounted) {
-          console.log("Auth callback - signed in with valid role, redirecting to home");
-          navigate("/");
+          console.log("AuthCallback: Profile RPC response on auth state change:", { profile, error: profileError });
+
+          if (profileError || !profile) {
+            console.error("AuthCallback: No valid profile found for user:", profileError);
+            await supabase.auth.signOut();
+            clearAuthData();
+            toast({
+              title: "Authentication Error",
+              description: "Unable to verify your user role. Please contact support.",
+              variant: "destructive",
+            });
+            if (mounted) window.location.href = "/";
+            return;
+          }
+
+          if (mounted) {
+            console.log("AuthCallback: Auth state change - signed in with valid role, redirecting to home");
+            window.location.href = "/";
+          }
+        } catch (error) {
+          console.error("AuthCallback: Error verifying profile on auth state change:", error);
+          if (mounted) window.location.href = "/";
         }
       }
     });

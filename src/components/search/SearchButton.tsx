@@ -14,35 +14,37 @@ export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchBut
   const { user } = useAuth();
   const { showAuthDialog } = useAuthDialog();
 
-  if (!user) {
-    return (
-      <Button 
-        className="w-full h-12 mt-4 text-base font-medium bg-primary hover:bg-primary/90"
-        onClick={showAuthDialog}
-      >
-        Sign in to Search
-      </Button>
-    );
-  }
+  const handleButtonClick = () => {
+    if (user) {
+      onClick();
+    } else {
+      console.log("No user logged in, showing auth dialog");
+      showAuthDialog();
+    }
+  };
 
   return (
     <Button 
       className="w-full h-12 mt-4 text-base font-medium bg-primary hover:bg-primary/90"
-      onClick={onClick}
-      disabled={isLoading || isProfileLoading}
+      onClick={handleButtonClick}
+      disabled={user ? (isLoading || isProfileLoading) : false}
     >
-      {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Searching...
-        </>
-      ) : isProfileLoading ? (
-        <>
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading Profile...
-        </>
+      {user ? (
+        isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Searching...
+          </>
+        ) : isProfileLoading ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Loading Profile...
+          </>
+        ) : (
+          "Search"
+        )
       ) : (
-        "Search"
+        "Sign in to Search"
       )}
     </Button>
   );
