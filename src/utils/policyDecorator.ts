@@ -1,5 +1,5 @@
 
-import type { PetPolicy } from "@/components/flight-results/types";
+import type { PetPolicy, SizeRestrictions, Fees } from "@/components/flight-results/types";
 
 type PremiumContent = {
   value: any;
@@ -11,18 +11,6 @@ type PremiumField<T> = T | PremiumContent;
 // Type guard to check if a value is a non-null object
 const isObject = (value: any): value is Record<string, any> => {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-};
-
-// Helper types for nested objects
-type SizeRestrictions = {
-  max_weight_cabin?: string;
-  max_weight_cargo?: string;
-  carrier_dimensions_cabin?: string;
-};
-
-type Fees = {
-  in_cabin?: string;
-  cargo?: string;
 };
 
 // Update PetPolicy to handle premium fields
@@ -63,13 +51,20 @@ export const decorateWithPremiumFields = (
     }
   });
 
-  // Initialize size_restrictions if it doesn't exist
-  if (!decoratedPolicy.size_restrictions) {
-    decoratedPolicy.size_restrictions = {} as SizeRestrictions;
-  }
-
-  // Handle nested objects while preserving structure
-  if (isObject(policy.size_restrictions)) {
+  // Handle size_restrictions field
+  if (typeof policy.size_restrictions === 'string') {
+    // If size_restrictions is a string and is a premium field, wrap it
+    const normalizedKey = normalizeFieldName('size_restrictions');
+    if (normalizedPremiumFields.includes(normalizedKey)) {
+      decoratedPolicy.size_restrictions = {
+        value: policy.size_restrictions,
+        isPremiumField: true
+      };
+    } else {
+      decoratedPolicy.size_restrictions = policy.size_restrictions;
+    }
+  } else if (isObject(policy.size_restrictions)) {
+    // Handle nested object while preserving structure
     const nestedObj: Record<string, any> = {};
     for (const key in policy.size_restrictions) {
       const normalizedNestedKey = normalizeFieldName(`size_restrictions_${key}`);
@@ -86,7 +81,7 @@ export const decorateWithPremiumFields = (
       }
     }
     decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
-  } else {
+  } else if (policy.size_restrictions === null || policy.size_restrictions === undefined) {
     // If size_restrictions doesn't exist or is null, create it with premium fields
     const nestedObj: Record<string, any> = {};
     ['max_weight_cabin', 'max_weight_cargo', 'carrier_dimensions_cabin'].forEach(key => {
@@ -103,13 +98,20 @@ export const decorateWithPremiumFields = (
     decoratedPolicy.size_restrictions = nestedObj as SizeRestrictions;
   }
 
-  // Initialize fees if it doesn't exist
-  if (!decoratedPolicy.fees) {
-    decoratedPolicy.fees = {} as Fees;
-  }
-
-  // Handle fees object similarly
-  if (isObject(policy.fees)) {
+  // Handle fees field similarly
+  if (typeof policy.fees === 'string') {
+    // If fees is a string and is a premium field, wrap it
+    const normalizedKey = normalizeFieldName('fees');
+    if (normalizedPremiumFields.includes(normalizedKey)) {
+      decoratedPolicy.fees = {
+        value: policy.fees,
+        isPremiumField: true
+      };
+    } else {
+      decoratedPolicy.fees = policy.fees;
+    }
+  } else if (isObject(policy.fees)) {
+    // Handle nested object while preserving structure
     const nestedObj: Record<string, any> = {};
     for (const key in policy.fees) {
       const normalizedNestedKey = normalizeFieldName(`fees_${key}`);
@@ -126,7 +128,7 @@ export const decorateWithPremiumFields = (
       }
     }
     decoratedPolicy.fees = nestedObj as Fees;
-  } else {
+  } else if (policy.fees === null || policy.fees === undefined) {
     // If fees doesn't exist or is null, create it with premium fields
     const nestedObj: Record<string, any> = {};
     ['in_cabin', 'cargo'].forEach(key => {
