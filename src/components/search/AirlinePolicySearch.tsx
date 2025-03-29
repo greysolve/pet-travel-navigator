@@ -33,10 +33,13 @@ export const AirlinePolicySearch = ({
     
     setIsSearching(true);
     try {
+      // Use a standard Supabase query instead of the RPC function
       const { data, error } = await supabase
-        .rpc('search_airlines', {
-          search_term: searchTerm
-        });
+        .from('airlines')
+        .select('iata_code, name')
+        .or(`iata_code.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
+        .order('name')
+        .limit(10);
 
       if (error) {
         console.error('Error fetching airlines:', error);
@@ -48,8 +51,14 @@ export const AirlinePolicySearch = ({
         return;
       }
 
-      console.log('Airline search results:', data);
-      setAirlines(data as Array<{iata: string, name: string}>);
+      // Transform data to match expected format
+      const formattedData = data.map(airline => ({
+        iata: airline.iata_code || '',
+        name: airline.name
+      }));
+
+      console.log('Airline search results:', formattedData);
+      setAirlines(formattedData);
     } catch (error) {
       console.error('Error fetching airlines:', error);
       toast({
