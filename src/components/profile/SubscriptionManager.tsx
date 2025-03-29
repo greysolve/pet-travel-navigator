@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Infinity } from "lucide-react";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { useDynamicTypes } from "@/hooks/useDynamicTypes";
 import type { SystemPlan } from "@/types/auth";
 

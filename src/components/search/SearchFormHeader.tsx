@@ -1,4 +1,3 @@
-
 import { Loader2, ArrowUp, Infinity, Users, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";

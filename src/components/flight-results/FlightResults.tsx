@@ -6,7 +6,6 @@ import { PolicyDetails } from "./PolicyDetails";
 import { FlightCard } from "./FlightCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface FlightResultsProps {
   flights: FlightData[];
@@ -67,15 +66,6 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
 
   return (
     <div className="space-y-6">
-      {/* API Provider Badge */}
-      {apiProvider && (
-        <div className="flex justify-end">
-          <Badge variant="outline" className="text-xs">
-            Data provided by {apiProvider === 'amadeus' ? 'Amadeus' : 'Cirium'} API
-          </Badge>
-        </div>
-      )}
-      
       {flights.map((journey, journeyIndex) => {
         const segments = journey.segments || [];
         const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);
@@ -136,10 +126,10 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                       arrivalTerminal={segment.arrivalTerminal}
                     />
                     
-                    {petPolicies?.[segment.carrierFsCode] && (
+                    {petPolicies && petPolicies[segment.carrierFsCode] && (
                       <div className="mt-4">
                         <h2 className="text-xl font-semibold mb-4">
-                          Pet Policy {petPolicies[segment.carrierFsCode].isSummary ? "Summary" : ""} for {airlineName || segment.carrierFsCode}
+                          Pet Policy for {airlineName || segment.carrierFsCode}
                         </h2>
                         <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
                       </div>

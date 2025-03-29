@@ -127,8 +127,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    const response: SearchResponse = {
-      connections,
+    // Format response with flights property for consistency with client expectations
+    const response = {
+      flights: connections,
+      connections: connections, // For backward compatibility
       api_provider: actualApiProvider,
       fallback_used: actualApiProvider !== selectedApiProvider,
       error: originalError ? originalError.message : null,
@@ -148,9 +150,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in flight schedule search:', error instanceof Error ? error.message : String(error));
     
-    const errorResponse: SearchResponse = {
-      error: error instanceof Error ? error.message : String(error),
+    const errorResponse = {
+      flights: [],
       connections: [],
+      error: error instanceof Error ? error.message : String(error),
       api_provider: null,
       fallback_used: false,
       fallback_error: null

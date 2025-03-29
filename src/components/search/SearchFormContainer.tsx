@@ -129,7 +129,6 @@ export const SearchFormContainer = ({
 
         <SearchButton
           isLoading={isLoading}
-          isProfileLoading={isLoading}
           onClick={handleSearch}
         />
       </div>

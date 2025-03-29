@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSingleAirlinePolicy } from "@/components/flight-results/PolicyFetcher";
 import { ApiProvider } from "@/config/feature-flags";
@@ -13,14 +13,14 @@ interface UseSearchHandlerProps {
   origin: string;
   destination: string;
   date?: Date;
-  passengers: number; // Added passengers property
+  passengers: number;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
   handleFlightSearch: (
     origin: string,
     destination: string,
     date: Date,
-    onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
+    onResults: (results: FlightData[], policies?: Record<string, any>, apiProvider?: string, apiError?: string) => void,
     onComplete?: () => void,
     apiProvider?: ApiProvider,
     enableFallback?: boolean,
@@ -38,7 +38,7 @@ export const useSearchHandler = ({
   origin,
   destination,
   date,
-  passengers = 1, // Set default value of 1
+  passengers = 1,
   shouldSaveSearch,
   setFlights,
   handleFlightSearch,
@@ -114,14 +114,14 @@ export const useSearchHandler = ({
         origin,
         destination,
         date,
-        (flights, policies, apiError) => {
+        (flights, policies, apiProvider, apiError) => {
           // Pass along the API provider in the response
           onSearchResults(flights, policies, apiProvider, apiError);
         },
         undefined,
         apiProvider,
         enableFallback,
-        passengers // Pass passengers to handleFlightSearch
+        passengers
       );
 
       // Save search criteria if needed
@@ -130,7 +130,7 @@ export const useSearchHandler = ({
           origin,
           destination,
           date: date.toISOString(),
-          passengers, // Include passengers in the saved search
+          passengers,
         });
       }
     } catch (error) {
