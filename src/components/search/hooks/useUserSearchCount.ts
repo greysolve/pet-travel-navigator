@@ -52,11 +52,13 @@ export function useUserSearchCount() {
 
   // Return search count from profile if available (as a fallback)
   // and also include whether we're still loading profile data
+  const isAdmin = profile?.userRole === 'site_manager';
+  
   return {
-    searchCount: profile?.userRole === 'site_manager' ? -1 : (searchCountQuery.data ?? profile?.search_count ?? 0),
+    searchCount: isAdmin ? -1 : (searchCountQuery.data ?? profile?.search_count ?? 0),
     isLoading: searchCountQuery.isLoading,
     isPlanReady: !!profile?.plan,
     error: searchCountQuery.error,
-    isUnlimited: profile?.userRole === 'site_manager',
+    isUnlimited: isAdmin || (searchCountQuery.data === -1),
   };
 }

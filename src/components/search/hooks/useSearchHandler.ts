@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/auth/AuthContext";
 import { ApiProvider } from "@/config/feature-flags";
 import { useUserSearchCount } from "./useUserSearchCount";
@@ -20,7 +21,7 @@ export const useSearchHandler = ({
   apiProvider,
   enableFallback,
 }) => {
-  const { saveFlight } = useSavedSearches(user?.id);
+  const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
   const { searchCount, isUnlimited } = useUserSearchCount();
   const { profile } = useUser();
 
