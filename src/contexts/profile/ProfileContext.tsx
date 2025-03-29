@@ -26,7 +26,8 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     profileError, 
     profileInitialized,
     updateProfile,
-    refreshProfile
+    refreshProfile,
+    lifecycleState
   } = useUser();
 
   return (

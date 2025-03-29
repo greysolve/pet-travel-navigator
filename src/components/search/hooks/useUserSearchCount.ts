@@ -8,16 +8,17 @@ import { supabase } from '@/integrations/supabase/client';
  * This handles both authenticated and unauthenticated states properly
  */
 export function useUserSearchCount() {
-  const { user, profile, profileInitialized } = useUser();
+  const { user, profile, profileInitialized, lifecycleState } = useUser();
 
   const searchCountQuery = useQuery({
-    queryKey: ['searchCount', user?.id],
+    queryKey: ['searchCount', user?.id, lifecycleState],
     queryFn: async () => {
-      // If no user or plan isn't initialized yet, don't fetch search count
+      // If no user or profile isn't initialized yet, don't fetch search count
       if (!user?.id || !profileInitialized) {
         console.log('UserSearchCount: No user ID or profile not initialized', { 
           userId: user?.id, 
-          profileInitialized 
+          profileInitialized,
+          lifecycleState
         });
         return null;
       }
@@ -38,7 +39,7 @@ export function useUserSearchCount() {
       return data?.search_count ?? 0;
     },
     enabled: !!user?.id && profileInitialized,
-    refetchOnMount: false,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: false,
   });
