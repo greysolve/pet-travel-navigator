@@ -13,7 +13,7 @@ const Index = () => {
   const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy> | undefined>(undefined);
   const [apiProvider, setApiProvider] = useState<string | undefined>(undefined);
   const [apiError, setApiError] = useState<string | undefined>(undefined);
-  const { isMobile } = useIsMobile();
+  const isMobile = useIsMobile();
 
   const handleSearchResults = (
     flightResults: FlightData[], 

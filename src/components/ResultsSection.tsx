@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { FlightResults } from "./flight-results/FlightResults";
@@ -36,7 +35,6 @@ export const ResultsSection = ({
   const { data: premiumFields = [] } = usePremiumFields();
   const { data: flightPetPolicies, isLoading: isPoliciesLoading } = usePetPolicies(flights);
   
-  // Get unique countries from flights if available
   const countriesFromFlights = flights.reduce((countries: Set<string>, journey) => {
     if (!journey.segments) return countries;
     journey.segments.forEach(segment => {
@@ -46,14 +44,12 @@ export const ResultsSection = ({
     return countries;
   }, new Set<string>());
 
-  // Get countries from origin/destination even if no flights found
   const allCountries = flights.reduce((countries: Set<string>, journey) => {
     if (journey.origin?.country) countries.add(journey.origin.country);
     if (journey.destination?.country) countries.add(journey.destination.country);
     return countries;
   }, new Set(countriesFromFlights));
 
-  // Filter out undefined/null values and convert to array
   const uniqueCountries = Array.from(allCountries).filter(Boolean);
   const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
@@ -62,11 +58,9 @@ export const ResultsSection = ({
 
   if (!searchPerformed) return null;
 
-  // If we have a direct airline policy search result
   if (flights.length === 0 && petPolicies) {
     const airlineName = Object.keys(petPolicies)[0];
     const rawPolicy = petPolicies[airlineName];
-    // Apply premium field decoration if user is pet_caddie
     const policy = isPetCaddie 
       ? decorateWithPremiumFields(rawPolicy, premiumFields)
       : rawPolicy;

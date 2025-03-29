@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SystemPlan } from "@/types/auth";
+import type { User } from "@supabase/supabase-js";
 
 export const SearchFormHeader = ({
   user,
@@ -22,14 +23,26 @@ export const SearchFormHeader = ({
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
-      if (!user?.plan) return;
+      if (!user) return;
+      
+      // Get user plan from profile, not directly from user
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', user.id)
+        .single();
+        
+      if (profileError || !profile || !profile.plan) {
+        console.error("Error fetching user profile:", profileError);
+        return;
+      }
       
       setIsLoadingPlan(true);
       try {
         const { data, error } = await supabase
           .from('system_plans')
           .select('*')
-          .eq('name', user.plan)
+          .eq('name', profile.plan)
           .single();
 
         if (error) {
@@ -44,10 +57,10 @@ export const SearchFormHeader = ({
       }
     };
 
-    if (user?.plan) {
+    if (user) {
       fetchPlanDetails();
     }
-  }, [user?.plan]);
+  }, [user]);
 
   if (!user) return null;
 

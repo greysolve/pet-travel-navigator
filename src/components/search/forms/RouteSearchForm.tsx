@@ -44,6 +44,7 @@ export const RouteSearchForm = ({
         destination={destination}
         setOrigin={setOrigin}
         setDestination={setDestination}
+        date={date}
         isLoading={isLoading}
         disabled={policySearch !== ""}
         onFocus={clearPolicySearch}

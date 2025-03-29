@@ -1,10 +1,10 @@
-
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
 import { RouteSearchForm } from "./forms/RouteSearchForm";
 import { SearchButton } from "./SearchButton";
 import { SearchDivider } from "./SearchDivider";
+import { ApiProvider } from "@/config/feature-flags";
 import type { SavedSearch } from "./types";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
@@ -29,12 +29,14 @@ interface SearchFormContainerProps {
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
   toast: ToastFunction;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
+  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   setFlights: (flights: FlightData[]) => void;
   onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
   handleDeleteSearch: (id: string) => void;
   handleSearch: () => void;
   onPolicySearch: () => Promise<void>;
+  apiProvider?: ApiProvider;
+  enableFallback?: boolean;
 }
 
 export const SearchFormContainer = ({
@@ -62,7 +64,9 @@ export const SearchFormContainer = ({
   onLoadSearch,
   handleDeleteSearch,
   handleSearch,
-  onPolicySearch
+  onPolicySearch,
+  apiProvider,
+  enableFallback
 }: SearchFormContainerProps) => {
   return (
     <div className="max-w-3xl mx-auto px-4 -mt-8">
