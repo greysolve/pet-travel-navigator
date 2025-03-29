@@ -144,8 +144,30 @@ const AuthCallback = () => {
         
         const payload = JSON.parse(jsonPayload);
         
+        // Add extensive logging for debugging
+        console.log("Token Payload:", JSON.stringify(payload, null, 2));
+        console.log("Token type:", payload.type);
+        console.log("Token AAL:", payload.aal);
+        console.log("Token recovery conditions:", {
+          typeIsRecovery: payload.type === 'recovery',
+          aalIsAal1: payload.aal === 'aal1'
+        });
+        
+        // Additional token properties that might indicate recovery
+        console.log("Additional token properties:", {
+          amr: payload.amr, // Authentication method reference
+          'https://hasura.io/jwt/claims': payload['https://hasura.io/jwt/claims'],
+          sub: payload.sub,
+          email: payload.email,
+          exp: new Date(payload.exp * 1000).toISOString(),
+          iat: new Date(payload.iat * 1000).toISOString(),
+        });
+        
         // Check if the token is for recovery
-        return payload.type === 'recovery' || payload.aal === 'aal1';
+        const isRecovery = payload.type === 'recovery' || payload.aal === 'aal1';
+        console.log("Final recovery determination:", isRecovery);
+        
+        return isRecovery;
       } catch (error) {
         console.error("Error parsing token:", error);
         return false;
