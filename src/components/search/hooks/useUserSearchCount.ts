@@ -11,11 +11,11 @@ export function useUserSearchCount() {
   const { user, profile, profileInitialized, lifecycleState } = useUser();
 
   const searchCountQuery = useQuery({
-    queryKey: ['searchCount', user?.id, lifecycleState],
+    queryKey: ['searchCount', user?.id, profileInitialized, lifecycleState],
     queryFn: async () => {
-      // If no user or profile isn't initialized yet, don't fetch search count
+      // Don't fetch if profile isn't initialized yet
       if (!user?.id || !profileInitialized) {
-        console.log('UserSearchCount: No user ID or profile not initialized', { 
+        console.log('UserSearchCount: Waiting for profile initialization', { 
           userId: user?.id, 
           profileInitialized,
           lifecycleState
@@ -44,14 +44,27 @@ export function useUserSearchCount() {
       console.log('UserSearchCount: Received count:', data?.search_count);
       return data?.search_count ?? 0;
     },
-    enabled: !!user?.id && profileInitialized,
+    enabled: !!user?.id && profileInitialized, // Only run query when profile is initialized
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: false,
+    // Add staleTime to prevent unnecessary refetches
+    staleTime: 30000, // 30 seconds
   });
 
   // Check if user is an admin directly from the profile
   const isAdmin = profile?.userRole === 'site_manager';
+  
+  // If profile isn't initialized yet, return loading state
+  if (!profileInitialized && user) {
+    return {
+      searchCount: null,
+      isLoading: true,
+      isPlanReady: false,
+      error: null,
+      isUnlimited: false,
+    };
+  }
   
   return {
     searchCount: isAdmin ? -1 : (searchCountQuery.data ?? profile?.search_count ?? 0),

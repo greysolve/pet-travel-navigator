@@ -2,6 +2,7 @@
 import { Loader2, ArrowUp, Infinity, Users, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { SavedSearch } from "./types";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -34,7 +35,7 @@ export const SearchFormHeader = ({
 }: SearchFormHeaderProps) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
-  const { profile } = useUser();
+  const { profile, profileInitialized } = useUser();
 
   const incrementPassengers = () => {
     if (passengers < 9) {
@@ -50,7 +51,7 @@ export const SearchFormHeader = ({
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
-      if (!user) return;
+      if (!user || !profileInitialized) return;
       
       // Get user plan from profile, not directly from user
       const { data: profile, error: profileError } = await supabase
@@ -86,13 +87,16 @@ export const SearchFormHeader = ({
       }
     };
 
-    if (user) {
+    if (user && profileInitialized) {
       fetchPlanDetails();
     }
-  }, [user]);
+  }, [user, profileInitialized]);
 
   if (!user) return null;
 
+  // Check if the profile is still loading
+  const isProfileLoading = !profileInitialized;
+  
   // Check if search count is -1, which means unlimited searches
   const hasUnlimitedSearches = searchCount === -1;
   
@@ -135,7 +139,9 @@ export const SearchFormHeader = ({
       {/* Search Count / Plan Info - Only show for non-admin users */}
       {isPetCaddie && !isAdmin && (
         <div className="flex-1 flex items-center justify-center">
-          {isLoadingPlan ? (
+          {isProfileLoading ? (
+            <Skeleton className="h-6 w-32" />
+          ) : isLoadingPlan ? (
             <span className="flex items-center">
               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
               <span className="text-muted-foreground">Loading plan...</span>
@@ -155,6 +161,7 @@ export const SearchFormHeader = ({
             size="sm" 
             className="text-orange hover:text-orange border-orange hover:bg-orange/10 ml-2" 
             asChild
+            disabled={isProfileLoading}
           >
             <Link to="/pricing">
               <ArrowUp className="mr-1 h-4 w-4" />

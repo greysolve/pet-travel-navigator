@@ -15,8 +15,8 @@ import { useUser } from "@/contexts/user/UserContext";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const { user, loading: authLoading } = useAuth();
-  const { profile } = useUser();
+  const { user } = useAuth();
+  const { profile, profileLoading, profileInitialized } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
   const { searchCount, isLoading: searchCountLoading } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
@@ -26,7 +26,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { apiProvider = DEFAULT_API_PROVIDER, enableFallback = false } = useAppSettings();
   
   // Determine if user is a pet caddie (has a plan) or an admin
-  const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
+  // Only mark as pet caddie if profile is initialized and has a plan or is admin
+  const isPetCaddie = profileInitialized && (!!profile?.plan || profile?.userRole === 'site_manager');
   
   const {
     policySearch,
@@ -64,7 +65,16 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     enableFallback,
   });
 
-  const isLoading = authLoading || isSearchLoading || searchCountLoading;
+  // Combine all loading states to determine overall loading status
+  const isLoading = isSearchLoading || searchCountLoading;
+  
+  console.log('SearchSection - Profile state:', { 
+    profileLoading, 
+    profileInitialized, 
+    isPetCaddie, 
+    searchCount, 
+    searchCountLoading 
+  });
 
   const handleLoadSearch = (searchCriteria: any) => {
     if (!user) {
@@ -90,6 +100,16 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         title: "Authentication required",
         description: "Please sign in to search",
         variant: "destructive",
+      });
+      return;
+    }
+
+    // Don't allow search if profile isn't initialized yet
+    if (user && !profileInitialized) {
+      toast({
+        title: "Profile loading",
+        description: "Please wait while your profile loads",
+        variant: "default",
       });
       return;
     }
@@ -142,6 +162,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         onPolicySearch={handlePolicySearch}
         apiProvider={apiProvider}
         enableFallback={enableFallback}
+        profileLoading={profileLoading}
       />
     </div>
   );
