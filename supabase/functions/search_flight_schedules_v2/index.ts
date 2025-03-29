@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
@@ -85,7 +84,6 @@ async function searchAmadeusFlights(origin, destination, date) {
     searchUrl.searchParams.append('destinationLocationCode', destination);
     searchUrl.searchParams.append('departureDate', formattedDate);
     searchUrl.searchParams.append('adults', '1');
-    searchUrl.searchParams.append('max', '50');
     searchUrl.searchParams.append('nonStop', 'false');
     
     // Make the API request
