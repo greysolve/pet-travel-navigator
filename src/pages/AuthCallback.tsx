@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, clearAuthData } from "@/integrations/supabase/client";
@@ -21,14 +20,31 @@ const AuthCallback = () => {
         const resetPassword = urlParams.get('reset_password') === 'true';
         const type = urlParams.get('type');
         const code = urlParams.get('code');
+        const tokenHash = urlParams.get('token_hash');
+        const next = urlParams.get('next');
         
         console.log("AuthCallback: URL parameters:", { 
           resetPassword, 
           type, 
           hasCode: !!code,
+          hasTokenHash: !!tokenHash,
+          next,
           rawQuery: window.location.search,
           fullUrl: window.location.href
         });
+        
+        // Handle the new URL format with token_hash parameter
+        if (tokenHash && type === 'recovery') {
+          console.log("AuthCallback: Token hash recovery flow detected");
+          
+          // If there's a next parameter, use it for redirection
+          // Otherwise, use the default reset password page
+          const redirectTo = next || '/auth/reset-password';
+          
+          console.log("AuthCallback: Redirecting to:", redirectTo);
+          window.location.replace(redirectTo);
+          return;
+        }
         
         // If explicit reset password parameter is found, redirect immediately
         if (resetPassword || type === 'recovery') {

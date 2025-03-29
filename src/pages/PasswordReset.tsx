@@ -27,36 +27,91 @@ const PasswordReset = () => {
         await supabase.auth.signOut();
         clearAuthData();
         
-        // Get hash parameters from URL
+        // Check for token_hash in the URL (new format)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenHash = urlParams.get('token_hash');
+        const type = urlParams.get('type');
+        
+        console.log("PasswordReset: URL parameters:", {
+          hasTokenHash: !!tokenHash,
+          type,
+          fullUrl: window.location.href
+        });
+        
+        // If we have token_hash parameter, we're using the new reset flow
+        if (tokenHash && type === 'recovery') {
+          console.log("PasswordReset: Using token_hash format");
+          
+          try {
+            // Process the hash directly with Supabase
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: 'recovery'
+            });
+            
+            if (error) {
+              console.error("PasswordReset: Error verifying OTP:", error);
+              setTokenError("The password reset link is invalid or has expired. Please request a new one.");
+              setIsLoadingCallback(false);
+              return;
+            }
+            
+            if (data.session) {
+              console.log("PasswordReset: Valid session from OTP verification", {
+                user: data.session.user.id,
+                email: data.session.user.email
+              });
+              
+              // Store tokens for password update
+              setAccessToken(data.session.access_token);
+              setRefreshToken(data.session.refresh_token);
+              setResetEmail(data.session.user.email);
+              setTokenValid(true);
+            } else {
+              console.error("PasswordReset: No session from OTP verification");
+              setTokenError("The password reset verification failed. Please try again.");
+            }
+            
+            setIsLoadingCallback(false);
+            return;
+          } catch (error) {
+            console.error("PasswordReset: Error in OTP verification:", error);
+            setTokenError("An error occurred while verifying your reset link. Please request a new one.");
+            setIsLoadingCallback(false);
+            return;
+          }
+        }
+        
+        // Get hash parameters from URL (old format with hash)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessTokenFromUrl = hashParams.get('access_token');
         const refreshTokenFromUrl = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+        const hashType = hashParams.get('type');
         
-        console.log("PasswordReset: Token info:", { 
+        console.log("PasswordReset: Hash info:", { 
           hasAccessToken: !!accessTokenFromUrl, 
           hasRefreshToken: !!refreshTokenFromUrl, 
-          type 
+          type: hashType 
         });
         
-        if (!accessTokenFromUrl || !refreshTokenFromUrl || type !== 'recovery') {
+        if (!accessTokenFromUrl || !refreshTokenFromUrl || hashType !== 'recovery') {
           console.error("Invalid or missing token parameters:", { 
             hasAccessToken: !!accessTokenFromUrl, 
             hasRefreshToken: !!refreshTokenFromUrl, 
-            type 
+            type: hashType
           });
           setTokenError("The password reset link is invalid or has expired. Please request a new one.");
           setIsLoadingCallback(false);
           return;
         }
         
-        // Store the tokens for later use instead of setting the session immediately
+        // Store the tokens for later use
         setAccessToken(accessTokenFromUrl);
         setRefreshToken(refreshTokenFromUrl);
         
-        // Verify the token without setting a session
+        // Verify the token
         try {
-          // Just verify the JWT is valid and extract user email
+          // Extract user email from JWT
           const base64Url = accessTokenFromUrl.split('.')[1];
           const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
           const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {

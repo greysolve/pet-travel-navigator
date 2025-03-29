@@ -70,9 +70,11 @@ export function useAuthOperations() {
       
       console.log('Starting password reset for:', email);
       
-      // Updated to redirect to the callback page with a reset_password flag
+      // Use the exact format from the screenshot
+      // href="{{.SiteURL}}/api/auth/confirm?token_hash={{.TokenHash}}&type=recovery&next=/page"
+      // We need to set the redirect URL using the format in the screenshot
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?reset_password=true`,
+        redirectTo: `${window.location.origin}/api/auth/confirm?type=recovery&next=/auth/reset-password`,
       });
 
       if (error) {
