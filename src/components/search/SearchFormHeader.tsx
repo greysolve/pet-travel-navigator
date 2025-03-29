@@ -54,7 +54,7 @@ export const SearchFormHeader = ({
           .eq('name', profile.plan)
           .single();
 
-        if (error) {.
+        if (error) {
           console.error("Error fetching plan details:", error);
         } else {
           setPlanDetails(data as SystemPlan);
