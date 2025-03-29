@@ -17,7 +17,7 @@ export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchBut
   if (!user) {
     return (
       <Button 
-        className="w-full h-12 mt-4 text-base bg-primary hover:bg-primary/90"
+        className="w-full h-12 mt-4 text-base font-medium"
         onClick={showAuthDialog}
       >
         Sign in to Search
@@ -27,7 +27,7 @@ export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchBut
 
   return (
     <Button 
-      className="w-full h-12 mt-4 text-base bg-secondary hover:bg-secondary/90"
+      className="w-full h-12 mt-4 text-base font-medium bg-secondary hover:bg-secondary/90"
       onClick={onClick}
       disabled={isLoading || isProfileLoading}
     >

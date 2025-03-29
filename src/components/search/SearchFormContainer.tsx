@@ -70,9 +70,9 @@ export const SearchFormContainer = ({
   enableFallback
 }: SearchFormContainerProps) => {
   return (
-    <div className="max-w-3xl mx-auto px-4 -mt-8">
+    <div className="relative max-w-3xl mx-auto px-4 -mt-16 z-10">
       <div className={cn(
-        "bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4",
+        "bg-white/90 backdrop-blur-lg rounded-lg shadow-xl p-6 space-y-6",
         isLoading && "opacity-75"
       )}>
         <SearchFormHeader

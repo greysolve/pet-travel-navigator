@@ -38,32 +38,36 @@ export const RouteSearchForm = ({
   user
 }: RouteSearchFormProps) => {
   return (
-    <div className="space-y-4">
-      <RouteSearch
-        origin={origin}
-        destination={destination}
-        setOrigin={setOrigin}
-        setDestination={setDestination}
-        date={date}
-        isLoading={isLoading}
-        disabled={policySearch !== ""}
-        onFocus={clearPolicySearch}
-      />
+    <div className="space-y-6">
+      <div>
+        <RouteSearch
+          origin={origin}
+          destination={destination}
+          setOrigin={setOrigin}
+          setDestination={setDestination}
+          date={date}
+          isLoading={isLoading}
+          disabled={policySearch !== ""}
+          onFocus={clearPolicySearch}
+        />
+      </div>
 
       <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-        <div className="w-full md:flex-1">
+        <div className="w-full md:w-2/3">
           <DateSelector 
             date={date} 
             setDate={setDate}
             isLoading={isLoading}
           />
         </div>
-        <SaveSearch
-          shouldSaveSearch={shouldSaveSearch}
-          setShouldSaveSearch={setShouldSaveSearch}
-          user={user}
-          isProfileLoading={isLoading}
-        />
+        <div className="w-full md:w-1/3">
+          <SaveSearch
+            shouldSaveSearch={shouldSaveSearch}
+            setShouldSaveSearch={setShouldSaveSearch}
+            user={user}
+            isProfileLoading={isLoading}
+          />
+        </div>
       </div>
     </div>
   );

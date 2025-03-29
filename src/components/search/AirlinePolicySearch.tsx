@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plane } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface AirlinePolicySearchProps {
@@ -77,31 +77,35 @@ export const AirlinePolicySearch = ({
 
   return (
     <div className="relative">
-      <Input
-        type="text"
-        placeholder="Airline name or code (e.g., American, AA)"
-        className="h-12 text-base bg-white/90 border-0 shadow-sm"
-        value={policySearch}
-        onChange={(e) => {
-          const value = e.target.value;
-          setPolicySearch(value);
-          fetchAirlines(value);
-          setShowSuggestions(true);
-        }}
-        onFocus={() => {
-          setShowSuggestions(true);
-          handleInputFocus();
-        }}
-        onBlur={() => {
-          setTimeout(() => setShowSuggestions(false), 200);
-        }}
-        disabled={isLoading || disabled}
-      />
+      <div className="relative">
+        <Input
+          type="text"
+          placeholder="Airline name or code (e.g., American, AA)"
+          className="h-12 text-base bg-white shadow-sm pl-10"
+          value={policySearch}
+          onChange={(e) => {
+            const value = e.target.value;
+            setPolicySearch(value);
+            fetchAirlines(value);
+            setShowSuggestions(true);
+          }}
+          onFocus={() => {
+            setShowSuggestions(true);
+            handleInputFocus();
+          }}
+          onBlur={() => {
+            setTimeout(() => setShowSuggestions(false), 200);
+          }}
+          disabled={isLoading || disabled}
+        />
+        <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground" />
+      </div>
       {showSuggestions && airlines.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+        <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
           {isSearching ? (
             <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span>Searching airlines...</span>
             </div>
           ) : (
             <ul className="max-h-60 overflow-auto py-1">

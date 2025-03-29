@@ -54,7 +54,7 @@ export const SearchFormHeader = ({
           .eq('name', profile.plan)
           .single();
 
-        if (error) {
+        if (error) {.
           console.error("Error fetching plan details:", error);
         } else {
           setPlanDetails(data as SystemPlan);
@@ -75,28 +75,28 @@ export const SearchFormHeader = ({
 
   return (
     <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <div className="flex items-center gap-3 text-sm">
         {isPetCaddie && (
           <>
             {isLoadingPlan ? (
               <span className="flex items-center">
                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                Loading plan...
+                <span className="text-muted-foreground">Loading plan...</span>
               </span>
             ) : planDetails?.is_search_unlimited ? (
               <span className="flex items-center">
                 <Infinity className="mr-1 h-4 w-4 text-green-500" />
-                Unlimited searches
+                <span className="text-muted-foreground">Unlimited searches</span>
               </span>
             ) : (
-              <span>
+              <span className="text-muted-foreground">
                 Remaining searches: {searchCount ?? 0}
               </span>
             )}
             <Button 
               variant="outline" 
               size="sm" 
-              className="text-orange hover:text-orange border-orange hover:bg-orange/10" 
+              className="text-orange hover:text-orange border-orange hover:bg-orange/10 ml-2" 
               asChild
             >
               <Link to="/pricing">
