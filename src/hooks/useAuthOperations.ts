@@ -1,4 +1,3 @@
-
 import { supabase, clearAuthData } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { AuthError } from "@supabase/supabase-js";
@@ -25,8 +24,6 @@ export function useAuthOperations() {
 
   const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
     try {
-      // Clear any existing session before attempting to sign in
-      // This helps prevent session conflicts
       await supabase.auth.signOut();
       clearAuthData();
       
@@ -62,19 +59,13 @@ export function useAuthOperations() {
 
   const resetPasswordForEmail = async (email: string): Promise<{ error?: AuthError }> => {
     try {
-      // Force sign out before initiating password reset
       await supabase.auth.signOut();
-      
-      // Clear all authentication data to prevent any lingering sessions
       clearAuthData();
       
       console.log('Starting password reset for:', email);
       
-      // Use the exact format from the screenshot
-      // href="{{.SiteURL}}/api/auth/confirm?token_hash={{.TokenHash}}&type=recovery&next=/page"
-      // We need to set the redirect URL using the format in the screenshot
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/api/auth/confirm?type=recovery&next=/auth/reset-password`,
+        redirectTo: `${window.location.origin}/auth/confirm?type=recovery&next=/auth/reset-password`,
       });
 
       if (error) {
@@ -140,7 +131,6 @@ export function useAuthOperations() {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      // Clear any existing session first
       await supabase.auth.signOut();
       clearAuthData();
       
@@ -181,7 +171,6 @@ export function useAuthOperations() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Clear all auth data to ensure complete sign out
       const cleared = clearAuthData();
       console.log('Auth data cleared:', cleared);
     } catch (error: any) {
