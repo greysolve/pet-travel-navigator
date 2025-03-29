@@ -10,7 +10,7 @@ interface SearchButtonProps {
 }
 
 export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
-  const { user, profileLoading, lifecycleState, profileInitialized } = useUser();
+  const { user, profileLoading, lifecycleState } = useUser();
   const { showAuthDialog } = useAuthDialog();
 
   const handleButtonClick = () => {
@@ -23,7 +23,7 @@ export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
   };
 
   // Determine if the button should be disabled
-  const isButtonDisabled = user ? (isLoading || profileLoading || !profileInitialized) : false;
+  const isButtonDisabled = user ? (isLoading || profileLoading) : false;
 
   return (
     <Button 
@@ -37,7 +37,7 @@ export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Searching...
           </>
-        ) : profileLoading || !profileInitialized ? (
+        ) : profileLoading ? (
           <>
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Loading Profile...

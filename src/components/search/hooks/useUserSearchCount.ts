@@ -11,7 +11,7 @@ export function useUserSearchCount() {
   const { user, profile, profileInitialized, lifecycleState } = useUser();
 
   const searchCountQuery = useQuery({
-    queryKey: ['searchCount', user?.id, lifecycleState, profileInitialized],
+    queryKey: ['searchCount', user?.id, lifecycleState],
     queryFn: async () => {
       // If no user or profile isn't initialized yet, don't fetch search count
       if (!user?.id || !profileInitialized) {
@@ -47,8 +47,7 @@ export function useUserSearchCount() {
     enabled: !!user?.id && profileInitialized,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
-    retry: 1,
-    retryDelay: 1000, // Add a small delay before retrying
+    retry: false,
   });
 
   // Check if user is an admin directly from the profile

@@ -19,7 +19,6 @@ export interface SearchFormHeaderProps {
   onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
   onDeleteSearch: (e: React.MouseEvent, id: string) => void;
   isLoading: boolean;
-  profileInitialized: boolean;
 }
 
 export const SearchFormHeader = ({
@@ -31,8 +30,7 @@ export const SearchFormHeader = ({
   setPassengers,
   onLoadSearch,
   onDeleteSearch,
-  isLoading,
-  profileInitialized
+  isLoading
 }: SearchFormHeaderProps) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
@@ -100,59 +98,6 @@ export const SearchFormHeader = ({
   
   // Check if the user is an admin (site_manager)
   const isAdmin = profile?.userRole === 'site_manager';
-
-  // Display a loading indicator while profile is initializing
-  if (!profileInitialized && isPetCaddie) {
-    return (
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex-1 items-center gap-3 text-sm">
-          {/* Passenger Selection */}
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground flex items-center">
-              <Users className="h-4 w-4 mr-1" />
-              Passengers:
-            </span>
-            <div className="flex items-center border rounded-md">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 rounded-r-none" 
-                onClick={decrementPassengers}
-                disabled={passengers <= 1 || isLoading}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-8 text-center">{passengers}</span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 rounded-l-none" 
-                onClick={incrementPassengers}
-                disabled={passengers >= 9 || isLoading}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex-1 flex items-center justify-center">
-          <span className="flex items-center">
-            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-            <span className="text-muted-foreground">Loading profile...</span>
-          </span>
-        </div>
-        
-        <div className="flex-1 flex justify-end">
-          <SavedSearchesDropdown
-            savedSearches={savedSearches}
-            onLoadSearch={onLoadSearch}
-            onDeleteSearch={onDeleteSearch}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex justify-between items-center mb-4">

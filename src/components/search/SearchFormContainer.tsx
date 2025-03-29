@@ -40,7 +40,6 @@ interface SearchFormContainerProps {
   onPolicySearch: () => Promise<void>;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
-  profileInitialized: boolean;
 }
 
 export const SearchFormContainer = ({
@@ -72,8 +71,7 @@ export const SearchFormContainer = ({
   handleSearch,
   onPolicySearch,
   apiProvider,
-  enableFallback,
-  profileInitialized
+  enableFallback
 }: SearchFormContainerProps) => {
   return (
     <div className="relative max-w-3xl mx-auto px-4 -mt-28 z-10">
@@ -94,7 +92,6 @@ export const SearchFormContainer = ({
             handleDeleteSearch(id);
           }}
           isLoading={isLoading}
-          profileInitialized={profileInitialized}
         />
 
         <PolicySearchForm 
