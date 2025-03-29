@@ -50,8 +50,7 @@ export function useUserSearchCount() {
     retry: false,
   });
 
-  // Return search count from profile if available (as a fallback)
-  // and also include whether we're still loading profile data
+  // Check if user is an admin directly from the profile
   const isAdmin = profile?.userRole === 'site_manager';
   
   return {

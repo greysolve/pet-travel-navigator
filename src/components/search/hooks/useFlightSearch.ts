@@ -16,8 +16,8 @@ export const useFlightSearch = () => {
   const { profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
-  // Determine if the user is a pet caddie based on profile data or if they're an admin
-  // Admin users and users with any plan are considered pet caddies who need to see search counts
+  // Admin users are always treated as pet caddies
+  // Regular users are considered pet caddies if they have a plan
   const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
 
   /**
