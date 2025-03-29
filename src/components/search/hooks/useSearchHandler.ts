@@ -100,7 +100,7 @@ export const useSearchHandler = ({
       return true;
     }
 
-    // Check search count for other users
+    // Check search count for other users - note the fallback to 0 if undefined
     if (searchCount !== undefined && searchCount <= 0) {
       toast({
         title: "Search limit reached",

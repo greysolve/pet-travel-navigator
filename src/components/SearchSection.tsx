@@ -16,9 +16,9 @@ import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user } = useAuth();
-  const { profile, profileInitialized } = useUser();
+  const { profile } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
-  const { searchCount, isLoading: searchCountLoading } = useUserSearchCount();
+  const { searchCount, isPlanReady } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   
@@ -26,7 +26,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { apiProvider = DEFAULT_API_PROVIDER, enableFallback = false } = useAppSettings();
   
   // Determine if user is a pet caddie (has a plan) or an admin
-  const isPetCaddie = profileInitialized && (!!profile?.plan || profile?.userRole === 'site_manager');
+  const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
   
   const {
     policySearch,
@@ -65,13 +65,11 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   });
 
   // Combine all loading states to determine overall loading status
-  const isLoading = isSearchLoading || (user && !profileInitialized);
+  const isLoading = isSearchLoading;
   
   console.log('SearchSection - Profile state:', { 
-    profileInitialized, 
     isPetCaddie, 
-    searchCount, 
-    searchCountLoading 
+    searchCount
   });
 
   const handleLoadSearch = (searchCriteria: any) => {
@@ -98,16 +96,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         title: "Authentication required",
         description: "Please sign in to search",
         variant: "destructive",
-      });
-      return;
-    }
-
-    // Don't allow search if profile isn't initialized yet
-    if (user && !profileInitialized) {
-      toast({
-        title: "Profile loading",
-        description: "Please wait while your profile loads",
-        variant: "default",
       });
       return;
     }

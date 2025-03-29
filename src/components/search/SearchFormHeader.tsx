@@ -35,7 +35,7 @@ export const SearchFormHeader = ({
 }: SearchFormHeaderProps) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
-  const { profile, profileInitialized } = useUser();
+  const { profile } = useUser();
 
   const incrementPassengers = () => {
     if (passengers < 9) {
@@ -51,7 +51,7 @@ export const SearchFormHeader = ({
 
   useEffect(() => {
     const fetchPlanDetails = async () => {
-      if (!user || !profileInitialized || !profile?.plan) return;
+      if (!user || !profile?.plan) return;
       
       setIsLoadingPlan(true);
       try {
@@ -73,10 +73,10 @@ export const SearchFormHeader = ({
       }
     };
 
-    if (user && profileInitialized && profile?.plan) {
+    if (user && profile?.plan) {
       fetchPlanDetails();
     }
-  }, [user, profileInitialized, profile?.plan]);
+  }, [user, profile?.plan]);
 
   if (!user) return null;
 

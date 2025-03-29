@@ -10,7 +10,7 @@ interface SearchButtonProps {
 }
 
 export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
-  const { user, profileInitialized } = useUser();
+  const { user } = useUser();
   const { showAuthDialog } = useAuthDialog();
 
   const handleButtonClick = () => {

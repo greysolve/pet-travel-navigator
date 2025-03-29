@@ -8,17 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
  * This handles both authenticated and unauthenticated states properly
  */
 export function useUserSearchCount() {
-  const { user, profile, profileInitialized } = useUser();
+  const { user, profile } = useUser();
 
   const searchCountQuery = useQuery({
-    queryKey: ['searchCount', user?.id, profileInitialized],
+    queryKey: ['searchCount', user?.id],
     queryFn: async () => {
-      // Don't fetch if profile isn't initialized yet or no user
-      if (!user?.id || !profileInitialized) {
-        console.log('UserSearchCount: Waiting for profile initialization', { 
-          userId: user?.id, 
-          profileInitialized
-        });
+      // Don't fetch if no user
+      if (!user?.id) {
+        console.log('UserSearchCount: No user ID, returning null');
         return null;
       }
 
@@ -43,7 +40,7 @@ export function useUserSearchCount() {
       console.log('UserSearchCount: Received count:', data?.search_count);
       return data?.search_count ?? 0;
     },
-    enabled: !!user?.id && profileInitialized, // Only run query when profile is initialized
+    enabled: !!user?.id, // Only run query when we have a user ID
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: false,
@@ -54,8 +51,13 @@ export function useUserSearchCount() {
   // Check if user is an admin directly from the profile
   const isAdmin = profile?.userRole === 'site_manager';
   
+  // Implement fallback logic for search count
+  const searchCount = isAdmin 
+    ? -1 // Admins have unlimited searches
+    : searchCountQuery.data ?? profile?.search_count ?? 0;
+
   return {
-    searchCount: isAdmin ? -1 : (searchCountQuery.data ?? profile?.search_count ?? 0),
+    searchCount,
     isLoading: searchCountQuery.isLoading && !!user,
     isPlanReady: !!profile?.plan,
     error: searchCountQuery.error,
