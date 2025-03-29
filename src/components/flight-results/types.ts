@@ -76,7 +76,6 @@ export type PetPolicy = {
   policy_url?: string | PremiumContent;
   size_restrictions?: SizeRestrictionsField;
   fees?: FeesField;
-  isSummary?: boolean;
 };
 
 export type PolicyType = 'pet_arrival' | 'pet_transit';
