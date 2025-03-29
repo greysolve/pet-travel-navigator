@@ -62,8 +62,8 @@ export async function getAmadeusToken() {
 }
 
 // Function to search flights using Amadeus API
-export async function searchAmadeusFlights(origin: string, destination: string, date: string) {
-  console.log('Searching flights with Amadeus API:', { origin, destination, date });
+export async function searchAmadeusFlights(origin: string, destination: string, date: string, passengers: number = 1) {
+  console.log('Searching flights with Amadeus API:', { origin, destination, date, passengers });
   
   try {
     const token = await getAmadeusToken();
@@ -77,7 +77,7 @@ export async function searchAmadeusFlights(origin: string, destination: string, 
     searchUrl.searchParams.append('originLocationCode', origin);
     searchUrl.searchParams.append('destinationLocationCode', destination);
     searchUrl.searchParams.append('departureDate', formattedDate);
-    searchUrl.searchParams.append('adults', '1');
+    searchUrl.searchParams.append('adults', passengers.toString());
     searchUrl.searchParams.append('nonStop', 'false');
     
     // Make the API request

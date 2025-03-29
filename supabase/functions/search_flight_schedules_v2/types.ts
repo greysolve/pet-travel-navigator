@@ -7,6 +7,7 @@ export interface SearchRequest {
   date: string;
   api?: ApiProvider;
   enable_fallback?: boolean;
+  passengers?: number;
 }
 
 export interface FlightSegment {

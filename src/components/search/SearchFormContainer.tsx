@@ -29,6 +29,8 @@ interface SearchFormContainerProps {
   clearPolicySearch: () => void;
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
+  passengers: number;
+  setPassengers: (value: number) => void;
   toast: ToastFunction;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   setFlights: (flights: FlightData[]) => void;
@@ -59,6 +61,8 @@ export const SearchFormContainer = ({
   clearPolicySearch,
   shouldSaveSearch,
   setShouldSaveSearch,
+  passengers,
+  setPassengers,
   toast,
   onSearchResults,
   setFlights,
@@ -80,6 +84,8 @@ export const SearchFormContainer = ({
           isPetCaddie={isPetCaddie}
           searchCount={searchCount}
           savedSearches={savedSearches}
+          passengers={passengers}
+          setPassengers={setPassengers}
           onLoadSearch={onLoadSearch}
           onDeleteSearch={(e, id) => {
             e.stopPropagation();

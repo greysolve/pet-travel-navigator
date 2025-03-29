@@ -10,6 +10,7 @@ export const useFlightSearchState = (userId: string | undefined) => {
   const [date, setDate] = useState<Date>();
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [shouldSaveSearch, setShouldSaveSearch] = useState(false);
+  const [passengers, setPassengers] = useState(1);
   const { toast } = useToast();
 
   const clearRouteSearch = () => {
@@ -30,6 +31,7 @@ export const useFlightSearchState = (userId: string | undefined) => {
     setDate(undefined);
     setFlights([]);
     setShouldSaveSearch(false);
+    setPassengers(1);
   }, [userId]);
 
   return {
@@ -45,9 +47,10 @@ export const useFlightSearchState = (userId: string | undefined) => {
     setFlights,
     shouldSaveSearch,
     setShouldSaveSearch,
+    passengers,
+    setPassengers,
     clearRouteSearch,
     clearPolicySearch,
     toast
   };
 };
-

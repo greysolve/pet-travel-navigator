@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { origin, destination, date, api = 'amadeus', enable_fallback = false } = await req.json() as SearchRequest;
+    const { origin, destination, date, api = 'amadeus', enable_fallback = false, passengers = 1 } = await req.json() as SearchRequest;
     const authHeader = req.headers.get('Authorization');
     
     if (!authHeader) {
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     }
     
     // Log which API we're using for this search
-    console.log(`Using API provider: ${selectedApiProvider} (Fallback: ${fallbackEnabled ? 'Enabled' : 'Disabled'})`);
+    console.log(`Using API provider: ${selectedApiProvider} (Fallback: ${fallbackEnabled ? 'Enabled' : 'Disabled'}), Passengers: ${passengers}`);
     
     let connections: FlightData[] = [];
     let actualApiProvider: ApiProvider | null = selectedApiProvider; // Track which API actually provided the data
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     try {
       if (selectedApiProvider === 'amadeus') {
         // Get flights from Amadeus
-        const amadeusData = await searchAmadeusFlights(origin, destination, date);
+        const amadeusData = await searchAmadeusFlights(origin, destination, date, passengers);
         connections = mapAmadeusToFlightData(amadeusData);
         
         console.log(`Amadeus search returned ${connections.length} connections`);
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         
         try {
           if (fallbackProvider === 'amadeus') {
-            const amadeusData = await searchAmadeusFlights(origin, destination, date);
+            const amadeusData = await searchAmadeusFlights(origin, destination, date, passengers);
             connections = mapAmadeusToFlightData(amadeusData);
             actualApiProvider = 'amadeus';
             console.log(`Fallback to Amadeus returned ${connections.length} connections`);

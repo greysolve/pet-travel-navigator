@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +13,7 @@ interface UseSearchHandlerProps {
   origin: string;
   destination: string;
   date?: Date;
+  passengers?: number;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
   handleFlightSearch: (
@@ -21,7 +23,8 @@ interface UseSearchHandlerProps {
     onResults: (results: FlightData[], policies?: Record<string, any>, apiError?: string) => void,
     onComplete?: () => void,
     apiProvider?: ApiProvider,
-    enableFallback?: boolean
+    enableFallback?: boolean,
+    passengers?: number
   ) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
@@ -35,6 +38,7 @@ export const useSearchHandler = ({
   origin,
   destination,
   date,
+  passengers = 1,
   shouldSaveSearch,
   setFlights,
   handleFlightSearch,
@@ -116,7 +120,8 @@ export const useSearchHandler = ({
         },
         undefined,
         apiProvider,
-        enableFallback
+        enableFallback,
+        passengers
       );
 
       // Save search criteria if needed
@@ -125,6 +130,7 @@ export const useSearchHandler = ({
           origin,
           destination,
           date: date.toISOString(),
+          passengers,
         });
       }
     } catch (error) {
