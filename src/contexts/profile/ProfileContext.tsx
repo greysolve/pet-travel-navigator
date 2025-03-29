@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
-import { ProfileError } from '@/utils/profileManagement';
+import { ProfileError } from '@/utils/profile/ProfileError';
 import { useProfileRefresh } from './useProfileRefresh';
 import { useProfileUpdater } from './useProfileUpdater';
 import { useProfileInitializer } from './useProfileInitializer';
