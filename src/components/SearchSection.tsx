@@ -48,7 +48,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     toast
   } = useFlightSearchState(user?.id);
 
-  const { handlePolicySearch, handleRouteSearch } = useSearchHandler({
+  const { handlePolicySearch, handleRouteSearch, isLoading: isSearchHandlerLoading } = useSearchHandler({
     user,
     toast,
     policySearch,
@@ -65,7 +65,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   });
 
   // Combine all loading states to determine overall loading status
-  const isLoading = isSearchLoading;
+  const isLoading = isSearchLoading || isSearchHandlerLoading;
   
   console.log('SearchSection - Profile state:', { 
     isPetCaddie, 

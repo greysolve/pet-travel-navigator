@@ -21,8 +21,11 @@ export const useSearchHandler = ({
   enableFallback,
 }) => {
   const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
-  const { searchCount, isUnlimited } = useUserSearchCount();
-  const { profile } = useUser();
+  const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
+  const { profile, profileLoading } = useUser();
+  
+  // Determine if we are still loading profile data
+  const isLoading = profileLoading || isSearchCountLoading;
 
   // Handle policy search
   const handlePolicySearch = async () => {
@@ -86,6 +89,14 @@ export const useSearchHandler = ({
 
   // Check if the user can perform a search
   const canSearch = () => {
+    if (isLoading) {
+      toast({
+        title: "Loading",
+        description: "Please wait while we load your profile data",
+      });
+      return false;
+    }
+    
     if (!user) {
       toast({
         title: "Authentication required",
@@ -100,7 +111,7 @@ export const useSearchHandler = ({
       return true;
     }
 
-    // Check search count for other users - note the fallback to 0 if undefined
+    // Check search count for other users
     if (searchCount !== undefined && searchCount <= 0) {
       toast({
         title: "Search limit reached",
@@ -116,5 +127,6 @@ export const useSearchHandler = ({
   return {
     handlePolicySearch,
     handleRouteSearch,
+    isLoading,
   };
 };
