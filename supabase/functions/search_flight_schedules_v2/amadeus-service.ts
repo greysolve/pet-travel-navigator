@@ -79,6 +79,9 @@ export async function searchAmadeusFlights(origin: string, destination: string, 
     searchUrl.searchParams.append('departureDate', formattedDate);
     searchUrl.searchParams.append('adults', passengers.toString());
     searchUrl.searchParams.append('nonStop', 'false');
+    searchUrl.searchParams.append('max', '250'); // Increase result limit
+    
+    console.log(`Making Amadeus API request to: ${searchUrl.toString()}`);
     
     // Make the API request
     const response = await fetch(searchUrl.toString(), {
@@ -130,16 +133,27 @@ export function mapAmadeusToFlightData(amadeusData: any) {
     
     // Dictionary to store airport details
     const airportsDict: Record<string, any> = {};
+    const airlinesDict: Record<string, any> = {};
     
-    // Populate airports dictionary if dictionaries are available
-    if (amadeusData.dictionaries && amadeusData.dictionaries.locations) {
-      for (const [key, value] of Object.entries(amadeusData.dictionaries.locations)) {
-        airportsDict[key] = value;
+    // Populate dictionaries if available
+    if (amadeusData.dictionaries) {
+      if (amadeusData.dictionaries.locations) {
+        for (const [key, value] of Object.entries(amadeusData.dictionaries.locations)) {
+          airportsDict[key] = value;
+        }
+      }
+      
+      if (amadeusData.dictionaries.carriers) {
+        for (const [key, value] of Object.entries(amadeusData.dictionaries.carriers)) {
+          airlinesDict[key] = value;
+        }
       }
     }
     
+    console.log('Processing flight offers...');
+    
     // Map each flight offer to our FlightData structure
-    return amadeusData.data.map((offer: any, index: number) => {
+    const flightData = amadeusData.data.map((offer: any, index: number) => {
       // Extract the first itinerary (outbound journey)
       const itinerary = offer.itineraries[0];
       
@@ -151,11 +165,8 @@ export function mapAmadeusToFlightData(amadeusData: any) {
       // Map each segment of the itinerary
       const segments = itinerary.segments.map((segment: any) => {
         // Extract carrier code and flight number
-        const [carrierCode, flightNumber] = segment.carrierCode && segment.number ? 
-          [segment.carrierCode, segment.number] : 
-          segment.operating ? 
-            [segment.operating.carrierCode, segment.operating.number] : 
-            [segment.carrierCode || 'Unknown', segment.number || 'Unknown'];
+        const carrierCode = segment.carrierCode || (segment.operating ? segment.operating.carrierCode : 'Unknown');
+        const flightNumber = segment.number || (segment.operating ? segment.operating.number : 'Unknown');
         
         // Calculate elapsed time in minutes
         const departureTime = new Date(segment.departure.at);
@@ -169,6 +180,9 @@ export function mapAmadeusToFlightData(amadeusData: any) {
         const departureCountry = departureAirportInfo ? departureAirportInfo.countryName : undefined;
         const arrivalCountry = arrivalAirportInfo ? arrivalAirportInfo.countryName : undefined;
         
+        // Get airline name from dictionary
+        const airlineName = airlinesDict[carrierCode] || undefined;
+        
         return {
           carrierFsCode: carrierCode,
           flightNumber: flightNumber,
@@ -180,7 +194,8 @@ export function mapAmadeusToFlightData(amadeusData: any) {
           arrivalTerminal: segment.arrival.terminal,
           stops: 0, // Direct segment has no stops
           elapsedTime: elapsedTimeMinutes,
-          isCodeshare: segment.carrierCode !== segment.operating?.carrierCode,
+          airlineName: airlineName,
+          isCodeshare: segment.carrierCode !== (segment.operating?.carrierCode || segment.carrierCode),
           departureCountry,
           arrivalCountry,
         };
@@ -208,6 +223,9 @@ export function mapAmadeusToFlightData(amadeusData: any) {
         }
       };
     }).filter(Boolean); // Remove any null entries
+    
+    console.log(`Successfully mapped ${flightData.length} flight offers to FlightData structure`);
+    return flightData;
   } catch (error) {
     console.error('Error mapping Amadeus data:', error);
     return [];
