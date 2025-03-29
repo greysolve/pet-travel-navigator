@@ -50,17 +50,32 @@ export type Fees = {
   cargo?: string;
 };
 
+// Define a union type that includes PremiumContent
+export type PremiumContent = {
+  value: any;
+  isPremiumField: true;
+};
+
+// Type guard
+export function isPremiumContent(value: any): value is PremiumContent {
+  return value && typeof value === 'object' && 'isPremiumField' in value;
+}
+
+// Define field types that could be premium
+export type SizeRestrictionsField = string | SizeRestrictions | PremiumContent;
+export type FeesField = string | Fees | PremiumContent;
+
 export type PetPolicy = {
-  pet_types_allowed: string[];
-  carrier_requirements_cabin?: string;
-  carrier_requirements_cargo?: string;
-  carrier_requirements?: string;
-  documentation_needed: string[];
-  temperature_restrictions?: string;
-  breed_restrictions: string[];
-  policy_url?: string;
-  size_restrictions?: SizeRestrictions | string;
-  fees?: Fees | string;
+  pet_types_allowed: string[] | PremiumContent;
+  carrier_requirements?: string | PremiumContent;
+  carrier_requirements_cabin?: string | PremiumContent;
+  carrier_requirements_cargo?: string | PremiumContent;
+  documentation_needed: string[] | PremiumContent;
+  temperature_restrictions?: string | PremiumContent;
+  breed_restrictions: string[] | PremiumContent;
+  policy_url?: string | PremiumContent;
+  size_restrictions?: SizeRestrictionsField;
+  fees?: FeesField;
   isSummary?: boolean;
 };
 

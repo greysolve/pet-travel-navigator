@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { FlightData, PetPolicy, SizeRestrictions, Fees } from "./types";
+import type { FlightData, PetPolicy, SizeRestrictionsField, FeesField } from "./types";
 import { useProfile } from "@/contexts/ProfileContext";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
@@ -58,8 +58,8 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         temperature_restrictions: policy.temperature_restrictions,
         breed_restrictions: policy.breed_restrictions,
         policy_url: policy.policy_url,
-        size_restrictions: policy.size_restrictions,
-        fees: policy.fees
+        size_restrictions: policy.size_restrictions as SizeRestrictionsField,
+        fees: policy.fees as FeesField
       };
       
       return isPetCaddie 
@@ -117,8 +117,8 @@ export const usePetPolicies = (flights: FlightData[]) => {
           temperature_restrictions: policy.temperature_restrictions,
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
-          size_restrictions: policy.size_restrictions,
-          fees: policy.fees
+          size_restrictions: policy.size_restrictions as SizeRestrictionsField,
+          fees: policy.fees as FeesField
         };
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
