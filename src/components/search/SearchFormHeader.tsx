@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SystemPlan } from "@/types/auth";
+import { useUser } from "@/contexts/user/UserContext";
 
 export interface SearchFormHeaderProps {
   user: any;
@@ -33,6 +34,7 @@ export const SearchFormHeader = ({
 }: SearchFormHeaderProps) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+  const { profile } = useUser();
 
   const incrementPassengers = () => {
     if (passengers < 9) {
@@ -95,7 +97,7 @@ export const SearchFormHeader = ({
   const hasUnlimitedSearches = searchCount === -1;
   
   // Check if the user is an admin (site_manager)
-  const isAdmin = user?.userRole === 'site_manager';
+  const isAdmin = profile?.userRole === 'site_manager';
 
   return (
     <div className="flex justify-between items-center mb-4">
