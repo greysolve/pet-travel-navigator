@@ -12,27 +12,73 @@ const AuthCallback = () => {
   const [isLoadingCallback, setIsLoadingCallback] = useState(true);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState<string | null>(null);
   
   useEffect(() => {
     let mounted = true;
 
-    // First handle the immediate auth callback
-    const handleAuthCallback = async () => {
-      try {
-        // Check URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const needsPasswordReset = urlParams.get('reset_password') === 'true';
-        const type = urlParams.get('type');
-
-        if (needsPasswordReset || type === 'recovery') {
-          // This is a password reset flow
-          if (mounted) {
-            setShowPasswordReset(true);
-            setIsLoadingCallback(false);
+    // Check for password reset flow first
+    const handlePasswordResetFlow = async () => {
+      // Check URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const needsPasswordReset = urlParams.get('reset_password') === 'true';
+      const type = urlParams.get('type');
+      
+      // Sign out any currently logged in user when a password reset is detected
+      // This prevents the password reset link from being used as a magic link
+      if (needsPasswordReset || type === 'recovery') {
+        console.log("Password reset flow detected - signing out any existing users");
+        await supabase.auth.signOut();
+        
+        // Get email from the recovery token
+        try {
+          const { data: { user }, error } = await supabase.auth.getUser();
+          
+          if (error) {
+            console.error("Error getting user from recovery token:", error);
+            toast({
+              title: "Password Reset Error",
+              description: "The password reset link is invalid or has expired. Please request a new one.",
+              variant: "destructive",
+            });
+            if (mounted) {
+              navigate("/");
+            }
             return;
           }
+          
+          if (user && user.email) {
+            console.log("Valid recovery flow for:", user.email);
+            setResetEmail(user.email);
+            setShowPasswordReset(true);
+            setIsLoadingCallback(false);
+          } else {
+            console.error("No user email found in recovery token");
+            toast({
+              title: "Password Reset Error",
+              description: "The password reset link is invalid or has expired. Please request a new one.",
+              variant: "destructive",
+            });
+            if (mounted) {
+              navigate("/");
+            }
+          }
+        } catch (error) {
+          console.error("Error processing recovery token:", error);
+          toast({
+            title: "Password Reset Error",
+            description: "There was an error processing your password reset. Please try again.",
+            variant: "destructive",
+          });
+          if (mounted) {
+            navigate("/");
+          }
         }
+        return;
+      }
 
+      // Handle regular auth callback
+      try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -55,20 +101,10 @@ const AuthCallback = () => {
             return;
           }
 
-          // Check for parameter indicating user needs to reset password (for Stripe payment link signups)
-          const needsPasswordReset = urlParams.get('reset_password');
-          
-          if (needsPasswordReset === 'true') {
-            // Check if user came from Stripe (has a stripe_customer_id)
-            if (session.user.user_metadata?.stripe_customer_id) {
-              console.log("User from Stripe payment link, redirecting to password reset");
-              if (mounted) navigate("/profile?setup=true");
-              return;
-            }
-          }
-
           console.log("Role verified, redirecting to home");
           if (mounted) navigate("/");
+        } else {
+          setIsLoadingCallback(false);
         }
       } catch (error) {
         console.error("Error in auth callback:", error);
@@ -86,7 +122,7 @@ const AuthCallback = () => {
     };
 
     // Handle the immediate callback
-    handleAuthCallback();
+    handlePasswordResetFlow();
 
     // Set up listener for future auth state changes
     const {
@@ -155,9 +191,16 @@ const AuthCallback = () => {
         <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-lg">
           <div className="text-center">
             <h2 className="text-3xl font-bold">Reset Your Password</h2>
-            <p className="mt-2 text-gray-600">
-              Please create a new password for your account
-            </p>
+            {resetEmail && (
+              <p className="mt-2 text-gray-600">
+                Create a new password for <span className="font-medium">{resetEmail}</span>
+              </p>
+            )}
+            {!resetEmail && (
+              <p className="mt-2 text-gray-600">
+                Please create a new password for your account
+              </p>
+            )}
           </div>
           <UpdatePasswordForm 
             onUpdatePassword={handleUpdatePassword}

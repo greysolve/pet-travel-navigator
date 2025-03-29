@@ -53,6 +53,9 @@ export function useAuthOperations() {
 
   const resetPasswordForEmail = async (email: string): Promise<{ error?: AuthError }> => {
     try {
+      // First, sign out any currently logged-in user to prevent conflicts
+      await supabase.auth.signOut();
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?reset_password=true`,
       });
