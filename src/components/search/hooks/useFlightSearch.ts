@@ -6,16 +6,19 @@ import { useSearchCount } from "./useSearchCount";
 import { ApiProvider } from "@/config/feature-flags";
 import type { FlightData } from "@/components/flight-results/types";
 import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
   const { user } = useAuth();
+  const { profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
-  // Determine if the user is a pet caddie based on subscription status
-  const isPetCaddie = false; // Replace with actual logic if needed
+  // Determine if the user is a pet caddie based on profile data
+  // Users with any plan are considered pet caddies who need to see search counts
+  const isPetCaddie = !!profile?.plan;
 
   /**
    * Handle flight search by calling the appropriate API based on provider
