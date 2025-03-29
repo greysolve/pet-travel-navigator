@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { ProfileError } from "./ProfileError";
-import { UserProfile } from "./types";
+import { UserProfile } from "@/types/auth";
 import { fetchProfile } from "./ProfileFetcher";
 
 /**

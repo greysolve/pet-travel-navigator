@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { UserProfile } from '@/types/auth';
-import { updateProfile } from '@/utils/profileManagement';
+import { updateProfile } from '@/utils/profile/ProfileUpdater';
 import { toast } from '@/components/ui/use-toast';
 
 export interface ProfileUpdateResult {
@@ -18,25 +18,35 @@ export function useProfileUpdater(
   const [isUpdating, setIsUpdating] = useState(false);
 
   const updateUserProfile = async (updates: Partial<UserProfile>) => {
-    const profile = updates.id ? updates : null;
+    // Check if we have a user ID to update
+    if (!updates.id && !currentUserId.current) {
+      console.error('Cannot update profile: No profile ID or current user ID');
+      return;
+    }
     
-    if (!profile?.id) {
-      console.error('Cannot update profile: No profile ID');
+    // Use either the provided ID or the current user ID
+    const profileId = updates.id || currentUserId.current;
+    
+    if (!profileId) {
+      console.error('Cannot update profile: Could not determine profile ID');
       return;
     }
 
     console.log('ProfileContext - Starting profile update:', {
-      profileId: profile.id,
+      profileId: profileId,
       updates: updates
     });
 
     setIsUpdating(true);
     setLoading(true);
-    const existingProfile = profile;
+    
+    // Create a complete profile object with the required ID
+    const existingProfile = { id: profileId, ...updates };
 
     try {
-      const updatedProfile = await updateProfile(profile.id, updates);
-      if (currentUserId.current === profile.id) {
+      // Ensure we pass a valid UserProfile with required id field
+      const updatedProfile = await updateProfile(profileId, updates);
+      if (currentUserId.current === profileId) {
         console.log('ProfileContext - Profile updated successfully:', updatedProfile);
         setProfile(updatedProfile);
         setInitialized(true);
@@ -48,7 +58,7 @@ export function useProfileUpdater(
     } catch (error) {
       console.error('ProfileContext - Error updating profile:', error);
       
-      if (currentUserId.current === profile.id) {
+      if (currentUserId.current === profileId) {
         setProfile(existingProfile);
         setInitialized(true);
         toast({
@@ -58,7 +68,7 @@ export function useProfileUpdater(
         });
       }
     } finally {
-      if (currentUserId.current === profile.id) {
+      if (currentUserId.current === profileId) {
         setLoading(false);
       }
       setIsUpdating(false);
