@@ -16,7 +16,7 @@ import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { profile } = useUser();
+  const { profile, profileInitialized, lifecycleState } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
   const { searchCount, isLoading: searchCountLoading } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
@@ -110,6 +110,13 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { data: flightPetPolicies } = usePetPolicies(flights);
   const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
 
+  console.log('SearchSection rendering:', { 
+    lifecycleState, 
+    profileInitialized, 
+    isPetCaddie, 
+    userRole: profile?.userRole 
+  });
+
   return (
     <div>
       <SearchFormContainer
@@ -142,6 +149,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
         onPolicySearch={handlePolicySearch}
         apiProvider={apiProvider}
         enableFallback={enableFallback}
+        profileInitialized={profileInitialized}
       />
     </div>
   );
