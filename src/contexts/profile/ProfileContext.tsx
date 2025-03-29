@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef } from 'react';
 import { UserProfile } from '@/types/auth';
 import { ProfileError } from '@/utils/profile/ProfileError';
 import { useProfileRefresh } from './useProfileRefresh';
@@ -28,7 +28,6 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
   const [error, setError] = useState<ProfileError | null>(initialProfileState.error);
   const [initialized, setInitialized] = useState(initialProfileState.initialized);
   const currentUserId = useRef<string | null>(null);
-  const initAttempts = useRef(0);
 
   // Handle profile refreshing
   const { refreshProfile, isRefreshing } = useProfileRefresh(
@@ -46,13 +45,10 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
     currentUserId
   );
 
-  // Define a clear callback for auth state changes
-  const handleAuthChange = useCallback(async (userId: string | null) => {
-    console.log('ProfileContext: Auth state changed, userId:', userId, 'current:', currentUserId.current);
-    
+  // Handle auth state changes and session restoration
+  const handleAuthChange = async (userId: string | null) => {
     if (userId === null) {
       // User signed out
-      console.log('ProfileContext: User signed out, clearing profile state');
       currentUserId.current = null;
       setProfile(null);
       setError(null);
@@ -61,53 +57,25 @@ export function ProfileProvider({ children }: ProfileProviderProps) {
       return;
     }
 
-    // If userId is the same, don't reload profile to avoid loops
-    if (userId === currentUserId.current && profile) {
-      console.log('ProfileContext: User ID unchanged and profile exists, skipping refresh');
-      return;
-    }
-
-    // Set the loading state
-    setLoading(true);
-    initAttempts.current++;
-    currentUserId.current = userId;
-    
-    try {
-      console.log('ProfileContext: Loading profile for user:', userId, '(attempt', initAttempts.current, ')');
+    if (userId !== currentUserId.current) {
+      currentUserId.current = userId;
       await refreshProfile(userId);
-    } catch (err) {
-      console.error('ProfileContext: Error in auth change handler:', err);
-      
-      // After multiple failed attempts, show error but let the app continue
-      if (initAttempts.current >= 3) {
-        setLoading(false);
-        setInitialized(true);
-      }
     }
-  }, [refreshProfile, profile]);
-
-  // Use the profile initializer to handle auth state changes
-  const { isRestoring } = useProfileInitializer(handleAuthChange);
-
-  const contextValue = {
-    profile,
-    loading: loading || isRestoring,
-    error,
-    initialized: initialized && !isRestoring,
-    updateProfile: updateUserProfile,
-    refreshProfile,
   };
 
-  console.log('ProfileContext rendering with state:', {
-    loading: contextValue.loading,
-    initialized: contextValue.initialized,
-    hasProfile: !!profile,
-    isRestoring,
-    userId: currentUserId.current
-  });
+  const { isRestoring } = useProfileInitializer(handleAuthChange);
 
   return (
-    <ProfileContext.Provider value={contextValue}>
+    <ProfileContext.Provider
+      value={{
+        profile,
+        loading: loading || isRestoring,
+        error,
+        initialized: initialized && !isRestoring,
+        updateProfile: updateUserProfile,
+        refreshProfile,
+      }}
+    >
       {children}
     </ProfileContext.Provider>
   );

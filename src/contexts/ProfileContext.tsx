@@ -1,6 +1,5 @@
 
-// This file redirects to the new location
-// This helps maintain backward compatibility for imports still using the old path
+// This file is a redirection to the new location
+// This helps maintain backward compatibility for any imports still using the old path
 
-export { ProfileProvider, useProfile, type UserProfile } from './profile/ProfileContext';
-
+export { ProfileProvider, useProfile } from './profile/ProfileContext';
