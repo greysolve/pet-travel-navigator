@@ -4,7 +4,7 @@ import { FlightResults } from "./flight-results/FlightResults";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
 import { PolicyDetails } from "./flight-results/PolicyDetails";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { Dialog, DialogContent } from "@/components/ui/dialog";

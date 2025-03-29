@@ -1,6 +1,6 @@
 
-import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { useFlightSearch } from "./search/hooks/useFlightSearch";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";

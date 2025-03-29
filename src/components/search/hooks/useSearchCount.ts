@@ -1,64 +1,35 @@
-
-import { useState, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { UserProfile } from "@/types/auth";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 
-export const useSearchCount = (profile: UserProfile | null) => {
-  const { toast } = useToast();
-  const [searchCount, setSearchCount] = useState<number | undefined>(profile?.search_count);
+export const useSearchCount = (userId: string | undefined) => {
+  const { profile } = useProfile();
 
-  useEffect(() => {
-    setSearchCount(profile?.search_count);
-  }, [profile?.search_count]);
+  return useQuery(
+    ["searchCount", userId],
+    async () => {
+      if (!userId || !profile?.plan) {
+        return 0;
+      }
 
-  const decrementSearchCount = useCallback(async () => {
-    if (!profile?.id) {
-      toast({
-        title: "Error",
-        description: "Could not decrement search count: user not found",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (profile.search_count === undefined || profile.search_count <= 0) {
-      toast({
-        title: "No searches remaining",
-        description: "You have reached your search limit. Please upgrade your plan.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ search_count: profile.search_count - 1 })
-        .eq('id', profile.id);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("search_count")
+        .eq("id", userId)
+        .single();
 
       if (error) {
-        console.error("Error decrementing search count:", error);
-        toast({
-          title: "Error",
-          description: "Failed to update search count. Please try again.",
-          variant: "destructive",
-        });
-        return false;
-      } else {
-        setSearchCount(profile.search_count - 1);
-        return true;
+        console.error("Error fetching search count:", error);
+        return 0;
       }
-    } catch (error) {
-      console.error("Unexpected error decrementing search count:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  }, [profile, toast]);
 
-  return { searchCount, decrementSearchCount };
+      return data?.search_count || 0;
+    },
+    {
+      enabled: !!userId && !!profile?.plan,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
 };

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useSingleAirlinePolicy } from "@/components/flight-results/PolicyFetcher";
 import { ApiProvider } from "@/config/feature-flags";
