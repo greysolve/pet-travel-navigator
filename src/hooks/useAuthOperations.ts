@@ -61,8 +61,9 @@ export function useAuthOperations() {
       
       console.log('Starting password reset for:', email);
       
+      // Updated to redirect to the callback page with a reset_password flag
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo: `${window.location.origin}/auth/callback?reset_password=true`,
       });
 
       if (error) {

@@ -34,7 +34,11 @@ const PasswordReset = () => {
         const type = hashParams.get('type');
         
         if (!accessToken || !refreshToken || type !== 'recovery') {
-          console.error("Invalid or missing token parameters");
+          console.error("Invalid or missing token parameters:", { 
+            hasAccessToken: !!accessToken, 
+            hasRefreshToken: !!refreshToken, 
+            type 
+          });
           setTokenError("The password reset link is invalid or has expired. Please request a new one.");
           setIsLoadingCallback(false);
           return;

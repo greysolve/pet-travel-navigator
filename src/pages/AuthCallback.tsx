@@ -22,9 +22,13 @@ const AuthCallback = () => {
         const type = urlParams.get('type');
         
         // If this is a password reset callback, redirect to the dedicated reset page
+        // and preserve the hash fragment which contains the tokens
         if (resetPassword || type === 'recovery') {
-          console.log("Password reset detected, redirecting to dedicated reset page");
-          navigate("/auth/reset-password");
+          console.log("Password reset detected, redirecting to dedicated reset page with hash preserved");
+          
+          // Important: Use replace to preserve the hash fragment containing the tokens
+          const redirectUrl = `/auth/reset-password${window.location.hash}`;
+          window.location.replace(redirectUrl);
           return;
         }
         
