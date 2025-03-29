@@ -1,9 +1,8 @@
 
-import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from '@/contexts/user/UserContext';
 import { ApiProvider } from "@/config/feature-flags";
 import { useUserSearchCount } from "./useUserSearchCount";
 import { useSavedSearches } from "./useSavedSearches";
-import { useUser } from "@/contexts/user/UserContext";
 import { useToast } from "@/hooks/use-toast";
 
 export const useSearchHandler = ({
@@ -31,7 +30,7 @@ export const useSearchHandler = ({
 
     try {
       // Save search if needed
-      if (shouldSaveSearch) {
+      if (shouldSaveSearch && user) {
         await saveFlight(origin, destination, date, passengers);
       }
 
@@ -58,7 +57,7 @@ export const useSearchHandler = ({
 
     try {
       // Save search if needed
-      if (shouldSaveSearch) {
+      if (shouldSaveSearch && user) {
         await saveFlight(origin, destination, date, passengers);
       }
 
@@ -87,13 +86,22 @@ export const useSearchHandler = ({
 
   // Check if the user can perform a search
   const canSearch = () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     // Admin users can always search
     if (profile?.userRole === 'site_manager' || isUnlimited) {
       return true;
     }
 
     // Check search count for other users
-    if ((searchCount !== undefined && searchCount <= 0) || !user) {
+    if (searchCount !== undefined && searchCount <= 0) {
       toast({
         title: "Search limit reached",
         description: "You have used all your available searches. Please upgrade to continue searching.",

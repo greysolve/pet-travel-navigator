@@ -25,9 +25,6 @@ export function useAuthOperations() {
 
   const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
     try {
-      await supabase.auth.signOut();
-      clearAuthData();
-      
       console.log('Starting email sign-in for:', email);
       
       const { error } = await supabase.auth.signInWithPassword({
@@ -60,13 +57,8 @@ export function useAuthOperations() {
 
   const resetPasswordForEmail = async (email: string): Promise<{ error?: AuthError }> => {
     try {
-      await supabase.auth.signOut();
-      clearAuthData();
-      
       console.log('Starting password reset for:', email);
       
-      // Removed the redirectTo parameter, letting Supabase handle the redirect
-      // based on email templates and the AuthConfirm component
       const { error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) {
@@ -132,9 +124,6 @@ export function useAuthOperations() {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      await supabase.auth.signOut();
-      clearAuthData();
-      
       console.log('Starting sign-up for:', email);
       
       const { error } = await supabase.auth.signUp({
@@ -172,8 +161,7 @@ export function useAuthOperations() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      const cleared = clearAuthData();
-      console.log('Auth data cleared:', cleared);
+      console.log('Auth data cleared');
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({

@@ -24,48 +24,11 @@ export const clearAuthData = () => {
   try {
     if (typeof window === 'undefined') return true;
     
-    console.log('Clearing all auth data from localStorage...');
+    console.log('Clearing auth data from localStorage...');
     
     // Remove our specific auth token
     localStorage.removeItem('pet-travel-auth-token');
     
-    // Clear any other auth-related data that might be in localStorage
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (
-        key.includes('supabase') || 
-        key.includes('auth') || 
-        key.includes('sb-') || 
-        key.includes('token') ||
-        key.includes('access') ||
-        key.includes('refresh')
-      )) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    keysToRemove.forEach(key => {
-      console.log('Removing auth-related localStorage key:', key);
-      localStorage.removeItem(key);
-    });
-    
-    // Remove any session cookies that might be set
-    if (document.cookie) {
-      const cookies = document.cookie.split(';');
-      cookies.forEach(cookie => {
-        const cookieName = cookie.split('=')[0].trim();
-        if (
-          cookieName.includes('supabase') || 
-          cookieName.includes('auth') || 
-          cookieName.includes('sb-')
-        ) {
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-        }
-      });
-    }
-    
-    console.log('Auth data cleared successfully');
     return true;
   } catch (error) {
     console.error('Error clearing auth data:', error);
