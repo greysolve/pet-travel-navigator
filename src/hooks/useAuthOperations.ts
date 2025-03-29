@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, clearAuthData } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { AuthError } from "@supabase/supabase-js";
 
@@ -53,11 +53,16 @@ export function useAuthOperations() {
 
   const resetPasswordForEmail = async (email: string): Promise<{ error?: AuthError }> => {
     try {
-      // First, sign out any currently logged-in user to prevent conflicts
+      // Force sign out before initiating password reset
       await supabase.auth.signOut();
       
+      // Clear all authentication data to prevent any lingering sessions
+      clearAuthData();
+      
+      console.log('Starting password reset for:', email);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?reset_password=true`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) {
@@ -88,6 +93,7 @@ export function useAuthOperations() {
 
   const updatePassword = async (newPassword: string): Promise<{ error?: AuthError }> => {
     try {
+      console.log('Updating password...');
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -152,6 +158,9 @@ export function useAuthOperations() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Clear all auth data to ensure complete sign out
+      clearAuthData();
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({

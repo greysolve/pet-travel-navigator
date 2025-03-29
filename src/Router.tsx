@@ -13,6 +13,7 @@ import USPetTravel from "@/pages/USPetTravel";
 import EUPetPassport from "@/pages/EUPetPassport";
 import Contact from "@/pages/Contact";
 import AuthCallback from "@/pages/AuthCallback";
+import PasswordReset from "@/pages/PasswordReset";
 import AuthDialog from "@/components/AuthDialog";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -66,6 +67,10 @@ const router = createBrowserRouter([
       {
         path: "/auth/callback",
         element: <AuthCallback />,
+      },
+      {
+        path: "/auth/reset-password",
+        element: <PasswordReset />,
       },
       {
         // Protected routes group

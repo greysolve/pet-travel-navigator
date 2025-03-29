@@ -15,5 +15,28 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     storage: window?.localStorage, // Use localStorage for session persistence
     storageKey: 'pet-travel-auth-token',
+    flowType: 'pkce', // Use PKCE flow for enhanced security
   }
 });
+
+// Function to clear authentication data completely
+export const clearAuthData = () => {
+  try {
+    localStorage.removeItem('pet-travel-auth-token');
+    // Clear any other auth-related data that might be in localStorage
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('supabase') || key.includes('auth'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    console.log('Auth data cleared successfully');
+    return true;
+  } catch (error) {
+    console.error('Error clearing auth data:', error);
+    return false;
+  }
+};
