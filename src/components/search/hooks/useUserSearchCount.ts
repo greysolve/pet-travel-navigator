@@ -23,6 +23,12 @@ export function useUserSearchCount() {
         return null;
       }
 
+      // Admin users always have unlimited searches, represented as -1
+      if (profile?.userRole === 'site_manager') {
+        console.log('UserSearchCount: User is an admin, returning unlimited searches');
+        return -1; // Special value to indicate unlimited searches
+      }
+
       console.log('UserSearchCount: Fetching search count for user:', user.id);
       const { data, error } = await supabase
         .from('profiles')
@@ -47,9 +53,10 @@ export function useUserSearchCount() {
   // Return search count from profile if available (as a fallback)
   // and also include whether we're still loading profile data
   return {
-    searchCount: searchCountQuery.data ?? profile?.search_count ?? 0,
+    searchCount: profile?.userRole === 'site_manager' ? -1 : (searchCountQuery.data ?? profile?.search_count ?? 0),
     isLoading: searchCountQuery.isLoading,
     isPlanReady: !!profile?.plan,
     error: searchCountQuery.error,
+    isUnlimited: profile?.userRole === 'site_manager',
   };
 }

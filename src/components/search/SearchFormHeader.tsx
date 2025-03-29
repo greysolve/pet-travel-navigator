@@ -1,3 +1,4 @@
+
 import { Loader2, ArrowUp, Infinity, Users, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
@@ -52,14 +53,16 @@ export const SearchFormHeader = ({
       // Get user plan from profile, not directly from user
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('plan')
+        .select('plan, userRole:user_roles(role)')
         .eq('id', user.id)
         .single();
         
-      if (profileError || !profile || !profile.plan) {
+      if (profileError || !profile) {
         console.error("Error fetching user profile:", profileError);
         return;
       }
+      
+      if (!profile.plan) return;
       
       setIsLoadingPlan(true);
       try {
@@ -88,41 +91,14 @@ export const SearchFormHeader = ({
 
   if (!user) return null;
 
+  // Check if search count is -1, which means unlimited searches
+  const hasUnlimitedSearches = searchCount === -1;
+
   return (
     <div className="flex justify-between items-center mb-4">
       <div className="flex items-center gap-3 text-sm">
-        {isPetCaddie && (
-          <>
-            {isLoadingPlan ? (
-              <span className="flex items-center">
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                <span className="text-muted-foreground">Loading plan...</span>
-              </span>
-            ) : planDetails?.is_search_unlimited ? (
-              <span className="flex items-center">
-                <Infinity className="mr-1 h-4 w-4 text-green-500" />
-                <span className="text-muted-foreground">Unlimited searches</span>
-              </span>
-            ) : (
-              <span className="text-muted-foreground">
-                Remaining searches: {searchCount ?? 0}
-              </span>
-            )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="text-orange hover:text-orange border-orange hover:bg-orange/10 ml-2" 
-              asChild
-            >
-              <Link to="/pricing">
-                <ArrowUp className="mr-1 h-4 w-4" />
-                Upgrade
-              </Link>
-            </Button>
-          </>
-        )}
-        
-        <div className="flex items-center gap-2 ml-4">
+        {/* Passenger Selection */}
+        <div className="flex items-center gap-2">
           <span className="text-muted-foreground flex items-center">
             <Users className="h-4 w-4 mr-1" />
             Passengers:
@@ -149,7 +125,41 @@ export const SearchFormHeader = ({
             </Button>
           </div>
         </div>
+        
+        {/* Search Count / Plan Info */}
+        {isPetCaddie && (
+          <div className="flex items-center ml-4">
+            {isLoadingPlan ? (
+              <span className="flex items-center">
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                <span className="text-muted-foreground">Loading plan...</span>
+              </span>
+            ) : hasUnlimitedSearches || planDetails?.is_search_unlimited ? (
+              <span className="flex items-center">
+                <Infinity className="mr-1 h-4 w-4 text-green-500" />
+                <span className="text-muted-foreground">Unlimited searches</span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Remaining searches: {searchCount ?? 0}
+              </span>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-orange hover:text-orange border-orange hover:bg-orange/10 ml-2" 
+              asChild
+            >
+              <Link to="/pricing">
+                <ArrowUp className="mr-1 h-4 w-4" />
+                Upgrade
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
+      
+      {/* Saved Searches Dropdown */}
       <SavedSearchesDropdown
         savedSearches={savedSearches}
         onLoadSearch={onLoadSearch}
