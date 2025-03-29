@@ -1,3 +1,4 @@
+
 import { supabase, clearAuthData } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { AuthError } from "@supabase/supabase-js";
@@ -64,9 +65,9 @@ export function useAuthOperations() {
       
       console.log('Starting password reset for:', email);
       
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/confirm?type=recovery&next=/auth/reset-password`,
-      });
+      // Removed the redirectTo parameter, letting Supabase handle the redirect
+      // based on email templates and the AuthConfirm component
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) {
         console.error('Password reset error:', error);
