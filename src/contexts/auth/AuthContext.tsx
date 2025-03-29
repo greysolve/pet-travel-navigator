@@ -1,11 +1,15 @@
 
-import React, { createContext, useContext, useReducer } from 'react';
-import { authReducer, initialAuthState, AuthState } from './AuthState';
-import { useAuthInitializer } from './useAuthInitializer';
-import { useAuthStateListener } from './useAuthStateListener';
+import React, { createContext, useContext } from 'react';
+import { useUser } from '../user/UserContext';
 import { useAuthOperations } from '@/hooks/useAuthOperations';
+import type { Session, User, AuthError } from '@supabase/supabase-js';
 
-interface AuthContextType extends AuthState {
+interface AuthContextType {
+  session: Session | null;
+  user: User | null;
+  loading: boolean;
+  initialized: boolean;
+  error: AuthError | Error | null;
   signIn: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: any }>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
@@ -17,19 +21,17 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(authReducer, initialAuthState);
+  const { user, session, authLoading, initialized, authError } = useUser();
   const authOperations = useAuthOperations();
   
-  // Initialize auth state
-  useAuthInitializer(dispatch, state.isRestoring);
-  
-  // Set up auth state change listener
-  useAuthStateListener(dispatch, state.isRestoring);
-
   return (
     <AuthContext.Provider
       value={{
-        ...state,
+        session,
+        user,
+        loading: authLoading,
+        initialized,
+        error: authError,
         ...authOperations,
       }}
     >

@@ -1,6 +1,5 @@
 
 import { useAuth } from "@/contexts/auth/AuthContext";
-import { useProfile } from "@/contexts/profile/ProfileContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { useFlightSearch } from "./search/hooks/useFlightSearch";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
@@ -11,12 +10,13 @@ import { SearchFormContainer } from "./search/SearchFormContainer";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { loading: profileLoading, initialized } = useProfile();
-  const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
+  const { isSearchLoading, isPetCaddie, handleFlightSearch } = useFlightSearch();
+  const { searchCount, isLoading: searchCountLoading } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   
@@ -59,7 +59,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     enableFallback,
   });
 
-  const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
+  const isLoading = authLoading || isSearchLoading || searchCountLoading;
 
   const handleLoadSearch = (searchCriteria: any) => {
     if (!user) {

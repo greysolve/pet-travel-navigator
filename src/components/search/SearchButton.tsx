@@ -1,17 +1,16 @@
 
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 import { useAuthDialog } from "@/hooks/useAuthDialog";
 
 interface SearchButtonProps {
   isLoading: boolean;
-  isProfileLoading: boolean;
   onClick: () => void;
 }
 
-export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchButtonProps) => {
-  const { user } = useAuth();
+export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
+  const { user, profileLoading, lifecycleState } = useUser();
   const { showAuthDialog } = useAuthDialog();
 
   const handleButtonClick = () => {
@@ -23,11 +22,14 @@ export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchBut
     }
   };
 
+  // Determine if the button should be disabled
+  const isButtonDisabled = user ? (isLoading || profileLoading) : false;
+
   return (
     <Button 
       className="w-full h-12 mt-4 text-base font-medium bg-primary hover:bg-primary/90"
       onClick={handleButtonClick}
-      disabled={user ? (isLoading || isProfileLoading) : false}
+      disabled={isButtonDisabled}
     >
       {user ? (
         isLoading ? (
@@ -35,7 +37,7 @@ export const SearchButton = ({ isLoading, isProfileLoading, onClick }: SearchBut
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Searching...
           </>
-        ) : isProfileLoading ? (
+        ) : profileLoading ? (
           <>
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Loading Profile...
