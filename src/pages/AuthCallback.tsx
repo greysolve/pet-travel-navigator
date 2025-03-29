@@ -45,7 +45,7 @@ const AuthCallback = () => {
           });
           if (mounted) {
             console.log("AuthCallback: Redirecting to home due to session error");
-            window.location.href = "/";
+            navigate("/");
           }
           return;
         }
@@ -72,7 +72,7 @@ const AuthCallback = () => {
 
             console.log("AuthCallback: Role verified, redirecting to home");
             if (mounted) {
-              window.location.href = "/";
+              navigate("/");
             }
           } catch (error) {
             console.error("AuthCallback: Error verifying user role:", error);
@@ -84,13 +84,13 @@ const AuthCallback = () => {
               variant: "destructive",
             });
             if (mounted) {
-              window.location.href = "/";
+              navigate("/");
             }
           }
         } else {
           console.log("AuthCallback: No session found, redirecting to home");
           if (mounted) {
-            window.location.href = "/";
+            navigate("/");
           }
         }
       } catch (error) {
@@ -101,7 +101,7 @@ const AuthCallback = () => {
           variant: "destructive",
         });
         if (mounted) {
-          window.location.href = "/";
+          navigate("/");
         }
       } finally {
         if (mounted) {
@@ -113,50 +113,9 @@ const AuthCallback = () => {
     // Handle the callback
     handleAuthCallback();
 
-    // Set up listener for auth state changes (mainly for sign-in completion)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      
-      console.log("AuthCallback: Auth state changed:", event);
-      if (event === "SIGNED_IN" && session) {
-        try {
-          console.log("AuthCallback: User signed in, verifying profile for user ID:", session.user.id);
-          const { data: profile, error: profileError } = await supabase.rpc('get_profile_with_role', {
-            p_user_id: session.user.id
-          });
-
-          console.log("AuthCallback: Profile RPC response on auth state change:", { profile, error: profileError });
-
-          if (profileError || !profile) {
-            console.error("AuthCallback: No valid profile found for user:", profileError);
-            await supabase.auth.signOut();
-            clearAuthData();
-            toast({
-              title: "Authentication Error",
-              description: "Unable to verify your user role. Please contact support.",
-              variant: "destructive",
-            });
-            if (mounted) window.location.href = "/";
-            return;
-          }
-
-          if (mounted) {
-            console.log("AuthCallback: Auth state change - signed in with valid role, redirecting to home");
-            window.location.href = "/";
-          }
-        } catch (error) {
-          console.error("AuthCallback: Error verifying profile on auth state change:", error);
-          if (mounted) window.location.href = "/";
-        }
-      }
-    });
-
-    // Cleanup subscription and prevent state updates after unmount
+    // Cleanup function
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, [navigate]);
 

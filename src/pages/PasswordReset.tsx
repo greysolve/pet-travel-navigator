@@ -33,6 +33,12 @@ const PasswordReset = () => {
         const refreshTokenFromUrl = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         
+        console.log("PasswordReset: Token info:", { 
+          hasAccessToken: !!accessTokenFromUrl, 
+          hasRefreshToken: !!refreshTokenFromUrl, 
+          type 
+        });
+        
         if (!accessTokenFromUrl || !refreshTokenFromUrl || type !== 'recovery') {
           console.error("Invalid or missing token parameters:", { 
             hasAccessToken: !!accessTokenFromUrl, 
@@ -60,7 +66,7 @@ const PasswordReset = () => {
           const payload = JSON.parse(jsonPayload);
           const email = payload.email;
           
-          console.log("PasswordReset: Valid recovery token for:", email);
+          console.log("PasswordReset: Valid recovery token for email:", email);
           setResetEmail(email);
           setTokenValid(true);
           setIsLoadingCallback(false);
@@ -90,25 +96,32 @@ const PasswordReset = () => {
         throw new Error("Missing recovery tokens. Please try again with a new reset link.");
       }
       
-      // Only set the session temporarily to update the password
+      console.log("PasswordReset: Starting password update process...");
+      
+      // Create a temporary session just for the password update
+      // Important: This session will be immediately terminated after the update
       const { data, error: sessionError } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken
       });
       
       if (sessionError) {
+        console.error("PasswordReset: Error setting temporary session:", sessionError);
         throw sessionError;
       }
       
       if (!data.session) {
+        console.error("PasswordReset: Failed to create temporary session");
         throw new Error("Failed to authenticate with recovery tokens");
       }
       
       // Verify that the authenticated user matches the expected email
       if (data.session.user.email !== resetEmail) {
-        console.error(`Token mismatch: Expected ${resetEmail} but got ${data.session.user.email}`);
+        console.error(`PasswordReset: Token mismatch: Expected ${resetEmail} but got ${data.session.user.email}`);
         throw new Error("Security error: User mismatch");
       }
+      
+      console.log("PasswordReset: Temporary session created for user:", data.session.user.email);
       
       // Update the password
       const { error } = await supabase.auth.updateUser({
@@ -116,22 +129,25 @@ const PasswordReset = () => {
       });
       
       if (error) {
+        console.error("PasswordReset: Error updating password:", error);
         throw error;
       }
+      
+      console.log("PasswordReset: Password updated successfully");
+      
+      // Sign out immediately and clear all auth data to ensure no lingering session
+      await supabase.auth.signOut();
+      clearAuthData();
       
       toast({
         title: "Password Updated",
         description: "Your password has been successfully updated. You can now sign in with your new password.",
       });
       
-      // Sign out immediately and clear all auth data
-      await supabase.auth.signOut();
-      clearAuthData();
-      
       // Redirect to home
       navigate("/");
     } catch (error: any) {
-      console.error("Error updating password:", error);
+      console.error("PasswordReset: Error in password update process:", error);
       
       // Ensure we're signed out in case of error
       await supabase.auth.signOut();

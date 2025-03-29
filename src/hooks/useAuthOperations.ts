@@ -25,6 +25,13 @@ export function useAuthOperations() {
 
   const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
     try {
+      // Clear any existing session before attempting to sign in
+      // This helps prevent session conflicts
+      await supabase.auth.signOut();
+      clearAuthData();
+      
+      console.log('Starting email sign-in for:', email);
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -37,6 +44,8 @@ export function useAuthOperations() {
           description: error.message,
           variant: "destructive",
         });
+      } else {
+        console.log('Email sign-in successful');
       }
 
       return { error };
@@ -74,6 +83,7 @@ export function useAuthOperations() {
           variant: "destructive",
         });
       } else {
+        console.log('Password reset email sent successfully');
         toast({
           title: "Reset email sent",
           description: "Check your email for a password reset link",
@@ -107,6 +117,7 @@ export function useAuthOperations() {
           variant: "destructive",
         });
       } else {
+        console.log('Password updated successfully');
         toast({
           title: "Password updated",
           description: "Your password has been successfully updated.",
@@ -127,6 +138,12 @@ export function useAuthOperations() {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
+      // Clear any existing session first
+      await supabase.auth.signOut();
+      clearAuthData();
+      
+      console.log('Starting sign-up for:', email);
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -140,6 +157,7 @@ export function useAuthOperations() {
 
       if (error) throw error;
 
+      console.log('Sign-up successful');
       toast({
         title: "Success",
         description: "Please check your email to verify your account.",
@@ -157,11 +175,13 @@ export function useAuthOperations() {
 
   const signOut = async () => {
     try {
+      console.log('Starting sign-out process');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
       // Clear all auth data to ensure complete sign out
-      clearAuthData();
+      const cleared = clearAuthData();
+      console.log('Auth data cleared:', cleared);
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
