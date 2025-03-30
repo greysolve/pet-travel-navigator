@@ -1,4 +1,3 @@
-
 import type { Json } from "@/integrations/supabase/types";
 
 export type FlightLocation = {
