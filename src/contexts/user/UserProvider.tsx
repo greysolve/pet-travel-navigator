@@ -16,6 +16,7 @@ interface UserContextType extends UserState {
 export const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  // Ensure React is imported and useReducer is called properly
   const [state, dispatch] = useReducer(userReducer, initialUserState);
   const lifecycleState = getAuthLifecycleState(state);
   

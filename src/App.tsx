@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import Router from "./Router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,18 +20,20 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <UserProvider>
-        <AuthProvider>
-          <ProfileProvider>
-            <SystemConfigProvider>
-              <Router />
-              <Toaster />
-            </SystemConfigProvider>
-          </ProfileProvider>
-        </AuthProvider>
-      </UserProvider>
-    </QueryClientProvider>
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <UserProvider>
+          <AuthProvider>
+            <ProfileProvider>
+              <SystemConfigProvider>
+                <Router />
+                <Toaster />
+              </SystemConfigProvider>
+            </ProfileProvider>
+          </AuthProvider>
+        </UserProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
   );
 }
 
