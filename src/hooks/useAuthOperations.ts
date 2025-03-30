@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, clearAuthData } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { AuthError } from "@supabase/supabase-js";
 
@@ -25,6 +25,8 @@ export function useAuthOperations() {
 
   const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
     try {
+      console.log('Starting email sign-in for:', email);
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -37,6 +39,8 @@ export function useAuthOperations() {
           description: error.message,
           variant: "destructive",
         });
+      } else {
+        console.log('Email sign-in successful');
       }
 
       return { error };
@@ -51,8 +55,77 @@ export function useAuthOperations() {
     }
   };
 
+  const resetPasswordForEmail = async (email: string): Promise<{ error?: AuthError }> => {
+    try {
+      console.log('Starting password reset for:', email);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+      if (error) {
+        console.error('Password reset error:', error);
+        toast({
+          title: "Error resetting password",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        console.log('Password reset email sent successfully');
+        toast({
+          title: "Reset email sent",
+          description: "Check your email for a password reset link",
+        });
+      }
+
+      return { error };
+    } catch (error: any) {
+      console.error('Unexpected reset password error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const updatePassword = async (newPassword: string): Promise<{ error?: AuthError }> => {
+    try {
+      console.log('Updating password...');
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        console.error('Update password error:', error);
+        toast({
+          title: "Error updating password",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        console.log('Password updated successfully');
+        toast({
+          title: "Password updated",
+          description: "Your password has been successfully updated.",
+        });
+      }
+
+      return { error };
+    } catch (error: any) {
+      console.error('Unexpected update password error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
+      console.log('Starting sign-up for:', email);
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -66,6 +139,7 @@ export function useAuthOperations() {
 
       if (error) throw error;
 
+      console.log('Sign-up successful');
       toast({
         title: "Success",
         description: "Please check your email to verify your account.",
@@ -83,8 +157,11 @@ export function useAuthOperations() {
 
   const signOut = async () => {
     try {
+      console.log('Starting sign-out process');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      console.log('Auth data cleared');
     } catch (error: any) {
       console.error('Sign out error:', error);
       toast({
@@ -101,5 +178,7 @@ export function useAuthOperations() {
     signInWithEmail,
     signUp,
     signOut,
+    resetPasswordForEmail,
+    updatePassword,
   };
 }

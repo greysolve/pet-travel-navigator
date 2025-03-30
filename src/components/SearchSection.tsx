@@ -1,22 +1,33 @@
 
-import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
-import { useFlightSearch } from "./search/FlightSearchHandler";
+import { useFlightSearch } from "./search/hooks/useFlightSearch";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
 import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
 import { useSearchValidation } from "./search/hooks/useSearchValidation";
 import { useSearchHandler } from "./search/hooks/useSearchHandler";
 import { SearchFormContainer } from "./search/SearchFormContainer";
 import { getSearchCountries } from "./search/search-utils/policyCalculations";
+import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
+import { useAppSettings } from "@/hooks/useAppSettings";
+import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
+import { useUser } from "@/contexts/user/UserContext";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const { user, loading: authLoading } = useAuth();
-  const { loading: profileLoading, initialized } = useProfile();
-  const { isSearchLoading, searchCount, isPetCaddie, handleFlightSearch } = useFlightSearch();
+  const { user } = useAuth();
+  const { profile } = useUser();
+  const { isSearchLoading, handleFlightSearch } = useFlightSearch();
+  const { searchCount, isPlanReady } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
+  
+  // Use app settings for API provider
+  const { apiProvider = DEFAULT_API_PROVIDER, enableFallback = false } = useAppSettings();
+  
+  // Determine if user is a pet caddie (has a plan) or an admin
+  const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
+  
   const {
     policySearch,
     setPolicySearch,
@@ -30,25 +41,36 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setFlights,
     shouldSaveSearch,
     setShouldSaveSearch,
+    passengers,
+    setPassengers,
     clearRouteSearch,
     clearPolicySearch,
     toast
   } = useFlightSearchState(user?.id);
 
-  const { handlePolicySearch, handleRouteSearch } = useSearchHandler({
+  const { handlePolicySearch, handleRouteSearch, isLoading: isSearchHandlerLoading } = useSearchHandler({
     user,
     toast,
     policySearch,
     origin,
     destination,
     date,
+    passengers,
     shouldSaveSearch,
     setFlights,
     handleFlightSearch,
     onSearchResults,
+    apiProvider,
+    enableFallback,
   });
 
-  const isLoading = authLoading || profileLoading || !initialized || isSearchLoading;
+  // Combine all loading states to determine overall loading status
+  const isLoading = isSearchLoading || isSearchHandlerLoading;
+  
+  console.log('SearchSection - Profile state:', { 
+    isPetCaddie, 
+    searchCount
+  });
 
   const handleLoadSearch = (searchCriteria: any) => {
     if (!user) {
@@ -64,6 +86,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setOrigin(searchCriteria.origin || "");
     setDestination(searchCriteria.destination || "");
     setDate(searchCriteria.date ? new Date(searchCriteria.date) : undefined);
+    setPassengers(searchCriteria.passengers || 1);
     setPolicySearch(""); // Clear any airline policy search when loading a route search
   };
 
@@ -94,32 +117,38 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
 
   return (
-    <SearchFormContainer
-      user={user}
-      isPetCaddie={isPetCaddie}
-      searchCount={searchCount}
-      savedSearches={savedSearches}
-      isLoading={isLoading}
-      policySearch={policySearch}
-      setPolicySearch={setPolicySearch}
-      hasRouteSearch={hasRouteSearch}
-      clearRouteSearch={clearRouteSearch}
-      origin={origin}
-      destination={destination}
-      setOrigin={setOrigin}
-      setDestination={setDestination}
-      date={date}
-      setDate={setDate}
-      clearPolicySearch={clearPolicySearch}
-      shouldSaveSearch={shouldSaveSearch}
-      setShouldSaveSearch={setShouldSaveSearch}
-      toast={toast}
-      onSearchResults={onSearchResults}
-      setFlights={setFlights}
-      onLoadSearch={handleLoadSearch}
-      handleDeleteSearch={handleDeleteSearch}
-      handleSearch={handleSearch}
-      onPolicySearch={handlePolicySearch}
-    />
+    <div>
+      <SearchFormContainer
+        user={user}
+        isPetCaddie={isPetCaddie}
+        searchCount={searchCount as number}
+        savedSearches={savedSearches}
+        isLoading={isLoading}
+        policySearch={policySearch}
+        setPolicySearch={setPolicySearch}
+        hasRouteSearch={hasRouteSearch}
+        clearRouteSearch={clearRouteSearch}
+        origin={origin}
+        destination={destination}
+        setOrigin={setOrigin}
+        setDestination={setDestination}
+        date={date}
+        setDate={setDate}
+        clearPolicySearch={clearPolicySearch}
+        shouldSaveSearch={shouldSaveSearch}
+        setShouldSaveSearch={setShouldSaveSearch}
+        passengers={passengers}
+        setPassengers={setPassengers}
+        toast={toast}
+        onSearchResults={onSearchResults}
+        setFlights={setFlights}
+        onLoadSearch={handleLoadSearch}
+        handleDeleteSearch={handleDeleteSearch}
+        handleSearch={handleSearch}
+        onPolicySearch={handlePolicySearch}
+        apiProvider={apiProvider}
+        enableFallback={enableFallback}
+      />
+    </div>
   );
 };

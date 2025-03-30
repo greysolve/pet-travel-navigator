@@ -1,5 +1,6 @@
 
-import { isPremiumField, PremiumField } from "./PremiumField";
+import { isPremiumContent } from "../types";
+import { PremiumField } from "./PremiumField";
 import { PolicyValue } from "./PolicyValue";
 
 interface PolicyFieldProps {
@@ -8,7 +9,7 @@ interface PolicyFieldProps {
 }
 
 export const PolicyField = ({ value, label }: PolicyFieldProps) => {
-  if (isPremiumField(value)) {
+  if (isPremiumContent(value)) {
     return <PremiumField value={value} label={label} />;
   }
   return <PolicyValue value={value} />;

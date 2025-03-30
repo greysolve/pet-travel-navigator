@@ -1,26 +1,9 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import type { FlightData, PetPolicy } from "../../flight-results/types";
-import type { ToastFunction } from "@/hooks/use-toast";
-
-interface SearchHandlerProps {
-  user: any;
-  toast: ToastFunction;
-  policySearch: string;
-  origin: string;
-  destination: string;
-  date: Date | undefined;
-  shouldSaveSearch: boolean;
-  setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: (
-    origin: string, 
-    destination: string, 
-    date: Date, 
-    onResults: (results: FlightData[], policies?: Record<string, PetPolicy>) => void,
-    onComplete?: () => void
-  ) => Promise<FlightData[]>;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
-}
+import { useUser } from '@/contexts/user/UserContext';
+import { ApiProvider } from "@/config/feature-flags";
+import { useUserSearchCount } from "./useUserSearchCount";
+import { useSavedSearches } from "./useSavedSearches";
+import { useToast } from "@/hooks/use-toast";
 
 export const useSearchHandler = ({
   user,
@@ -29,119 +12,121 @@ export const useSearchHandler = ({
   origin,
   destination,
   date,
+  passengers,
   shouldSaveSearch,
   setFlights,
   handleFlightSearch,
   onSearchResults,
-}: SearchHandlerProps) => {
+  apiProvider,
+  enableFallback,
+}) => {
+  const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
+  const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
+  const { profile, profileLoading } = useUser();
+  
+  // Determine if we are still loading profile data
+  const isLoading = profileLoading || isSearchCountLoading;
+
+  // Handle policy search
   const handlePolicySearch = async () => {
-    if (!user) return;
+    if (!canSearch()) return;
 
-    const { data: airline, error: airlineError } = await supabase
-      .from('airlines')
-      .select('id')
-      .eq('name', policySearch)
-      .maybeSingle();
+    try {
+      // Save search if needed
+      if (shouldSaveSearch && user) {
+        await saveFlight(origin, destination, date, passengers);
+      }
 
-    if (airlineError || !airline?.id) {
-      console.error("Error finding airline:", airlineError);
+      // Handle policy search logic
+      setFlights([]);
+      onSearchResults([], {}, apiProvider, "No flights found, searching policies instead");
       toast({
-        title: "Error finding airline",
-        description: "Could not find the selected airline.",
+        title: "Policy search",
+        description: `Searching policies for ${policySearch}`,
+      });
+    } catch (error) {
+      console.error("Policy search error:", error);
+      toast({
+        title: "Search error",
+        description: "Failed to search policies. Please try again.",
         variant: "destructive",
       });
-      return;
     }
-
-    console.log("Found airline:", airline);
-    const { data: petPolicy, error: policyError } = await supabase
-      .from('pet_policies')
-      .select('*')
-      .eq('airline_id', airline.id)
-      .maybeSingle();
-
-    if (policyError) {
-      console.error("Error fetching pet policy:", policyError);
-      toast({
-        title: "Error fetching pet policy",
-        description: "Could not fetch the pet policy for the selected airline.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("Found pet policy:", petPolicy);
-    const results: FlightData[] = [];
-    onSearchResults(results, { [policySearch]: petPolicy as PetPolicy });
-    setFlights(results);
   };
 
+  // Handle route search
   const handleRouteSearch = async () => {
-    if (!user) return;
-    if (!date) {
-      toast({
-        title: "Date required",
-        description: "Please select a date for your travel",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!canSearch()) return;
 
-    console.log('Handling route search with:', { origin, destination, date });
     try {
-      // Call the handleFlightSearch function to get flight data
-      await handleFlightSearch(
+      // Save search if needed
+      if (shouldSaveSearch && user) {
+        await saveFlight(origin, destination, date, passengers);
+      }
+
+      // Execute the flight search
+      const flights = await handleFlightSearch(
         origin,
         destination,
         date,
-        async (results: FlightData[], policies?: Record<string, PetPolicy>) => {
-          console.log("Search results callback received:", { results, policies });
-          onSearchResults(results, policies);
-          setFlights(results);
-          
-          if (shouldSaveSearch && user) {
-            const { error: saveError } = await supabase
-              .from('saved_searches')
-              .insert({
-                user_id: user.id,
-                search_criteria: {
-                  origin,
-                  destination,
-                  date: date.toISOString()
-                }
-              });
-
-            if (saveError) {
-              console.error("Error saving search:", saveError);
-              toast({
-                title: "Error saving search",
-                description: "Could not save your search. Please try again.",
-                variant: "destructive",
-              });
-            } else {
-              toast({
-                title: "Search saved",
-                description: "Your search has been saved successfully.",
-              });
-            }
-          }
-        },
-        () => {
-          console.log("Search completed");
-        }
+        onSearchResults,
+        undefined,
+        apiProvider,
+        enableFallback,
+        passengers
       );
+
+      setFlights(flights);
     } catch (error) {
-      console.error("Error in handleRouteSearch:", error);
+      console.error("Route search error:", error);
       toast({
-        title: "Search failed",
-        description: "There was an error performing your search. Please try again.",
+        title: "Search error",
+        description: "Failed to search flights. Please try again.",
         variant: "destructive",
       });
     }
+  };
+
+  // Check if the user can perform a search
+  const canSearch = () => {
+    if (isLoading) {
+      toast({
+        title: "Loading",
+        description: "Please wait while we load your profile data",
+      });
+      return false;
+    }
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to search",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Admin users can always search
+    if (profile?.userRole === 'site_manager' || isUnlimited) {
+      return true;
+    }
+
+    // Check search count for other users
+    if (searchCount !== undefined && searchCount <= 0) {
+      toast({
+        title: "Search limit reached",
+        description: "You have used all your available searches. Please upgrade to continue searching.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
   };
 
   return {
     handlePolicySearch,
-    handleRouteSearch
+    handleRouteSearch,
+    isLoading,
   };
 };

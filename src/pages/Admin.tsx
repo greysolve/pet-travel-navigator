@@ -11,14 +11,33 @@ import { PremiumFieldsManager } from "@/components/admin/PremiumFieldsManager";
 import { PaymentPlansManager } from "@/components/admin/PaymentPlansManager";
 import { SupportSettingsManager } from "@/components/admin/support-settings/SupportSettingsManager";
 import { ManualSubscriptionUpdate } from "@/components/admin/ManualSubscriptionUpdate";
+import { ApiProviderSelector } from "@/components/search/ApiProviderSelector";
+import { ApiProvider } from "@/config/feature-flags";
+import { useAppSettings } from "@/hooks/useAppSettings";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("users");
+  const { 
+    apiProvider, 
+    enableFallback, 
+    updateApiProvider, 
+    isLoading: isAppSettingsLoading 
+  } = useAppSettings();
+
+  const handleProviderChange = (provider: ApiProvider) => {
+    updateApiProvider(provider, enableFallback);
+  };
+
+  const handleFallbackChange = (fallbackEnabled: boolean) => {
+    updateApiProvider(apiProvider, fallbackEnabled);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 pt-[15vh] md:pt-8 max-w-full md:max-w-[90%]">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-8">
+        <TabsList className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="premium-fields">Premium Fields</TabsTrigger>
           <TabsTrigger value="payment-plans">Payment Plans</TabsTrigger>
@@ -29,6 +48,7 @@ const Admin = () => {
           <TabsTrigger value="samples">Sample Results</TabsTrigger>
           <TabsTrigger value="support">Support Settings</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+          <TabsTrigger value="api-settings">API Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-6">
@@ -69,6 +89,41 @@ const Admin = () => {
 
         <TabsContent value="subscriptions" className="mt-6">
           <ManualSubscriptionUpdate />
+        </TabsContent>
+
+        <TabsContent value="api-settings" className="mt-6">
+          <div className="p-4 bg-white rounded-lg shadow-sm border">
+            <h2 className="text-xl font-semibold mb-4">API Provider Settings</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-gray-600">
+                Configure which flight data API provider to use for search operations.
+              </p>
+              <Badge variant={isAppSettingsLoading ? "outline" : apiProvider === 'amadeus' ? "default" : "secondary"}>
+                {isAppSettingsLoading ? 'Loading...' : `Using ${apiProvider}`}
+              </Badge>
+            </div>
+            
+            <Card className="p-4 mb-6">
+              <ApiProviderSelector 
+                apiProvider={apiProvider}
+                onChange={handleProviderChange}
+                disabled={isAppSettingsLoading}
+                showFallbackOption={true}
+                enableFallback={enableFallback}
+                onFallbackChange={handleFallbackChange}
+              />
+            </Card>
+            
+            <div className="mt-4 p-4 bg-gray-50 rounded-md">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Notes:</h3>
+              <ul className="text-xs text-gray-600 list-disc pl-5 space-y-1">
+                <li>Amadeus API provides more modern and comprehensive flight data but may have different rate limits.</li>
+                <li>Cirium API is the legacy provider with more historical data availability.</li>
+                <li>API provider selection affects all flight searches performed across the application.</li>
+                <li>The fallback option will try the alternate API if the primary one fails.</li>
+              </ul>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

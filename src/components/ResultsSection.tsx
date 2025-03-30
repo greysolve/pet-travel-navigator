@@ -5,13 +5,14 @@ import { FlightResults } from "./flight-results/FlightResults";
 import { DestinationPolicy } from "./flight-results/DestinationPolicy";
 import { PolicyDetails } from "./flight-results/PolicyDetails";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ExportDialog } from "./search/saved-searches/ExportDialog";
 import { Button } from "@/components/ui/button";
-import { FileDown } from "lucide-react";
+import { FileDown, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { FlightData, PetPolicy } from "./flight-results/types";
 
 export const ResultsSection = ({ 
@@ -19,11 +20,15 @@ export const ResultsSection = ({
   flights = [],
   petPolicies,
   isMobile,
+  apiProvider,
+  apiError,
 }: { 
   searchPerformed: boolean;
   flights?: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
   isMobile?: boolean;
+  apiProvider?: string;
+  apiError?: string;
 }) => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const { profile } = useProfile();
@@ -31,7 +36,6 @@ export const ResultsSection = ({
   const { data: premiumFields = [] } = usePremiumFields();
   const { data: flightPetPolicies, isLoading: isPoliciesLoading } = usePetPolicies(flights);
   
-  // Get unique countries from flights if available
   const countriesFromFlights = flights.reduce((countries: Set<string>, journey) => {
     if (!journey.segments) return countries;
     journey.segments.forEach(segment => {
@@ -41,27 +45,36 @@ export const ResultsSection = ({
     return countries;
   }, new Set<string>());
 
-  // Get countries from origin/destination even if no flights found
   const allCountries = flights.reduce((countries: Set<string>, journey) => {
     if (journey.origin?.country) countries.add(journey.origin.country);
     if (journey.destination?.country) countries.add(journey.destination.country);
     return countries;
   }, new Set(countriesFromFlights));
 
-  // Filter out undefined/null values and convert to array
   const uniqueCountries = Array.from(allCountries).filter(Boolean);
   const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(uniqueCountries);
 
-  const hasExportableResults = flights.length > 0 || Object.keys(petPolicies || {}).length > 0;
+  const hasExportableResults = flights.length > 0 || (petPolicies && Object.keys(petPolicies).length > 0);
   const canExport = !isPetCaddie && hasExportableResults;
 
   if (!searchPerformed) return null;
 
-  // If we have a direct airline policy search result
-  if (flights.length === 0 && petPolicies) {
+  if (flights.length === 0 && petPolicies && Object.keys(petPolicies).length > 0) {
+    // Display single airline policy page (no flights)
     const airlineName = Object.keys(petPolicies)[0];
     const rawPolicy = petPolicies[airlineName];
-    // Apply premium field decoration if user is pet_caddie
+    
+    // Only proceed if we have a valid policy
+    if (!rawPolicy) {
+      return (
+        <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
+          <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 text-left">
+            <p>No policy information available.</p>
+          </div>
+        </div>
+      );
+    }
+    
     const policy = isPetCaddie 
       ? decorateWithPremiumFields(rawPolicy, premiumFields)
       : rawPolicy;
@@ -82,7 +95,7 @@ export const ResultsSection = ({
             </div>
           )}
           <h2 className="text-xl font-semibold mb-4">
-            Pet Policy {policy.isSummary ? "Summary" : ""} for {airlineName}
+            Pet Policy for {airlineName}
           </h2>
           <PolicyDetails policy={policy} />
         </div>
@@ -105,6 +118,16 @@ export const ResultsSection = ({
   return (
     <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
       <div className="space-y-8 text-left">
+        {apiError && (
+          <Alert variant="info" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>API Warning</AlertTitle>
+            <AlertDescription>
+              {apiError}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {flights.length > 0 && (
           <>
             {canExport && (
@@ -121,7 +144,8 @@ export const ResultsSection = ({
             )}
             <FlightResults 
               flights={flights} 
-              petPolicies={isPoliciesLoading ? undefined : flightPetPolicies} 
+              petPolicies={isPoliciesLoading ? undefined : flightPetPolicies}
+              apiProvider={apiProvider}
             />
           </>
         )}

@@ -101,7 +101,7 @@ export const PdfExportView = ({ flights, petPolicies, countryPolicies }: PdfExpo
                       {petPolicies?.[segment.carrierFsCode] && (
                         <div className="mt-4">
                           <h2 className="text-xl font-semibold mb-4">
-                            Pet Policy {petPolicies[segment.carrierFsCode].isSummary ? "Summary" : ""} for {segment.airlineName}
+                            Pet Policy for {segment.airlineName}
                           </h2>
                           <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
                         </div>
@@ -154,4 +154,3 @@ const calculateLayoverDuration = (arrivalTime: string, departureTime: string) =>
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
   return `${hours}h ${minutes}m`;
 };
-

@@ -1,121 +1,200 @@
 
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { usePlanDetails } from "./usePlanDetails";
 import { useSearchCount } from "./useSearchCount";
-import type { FlightData } from "../../flight-results/types";
+import { ApiProvider } from "@/config/feature-flags";
+import type { FlightData } from "@/components/flight-results/types";
+import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 
-interface UseFlightSearchReturn {
-  isSearchLoading: boolean;
-  searchCount: number | undefined;
-  isPetCaddie: boolean;
-  handleFlightSearch: (
-    origin: string, 
-    destination: string, 
-    date: Date, 
-    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
-    onComplete?: () => void
-  ) => Promise<FlightData[]>;
-}
-
-export const useFlightSearch = (): UseFlightSearchReturn => {
-  const { toast } = useToast();
-  const { profile } = useProfile();
+export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const isPetCaddie = profile?.userRole === 'pet_caddie';
-  const { planDetails } = usePlanDetails(profile?.plan);
-  const { searchCount, decrementSearchCount } = useSearchCount(profile);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [searchAttempts, setSearchAttempts] = useState(0);
+  const { user } = useAuth();
+  const { profile } = useUser();
+  const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
+  // Admin users are always treated as pet caddies
+  // Regular users are considered pet caddies if they have a plan
+  const isPetCaddie = !!profile?.plan || profile?.userRole === 'site_manager';
+
+  /**
+   * Handle flight search by calling the appropriate API based on provider
+   */
   const handleFlightSearch = async (
-    origin: string, 
-    destination: string, 
+    origin: string,
+    destination: string,
     date: Date,
-    onResults: (results: FlightData[], policies?: Record<string, any>) => void,
-    onComplete?: () => void
-  ) => {
-    if (!profile) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to search",
-        variant: "destructive",
-      });
-      return [];
-    }
-
-    if (isPetCaddie) {
-      const isUnlimited = planDetails?.is_search_unlimited;
-      
-      if (!isUnlimited && (profile.search_count === undefined || profile.search_count <= 0)) {
-        toast({
-          title: "No searches remaining",
-          description: "You have reached your search limit. Please upgrade your plan.",
-          variant: "destructive",
-        });
-        return [];
-      }
-    }
-
+    onResults: (flights: FlightData[], policies?: Record<string, any>, apiProvider?: string, apiError?: string) => void,
+    onComplete?: () => void,
+    apiProvider?: ApiProvider,
+    enableFallback: boolean = false,
+    passengers: number = 1
+  ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
+    setApiError(null);
+    setSearchAttempts(prev => prev + 1);
+    
     try {
-      console.log('Calling search_flight_schedules with:', { origin, destination, date });
+      console.log(`Searching flights from ${origin} to ${destination} on ${date.toISOString()}`);
+      console.log("API Provider:", apiProvider || "Default");
+      console.log("Fallback enabled:", enableFallback);
+      console.log("Passengers:", passengers);
       
-      if (isPetCaddie && !planDetails?.is_search_unlimited) {
-        const decremented = await decrementSearchCount();
-        if (!decremented) {
-          setIsSearchLoading(false);
-          return [];
-        }
+      // Format date to YYYY-MM-DD for API
+      const formattedDate = date.toISOString().split('T')[0];
+      
+      // Try primary API provider (or default if not specified)
+      const primaryProvider = apiProvider || "cirium";
+      
+      let searchPath: string;
+      if (primaryProvider === "cirium") {
+        // Use Cirium API endpoint (FIXED: removed /api prefix)
+        searchPath = "search_flight_schedules_v2/cirium";
+      } else if (primaryProvider === "amadeus") {
+        // Use Amadeus API endpoint (FIXED: removed /api prefix)
+        searchPath = "search_flight_schedules_v2/amadeus";
+      } else {
+        // Use unified API endpoint for other providers (FIXED: removed /api prefix)
+        searchPath = "search_flight_schedules_v2";
       }
       
-      const { data, error } = await supabase.functions.invoke('search_flight_schedules', {
+      console.log(`Using search path: ${searchPath}`);
+      
+      // Make the API request
+      const { data: flightData, error } = await supabase.functions.invoke(searchPath, {
         body: {
           origin,
           destination,
-          date: date.toISOString(),
-        },
+          date: formattedDate,
+          provider: primaryProvider,
+          passengers
+        }
       });
-
+      
+      console.log("API response:", { data: flightData, error });
+      
+      // Handle the response
       if (error) {
-        console.error('Error calling search_flight_schedules:', error);
-        toast({
-          title: "Search failed",
-          description: "There was an error fetching flight data. Please try again.",
-          variant: "destructive",
+        console.error("Flight search error:", error);
+        throw new Error(error.message);
+      }
+      
+      if (flightData && flightData.flights && flightData.flights.length > 0) {
+        console.log(`Found ${flightData.flights.length} flights with ${primaryProvider}`);
+        
+        // If successful, increment search count
+        await incrementSearchCount();
+        
+        // Return the flights
+        onResults(flightData.flights, flightData.policies, primaryProvider, null);
+        if (onComplete) onComplete();
+        setIsSearchLoading(false);
+        return flightData.flights;
+      } else if (flightData && flightData.connections && flightData.connections.length > 0) {
+        // Handle response format from the v2 endpoint which uses "connections" instead of "flights"
+        console.log(`Found ${flightData.connections.length} connections with ${primaryProvider}`);
+        
+        // If successful, increment search count
+        await incrementSearchCount();
+        
+        // Return the connections as flights
+        onResults(flightData.connections, flightData.policies, primaryProvider, null);
+        if (onComplete) onComplete();
+        setIsSearchLoading(false);
+        return flightData.connections;
+      }
+      
+      // If no flights found with primary provider and fallback is enabled, try secondary
+      if (enableFallback && primaryProvider !== "amadeus") {
+        console.log("No flights found with primary provider, trying Amadeus fallback");
+        
+        // FIXED: removed /api prefix
+        const fallbackPath = "search_flight_schedules_v2/amadeus";
+        console.log(`Using fallback path: ${fallbackPath}`);
+        
+        const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke(fallbackPath, {
+          body: {
+            origin,
+            destination,
+            date: formattedDate,
+            passengers
+          }
         });
-        return [];
+        
+        console.log("Fallback API response:", { data: fallbackData, error: fallbackError });
+        
+        if (fallbackError) {
+          console.error("Fallback search error:", fallbackError);
+          throw new Error(fallbackError.message);
+        }
+        
+        if (fallbackData && fallbackData.flights && fallbackData.flights.length > 0) {
+          console.log(`Found ${fallbackData.flights.length} flights with Amadeus fallback`);
+          
+          // If successful, increment search count
+          await incrementSearchCount();
+          
+          // Return the flights
+          onResults(fallbackData.flights, fallbackData.policies, "amadeus", null);
+          if (onComplete) onComplete();
+          setIsSearchLoading(false);
+          return fallbackData.flights;
+        } else if (fallbackData && fallbackData.connections && fallbackData.connections.length > 0) {
+          console.log(`Found ${fallbackData.connections.length} connections with Amadeus fallback`);
+          
+          // If successful, increment search count
+          await incrementSearchCount();
+          
+          // Return the connections as flights
+          onResults(fallbackData.connections, fallbackData.policies, "amadeus", null);
+          if (onComplete) onComplete();
+          setIsSearchLoading(false);
+          return fallbackData.connections;
+        }
       }
-
-      console.log('Received flight search results:', data);
       
-      const flights = data?.connections || [];
-      
-      if (onResults) {
-        onResults(flights, {});
-      }
-      
-      return flights;
-    } catch (error) {
-      console.error('Error in flight search:', error);
-      toast({
-        title: "Search failed",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
-      return [];
-    } finally {
+      // If we get here, no flights were found with any provider
+      console.log("No flights found with any provider");
+      onResults([], {}, primaryProvider, "No flights found for this route and date");
+      if (onComplete) onComplete();
       setIsSearchLoading(false);
-      if (onComplete) {
-        onComplete();
-      }
+      return [];
+      
+    } catch (error: any) {
+      console.error("Flight search error:", error);
+      const errorMessage = error.message || "Failed to search flights";
+      setApiError(errorMessage);
+      onResults([], {}, apiProvider, errorMessage);
+      if (onComplete) onComplete();
+      setIsSearchLoading(false);
+      return [];
+    }
+  };
+  
+  const incrementSearchCount = async () => {
+    // Don't increment search count for admin users
+    if (profile?.userRole === 'site_manager') {
+      console.log("Search count not incremented for admin user");
+      return;
+    }
+    
+    try {
+      console.log("Incrementing search count");
+      await refetchSearchCount();
+    } catch (error) {
+      console.error("Error incrementing search count:", error);
     }
   };
 
   return {
     isSearchLoading,
     searchCount,
+    apiError,
     isPetCaddie,
+    searchAttempts,
     handleFlightSearch,
   };
 };

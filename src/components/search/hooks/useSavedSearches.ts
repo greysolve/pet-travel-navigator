@@ -1,12 +1,15 @@
 
 import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import type { SavedSearch } from "../types";
 
 export const useSavedSearches = (userId: string | undefined) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (userId) {
@@ -75,9 +78,39 @@ export const useSavedSearches = (userId: string | undefined) => {
     }
   };
 
+  const saveFlight = async (origin: string, destination: string, date?: Date, passengers: number = 1) => {
+    if (!userId) return;
+
+    try {
+      const searchData = {
+        user_id: userId,
+        origin,
+        destination,
+        search_date: date ? date.toISOString().split('T')[0] : null,
+        // Optional: Add an entry for passengers
+      };
+
+      // Save to route_searches table for search count tracking
+      const { error } = await supabase
+        .from('route_searches')
+        .insert(searchData);
+
+      if (error) {
+        console.error("Error saving search:", error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error in saveFlight:", error);
+      return false;
+    }
+  };
+
   return {
     savedSearches,
     handleDeleteSearch,
-    loadSavedSearches
+    loadSavedSearches,
+    saveFlight
   };
 };

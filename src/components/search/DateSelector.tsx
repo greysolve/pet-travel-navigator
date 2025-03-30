@@ -19,7 +19,7 @@ export const DateSelector = ({ date, setDate, isLoading }: DateSelectorProps) =>
         <Button
           variant="outline"
           className={cn(
-            "w-full h-12 text-base bg-white/90 border-0 shadow-sm justify-start text-left font-normal",
+            "w-full h-12 text-base justify-start text-left font-normal border-gray-300",
             !date && "text-muted-foreground",
             isLoading && "opacity-50 cursor-not-allowed"
           )}
@@ -38,13 +38,14 @@ export const DateSelector = ({ date, setDate, isLoading }: DateSelectorProps) =>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
         <Calendar
           mode="single"
           selected={date}
           onSelect={setDate}
           initialFocus
           disabled={(date) => date < new Date()}
+          className="p-3 pointer-events-auto"
         />
       </PopoverContent>
     </Popover>

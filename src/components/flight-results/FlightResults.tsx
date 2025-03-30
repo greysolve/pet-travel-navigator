@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 interface FlightResultsProps {
   flights: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
+  apiProvider?: string;
 }
 
-export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
+export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResultsProps) => {
   const [airlineNames, setAirlineNames] = useState<Record<string, string>>({});
   
   useEffect(() => {
@@ -125,10 +126,10 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                       arrivalTerminal={segment.arrivalTerminal}
                     />
                     
-                    {petPolicies?.[segment.carrierFsCode] && (
+                    {petPolicies && petPolicies[segment.carrierFsCode] && (
                       <div className="mt-4">
                         <h2 className="text-xl font-semibold mb-4">
-                          Pet Policy {petPolicies[segment.carrierFsCode].isSummary ? "Summary" : ""} for {airlineName || segment.carrierFsCode}
+                          Pet Policy for {airlineName || segment.carrierFsCode}
                         </h2>
                         <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
                       </div>

@@ -1,6 +1,5 @@
-
-import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
 import { CurrentPlanCard } from "@/components/pricing/CurrentPlanCard";
 import { PricingTable } from "@/components/pricing/PricingTable";

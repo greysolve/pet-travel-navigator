@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +9,15 @@ interface SignInFormProps {
   onSignIn: (email: string, password: string) => Promise<void>;
   isLoading: boolean;
   onToggleMode: () => void;
+  onForgotPassword: () => void;
 }
 
-export const SignInForm = ({ onSignIn, isLoading, onToggleMode }: SignInFormProps) => {
+export const SignInForm = ({ 
+  onSignIn, 
+  isLoading, 
+  onToggleMode, 
+  onForgotPassword 
+}: SignInFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -51,6 +58,15 @@ export const SignInForm = ({ onSignIn, isLoading, onToggleMode }: SignInFormProp
           placeholder="Enter your password"
           required
         />
+        <div className="text-right">
+          <button 
+            type="button" 
+            onClick={onForgotPassword}
+            className="text-sm text-blue-500 hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
       </div>
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? "Signing in..." : "Sign In"}

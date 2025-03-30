@@ -5,6 +5,8 @@ import { PolicySearchForm } from "./forms/PolicySearchForm";
 import { RouteSearchForm } from "./forms/RouteSearchForm";
 import { SearchButton } from "./SearchButton";
 import { SearchDivider } from "./SearchDivider";
+import { ApiProvider } from "@/config/feature-flags";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { SavedSearch } from "./types";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
@@ -28,13 +30,17 @@ interface SearchFormContainerProps {
   clearPolicySearch: () => void;
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
+  passengers: number;
+  setPassengers: (value: number) => void;
   toast: ToastFunction;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>) => void;
+  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   setFlights: (flights: FlightData[]) => void;
   onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
   handleDeleteSearch: (id: string) => void;
   handleSearch: () => void;
   onPolicySearch: () => Promise<void>;
+  apiProvider?: ApiProvider;
+  enableFallback?: boolean;
 }
 
 export const SearchFormContainer = ({
@@ -56,72 +62,97 @@ export const SearchFormContainer = ({
   clearPolicySearch,
   shouldSaveSearch,
   setShouldSaveSearch,
+  passengers,
+  setPassengers,
   toast,
   onSearchResults,
   setFlights,
   onLoadSearch,
   handleDeleteSearch,
   handleSearch,
-  onPolicySearch
+  onPolicySearch,
+  apiProvider,
+  enableFallback
 }: SearchFormContainerProps) => {
+  
+  // Simple loading condition
+  const isFormLoading = isLoading;
+
   return (
-    <div className="max-w-3xl mx-auto px-4 -mt-8">
+    <div className="relative max-w-3xl mx-auto px-4 -mt-28 z-10">
       <div className={cn(
-        "bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 space-y-4",
-        isLoading && "opacity-75"
+        "bg-white shadow-xl rounded-xl p-6 space-y-6",
+        isFormLoading && "opacity-75"
       )}>
-        <SearchFormHeader
-          user={user}
-          isPetCaddie={isPetCaddie}
-          searchCount={searchCount}
-          savedSearches={savedSearches}
-          onLoadSearch={onLoadSearch}
-          onDeleteSearch={(e, id) => {
-            e.stopPropagation();
-            handleDeleteSearch(id);
-          }}
-          isLoading={isLoading}
-        />
+        {isFormLoading && !user ? (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+            <Skeleton className="h-12 w-full mb-4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </>
+        ) : (
+          <>
+            <SearchFormHeader
+              user={user}
+              isPetCaddie={isPetCaddie}
+              searchCount={searchCount as number}
+              savedSearches={savedSearches}
+              passengers={passengers}
+              setPassengers={setPassengers}
+              onLoadSearch={onLoadSearch}
+              onDeleteSearch={(e, id) => {
+                e.stopPropagation();
+                handleDeleteSearch(id);
+              }}
+              isLoading={isFormLoading}
+            />
 
-        <PolicySearchForm 
-          policySearch={policySearch}
-          setPolicySearch={setPolicySearch}
-          isLoading={isLoading}
-          hasRouteSearch={hasRouteSearch}
-          clearRouteSearch={clearRouteSearch}
-          user={user}
-          toast={toast}
-          onSearchResults={onSearchResults}
-          setFlights={setFlights}
-          onPolicySearch={onPolicySearch}
-        />
-        
-        <SearchDivider />
+            <PolicySearchForm 
+              policySearch={policySearch}
+              setPolicySearch={setPolicySearch}
+              isLoading={isFormLoading}
+              hasRouteSearch={hasRouteSearch}
+              clearRouteSearch={clearRouteSearch}
+              user={user}
+              toast={toast}
+              onSearchResults={onSearchResults}
+              setFlights={setFlights}
+              onPolicySearch={onPolicySearch}
+            />
+            
+            <SearchDivider />
 
-        <RouteSearchForm
-          origin={origin}
-          destination={destination}
-          setOrigin={setOrigin}
-          setDestination={setDestination}
-          date={date}
-          setDate={setDate}
-          isLoading={isLoading}
-          policySearch={policySearch}
-          clearPolicySearch={clearPolicySearch}
-          shouldSaveSearch={shouldSaveSearch}
-          setShouldSaveSearch={setShouldSaveSearch}
-          user={user}
-          toast={toast}
-          onSearchResults={onSearchResults}
-          setFlights={setFlights}
-        />
+            <RouteSearchForm
+              origin={origin}
+              destination={destination}
+              setOrigin={setOrigin}
+              setDestination={setDestination}
+              date={date}
+              setDate={setDate}
+              isLoading={isFormLoading}
+              policySearch={policySearch}
+              clearPolicySearch={clearPolicySearch}
+              shouldSaveSearch={shouldSaveSearch}
+              setShouldSaveSearch={setShouldSaveSearch}
+              user={user}
+              toast={toast}
+              onSearchResults={onSearchResults}
+              setFlights={setFlights}
+            />
+          </>
+        )}
 
         <SearchButton
-          isLoading={isLoading}
-          isProfileLoading={isLoading}
+          isLoading={isFormLoading}
           onClick={handleSearch}
         />
       </div>
     </div>
   );
-};
+}

@@ -6,11 +6,10 @@ export const SearchDivider = () => {
         <span className="w-full border-t" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-white/80 px-2 text-muted-foreground text-[1.15em] font-bold">
+        <span className="bg-white px-2 text-muted-foreground">
           Or
         </span>
       </div>
     </div>
   );
 };
-

@@ -1,3 +1,4 @@
+
 import type { FlightData, PetPolicy, CountryPolicy } from "../flight-results/types";
 import { PolicyDetails } from "../flight-results/PolicyDetails";
 import { DestinationPolicy } from "../flight-results/DestinationPolicy";
@@ -73,10 +74,12 @@ export const ExportView = ({ flights, petPolicies, countryPolicies }: ExportView
           <h2 className="text-2xl font-semibold mb-6">Airline Pet Policies</h2>
           <div className="grid grid-cols-1 gap-8">
             {carrierCodes.map(code => (
-              <div key={code} className="bg-gray-50 p-6 rounded-lg">
-                <h3 className="font-medium text-lg mb-4">Carrier: {code}</h3>
-                <PolicyDetails policy={petPolicies[code]} />
-              </div>
+              petPolicies[code] && (
+                <div key={code} className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="font-medium text-lg mb-4">Carrier: {code}</h3>
+                  <PolicyDetails policy={petPolicies[code]} />
+                </div>
+              )
             ))}
           </div>
         </div>

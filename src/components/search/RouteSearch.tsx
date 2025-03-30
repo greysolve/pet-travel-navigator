@@ -2,9 +2,27 @@
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plane } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { RouteSearchProps, Airport } from "./types";
+
+export interface Airport {
+  iata_code: string;
+  name: string;
+  city: string;
+  country: string;
+  search_score?: number;
+}
+
+export interface RouteSearchProps {
+  origin: string;
+  destination: string;
+  setOrigin: (value: string) => void;
+  setDestination: (value: string) => void;
+  date: Date | undefined;
+  isLoading?: boolean;
+  disabled?: boolean;
+  onFocus?: () => void;
+}
 
 export const RouteSearch = ({
   origin,
@@ -50,7 +68,7 @@ export const RouteSearch = ({
       }
 
       console.log('Airports search results:', data);
-      setAirports(data || []);
+      setAirports(data as Airport[]);
     } catch (error) {
       console.error('Error fetching airports:', error);
       toast({
@@ -64,7 +82,7 @@ export const RouteSearch = ({
   }, [toast]);
 
   const formatAirportDisplay = (airport: Airport): string => {
-    if (airport.search_score >= 80) {
+    if (airport.search_score && airport.search_score >= 80) {
       // IATA code match - prioritize airport name
       return `${airport.name} (${airport.iata_code}), ${airport.city}, ${airport.country}`;
     } else {
@@ -80,31 +98,35 @@ export const RouteSearch = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="relative">
-        <Input
-          type="text"
-          placeholder="Origin (city or airport code)"
-          className="h-12 text-base bg-white/90 border-0 shadow-sm"
-          value={origin}
-          onChange={(e) => {
-            const value = e.target.value;
-            setOrigin(value);
-            fetchAirports(value);
-            setShowOriginSuggestions(true);
-          }}
-          onFocus={() => {
-            setShowOriginSuggestions(true);
-            handleInputFocus();
-          }}
-          onBlur={() => {
-            setTimeout(() => setShowOriginSuggestions(false), 200);
-          }}
-          disabled={isLoading || disabled}
-        />
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Origin (city or airport code)"
+            className="h-12 text-base pl-10 border-gray-300"
+            value={origin}
+            onChange={(e) => {
+              const value = e.target.value;
+              setOrigin(value);
+              fetchAirports(value);
+              setShowOriginSuggestions(true);
+            }}
+            onFocus={() => {
+              setShowOriginSuggestions(true);
+              handleInputFocus();
+            }}
+            onBlur={() => {
+              setTimeout(() => setShowOriginSuggestions(false), 200);
+            }}
+            disabled={isLoading || disabled}
+          />
+          <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground" />
+        </div>
         {showOriginSuggestions && airports.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+          <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
             {isSearching ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Searching airports...</span>
               </div>
             ) : (
               <ul className="max-h-60 overflow-auto py-1">
@@ -127,31 +149,35 @@ export const RouteSearch = ({
       </div>
 
       <div className="relative">
-        <Input
-          type="text"
-          placeholder="Destination (city or airport code)"
-          className="h-12 text-base bg-white/90 border-0 shadow-sm"
-          value={destination}
-          onChange={(e) => {
-            const value = e.target.value;
-            setDestination(value);
-            fetchAirports(value);
-            setShowDestinationSuggestions(true);
-          }}
-          onFocus={() => {
-            setShowDestinationSuggestions(true);
-            handleInputFocus();
-          }}
-          onBlur={() => {
-            setTimeout(() => setShowDestinationSuggestions(false), 200);
-          }}
-          disabled={isLoading || disabled}
-        />
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Destination (city or airport code)"
+            className="h-12 text-base pl-10 border-gray-300"
+            value={destination}
+            onChange={(e) => {
+              const value = e.target.value;
+              setDestination(value);
+              fetchAirports(value);
+              setShowDestinationSuggestions(true);
+            }}
+            onFocus={() => {
+              setShowDestinationSuggestions(true);
+              handleInputFocus();
+            }}
+            onBlur={() => {
+              setTimeout(() => setShowDestinationSuggestions(false), 200);
+            }}
+            disabled={isLoading || disabled}
+          />
+          <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground rotate-90" />
+        </div>
         {showDestinationSuggestions && airports.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+          <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
             {isSearching ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Searching airports...</span>
               </div>
             ) : (
               <ul className="max-h-60 overflow-auto py-1">
@@ -175,4 +201,3 @@ export const RouteSearch = ({
     </div>
   );
 };
-

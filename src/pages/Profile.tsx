@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
 import { useToast } from "@/hooks/use-toast";
-import { useProfile } from "@/contexts/ProfileContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 
