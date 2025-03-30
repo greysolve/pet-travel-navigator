@@ -1,8 +1,8 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/auth/AuthContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,50 +11,8 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
-
-  const { data: userRole, isLoading: roleLoading } = useQuery({
-    queryKey: ["userRole", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      console.log("Protected Route - Role Check:", {
-        userId: user.id,
-        requiredRole,
-        userMetadata: user.user_metadata,
-        path: window.location.pathname
-      });
-
-      // First check user metadata
-      if (user.user_metadata?.role === requiredRole) {
-        console.log("Role found in metadata, matches required role:", requiredRole);
-        return user.user_metadata.role;
-      }
-
-      // If not in metadata, check the user_roles table
-      console.log("Checking user_roles table...");
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching user role from DB:", error);
-        return "pet_lover"; // Default to pet_lover on error
-      }
-
-      // If no role found in database, default to pet_lover
-      if (!data) {
-        console.log("No role found in database, defaulting to pet_lover");
-        return "pet_lover";
-      }
-
-      console.log("Role from database:", data.role);
-      return data.role;
-    },
-    enabled: !!user && !!requiredRole,
-  });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -63,28 +21,20 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
       return;
     }
 
-    if (!loading && !roleLoading && requiredRole) {
-      console.log("Access check:", {
-        userRole,
-        requiredRole,
-        hasAccess: userRole === requiredRole,
-        path: window.location.pathname
-      });
-
-      // If no role is found or role doesn't match required role, redirect
-      if (!userRole || userRole !== requiredRole) {
-        console.log("Access denied, redirecting to home");
-        navigate("/");
-      }
+    // Only check role if a specific role is required and profile is loaded
+    if (!loading && !profileLoading && requiredRole && profile?.userRole !== requiredRole) {
+      console.log("Access denied - incorrect role, redirecting to home");
+      navigate("/");
+      return;
     }
-  }, [user, loading, navigate, requiredRole, userRole, roleLoading]);
+  }, [user, loading, navigate, requiredRole, profile, profileLoading]);
 
-  if (loading || roleLoading) {
+  if (loading || profileLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  // Only render children if user has the required role
-  if (!user || !userRole || (requiredRole && userRole !== requiredRole)) {
+  // Only render children if user is authenticated and has correct role (if required)
+  if (!user || (requiredRole && profile?.userRole !== requiredRole)) {
     return null;
   }
 

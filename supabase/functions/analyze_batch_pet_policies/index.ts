@@ -1,13 +1,8 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
-
-interface Airline {
-  id: string;
-  name: string;
-  iata_code: string;
-  policy_url?: string;
-}
+import { analyzePetPolicy } from './openAIClient.ts'
+import { savePetPolicyToDatabase } from './databaseHandler.ts'
+import { Airline, ProcessingResponse, ProcessingResult, ProcessingError } from './types.ts'
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -21,10 +16,13 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
+  // Initialize rawApiResponse outside the try/catch
+  let rawApiResponse = null;
+  
   try {
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) {
-      console.error('PERPLEXITY_API_KEY is not set');
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('OPENAI_API_KEY is not set');
       throw new Error('API key configuration error');
     }
 
@@ -41,58 +39,68 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Processing batch of ${airlines.length} airlines`);
-    const results = [];
-    const errors = [];
+    const results: ProcessingResult[] = [];
+    const errors: ProcessingError[] = [];
+    let contentChanged = false;
+    let comparisonDetails = null;
 
     for (const airline of airlines) {
       try {
         console.log(`Processing airline: ${airline.name}`);
-        const petPolicy = await analyzePetPolicy(airline, perplexityKey);
+        const petPolicyResponse = await analyzePetPolicy(airline, openaiKey);
         
-        const policyData = {
-          airline_id: airline.id,
-          ...petPolicy,
-          policy_url: airline.policy_url || petPolicy.policy_url
-        };
+        // Capture the raw API response if available
+        // This should be the complete, unmodified response from the API
+        if (petPolicyResponse._raw_api_response) {
+          rawApiResponse = petPolicyResponse._raw_api_response;
+          console.log(`Captured raw API response (${rawApiResponse.length} chars)`);
+        } else {
+          console.warn(`No raw API response was captured for ${airline.name}`);
+        }
         
-        const { error: upsertError } = await supabase
-          .from('pet_policies')
-          .upsert(policyData, {
-            onConflict: 'airline_id'
+        // Check if parsing failed but we still have raw response
+        if (petPolicyResponse._parsing_failed) {
+          console.error(`Parsing failed for ${airline.name}, but raw response was captured (${rawApiResponse?.length || 0} chars)`);
+          
+          // Add to errors
+          errors.push({
+            airline_id: airline.id,
+            error: petPolicyResponse.error_message || "Failed to parse policy data",
+            iata_code: airline.iata_code
           });
-
-        if (upsertError) {
-          throw upsertError;
+          
+          continue; // Skip to the next airline
         }
+        
+        // Store the raw response for the database
+        // This preserves the original response without modifications
+        const rawResponseForDb = petPolicyResponse._raw_api_response;
+        
+        // Remove the raw response from the object we'll use for processing
+        // to avoid duplicating it unnecessarily, but keep a copy for the DB
+        const processingData = { ...petPolicyResponse };
+        delete processingData._raw_api_response;
+        
+        // Save to database and get detailed results
+        const saveResult = await savePetPolicyToDatabase(
+          supabase, 
+          airline, 
+          processingData, 
+          rawResponseForDb  // Pass the raw response separately
+        );
+        
+        contentChanged = saveResult.content_changed;
+        comparisonDetails = saveResult.comparison_details;
 
-        if (petPolicy.policy_url && !airline.policy_url) {
-          const { error: airlineError } = await supabase
-            .from('airlines')
-            .update({ website: petPolicy.policy_url })
-            .eq('id', airline.id);
-
-          if (airlineError) {
-            console.error(`Error updating airline website: ${airlineError.message}`);
-          }
-        }
-
-        // Remove from missing_pet_policies if present
-        if (airline.policy_url) {
-          const { error: deleteError } = await supabase
-            .from('missing_pet_policies')
-            .delete()
-            .eq('iata_code', airline.iata_code);
-
-          if (deleteError) {
-            console.error(`Error removing from missing_pet_policies: ${deleteError.message}`);
-          }
-        }
-
+        // If we reach here, processing was successful
         results.push({
           airline_id: airline.id,
           success: true,
-          iata_code: airline.iata_code
+          iata_code: airline.iata_code,
+          content_changed: contentChanged
         });
+        
+        console.log(`Successfully processed ${airline.name} (${airline.iata_code})`);
 
         // Add delay between API calls
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -108,13 +116,21 @@ Deno.serve(async (req) => {
     }
 
     const executionTime = Date.now() - startTime;
+    const response: ProcessingResponse = {
+      success: results.length > 0, // Consider success if at least one airline was processed
+      results,
+      errors,
+      execution_time: executionTime,
+      raw_api_response: rawApiResponse,  // Include the raw API response in the final response
+      content_changed: contentChanged,
+      comparison_details: comparisonDetails
+    };
+    
+    console.log(`Batch processing complete. Success: ${response.success}, Results: ${results.length}, Errors: ${errors.length}, Content changed: ${contentChanged}`);
+    console.log(`Raw API response captured: ${rawApiResponse ? 'Yes' : 'No'}, Length: ${rawApiResponse ? rawApiResponse.length : 0}`);
+    
     return new Response(
-      JSON.stringify({
-        success: true,
-        results,
-        errors,
-        execution_time: executionTime
-      }),
+      JSON.stringify(response),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
@@ -122,8 +138,14 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Fatal error:', error);
+    
+    // Even on fatal errors, return any raw API response that was captured
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        raw_api_response: rawApiResponse, // Include raw response even on errors
+        success: false 
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -131,148 +153,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
-async function analyzePetPolicy(airline: Airline, perplexityKey: string): Promise<any> {
-  console.log(`Analyzing pet policy for airline: ${airline.name}`);
-  
-  const systemPrompt = `You are a helpful assistant that analyzes airline pet policies and returns the information in a structured JSON format. The response must be valid JSON that can be parsed with JSON.parse().`;
-  
-  const userMessage = `Analyze this airline's pet policy and return a JSON object with the following information for ${airline.name}. The response must be ONLY the JSON object, no markdown formatting or additional text:
-  {
-    "airline_info": {
-      "official_website": "url if found"
-    },
-    "pet_policy": {
-      "pet_types_allowed": ["list of allowed pets, specify if in cabin or cargo"],
-      "size_restrictions": {
-        "max_weight_cabin": "weight in kg/lbs",
-        "max_weight_cargo": "weight in kg/lbs",
-        "carrier_dimensions_cabin": "size limits"
-      },
-      "carrier_requirements_cabin": "description of carrier requirements for cabin travel",
-      "carrier_requirements_cargo": "description of carrier requirements for cargo travel",
-      "documentation_needed": ["list each and every required document"],
-      "fees": {
-        "in_cabin": "fee amount",
-        "cargo": "fee amount"
-      },
-      "temperature_restrictions": "description of any temperature related restrictions",
-      "breed_restrictions": ["list of restricted breeds"]
-    }
-  }
-
-  Search specifically for:
-  1. What pets are allowed in cabin vs cargo
-  2. Size and weight limits for both cabin and cargo
-  3. Specific carrier requirements for both cabin and cargo
-  4. All required documentation and health certificates
-  5. Fees for both cabin and cargo transport
-  6. Any temperature or weather restrictions
-  7. Any breed restrictions
-  8. Official airline website if found
-
-  Return ONLY the JSON object with all available information. If any information is not found, use null for that field.`;
-
-  const maxRetries = 3;
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`Attempt ${attempt} to get pet policy from Perplexity API`);
-      
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${perplexityKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: userMessage
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 2000,
-          top_p: 0.9,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Perplexity API error: ${response.status} ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      if (!responseData.choices?.[0]?.message?.content) {
-        throw new Error('Invalid response format from Perplexity API');
-      }
-
-      const rawContent = responseData.choices[0].message.content;
-      console.log('Raw API response:', rawContent);
-
-      let content;
-      try {
-        content = JSON.parse(rawContent);
-      } catch (parseError) {
-        console.log('Initial parse failed, attempting to clean content');
-        const cleanContent = rawContent
-          .replace(/```json\n?|\n?```/g, '')
-          .replace(/^\s*\{/, '{')
-          .replace(/\}\s*$/, '}')
-          .trim();
-        
-        try {
-          content = JSON.parse(cleanContent);
-        } catch (secondError) {
-          console.error('Failed to parse cleaned content:', secondError);
-          throw new Error(`JSON parsing failed: ${secondError.message}`);
-        }
-      }
-
-      console.log('Successfully parsed content:', content);
-
-      if (!content.pet_policy || !content.airline_info) {
-        throw new Error('Invalid response structure: missing required fields');
-      }
-
-      return {
-        pet_types_allowed: content.pet_policy.pet_types_allowed || [],
-        carrier_requirements_cabin: content.pet_policy.carrier_requirements_cabin || '',
-        carrier_requirements_cargo: content.pet_policy.carrier_requirements_cargo || '',
-        documentation_needed: content.pet_policy.documentation_needed || [],
-        temperature_restrictions: content.pet_policy.temperature_restrictions || '',
-        breed_restrictions: content.pet_policy.breed_restrictions || [],
-        policy_url: content.airline_info?.official_website || null,
-        size_restrictions: {
-          max_weight_cabin: content.pet_policy.size_restrictions?.max_weight_cabin || null,
-          max_weight_cargo: content.pet_policy.size_restrictions?.max_weight_cargo || null,
-          carrier_dimensions_cabin: content.pet_policy.size_restrictions?.carrier_dimensions_cabin || null
-        },
-        fees: {
-          in_cabin: content.pet_policy.fees?.in_cabin || null,
-          cargo: content.pet_policy.fees?.cargo || null
-        }
-      };
-
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed:`, error);
-      lastError = error;
-      
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000;
-        console.log(`Waiting ${delay}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        throw new Error(`Failed after ${maxRetries} attempts: ${lastError.message}`);
-      }
-    }
-  }
-
-  throw lastError;
-}

@@ -1,15 +1,18 @@
+
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
 
 const SampleResults = () => {
   const { route } = useParams();
   const isMobile = useIsMobile();
-  console.log("Sample results route param:", route);
+  console.log("Sample results route param:", route, "isMobile:", isMobile);
 
-  const { data: file } = useQuery({
+  const { data: file, isLoading } = useQuery({
     queryKey: ["active-sample-file", route],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -44,24 +47,50 @@ const SampleResults = () => {
         .publicUrl
     : null;
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p>Loading sample results...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {pdfUrl ? (
         <div className="w-full h-screen">
           {isMobile ? (
-            // Mobile view - open PDF in new tab
+            // Mobile view - options to view or download PDF
             <div className="flex flex-col items-center justify-center h-full p-4">
-              <p className="text-center mb-4">
-                For the best viewing experience on mobile, please open the PDF in a new tab:
-              </p>
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-primary text-white px-6 py-3 rounded-lg shadow hover:bg-opacity-90 transition-colors"
-              >
-                Open PDF
-              </a>
+              <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+                <h2 className="text-xl font-bold mb-4 text-center">Sample Results</h2>
+                <p className="text-center mb-6">
+                  For the best viewing experience on mobile, please choose one of the options below:
+                </p>
+                <div className="space-y-4">
+                  <Button
+                    className="w-full flex items-center justify-center gap-2"
+                    onClick={() => window.open(pdfUrl, '_blank')}
+                  >
+                    View in Browser
+                  </Button>
+                  <a
+                    href={pdfUrl}
+                    download="sample-results.pdf"
+                    className="block w-full"
+                  >
+                    <Button 
+                      variant="outline" 
+                      className="w-full flex items-center justify-center gap-2"
+                    >
+                      <FileDown className="h-4 w-4" />
+                      Download PDF
+                    </Button>
+                  </a>
+                </div>
+              </div>
             </div>
           ) : (
             // Desktop view - embedded PDF

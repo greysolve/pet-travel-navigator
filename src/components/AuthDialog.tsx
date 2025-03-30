@@ -1,19 +1,32 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/auth/AuthContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 
 const AuthDialog = () => {
-  const { user, profile, signInWithEmail, signUp, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user, signInWithEmail, signUp, signOut, resetPasswordForEmail } = useAuth();
+  const { profile } = useProfile();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
+
+  useEffect(() => {
+    const showDialog = () => {
+      setIsSignUp(false);
+      setIsPasswordReset(false);
+      setShowAuthDialog(true);
+    };
+
+    window.addEventListener("show-auth-dialog", showDialog);
+    return () => window.removeEventListener("show-auth-dialog", showDialog);
+  }, []);
 
   const { data: userRole } = useQuery({
     queryKey: ["userRole", user?.id],
@@ -22,39 +35,20 @@ const AuthDialog = () => {
       
       console.log("Fetching user role for:", user.id);
 
-      if (user.user_metadata?.role === "site_manager") {
-        console.log("Role found in metadata:", user.user_metadata.role);
-        return "site_manager";
-      }
-
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching user role:", error);
+      if (roleError) {
+        console.error("Error fetching role:", roleError);
         return "pet_lover";
       }
 
-      if (!data) {
-        console.log("No role found in database, creating default role");
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: user.id,
-            role: "pet_lover"
-          });
-
-        if (insertError) {
-          console.error("Error inserting default role:", insertError);
-        }
-        return "pet_lover";
-      }
-
-      console.log("Role from database:", data.role);
-      return data.role;
+      const role = roleData?.role || "pet_lover";
+      console.log("Role from database:", role);
+      return role;
     },
     enabled: !!user,
   });
@@ -106,20 +100,45 @@ const AuthDialog = () => {
     }
   };
 
-  const handleSignOut = async () => {
+  const handlePasswordReset = async (email: string) => {
     setIsLoading(true);
     try {
-      await signOut();
-      navigate("/");
+      const result = await resetPasswordForEmail(email);
+      if (result?.error) {
+        throw result.error;
+      }
+      setShowAuthDialog(false);
     } catch (error: any) {
+      console.error("Password reset error:", error);
       toast({
-        title: "Error signing out",
+        title: "Error resetting password",
         description: error.message,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    try {
+      await signOut();
+      // Reload the page to ensure a clean state
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    setIsPasswordReset(true);
+    setIsSignUp(false);
   };
 
   return (
@@ -136,21 +155,26 @@ const AuthDialog = () => {
             isLoading={isLoading}
             onSignIn={() => {
               setIsSignUp(false);
+              setIsPasswordReset(false);
               setShowAuthDialog(true);
             }}
             onSignUp={() => {
               setIsSignUp(true);
+              setIsPasswordReset(false);
               setShowAuthDialog(true);
             }}
           />
           <AuthDialogContent
             isOpen={showAuthDialog}
             isSignUp={isSignUp}
+            isPasswordReset={isPasswordReset}
             isLoading={isLoading}
             onOpenChange={setShowAuthDialog}
             onSignIn={handleSignIn}
             onSignUp={handleSignUp}
+            onPasswordReset={handlePasswordReset}
             onToggleMode={setIsSignUp}
+            onForgotPassword={handleForgotPassword}
           />
         </>
       )}

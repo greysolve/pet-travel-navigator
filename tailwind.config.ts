@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -35,6 +36,10 @@ export default {
         accent: {
           DEFAULT: "#E6F7FC",
           foreground: "#0FA0CE",
+        },
+        orange: {
+          DEFAULT: "#F97316",
+          foreground: "#ffffff",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",

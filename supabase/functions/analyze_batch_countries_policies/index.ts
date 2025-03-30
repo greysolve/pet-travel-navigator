@@ -13,9 +13,9 @@ Deno.serve(async (req) => {
 
   const startTime = Date.now();
   try {
-    const perplexityKey = Deno.env.get('PERPLEXITY_API_KEY');
-    if (!perplexityKey) {
-      console.error('PERPLEXITY_API_KEY is not set');
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('OPENAI_API_KEY is not set');
       throw new Error('API key configuration error');
     }
 
@@ -30,9 +30,12 @@ Deno.serve(async (req) => {
       throw new Error('Invalid input: countries must be an array');
     }
 
+    // Log the countries we're about to process
+    console.log(`Processing countries: ${countries.map(c => c.name).join(', ')}`);
+
     const { results, errors } = await processPolicyBatch(
       countries,
-      perplexityKey,
+      openaiKey,
       supabaseUrl,
       supabaseKey
     );

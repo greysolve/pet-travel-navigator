@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
@@ -9,9 +10,10 @@ import { Button } from "@/components/ui/button";
 interface FlightResultsProps {
   flights: FlightData[];
   petPolicies?: Record<string, PetPolicy>;
+  apiProvider?: string;
 }
 
-export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
+export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResultsProps) => {
   const [airlineNames, setAirlineNames] = useState<Record<string, string>>({});
   
   useEffect(() => {
@@ -45,6 +47,7 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
 
   console.log("Rendering FlightResults with flights:", flights);
   console.log("Airline names mapping:", airlineNames);
+  console.log("Pet policies:", petPolicies);
   
   if (flights.length === 0) {
     return (
@@ -123,8 +126,11 @@ export const FlightResults = ({ flights, petPolicies }: FlightResultsProps) => {
                       arrivalTerminal={segment.arrivalTerminal}
                     />
                     
-                    {petPolicies?.[segment.carrierFsCode] && (
+                    {petPolicies && petPolicies[segment.carrierFsCode] && (
                       <div className="mt-4">
+                        <h2 className="text-xl font-semibold mb-4">
+                          Pet Policy for {airlineName || segment.carrierFsCode}
+                        </h2>
                         <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
                       </div>
                     )}

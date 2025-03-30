@@ -3,110 +3,194 @@ import { SyncManager } from './SyncManager.ts';
 import { BatchProcessor } from './BatchProcessor.ts';
 import { SupabaseClientManager } from './SupabaseClient.ts';
 
+interface AirlineSync {
+  id: string;
+  iata_code: string;
+  name: string;
+}
+
+interface SyncResult {
+  success: boolean;
+  iata_code: string;
+  error?: string;
+}
+
 export class AirlineSyncService {
   private supabase;
   private syncManager;
   private batchProcessor;
+  private supabaseUrl: string;
+  private supabaseKey: string;
 
   constructor(supabase: any, syncManager: SyncManager, batchProcessor: BatchProcessor) {
     this.supabase = supabase;
     this.syncManager = syncManager;
     this.batchProcessor = batchProcessor;
+    this.supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    this.supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   }
 
-  async processBatch(batch: any[]) {
+  async processBatch(batch: AirlineSync[]) {
     console.log(`Processing batch of ${batch.length} airlines`);
     
+    const results: SyncResult[] = [];
+    const currentProgress = await this.syncManager.getCurrentProgress();
+    
     try {
-      const { data: result, error } = await this.batchProcessor.retryOperation(async () => {
-        return await this.supabase.functions.invoke('analyze_batch_pet_policies', {
-          body: { airlines: batch }
-        });
-      });
-
-      if (error) throw error;
-      if (!result) throw new Error('No result returned from analyze_batch_pet_policies');
-
-      const currentProgress = await this.syncManager.getCurrentProgress();
+      // Process the batch using analyze_batch_pet_policies with enhanced error handling
+      console.log('Calling analyze_batch_pet_policies with batch:', batch);
       
-      const batchUpdate = {
-        processed: currentProgress.processed + result.results.length,
-        processed_items: [
-          ...currentProgress.processed_items,
-          ...result.results.map(success => success.iata_code)
-        ],
-        error_items: [
-          ...currentProgress.error_items,
-          ...result.errors.map(error => error.iata_code)
-        ],
-        last_processed: result.results[result.results.length - 1]?.iata_code || currentProgress.last_processed
-      };
+      // Enhanced fetch call with timeout and retry logic
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      console.log(`Updating progress with ${result.results.length} successes and ${result.errors.length} errors`);
-      await this.syncManager.updateProgress(batchUpdate);
+      try {
+        const response = await fetch(`${this.supabaseUrl}/functions/v1/analyze_batch_pet_policies`, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${this.supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ airlines: batch })
+        });
 
-      if (result.results.length > 0) {
-        await this.removeProcessedAirlines(result.results.map(success => success.iata_code));
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Batch analysis failed: ${response.status} - ${errorText}`);
+        }
+
+        const analysisResult = await response.json();
+        console.log('Batch analysis results:', analysisResult);
+
+        // Update progress based on results with enhanced error handling
+        for (const airline of batch) {
+          const result = analysisResult.results?.find((r: any) => r.iata_code === airline.iata_code);
+          const error = analysisResult.errors?.find((e: any) => e.iata_code === airline.iata_code);
+
+          if (result) {
+            results.push({ success: true, iata_code: airline.iata_code });
+            await this.updateProgressForAirline(airline.iata_code, true);
+          } else if (error) {
+            results.push({ 
+              success: false, 
+              iata_code: airline.iata_code,
+              error: error.error 
+            });
+            await this.updateProgressForAirline(airline.iata_code, false, error.error);
+          }
+        }
+
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out after 30 seconds');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
       }
 
-      return { success: true, processedCount: result.results.length };
+      // Add delay between batches to prevent rate limiting
+      await this.batchProcessor.delay(this.batchProcessor.getDelayBetweenBatches());
+
+      return { 
+        success: results.some(r => r.success),
+        results: results.filter(r => r.success),
+        errors: results.filter(r => !r.success)
+      };
+
     } catch (error) {
-      console.error(`Failed to process batch:`, error);
-      const currentProgress = await this.syncManager.getCurrentProgress();
-      await this.syncManager.updateProgress({
-        error_items: [
-          ...currentProgress.error_items,
-          ...batch.map(airline => airline.iata_code)
-        ],
-        needs_continuation: true
-      });
-      return { success: false, error };
+      console.error('Error processing batch:', error);
+      // Update progress with batch-wide error
+      for (const airline of batch) {
+        await this.updateProgressForAirline(
+          airline.iata_code, 
+          false, 
+          `Batch processing failed: ${error.message}`
+        );
+      }
+      throw error;
     }
   }
 
-  private async removeProcessedAirlines(successfulIataCodes: string[]) {
-    console.log(`Removing ${successfulIataCodes.length} processed items from missing_pet_policies`);
-    const { error: deleteError } = await this.supabase
-      .from('missing_pet_policies')
-      .delete()
-      .in('iata_code', successfulIataCodes);
+  private async updateProgressForAirline(iataCode: string, success: boolean, errorMessage?: string) {
+    const currentProgress = await this.syncManager.getCurrentProgress();
+    if (!currentProgress) return;
 
-    if (deleteError) {
-      console.error('Error removing processed items from missing_pet_policies:', deleteError);
+    const updates: any = {
+      processed: currentProgress.processed + 1,
+      last_processed: iataCode
+    };
+
+    if (success) {
+      updates.processed_items = [...(currentProgress.processed_items || []), iataCode];
+    } else {
+      updates.error_items = [...(currentProgress.error_items || []), iataCode];
+      updates.error_details = {
+        ...(currentProgress.error_details || {}),
+        [iataCode]: errorMessage
+      };
     }
+
+    await this.syncManager.updateProgress(updates);
   }
 
   async performFullSync() {
     try {
       console.log('Starting full airline sync');
-      await this.syncManager.initialize(1);
-
-      const { data: result, error } = await this.batchProcessor.retryOperation(async () => {
-        return await this.supabase.functions.invoke('fetch_airlines', {
-          body: {}
-        });
-      });
-
-      if (error) throw error;
-      if (!result) throw new Error('No result returned from fetch_airlines');
-
-      console.log('Fetch airlines result:', result);
       
+      // Get total count of active airlines
+      const { count, error: countError } = await this.supabase
+        .from('airlines')
+        .select('*', { count: 'exact', head: true })
+        .eq('active', true);
+
+      if (countError) throw countError;
+      
+      console.log(`Found ${count} active airlines to process`);
+      await this.syncManager.initialize(count);
+
+      // Fetch and process airlines in batches
+      let processed = 0;
+      const batchSize = this.batchProcessor.getBatchSize();
+
+      while (processed < count) {
+        const { data: airlines, error } = await this.supabase
+          .from('airlines')
+          .select('id, iata_code, name')
+          .eq('active', true)
+          .range(processed, processed + batchSize - 1);
+
+        if (error) throw error;
+        if (!airlines?.length) break;
+
+        await this.processBatch(airlines);
+        processed += airlines.length;
+
+        // Add delay between batches
+        if (processed < count) {
+          await this.batchProcessor.delay(this.batchProcessor.getDelayBetweenBatches());
+        }
+      }
+
+      const finalProgress = await this.syncManager.getCurrentProgress();
       await this.syncManager.updateProgress({
-        processed: 1,
-        last_processed: 'Full sync completed',
-        processed_items: ['full_sync'],
         is_complete: true,
         needs_continuation: false
       });
 
-      return { success: true };
+      return { success: true, processed };
     } catch (error) {
       console.error('Error in full sync:', error);
       await this.syncManager.updateProgress({
         error_items: ['full_sync'],
         needs_continuation: true,
-        is_complete: false
+        is_complete: false,
+        error_details: {
+          full_sync: error.message
+        }
       });
       throw error;
     }

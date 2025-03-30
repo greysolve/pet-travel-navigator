@@ -1,26 +1,35 @@
 
-export interface AnalysisResponse {
-  success: boolean;
-  results?: string[];
-  errors?: Array<{
-    country: string;
-    error: string;
-  }>;
-  chunk_metrics?: {
-    processed: number;
-    execution_time: number;
-    success_rate: number;
-  };
-  has_more: boolean;
-  next_offset?: number;
-  total_remaining?: number;
-  resume_token?: string | null;
-  message?: string;
-  error?: string;
+export interface Country {
+  id: string;
+  name: string;
+  code: string;
 }
 
-export interface RequestBody {
-  mode?: string;
-  offset?: number;
-  resumeToken?: string | null;
+export interface CountryPolicyResult {
+  country: string;
+  processingTimeMs: number;
+  policiesFound: number;
+  policiesSaved?: string[];
+}
+
+export interface ProcessingError {
+  country: string;
+  error: string;
+}
+
+export interface ApiResponse {
+  data: {
+    progress: {
+      needs_continuation: boolean;
+      next_offset: number | null;
+    };
+    results?: CountryPolicyResult[];
+    errors?: ProcessingError[];
+    chunk_metrics?: {
+      processed: number;
+      execution_time: number;
+      success_rate: number;
+    };
+  };
+  error?: string;
 }

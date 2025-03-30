@@ -8,7 +8,7 @@ export class BatchProcessor {
   constructor(
     timeout = 30000,
     maxRetries = 3,
-    batchSize = 3,
+    batchSize = 5, // Default batch size of 5
     delayBetweenBatches = 2000
   ) {
     this.REQUEST_TIMEOUT = timeout;
@@ -23,22 +23,27 @@ export class BatchProcessor {
 
   async retryOperation<T>(
     operation: () => Promise<T>,
-    retryCount = 0
+    retryCount = 0,
+    customTimeout?: number
   ): Promise<T> {
     try {
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Operation timed out')), this.REQUEST_TIMEOUT);
+        setTimeout(() => reject(new Error('Operation timed out')), 
+          customTimeout || this.REQUEST_TIMEOUT);
       });
+
       const operationPromise = operation();
       return await Promise.race([operationPromise, timeoutPromise]) as T;
     } catch (error) {
       console.error(`Operation failed (attempt ${retryCount + 1}):`, error);
+      
       if (retryCount < this.MAX_RETRIES) {
         const delayTime = Math.pow(2, retryCount) * 1000;
         console.log(`Retrying in ${delayTime}ms...`);
         await this.delay(delayTime);
         return this.retryOperation(operation, retryCount + 1);
       }
+      
       throw error;
     }
   }
@@ -49,5 +54,15 @@ export class BatchProcessor {
 
   getDelayBetweenBatches() {
     return this.DELAY_BETWEEN_BATCHES;
+  }
+
+  getTimeout() {
+    return this.REQUEST_TIMEOUT;
+  }
+  
+  // New method to set batch size dynamically
+  setBatchSize(size: number) {
+    this.BATCH_SIZE = size;
+    return this;
   }
 }

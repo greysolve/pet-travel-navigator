@@ -1,23 +1,26 @@
 
 export interface Country {
+  id: string;
   name: string;
   code: string;
 }
 
-export interface PolicyResult {
+export interface CountryPolicyResult {
   country: string;
-  success: boolean;
+  processingTimeMs: number;
+  policiesFound: number;
+  policiesSaved?: string[];
 }
 
-export interface PolicyError {
+export interface ProcessingError {
   country: string;
   error: string;
 }
 
 export interface ProcessingResponse {
   success: boolean;
-  results: PolicyResult[];
-  errors: PolicyError[];
+  results: CountryPolicyResult[];
+  errors: ProcessingError[];
   execution_time?: number;
 }
 

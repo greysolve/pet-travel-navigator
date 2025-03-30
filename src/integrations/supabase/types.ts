@@ -102,6 +102,33 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       countries: {
         Row: {
           code: string
@@ -192,74 +219,102 @@ export type Database = {
         }
         Relationships: []
       }
-      country_policies_backup_2025_02_07: {
+      customer_subscriptions: {
         Row: {
-          additional_notes: string | null
-          all_blood_tests: string | null
-          all_other_biological_tests: string | null
-          backup_timestamp: string | null
-          country_code: string | null
+          cancel_at_period_end: boolean | null
           created_at: string | null
-          description: string | null
-          documentation_needed: string[] | null
-          fees: Json | null
-          id: string | null
-          last_updated: string | null
-          policy_type: Database["public"]["Enums"]["policy_type"] | null
-          policy_url: string | null
-          quarantine_requirements: string | null
-          required_ports_of_entry: string | null
-          requirements: string[] | null
-          restrictions: Json | null
-          title: string | null
+          current_period_end: string | null
+          id: string
+          plan_id: string | null
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string | null
-          vaccination_requirements: string[] | null
+          user_id: string | null
         }
         Insert: {
-          additional_notes?: string | null
-          all_blood_tests?: string | null
-          all_other_biological_tests?: string | null
-          backup_timestamp?: string | null
-          country_code?: string | null
+          cancel_at_period_end?: boolean | null
           created_at?: string | null
-          description?: string | null
-          documentation_needed?: string[] | null
-          fees?: Json | null
-          id?: string | null
-          last_updated?: string | null
-          policy_type?: Database["public"]["Enums"]["policy_type"] | null
-          policy_url?: string | null
-          quarantine_requirements?: string | null
-          required_ports_of_entry?: string | null
-          requirements?: string[] | null
-          restrictions?: Json | null
-          title?: string | null
+          current_period_end?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
-          vaccination_requirements?: string[] | null
+          user_id?: string | null
         }
         Update: {
-          additional_notes?: string | null
-          all_blood_tests?: string | null
-          all_other_biological_tests?: string | null
-          backup_timestamp?: string | null
-          country_code?: string | null
+          cancel_at_period_end?: boolean | null
           created_at?: string | null
-          description?: string | null
-          documentation_needed?: string[] | null
-          fees?: Json | null
-          id?: string | null
-          last_updated?: string | null
-          policy_type?: Database["public"]["Enums"]["policy_type"] | null
-          policy_url?: string | null
-          quarantine_requirements?: string | null
-          required_ports_of_entry?: string | null
-          requirements?: string[] | null
-          restrictions?: Json | null
-          title?: string | null
+          current_period_end?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
-          vaccination_requirements?: string[] | null
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customer_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_plans: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          environment: string
+          features: Json | null
+          id: string
+          name: string
+          price: number
+          stripe_price_id: string | null
+          system_plan_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          environment?: string
+          features?: Json | null
+          id?: string
+          name: string
+          price: number
+          stripe_price_id?: string | null
+          system_plan_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          environment?: string
+          features?: Json | null
+          id?: string
+          name?: string
+          price?: number
+          stripe_price_id?: string | null
+          system_plan_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_plans_system_plan_id_fkey"
+            columns: ["system_plan_id"]
+            isOneToOne: false
+            referencedRelation: "system_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pet_policies: {
         Row: {
@@ -316,13 +371,6 @@ export type Database = {
             columns: ["airline_id"]
             isOneToOne: true
             referencedRelation: "airlines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pet_policies_airline_id_fkey"
-            columns: ["airline_id"]
-            isOneToOne: true
-            referencedRelation: "missing_pet_policies"
             referencedColumns: ["id"]
           },
         ]
@@ -399,6 +447,33 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_field_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          field_name: string
+          id: string
+          is_premium: boolean
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          field_name: string
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          field_name?: string
+          id?: string
+          is_premium?: boolean
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_format: string | null
@@ -413,7 +488,9 @@ export type Database = {
           id: string
           locality: string | null
           notification_preferences: Json | null
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code: string | null
+          search_count: number | null
           updated_at: string | null
         }
         Insert: {
@@ -429,7 +506,9 @@ export type Database = {
           id: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -445,7 +524,9 @@ export type Database = {
           id?: string
           locality?: string | null
           notification_preferences?: Json | null
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
           postal_code?: string | null
+          search_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -456,41 +537,42 @@ export type Database = {
             referencedRelation: "countries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_user_role_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "user_roles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       route_searches: {
         Row: {
-          cached_until: string | null
           created_at: string | null
           destination: string
           id: string
-          last_searched_at: string | null
           origin: string
           search_date: string
           updated_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
-          cached_until?: string | null
           created_at?: string | null
           destination: string
           id?: string
-          last_searched_at?: string | null
           origin: string
           search_date: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
-          cached_until?: string | null
           created_at?: string | null
           destination?: string
           id?: string
-          last_searched_at?: string | null
           origin?: string
           search_date?: string
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -534,13 +616,6 @@ export type Database = {
             columns: ["airline_id"]
             isOneToOne: false
             referencedRelation: "airlines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "routes_airline_id_fkey"
-            columns: ["airline_id"]
-            isOneToOne: false
-            referencedRelation: "missing_pet_policies"
             referencedColumns: ["id"]
           },
           {
@@ -610,6 +685,60 @@ export type Database = {
         }
         Relationships: []
       }
+      support_settings: {
+        Row: {
+          auto_reply_subject: string
+          auto_reply_template: string
+          created_at: string
+          id: string
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_secure: boolean | null
+          smtp_security: string | null
+          smtp_username: string | null
+          support_email: string
+          updated_at: string
+          use_smtp: boolean | null
+        }
+        Insert: {
+          auto_reply_subject?: string
+          auto_reply_template?: string
+          created_at?: string
+          id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_security?: string | null
+          smtp_username?: string | null
+          support_email?: string
+          updated_at?: string
+          use_smtp?: boolean | null
+        }
+        Update: {
+          auto_reply_subject?: string
+          auto_reply_template?: string
+          created_at?: string
+          id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean | null
+          smtp_security?: string | null
+          smtp_username?: string | null
+          support_email?: string
+          updated_at?: string
+          use_smtp?: boolean | null
+        }
+        Relationships: []
+      }
       sync_progress: {
         Row: {
           batch_metrics: Json | null
@@ -664,6 +793,66 @@ export type Database = {
         }
         Relationships: []
       }
+      system_plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_search_unlimited?: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly?: boolean
+          search_limit?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_search_unlimited?: boolean
+          name?: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly?: boolean
+          search_limit?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      system_roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          permissions?: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          permissions?: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -687,16 +876,7 @@ export type Database = {
       }
     }
     Views: {
-      missing_pet_policies: {
-        Row: {
-          iata_code: string | null
-          id: string | null
-          name: string | null
-          policy_status: string | null
-          website: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       cleanup_airlines_data: {
@@ -716,11 +896,23 @@ export type Database = {
           airlineName: string
         }[]
       }
+      get_airlines_needing_policy_update: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+        }[]
+      }
       get_distinct_countries: {
         Args: Record<PropertyKey, never>
         Returns: {
           country: string
         }[]
+      }
+      get_profile_with_role: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
       }
       has_role: {
         Args: {
@@ -744,6 +936,7 @@ export type Database = {
           name: string
           city: string
           country: string
+          search_score: number
         }[]
       }
       unaccent: {
@@ -760,8 +953,25 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "site_manager" | "pet_lover"
+      app_role: "site_manager" | "pet_lover" | "pet_caddie"
       policy_type: "pet_arrival" | "pet_transit"
+      premium_field_type:
+        | "carrier_requirements"
+        | "carrier_requirements_cabin"
+        | "carrier_requirements_cargo"
+        | "temperature_restrictions"
+        | "policy_url"
+        | "fees_cargo"
+        | "fees_in_cabin"
+        | "size_restrictions_cabin"
+        | "pet_types_allowed"
+        | "documentation_needed"
+        | "breed_restrictions"
+        | "size_restrictions_max_weight_cabin"
+        | "size_restrictions_max_weight_cargo"
+        | "size_restrictions_carrier_dimensions_cabin"
+      subscription_plan: "free" | "premium" | "teams" | "personal"
+      user_permission: "view_all_fields" | "view_restricted_fields"
     }
     CompositeTypes: {
       [_ in never]: never

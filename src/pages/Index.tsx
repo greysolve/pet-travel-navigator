@@ -1,44 +1,52 @@
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { FlightData, PetPolicy } from "@/components/flight-results/types";
 
 const Index = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [flights, setFlights] = useState<FlightData[]>([]);
-  const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy>>();
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const [petPolicies, setPetPolicies] = useState<Record<string, PetPolicy> | undefined>(undefined);
+  const [apiProvider, setApiProvider] = useState<string | undefined>(undefined);
+  const [apiError, setApiError] = useState<string | undefined>(undefined);
+  const isMobile = useIsMobile();
 
   const handleSearchResults = (
-    results: FlightData[], 
-    policies?: Record<string, PetPolicy>
+    flightResults: FlightData[], 
+    policies?: Record<string, PetPolicy>,
+    provider?: string,
+    error?: string
   ) => {
-    setFlights(results);
-    setPetPolicies(policies);
     setSearchPerformed(true);
-
-    // Scroll to results after a brief delay to ensure DOM update
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
+    setFlights(flightResults);
+    setPetPolicies(policies);
+    setApiProvider(provider);
+    setApiError(error);
+    
+    // Scroll to results if we have any
+    if (flightResults.length > 0 || (policies && Object.keys(policies).length > 0)) {
+      const resultsElement = document.getElementById('search-results');
+      if (resultsElement) {
+        resultsElement.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F0FB]">
+    <div className="min-h-screen bg-gray-50">
       <HeroSection />
       <SearchSection onSearchResults={handleSearchResults} />
-      <div ref={resultsRef} className="scroll-mt-8">
-        <ResultsSection 
-          searchPerformed={searchPerformed} 
-          flights={flights}
-          petPolicies={petPolicies} 
-        />
-      </div>
+      <ResultsSection 
+        searchPerformed={searchPerformed} 
+        flights={flights} 
+        petPolicies={petPolicies}
+        isMobile={isMobile}
+        apiProvider={apiProvider}
+        apiError={apiError}
+      />
     </div>
   );
 };
