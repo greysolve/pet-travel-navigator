@@ -1,10 +1,10 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy, SizeRestrictionsField, FeesField } from "./types";
 import { useProfile } from "@/contexts/profile/ProfileContext";
 import { decorateWithPremiumFields } from "@/utils/policyDecorator";
 import { usePremiumFields } from "@/hooks/usePremiumFields";
+import { getSearchCountries } from "../search/search-utils/policyCalculations";
 
 const COUNTRY_MAPPINGS: Record<string, string> = {
   'USA': 'United States',
@@ -132,21 +132,29 @@ export const usePetPolicies = (flights: FlightData[]) => {
   });
 };
 
-export const useCountryPolicies = (countries: string[]) => {
+export const useCountryPolicies = (flights: FlightData[]) => {
   return useQuery({
-    queryKey: ['countryPolicies', countries],
+    queryKey: ['countryPolicies', flights],
     queryFn: async () => {
-      if (!countries.length) {
-        console.log("No countries provided");
+      if (!flights.length) {
+        console.log("No flights provided");
         return [];
       }
       
-      console.log(`Looking up policies for countries:`, countries);
+      // Get standardized country codes from airport IATA codes
+      const countryCodeArray = await getSearchCountries(flights);
+      
+      if (!countryCodeArray.length) {
+        console.log("No countries found in flights data");
+        return [];
+      }
+      
+      console.log(`Looking up policies for countries:`, countryCodeArray);
       
       const { data: policies, error } = await supabase
         .from('country_policies')
         .select('*')
-        .in('country_code', countries)
+        .in('country_code', countryCodeArray)
         .in('policy_type', ['pet_arrival', 'pet_transit']);
 
       if (error) {
@@ -157,7 +165,7 @@ export const useCountryPolicies = (countries: string[]) => {
       console.log(`Found ${policies?.length || 0} policies:`, policies);
       return policies || [];
     },
-    enabled: countries.length > 0,
+    enabled: flights.length > 0,
     retry: 3,
     retryDelay: 2000,
   });
