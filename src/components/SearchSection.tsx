@@ -1,13 +1,11 @@
-
 import { useAuth } from "@/contexts/auth/AuthContext";
-import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
+import { usePetPolicies } from "./flight-results/PolicyFetcher";
 import { useFlightSearch } from "./search/hooks/useFlightSearch";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
 import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
 import { useSearchValidation } from "./search/hooks/useSearchValidation";
 import { useSearchHandler } from "./search/hooks/useSearchHandler";
 import { SearchFormContainer } from "./search/SearchFormContainer";
-import { getSearchCountries } from "./search/search-utils/policyCalculations";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
@@ -114,7 +112,6 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const hasRouteSearch = origin !== "" || destination !== "";
 
   const { data: flightPetPolicies } = usePetPolicies(flights);
-  const { data: countryPolicies } = useCountryPolicies(getSearchCountries(flights));
 
   return (
     <div>

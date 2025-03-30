@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { usePetPolicies, useCountryPolicies } from "./flight-results/PolicyFetcher";
 import { FlightResults } from "./flight-results/FlightResults";
@@ -36,23 +35,7 @@ export const ResultsSection = ({
   const { data: premiumFields = [] } = usePremiumFields();
   const { data: flightPetPolicies, isLoading: isPoliciesLoading } = usePetPolicies(flights);
   
-  const countriesFromFlights = flights.reduce((countries: Set<string>, journey) => {
-    if (!journey.segments) return countries;
-    journey.segments.forEach(segment => {
-      if (segment.departureCountry) countries.add(segment.departureCountry);
-      if (segment.arrivalCountry) countries.add(segment.arrivalCountry);
-    });
-    return countries;
-  }, new Set<string>());
-
-  const allCountries = flights.reduce((countries: Set<string>, journey) => {
-    if (journey.origin?.country) countries.add(journey.origin.country);
-    if (journey.destination?.country) countries.add(journey.destination.country);
-    return countries;
-  }, new Set(countriesFromFlights));
-
-  const uniqueCountries = Array.from(allCountries).filter(Boolean);
-  const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(uniqueCountries);
+  const { data: countryPolicies, isLoading: isCountryPoliciesLoading } = useCountryPolicies(flights);
 
   const hasExportableResults = flights.length > 0 || (petPolicies && Object.keys(petPolicies).length > 0);
   const canExport = !isPetCaddie && hasExportableResults;
@@ -60,11 +43,9 @@ export const ResultsSection = ({
   if (!searchPerformed) return null;
 
   if (flights.length === 0 && petPolicies && Object.keys(petPolicies).length > 0) {
-    // Display single airline policy page (no flights)
     const airlineName = Object.keys(petPolicies)[0];
     const rawPolicy = petPolicies[airlineName];
     
-    // Only proceed if we have a valid policy
     if (!rawPolicy) {
       return (
         <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
@@ -153,7 +134,7 @@ export const ResultsSection = ({
         <div id="country-policies" className="space-y-6">
           <h2 className="text-2xl font-semibold mb-6">Country Pet Policies</h2>
           {searchPerformed ? (
-            uniqueCountries.length > 0 ? (
+            flights.length > 0 ? (
               countryPolicies && countryPolicies.length > 0 ? (
                 countryPolicies.map((policy, index) => (
                   <div 
