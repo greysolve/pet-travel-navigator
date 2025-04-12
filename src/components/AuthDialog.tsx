@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 import { useProfile } from "@/contexts/profile/ProfileContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
 
 const AuthDialog = () => {
-  const { user, signInWithEmail, signUp, signOut, resetPasswordForEmail } = useAuth();
+  const { user, dispatch } = useUser();
   const { profile } = useProfile();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
@@ -53,20 +53,30 @@ const AuthDialog = () => {
     enabled: !!user,
   });
 
-  const handleSignIn = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const result = await signInWithEmail(email, password);
-      if (result?.error) {
-        throw result.error;
+      console.log('Starting email sign-in for:', email);
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
       }
+
+      console.log('Email sign-in successful');
       setShowAuthDialog(false);
       toast({
         title: "Success",
         description: "Successfully signed in",
       });
+      return { };
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      console.error('Unexpected sign in error:', error);
       toast({
         title: "Error signing in",
         description: error.message === "Invalid login credentials" 
@@ -74,56 +84,90 @@ const AuthDialog = () => {
           : error.message,
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSignUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     setIsLoading(true);
     try {
-      await signUp(email, password, `${firstName.trim()} ${lastName.trim()}`);
+      console.log('Starting sign-up for:', email);
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: `${firstName.trim()} ${lastName.trim()}`,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      console.log('Sign-up successful');
       toast({
         title: "Success",
         description: "Please check your email to verify your account.",
       });
       setShowAuthDialog(false);
     } catch (error: any) {
-      console.error("Sign up error:", error);
+      console.error('Sign up error:', error);
       toast({
         title: "Error signing up",
         description: error.message,
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePasswordReset = async (email: string) => {
+  const resetPasswordForEmail = async (email: string) => {
     setIsLoading(true);
     try {
-      const result = await resetPasswordForEmail(email);
-      if (result?.error) {
-        throw result.error;
+      console.log('Starting password reset for:', email);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+      if (error) {
+        console.error('Password reset error:', error);
+        throw error;
       }
+      
+      console.log('Password reset email sent successfully');
+      toast({
+        title: "Reset email sent",
+        description: "Check your email for a password reset link",
+      });
       setShowAuthDialog(false);
     } catch (error: any) {
-      console.error("Password reset error:", error);
+      console.error('Unexpected reset password error:', error);
       toast({
         title: "Error resetting password",
         description: error.message,
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSignOut = async () => {
+  const signOut = async () => {
     setIsLoading(true);
     try {
-      await signOut();
+      console.log('Starting sign-out process');
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Dispatch sign out action to user context
+      dispatch({ type: 'AUTH_SIGN_OUT' });
+      
       // Reload the page to ensure a clean state
       window.location.reload();
     } catch (error: any) {
@@ -147,7 +191,7 @@ const AuthDialog = () => {
         <UserMenu
           profile={profile}
           userRole={userRole}
-          onSignOut={handleSignOut}
+          onSignOut={signOut}
         />
       ) : (
         <>
@@ -170,9 +214,9 @@ const AuthDialog = () => {
             isPasswordReset={isPasswordReset}
             isLoading={isLoading}
             onOpenChange={setShowAuthDialog}
-            onSignIn={handleSignIn}
-            onSignUp={handleSignUp}
-            onPasswordReset={handlePasswordReset}
+            onSignIn={signInWithEmail}
+            onSignUp={signUp}
+            onPasswordReset={resetPasswordForEmail}
             onToggleMode={setIsSignUp}
             onForgotPassword={handleForgotPassword}
           />
