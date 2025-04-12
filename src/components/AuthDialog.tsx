@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useUser } from "@/contexts/user/UserContext";
 import { useProfile } from "@/contexts/profile/ProfileContext";
@@ -53,7 +52,7 @@ const AuthDialog = () => {
     enabled: !!user,
   });
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log('Starting email sign-in for:', email);
@@ -74,7 +73,6 @@ const AuthDialog = () => {
         title: "Success",
         description: "Successfully signed in",
       });
-      return { };
     } catch (error: any) {
       console.error('Unexpected sign in error:', error);
       toast({
@@ -165,10 +163,7 @@ const AuthDialog = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Dispatch sign out action to user context
       dispatch({ type: 'AUTH_SIGN_OUT' });
-      
-      // Reload the page to ensure a clean state
       window.location.reload();
     } catch (error: any) {
       toast({

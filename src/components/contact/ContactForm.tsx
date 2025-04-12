@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/contexts/ProfileContext";
+import { useUser } from "@/contexts/user/UserContext";
+import { useProfile } from "@/contexts/profile/ProfileContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Info } from "lucide-react";
 import { contactFormSchema, ContactFormValues } from "./form-schema";
@@ -16,7 +16,7 @@ import { ContactMessageField } from "./ContactMessageField";
 import { useContactFormSubmit } from "./useContactFormSubmit";
 
 export function ContactForm() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const { profile } = useProfile();
   const { onSubmit, submitting, useSmtp, smtpConfigured } = useContactFormSubmit();
 
