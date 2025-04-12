@@ -9,33 +9,29 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined, // Use localStorage for session persistence
+    storageKey: 'pet-travel-auth-token',
+    flowType: 'pkce', // Use PKCE flow for enhanced security
+  }
+});
 
-/**
- * Clears any stored authentication data from local storage
- * This is useful when you want to ensure no auth data remains after sign out
- */
+// Function to clear authentication data completely
 export const clearAuthData = () => {
   try {
-    // Clear any auth-related data from localStorage
-    localStorage.removeItem('supabase.auth.token');
-    localStorage.removeItem('supabase.auth.refreshToken');
-    localStorage.removeItem('supabase.auth.expires_at');
+    if (typeof window === 'undefined') return true;
     
-    // Remove any other auth-related items that might be stored
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('supabase.auth.')) {
-        keysToRemove.push(key);
-      }
-    }
+    console.log('Clearing auth data from localStorage...');
     
-    // Remove the collected keys
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    // Remove our specific auth token
+    localStorage.removeItem('pet-travel-auth-token');
     
-    console.log('Auth data cleared from local storage');
+    return true;
   } catch (error) {
     console.error('Error clearing auth data:', error);
+    return false;
   }
 };
