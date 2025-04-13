@@ -58,10 +58,13 @@ export const FlightHeader = ({
           </div>
           
           <div className="flight-duration">
-            <div className="duration-line">
-              <div className="duration-text">
-                {hours}h {minutes}m
-              </div>
+            <div className="timeline">
+              <div className="timeline-line"></div>
+              <div className="timeline-dot"></div>
+              <div className="timeline-dot"></div>
+            </div>
+            <div className="duration-text">
+              {hours}h {minutes}m
             </div>
           </div>
           
