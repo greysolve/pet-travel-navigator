@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactFormValues, subjectOptions } from "./form-schema";
 
 export function useContactFormSubmit() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
   const { profile, updateProfile } = useProfile();
   const [submitting, setSubmitting] = useState(false);
   const [useSmtp, setUseSmtp] = useState(false);
