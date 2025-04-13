@@ -16,3 +16,10 @@ export interface CountryPolicyResult {
   policiesFound: number;
   policiesSaved?: string[];
 }
+
+export interface ProcessingResponse {
+  success: boolean;
+  results: CountryPolicyResult[];
+  errors: ProcessingError[];
+  execution_time?: number;
+}
