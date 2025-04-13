@@ -65,15 +65,18 @@ export const ResultsSection = ({
   }
 
   return (
-    <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
-      <div className="space-y-8 text-left">
+    <div id="search-results" className="container mx-auto px-4 py-6 animate-fade-in">
+      <div className="space-y-4 text-left">
         <ApiWarning message={apiError || ""} />
         
         {flights.length > 0 && (
           <>
-            {canExport && (
-              <ExportButton onClick={() => setShowExportDialog(true)} />
-            )}
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Flight Results</h2>
+              {canExport && (
+                <ExportButton onClick={() => setShowExportDialog(true)} />
+              )}
+            </div>
             <FlightResults 
               flights={flights} 
               petPolicies={isPoliciesLoading ? undefined : flightPetPolicies}
