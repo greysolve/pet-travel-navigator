@@ -32,54 +32,60 @@ export const FlightHeader = ({
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
   
   return (
-    <div className="flex flex-col md:flex-row md:items-center p-6 gap-4 flex-grow">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-lg font-bold text-primary">
+    <div className="flex items-center p-4 flex-grow">
+      <div className="w-12 h-12 bg-primary-light rounded-full flex items-center justify-center text-base font-medium text-primary mr-4">
         {carrierFsCode}
       </div>
       
-      <div className="flex-grow">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2">
-          <div>
-            <p className="font-bold text-lg">
-              {airlineName || "Unknown Airline"}
-            </p>
-            <Badge variant="secondary" className="font-normal">
-              {flightNumber}
-            </Badge>
-          </div>
-          
-          <div className="mt-2 md:mt-0 text-right">
-            <p className="text-sm text-gray-500">Duration</p>
-            <p className="font-medium">{hours}h {minutes}m</p>
+      <div className="flex-grow grid grid-cols-3 gap-2">
+        <div>
+          <p className="font-medium text-sm text-neutral-800">
+            {airlineName || carrierFsCode}
+          </p>
+          <Badge variant="outline" className="font-normal text-xs mt-1">
+            {flightNumber}
+          </Badge>
+        </div>
+        
+        <div className="flex flex-col items-center">
+          <div className="flex items-center space-x-2">
+            <div className="text-center">
+              <p className="font-medium text-sm">
+                {departure.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              </p>
+              <p className="text-xs text-neutral-500">
+                {departureAirport}
+              </p>
+            </div>
+            
+            <div className="flex-grow mx-1 h-[1px] bg-neutral-200 relative">
+              <div className="text-xs text-neutral-500 absolute -top-4 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                {hours}h {minutes}m
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <p className="font-medium text-sm">
+                {arrival.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              </p>
+              <p className="text-xs text-neutral-500">
+                {arrivalAirport}
+              </p>
+            </div>
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between mt-2">
-          <div>
-            <p className="text-sm text-gray-500">Departure</p>
-            <p className="font-medium text-lg">
-              {departure.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+        <div className="text-right">
+          {departureTerminal && (
+            <p className="text-xs text-neutral-500">
+              From Terminal {departureTerminal}
             </p>
-            {departureAirport && (
-              <p className="text-sm text-gray-500">
-                {departureAirport} {departureTerminal && `Terminal ${departureTerminal}`}
-              </p>
-            )}
-          </div>
-          
-          <div className="hidden md:block border-t border-gray-300 flex-grow mx-4 h-0"></div>
-          
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Arrival</p>
-            <p className="font-medium text-lg">
-              {arrival.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          )}
+          {arrivalTerminal && (
+            <p className="text-xs text-neutral-500">
+              To Terminal {arrivalTerminal}
             </p>
-            {arrivalAirport && (
-              <p className="text-sm text-gray-500">
-                {arrivalAirport} {arrivalTerminal && `Terminal ${arrivalTerminal}`}
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

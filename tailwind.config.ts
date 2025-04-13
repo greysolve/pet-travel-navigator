@@ -28,6 +28,7 @@ export default {
         primary: {
           DEFAULT: "#33C3F0",
           foreground: "#ffffff",
+          light: "#E6F7FC",
         },
         secondary: {
           DEFAULT: "#0FA0CE",
@@ -36,6 +37,18 @@ export default {
         accent: {
           DEFAULT: "#E6F7FC",
           foreground: "#0FA0CE",
+        },
+        neutral: {
+          50: "#f9fafb",
+          100: "#f3f4f6",
+          200: "#e5e7eb",
+          300: "#d1d5db",
+          400: "#9ca3af",
+          500: "#6b7280",
+          600: "#4b5563",
+          700: "#374151",
+          800: "#1f2937",
+          900: "#111827",
         },
         orange: {
           DEFAULT: "#F97316",

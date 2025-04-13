@@ -39,7 +39,7 @@ export const FlightCard = ({
     <Collapsible 
       open={isOpen} 
       onOpenChange={setIsOpen}
-      className="rounded-md border border-gray-100 hover:border-gray-200 transition-colors"
+      className="rounded-md border border-neutral-100 hover:border-neutral-200 transition-colors"
     >
       <div className="flex items-center justify-between">
         <FlightHeader
@@ -54,45 +54,45 @@ export const FlightCard = ({
           arrivalTerminal={arrivalTerminal}
         />
         <CollapsibleTrigger asChild>
-          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors mr-4">
-            {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          <button className="p-2 rounded-full hover:bg-neutral-100 transition-colors mr-2">
+            {isOpen ? <ChevronUp className="h-4 w-4 text-neutral-500" /> : <ChevronDown className="h-4 w-4 text-neutral-500" />}
           </button>
         </CollapsibleTrigger>
       </div>
       
       <CollapsibleContent className="overflow-hidden transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-        <div className="px-6 py-4 border-t border-gray-100">
+        <div className="px-4 py-3 border-t border-neutral-100">
           {petPolicy && (
             <div>
-              <h3 className="text-lg font-semibold mb-2">Pet Policy</h3>
+              <h3 className="text-base font-medium mb-2 text-neutral-800">Pet Policy</h3>
               <PolicyDetails policy={petPolicy} />
             </div>
           )}
           
           <div className="mt-4">
-            <h3 className="text-lg font-semibold mb-2">Flight Details</h3>
+            <h3 className="text-base font-medium mb-2 text-neutral-800">Flight Details</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500">Airline</p>
+                <p className="text-sm text-neutral-500">Airline</p>
                 <p className="font-medium">{airlineName || carrierFsCode}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Flight Number</p>
+                <p className="text-sm text-neutral-500">Flight Number</p>
                 <p className="font-medium">{flightNumber}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Departure</p>
+                <p className="text-sm text-neutral-500">Departure</p>
                 <p className="font-medium">
-                  {new Date(departureTime).toLocaleTimeString()} • {departureAirport}
+                  {new Date(departureTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {departureAirport}
                 </p>
-                {departureTerminal && <p className="text-sm text-gray-500">Terminal {departureTerminal}</p>}
+                {departureTerminal && <p className="text-sm text-neutral-500">Terminal {departureTerminal}</p>}
               </div>
               <div>
-                <p className="text-sm text-gray-500">Arrival</p>
+                <p className="text-sm text-neutral-500">Arrival</p>
                 <p className="font-medium">
-                  {new Date(arrivalTime).toLocaleTimeString()} • {arrivalAirport}
+                  {new Date(arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {arrivalAirport}
                 </p>
-                {arrivalTerminal && <p className="text-sm text-gray-500">Terminal {arrivalTerminal}</p>}
+                {arrivalTerminal && <p className="text-sm text-neutral-500">Terminal {arrivalTerminal}</p>}
               </div>
             </div>
           </div>

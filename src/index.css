@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -97,5 +98,23 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .flight-duration-line {
+    @apply h-[1px] bg-neutral-200 relative flex-grow mx-2;
+  }
+  
+  .flight-card {
+    @apply bg-white rounded-lg shadow-sm border border-neutral-100 overflow-hidden hover:shadow-md transition-shadow;
+  }
+  
+  .flight-time {
+    @apply font-medium text-sm text-neutral-800;
+  }
+  
+  .flight-airport {
+    @apply text-xs text-neutral-500;
   }
 }

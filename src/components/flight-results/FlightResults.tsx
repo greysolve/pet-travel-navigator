@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
@@ -49,8 +50,8 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
   
   if (flights.length === 0) {
     return (
-      <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
-        <p className="text-center text-gray-600">No flights found for the selected route and date.</p>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-center text-neutral-600">No flights found for the selected route and date.</p>
       </div>
     );
   }
@@ -63,7 +64,7 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {flights.map((journey, journeyIndex) => {
         const segments = journey.segments || [];
         const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);
@@ -78,17 +79,17 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
         return (
           <div 
             key={`journey-${journeyIndex}`} 
-            className="bg-white rounded-lg shadow-lg overflow-hidden"
+            className="bg-white rounded-lg shadow-md overflow-hidden border border-neutral-100"
           >
             {/* Journey Summary */}
-            <div className="bg-accent p-4 flex justify-between items-center">
-              <p className="text-sm font-medium text-accent-foreground">
+            <div className="bg-primary-light p-3 flex justify-between items-center">
+              <p className="text-sm font-medium text-secondary">
                 {stops === 0 ? 'Non-Stop Flight' : `${stops} Stop${stops > 1 ? 's' : ''} • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
               </p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-accent-foreground hover:text-accent-foreground/80"
+                className="text-primary hover:text-primary/80 p-0 h-auto"
                 onClick={scrollToCountryPolicies}
               >
                 View Country Policies <ArrowDown className="ml-1 h-4 w-4" />
@@ -113,7 +114,7 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
               return (
                 <div key={`${segment.flightNumber}-${segmentIndex}`}>
                   {/* Flight Segment */}
-                  <div className="p-4">
+                  <div className="p-3">
                     <FlightCard
                       carrierFsCode={segment.carrierFsCode}
                       airlineName={airlineName}
@@ -130,8 +131,8 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
 
                   {/* Layover Information */}
                   {isNotLastSegment && nextSegment && (
-                    <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">
-                      <p className="text-sm text-gray-600">
+                    <div className="border-t border-neutral-100 bg-neutral-50 px-4 py-2">
+                      <p className="text-sm text-neutral-600">
                         {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
                       </p>
                     </div>
