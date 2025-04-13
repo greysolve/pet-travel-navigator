@@ -1,6 +1,7 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { corsHeaders } from '../_shared/cors.ts'
-import { analyzePetPolicy } from './openAIClient.ts'
+import { analyzePetPolicy } from './services/policyAnalyzer.ts'
 import { savePetPolicyToDatabase } from './databaseHandler.ts'
 import { Airline, ProcessingResponse, ProcessingResult, ProcessingError } from './types.ts'
 

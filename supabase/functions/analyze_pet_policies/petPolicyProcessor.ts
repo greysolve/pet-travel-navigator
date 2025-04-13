@@ -1,7 +1,5 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { SyncManager } from '../_shared/SyncManager.ts'
-import { analyzePetPolicy } from '../analyze_batch_pet_policies/openAIClient.ts'
 
 export async function processPetPoliciesBatch(
   supabase: ReturnType<typeof createClient>,
