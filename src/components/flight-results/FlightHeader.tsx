@@ -62,7 +62,7 @@ export const FlightHeader = ({
           </p>
           {departureAirport && (
             <p className="text-sm text-gray-500">
-              {departureAirport} {departureTerminal && formatTerminal(departureTerminal)}
+              {departureAirport} {formatTerminal(departureTerminal)}
             </p>
           )}
         </div>
@@ -73,7 +73,7 @@ export const FlightHeader = ({
           </p>
           {arrivalAirport && (
             <p className="text-sm text-gray-500">
-              {arrivalAirport} {arrivalTerminal && formatTerminal(arrivalTerminal)}
+              {arrivalAirport} {formatTerminal(arrivalTerminal)}
             </p>
           )}
         </div>
