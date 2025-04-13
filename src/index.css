@@ -194,7 +194,7 @@
   }
 
   .view-details-button {
-    @apply text-[#F2FCE2] text-sm font-medium hover:text-white transition-colors mr-4;
+    @apply text-[#BDFF33] text-sm font-semibold hover:text-white transition-colors mr-4;
   }
 
   .policy-section, .details-section {
