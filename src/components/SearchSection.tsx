@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 import { usePetPolicies } from "./flight-results/PolicyFetcher";
 import { useFlightSearch } from "./search/hooks/useFlightSearch";
 import { useSavedSearches } from "./search/hooks/useSavedSearches";
@@ -9,12 +9,10 @@ import { SearchFormContainer } from "./search/SearchFormContainer";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
-import { useUser } from "@/contexts/user/UserContext";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const { user } = useAuth();
-  const { profile } = useUser();
+  const { user, profile } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
   const { searchCount, isPlanReady } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);

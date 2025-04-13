@@ -1,15 +1,14 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 import type { SavedSearch } from "../types";
 
 export const useSavedSearches = (userId: string | undefined) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
     if (userId) {
