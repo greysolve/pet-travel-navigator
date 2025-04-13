@@ -1,7 +1,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
-import { analyzePolicies } from '../analyze_batch_countries_policies/openAIClient.ts';
-import { Country, CountryPolicyResult, ProcessingError } from '../analyze_batch_countries_policies/types.ts';
+import { analyzePolicies } from './OpenAIClient.ts';
+import { Country, CountryPolicyResult, ProcessingError } from './types.ts';
 
 export async function processPolicyBatch(
   countries: Country[],
