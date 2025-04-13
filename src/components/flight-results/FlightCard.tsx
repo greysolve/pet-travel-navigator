@@ -1,8 +1,9 @@
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Plane } from "lucide-react";
 import { FlightHeader } from "./FlightHeader";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 import type { PetPolicy } from "./types";
 import { PolicyDetails } from "./PolicyDetails";
 
@@ -66,7 +67,7 @@ export const FlightCard = ({
         <div className="flight-details-content">
           {petPolicy && (
             <div className="policy-section">
-              <h3 className="section-title">Pet Policy</h3>
+              <h3 className="policy-header">Pet Policy for {airlineName || carrierFsCode}</h3>
               <PolicyDetails policy={petPolicy} />
             </div>
           )}
@@ -80,7 +81,9 @@ export const FlightCard = ({
               </div>
               <div className="detail-item">
                 <p className="detail-label">Flight Number</p>
-                <p className="detail-value">{flightNumber}</p>
+                <p className="detail-value">
+                  <span>{carrierFsCode}</span> <Badge variant="outline" className="ml-1">{flightNumber}</Badge>
+                </p>
               </div>
               <div className="detail-item">
                 <p className="detail-label">Departure</p>
@@ -94,7 +97,11 @@ export const FlightCard = ({
                 <p className="detail-value">
                   {new Date(arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {arrivalAirport}
                 </p>
-                {arrivalTerminal && <p className="detail-note">Terminal {arrivalTerminal}</p>}
+                {arrivalTerminal ? (
+                  <p className="detail-note">Terminal {arrivalTerminal}</p>
+                ) : (
+                  <p className="text-sm text-neutral-500">Terminal Not Available</p>
+                )}
               </div>
             </div>
           </div>

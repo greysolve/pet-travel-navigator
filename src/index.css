@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -114,7 +115,7 @@
   }
 
   .flight-details-content {
-    @apply px-4 py-3;
+    @apply p-6 bg-white;
   }
 
   .flight-header {
@@ -122,7 +123,7 @@
   }
 
   .airline-logo {
-    @apply w-12 h-12 bg-primary-light rounded-full flex items-center justify-center text-base font-medium text-primary-dark mr-4 flex-shrink-0;
+    @apply w-12 h-12 bg-[#EBF8FF] rounded-full flex items-center justify-center text-base font-medium text-primary-dark mr-4 flex-shrink-0;
   }
 
   .airline-code {
@@ -198,30 +199,38 @@
   }
 
   .policy-section, .details-section {
-    @apply mt-4 first:mt-0;
+    @apply mt-6 first:mt-0;
   }
 
   .section-title {
-    @apply text-base font-medium mb-2 text-neutral-800;
+    @apply text-lg font-medium mb-3 text-[#0EA5E9];
   }
 
   .details-grid {
-    @apply grid grid-cols-2 gap-4;
+    @apply grid grid-cols-2 gap-6 p-5 bg-[#FAFAFA] rounded-lg shadow-sm border border-neutral-100 mt-3;
   }
 
   .detail-item {
-    @apply mb-2;
+    @apply mb-3;
   }
 
   .detail-label {
-    @apply text-sm text-neutral-500;
+    @apply text-sm text-neutral-500 mb-1;
   }
 
   .detail-value {
-    @apply font-medium;
+    @apply font-medium text-neutral-800;
   }
 
   .detail-note {
-    @apply text-sm text-neutral-500;
+    @apply text-sm text-[#8FD400] font-medium;
+  }
+  
+  .policy-content {
+    @apply mt-4 bg-[#FAFAFA] p-5 rounded-lg border border-neutral-100 shadow-sm;
+  }
+  
+  .policy-header {
+    @apply text-xl font-semibold text-[#0EA5E9] mb-4;
   }
 }
