@@ -10,8 +10,7 @@ export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
-  const { user } = useUser();
-  const { profile } = useUser();
+  const { user, profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
   // Admin users are always treated as pet caddies

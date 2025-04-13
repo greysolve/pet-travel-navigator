@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
-import { PolicyDetails } from "./PolicyDetails";
 import { FlightCard } from "./FlightCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -44,15 +43,11 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
       fetchAirlineNames();
     }
   }, [flights]);
-
-  console.log("Rendering FlightResults with flights:", flights);
-  console.log("Airline names mapping:", airlineNames);
-  console.log("Pet policies:", petPolicies);
   
   if (flights.length === 0) {
     return (
-      <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
-        <p className="text-center text-gray-600">No flights found for the selected route and date.</p>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-center text-neutral-600">No flights found for the selected route and date.</p>
       </div>
     );
   }
@@ -65,32 +60,26 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {flights.map((journey, journeyIndex) => {
         const segments = journey.segments || [];
         const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);
         const stops = segments.length - 1;
         
-        console.log("Processing journey:", {
-          segments,
-          totalDuration,
-          stops
-        });
-        
         return (
           <div 
             key={`journey-${journeyIndex}`} 
-            className="bg-white rounded-lg shadow-lg overflow-hidden"
+            className="bg-white rounded-lg shadow-md overflow-hidden border border-neutral-200"
           >
             {/* Journey Summary */}
-            <div className="bg-accent p-4 flex justify-between items-center">
-              <p className="text-sm font-medium text-accent-foreground">
+            <div className="bg-primary-light p-3 flex justify-between items-center">
+              <p className="text-sm font-medium text-primary-dark">
                 {stops === 0 ? 'Non-Stop Flight' : `${stops} Stop${stops > 1 ? 's' : ''} • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
               </p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-accent-foreground hover:text-accent-foreground/80"
+                className="text-primary-dark hover:text-primary p-0 h-auto"
                 onClick={scrollToCountryPolicies}
               >
                 View Country Policies <ArrowDown className="ml-1 h-4 w-4" />
@@ -102,18 +91,12 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
               const isNotLastSegment = segmentIndex < segments.length - 1;
               const nextSegment = isNotLastSegment ? segments[segmentIndex + 1] : null;
               const airlineName = airlineNames[segment.carrierFsCode];
-              
-              console.log("Processing segment:", {
-                segment,
-                isNotLastSegment,
-                nextSegment,
-                airlineName
-              });
+              const segmentPetPolicy = petPolicies && petPolicies[segment.carrierFsCode];
 
               return (
                 <div key={`${segment.flightNumber}-${segmentIndex}`}>
                   {/* Flight Segment */}
-                  <div className="p-6">
+                  <div className="p-3">
                     <FlightCard
                       carrierFsCode={segment.carrierFsCode}
                       airlineName={airlineName}
@@ -124,22 +107,14 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                       arrivalAirport={segment.arrivalAirportFsCode}
                       departureTerminal={segment.departureTerminal}
                       arrivalTerminal={segment.arrivalTerminal}
+                      petPolicy={segmentPetPolicy}
                     />
-                    
-                    {petPolicies && petPolicies[segment.carrierFsCode] && (
-                      <div className="mt-4">
-                        <h2 className="text-xl font-semibold mb-4">
-                          Pet Policy for {airlineName || segment.carrierFsCode}
-                        </h2>
-                        <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
-                      </div>
-                    )}
                   </div>
 
                   {/* Layover Information */}
                   {isNotLastSegment && nextSegment && (
-                    <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">
-                      <p className="text-sm text-gray-600">
+                    <div className="border-t border-neutral-100 bg-neutral-50 px-4 py-2">
+                      <p className="text-sm text-neutral-600">
                         {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
                       </p>
                     </div>

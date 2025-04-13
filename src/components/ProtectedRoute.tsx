@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/user/UserContext";
-import { useProfile } from "@/contexts/profile/ProfileContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,26 +9,25 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
-  const { user, authLoading: loading } = useUser();
-  const { profile, loading: profileLoading } = useProfile();
+  const { user, profileLoading, profile } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!profileLoading && !user) {
       console.log("No authenticated user, redirecting to home");
       navigate("/");
       return;
     }
 
     // Only check role if a specific role is required and profile is loaded
-    if (!loading && !profileLoading && requiredRole && profile?.userRole !== requiredRole) {
+    if (!profileLoading && requiredRole && profile?.userRole !== requiredRole) {
       console.log("Access denied - incorrect role, redirecting to home");
       navigate("/");
       return;
     }
-  }, [user, loading, navigate, requiredRole, profile, profileLoading]);
+  }, [user, profileLoading, navigate, requiredRole, profile]);
 
-  if (loading || profileLoading) {
+  if (profileLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 

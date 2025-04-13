@@ -5,7 +5,7 @@ import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useUser } from "@/contexts/user/UserContext";
-import { useProfile } from "@/contexts/profile/ProfileContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Info } from "lucide-react";
 import { contactFormSchema, ContactFormValues } from "./form-schema";

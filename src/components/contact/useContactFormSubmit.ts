@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/user/UserContext";
-import { useProfile } from "@/contexts/profile/ProfileContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactFormValues, subjectOptions } from "./form-schema";
 

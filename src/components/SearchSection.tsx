@@ -12,8 +12,7 @@ import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
 import type { SearchSectionProps } from "./search/types";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
-  const { user } = useUser();
-  const { profile } = useUser();
+  const { user, profile } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
   const { searchCount, isPlanReady } = useUserSearchCount();
   const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);

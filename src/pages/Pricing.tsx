@@ -7,9 +7,9 @@ import { PricingTable } from "@/components/pricing/PricingTable";
 import { SiteManagerView } from "@/components/pricing/SiteManagerView";
 
 const Pricing = () => {
-  const { user } = useUser();
+  const { user: session } = useUser();
   const { profile } = useProfile();
-  const { data: currentPlan } = useCurrentPlan(user?.id);
+  const { data: currentPlan } = useCurrentPlan(session?.id);
 
   // Site Manager view
   if (profile?.userRole === 'site_manager') {
@@ -23,8 +23,8 @@ const Pricing = () => {
   return (
     <div className="container mx-auto py-16 px-4">
       {/* Current Plan Section */}
-      {currentPlan && user?.id && (
-        <CurrentPlanCard plan={currentPlan} userId={user.id} />
+      {currentPlan && session?.id && (
+        <CurrentPlanCard plan={currentPlan} userId={session.id} />
       )}
 
       {/* Available Plans Section */}
@@ -36,7 +36,7 @@ const Pricing = () => {
       </div>
 
       {/* Stripe Pricing Table */}
-      <PricingTable userId={user?.id} />
+      <PricingTable userId={session?.id} />
     </div>
   );
 };

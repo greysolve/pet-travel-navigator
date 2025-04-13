@@ -12,8 +12,8 @@ export const PolicySection = ({ title, data }: PolicySectionProps) => {
   }
 
   return (
-    <div>
-      <p className="font-medium mb-2">{title}:</p>
+    <div className="policy-content">
+      <p className="font-medium mb-2 text-[#0EA5E9]">{title}:</p>
       <PolicyField value={data} />
     </div>
   );
