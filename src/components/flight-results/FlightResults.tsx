@@ -48,12 +48,12 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
     }
   };
 
-  // Fetch airline names when flights change
+  // Use useEffect to fetch airline names
   useState(() => {
     if (flights.length > 0) {
       fetchAirlineNames();
     }
-  }, [flights]);
+  });
 
   console.log("Rendering FlightResults with flights:", flights);
   console.log("Airline names mapping:", airlineNames);
