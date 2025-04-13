@@ -1,72 +1,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
-import { Country, CountryPolicyResult, ProcessingError } from './types.ts';
+import { processPolicyBatch } from '../analyze_batch_countries_policies/policyProcessor.ts';
 import { createResponse } from './requestHandler.ts';
+import { Country, CountryPolicyResult, ProcessingError } from './types.ts';
 import { SyncManager } from '../_shared/SyncManager.ts';
 
 const BATCH_SIZE = 5;
-
-// Define a function similar to processPolicyBatch but for this context
-async function processPolicyBatch(
-  countries: Country[],
-  openaiKey: string,
-  supabaseUrl: string,
-  supabaseKey: string
-): Promise<{
-  results: CountryPolicyResult[];
-  errors: ProcessingError[];
-}> {
-  // Create Supabase client
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const results: CountryPolicyResult[] = [];
-  const errors: ProcessingError[] = [];
-
-  console.log(`Processing ${countries.length} countries in batch`);
-
-  // Process each country
-  for (const country of countries) {
-    try {
-      const startTime = Date.now();
-      
-      // Call the analyze_batch_countries_policies function
-      const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_countries_policies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({ countries: [country] }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to process country policy: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      // Add country results if successful
-      if (data.results && data.results.length > 0) {
-        results.push(...data.results);
-      }
-      
-      // Add any errors
-      if (data.errors && data.errors.length > 0) {
-        errors.push(...data.errors);
-      }
-      
-      console.log(`Successfully processed ${country.name}`);
-      
-    } catch (error) {
-      console.error(`Error processing ${country.name}:`, error);
-      errors.push({
-        country: country.name,
-        error: error.message
-      });
-    }
-  }
-
-  return { results, errors };
-}
 
 export async function processCountriesChunk(
   supabase: ReturnType<typeof createClient>,
