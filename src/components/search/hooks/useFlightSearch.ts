@@ -45,7 +45,7 @@ export const useFlightSearch = () => {
       // Format date to YYYY-MM-DD for API
       const formattedDate = date.toISOString().split('T')[0];
       
-      // UPDATED: Always use the main endpoint that handles provider selection
+      // Use the main endpoint that handles provider selection
       const searchPath = "search_flight_schedules_v2";
       
       console.log(`Using search path: ${searchPath}`);
