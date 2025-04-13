@@ -62,7 +62,14 @@ export const FlightHeader = ({
           </p>
           {departureAirport && (
             <p className="text-sm text-gray-500">
-              {departureAirport} {formatTerminal(departureTerminal)}
+              {departureAirport}
+              {departureTerminal === "NAN" ? (
+                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
+              ) : departureTerminal ? (
+                <span className="ml-1 text-green-500">· Terminal {departureTerminal}</span>
+              ) : (
+                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
+              )}
             </p>
           )}
         </div>
@@ -73,7 +80,14 @@ export const FlightHeader = ({
           </p>
           {arrivalAirport && (
             <p className="text-sm text-gray-500">
-              {arrivalAirport} {formatTerminal(arrivalTerminal)}
+              {arrivalAirport}
+              {arrivalTerminal === "NAN" ? (
+                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
+              ) : arrivalTerminal ? (
+                <span className="ml-1 text-green-500">· Terminal {arrivalTerminal}</span>
+              ) : (
+                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
+              )}
             </p>
           )}
         </div>
