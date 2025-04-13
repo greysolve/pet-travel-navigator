@@ -1,4 +1,6 @@
+
 import { Badge } from "@/components/ui/badge";
+import { Plane } from "lucide-react";
 
 type FlightHeaderProps = {
   carrierFsCode: string;
@@ -26,36 +28,47 @@ export const FlightHeader = ({
   console.log("FlightHeader props:", { carrierFsCode, airlineName, flightNumber });
   
   return (
-    <div className="flex items-center space-x-6">
-      <div>
-        <p className="font-bold text-lg">
-          {airlineName || "Unknown Airline"} ({carrierFsCode})
-        </p>
-        <Badge variant="secondary" className="font-normal">
-          {flightNumber}
-        </Badge>
-      </div>
-      <div>
-        <p className="text-sm text-gray-500">Departure</p>
-        <p className="font-medium">
-          {new Date(departureTime).toLocaleTimeString()}
-        </p>
-        {departureAirport && (
-          <p className="text-sm text-gray-500">
-            {departureAirport} {departureTerminal && `Terminal ${departureTerminal}`}
+    <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6 space-y-4 lg:space-y-0">
+      <div className="flex items-center space-x-3">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+          <Plane className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="font-bold text-lg text-gray-800">
+            {airlineName || "Unknown Airline"}
           </p>
-        )}
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="font-normal border-secondary/30 text-secondary">
+              {flightNumber}
+            </Badge>
+            <span className="text-xs text-gray-500">{carrierFsCode}</span>
+          </div>
+        </div>
       </div>
-      <div>
-        <p className="text-sm text-gray-500">Arrival</p>
-        <p className="font-medium">
-          {new Date(arrivalTime).toLocaleTimeString()}
-        </p>
-        {arrivalAirport && (
-          <p className="text-sm text-gray-500">
-            {arrivalAirport} {arrivalTerminal && `Terminal ${arrivalTerminal}`}
+      
+      <div className="flex space-x-6 mt-2 lg:mt-0">
+        <div className="border-l pl-4 lg:pl-6 border-gray-200">
+          <p className="text-sm text-gray-500">Departure</p>
+          <p className="font-medium text-primary">
+            {new Date(departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
-        )}
+          {departureAirport && (
+            <p className="text-sm text-gray-500">
+              {departureAirport} {departureTerminal && <span className="text-secondary">Terminal {departureTerminal}</span>}
+            </p>
+          )}
+        </div>
+        <div className="border-l pl-4 lg:pl-6 border-gray-200">
+          <p className="text-sm text-gray-500">Arrival</p>
+          <p className="font-medium text-primary">
+            {new Date(arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+          {arrivalAirport && (
+            <p className="text-sm text-gray-500">
+              {arrivalAirport} {arrivalTerminal && <span className="text-secondary">Terminal {arrivalTerminal}</span>}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

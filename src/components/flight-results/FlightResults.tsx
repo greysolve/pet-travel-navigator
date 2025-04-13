@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, Plane, Clock } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
 import { PolicyDetails } from "./PolicyDetails";
@@ -49,11 +49,11 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
   };
 
   // Use useEffect to fetch airline names
-  useState(() => {
+  useEffect(() => {
     if (flights.length > 0) {
       fetchAirlineNames();
     }
-  });
+  }, [flights]);
 
   console.log("Rendering FlightResults with flights:", flights);
   console.log("Airline names mapping:", airlineNames);
@@ -76,14 +76,14 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-0 z-10 p-3 bg-background/80 backdrop-blur-md border-b flex justify-between items-center">
+      <div className="sticky top-0 z-10 p-3 bg-background/90 backdrop-blur-md border-b border-primary/10 flex justify-between items-center">
         <p className="text-sm font-medium">
           {flights.length} {flights.length === 1 ? 'Flight' : 'Flights'} Found
         </p>
         <Button
           variant="ghost"
           size="sm"
-          className="text-accent-foreground hover:text-accent-foreground/80"
+          className="text-primary hover:text-primary/80"
           onClick={scrollToCountryPolicies}
         >
           View Country Policies <ArrowDown className="ml-1 h-4 w-4" />
@@ -101,12 +101,15 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
           const segments = journey.segments || [];
           const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);
           const stops = segments.length - 1;
+          const isExpanded = expandedJourneys.includes(journeyId);
           
           return (
             <AccordionItem 
               key={journeyId} 
               value={journeyId}
-              className="border rounded-lg shadow-sm overflow-hidden bg-white"
+              className={`border border-gray-200 rounded-lg shadow-sm overflow-hidden transition-all duration-200 ${
+                isExpanded ? 'bg-accent/30' : 'bg-white hover:border-primary/30'
+              }`}
             >
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
                 <CompactFlightCard 
@@ -116,7 +119,7 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                   airlineNames={airlineNames}
                 />
               </AccordionTrigger>
-              <AccordionContent className="px-0 pb-0">
+              <AccordionContent className="px-0 pb-0 border-t border-gray-100">
                 {segments.map((segment, segmentIndex) => {
                   const isNotLastSegment = segmentIndex < segments.length - 1;
                   const nextSegment = isNotLastSegment ? segments[segmentIndex + 1] : null;
@@ -138,8 +141,8 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                         />
                         
                         {petPolicies && petPolicies[segment.carrierFsCode] && (
-                          <div className="mt-4">
-                            <h2 className="text-xl font-semibold mb-4">
+                          <div className="mt-6 pt-5 border-t border-gray-100">
+                            <h2 className="text-xl font-semibold mb-4 text-secondary">
                               Pet Policy for {airlineName || segment.carrierFsCode}
                             </h2>
                             <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
@@ -148,8 +151,9 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                       </div>
 
                       {isNotLastSegment && nextSegment && (
-                        <div className="border-t border-gray-100 bg-gray-50 px-4 py-2">
-                          <p className="text-sm text-gray-600">
+                        <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
+                          <p className="text-sm text-gray-600 flex items-center">
+                            <Clock className="h-4 w-4 mr-2 text-secondary" />
                             {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
                           </p>
                         </div>
