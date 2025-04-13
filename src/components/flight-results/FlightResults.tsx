@@ -107,8 +107,8 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
             <AccordionItem 
               key={journeyId} 
               value={journeyId}
-              className={`border border-gray-200 rounded-lg shadow-sm overflow-hidden transition-all duration-200 ${
-                isExpanded ? 'bg-accent/30' : 'bg-white hover:border-primary/30'
+              className={`border ${isExpanded ? 'border-primary' : 'border-gray-200'} rounded-lg shadow-sm overflow-hidden transition-all duration-200 ${
+                isExpanded ? 'bg-accent/30' : 'bg-white hover:border-green-500/30'
               }`}
             >
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
@@ -153,7 +153,7 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                       {isNotLastSegment && nextSegment && (
                         <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
                           <p className="text-sm text-gray-600 flex items-center">
-                            <Clock className="h-4 w-4 mr-2 text-secondary" />
+                            <Clock className="h-4 w-4 mr-2 text-green-500" />
                             {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
                           </p>
                         </div>

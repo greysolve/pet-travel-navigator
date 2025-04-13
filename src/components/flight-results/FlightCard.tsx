@@ -28,7 +28,7 @@ export const FlightCard = ({
   isConnection,
 }: FlightCardProps) => {
   return (
-    <div className="rounded-md bg-white p-4 transition-all duration-200 hover:shadow-md">
+    <div className="rounded-md bg-white p-4 transition-all duration-200 hover:shadow-md border border-gray-100 hover:border-green-500/30">
       <FlightHeader
         carrierFsCode={carrierFsCode}
         airlineName={airlineName}

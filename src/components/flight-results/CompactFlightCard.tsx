@@ -1,6 +1,7 @@
 
 import { Plane, Clock, ArrowRight } from "lucide-react";
 import type { FlightData } from "./types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CompactFlightCardProps {
   journey: FlightData;
@@ -44,16 +45,26 @@ export const CompactFlightCard = ({
   };
 
   const isDirect = stops === 0;
+  const airlineDisplay = getAirlineDisplay();
 
   return (
     <div className="grid grid-cols-12 gap-2 w-full">
       {/* Airline and flight type */}
       <div className="col-span-3 md:col-span-2 flex flex-col justify-center items-start">
-        <p className="font-medium text-sm truncate">{getAirlineDisplay()}</p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="font-medium text-sm truncate max-w-full">{airlineDisplay}</p>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{airlineDisplay}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="flex items-center text-xs mt-1">
           {isDirect ? (
             <span className="flex items-center text-orange font-medium">
-              <Plane className="h-3 w-3 mr-1" /> Direct
+              <Plane className="h-3 w-3 mr-1 text-green-500" /> Direct
             </span>
           ) : (
             <span className="flex items-center text-gray-500">
@@ -66,7 +77,7 @@ export const CompactFlightCard = ({
       {/* Times and airports */}
       <div className="col-span-7 md:col-span-8 flex items-center justify-between">
         <div className="text-center">
-          <p className="font-bold text-sm text-primary">{formatTime(departureTime)}</p>
+          <p className="font-bold text-sm text-[#1A1F2C]">{formatTime(departureTime)}</p>
           <p className="text-xs text-gray-500">{firstSegment.departureAirportFsCode}</p>
         </div>
         
@@ -77,20 +88,20 @@ export const CompactFlightCard = ({
           </div>
           <div className="w-full flex items-center justify-center mt-1">
             <div className="h-0.5 bg-gray-200 flex-grow"></div>
-            <ArrowRight className="h-3 w-3 mx-1 text-secondary" />
+            <ArrowRight className="h-3 w-3 mx-1 text-green-500" />
             <div className="h-0.5 bg-gray-200 flex-grow"></div>
           </div>
         </div>
         
         <div className="text-center">
-          <p className="font-bold text-sm text-primary">{formatTime(arrivalTime)}</p>
+          <p className="font-bold text-sm text-[#1A1F2C]">{formatTime(arrivalTime)}</p>
           <p className="text-xs text-gray-500">{lastSegment.arrivalAirportFsCode}</p>
         </div>
       </div>
 
       {/* Show "View Details" text on desktop */}
       <div className="col-span-2 hidden md:flex items-center justify-end">
-        <span className="text-xs text-secondary font-medium flex items-center group">
+        <span className="text-xs text-green-500 font-medium flex items-center group">
           View Details
           <ArrowRight className="h-3 w-3 ml-1 transition-transform group-hover:translate-x-1" />
         </span>

@@ -73,7 +73,7 @@ export const ResultsSection = ({
         {flights.length > 0 && (
           <Card className="p-6 shadow-md border border-gray-200 overflow-hidden">
             <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-              <h2 className="text-xl font-semibold text-primary">Flight Results</h2>
+              <h2 className="text-xl font-semibold text-[#1A1F2C]">Flight Results</h2>
               {canExport && (
                 <ExportButton onClick={() => setShowExportDialog(true)} />
               )}

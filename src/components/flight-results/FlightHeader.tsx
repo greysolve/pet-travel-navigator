@@ -49,23 +49,23 @@ export const FlightHeader = ({
       <div className="flex space-x-6 mt-2 lg:mt-0">
         <div className="border-l pl-4 lg:pl-6 border-gray-200">
           <p className="text-sm text-gray-500">Departure</p>
-          <p className="font-medium text-primary">
+          <p className="font-medium text-[#1A1F2C]">
             {new Date(departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
           {departureAirport && (
             <p className="text-sm text-gray-500">
-              {departureAirport} {departureTerminal && <span className="text-secondary">Terminal {departureTerminal}</span>}
+              {departureAirport} {departureTerminal && <span className="text-green-500">Terminal {departureTerminal}</span>}
             </p>
           )}
         </div>
         <div className="border-l pl-4 lg:pl-6 border-gray-200">
           <p className="text-sm text-gray-500">Arrival</p>
-          <p className="font-medium text-primary">
+          <p className="font-medium text-[#1A1F2C]">
             {new Date(arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
           {arrivalAirport && (
             <p className="text-sm text-gray-500">
-              {arrivalAirport} {arrivalTerminal && <span className="text-secondary">Terminal {arrivalTerminal}</span>}
+              {arrivalAirport} {arrivalTerminal && <span className="text-green-500">Terminal {arrivalTerminal}</span>}
             </p>
           )}
         </div>
