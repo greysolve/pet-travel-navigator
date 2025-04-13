@@ -1,7 +1,7 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@/contexts/user/UserContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { useProfile } from "@/contexts/profile/ProfileContext";
 
 interface ProtectedRouteProps {
@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
-  const { user, authLoading: loading } = useUser();
+  const { user, loading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
 

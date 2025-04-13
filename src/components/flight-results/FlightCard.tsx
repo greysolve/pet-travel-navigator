@@ -1,4 +1,3 @@
-
 import { FlightHeader } from "./FlightHeader";
 import type { PetPolicy } from "./types";
 
@@ -28,18 +27,16 @@ export const FlightCard = ({
   isConnection,
 }: FlightCardProps) => {
   return (
-    <div className="rounded-md bg-white p-4 transition-all duration-200 hover:shadow-md border border-gray-100 hover:border-green-500/30">
-      <FlightHeader
-        carrierFsCode={carrierFsCode}
-        airlineName={airlineName}
-        flightNumber={flightNumber}
-        departureTime={departureTime}
-        arrivalTime={arrivalTime}
-        departureAirport={departureAirport}
-        arrivalAirport={arrivalAirport}
-        departureTerminal={departureTerminal}
-        arrivalTerminal={arrivalTerminal}
-      />
-    </div>
+    <FlightHeader
+      carrierFsCode={carrierFsCode}
+      airlineName={airlineName}
+      flightNumber={flightNumber}
+      departureTime={departureTime}
+      arrivalTime={arrivalTime}
+      departureAirport={departureAirport}
+      arrivalAirport={arrivalAirport}
+      departureTerminal={departureTerminal}
+      arrivalTerminal={arrivalTerminal}
+    />
   );
 };

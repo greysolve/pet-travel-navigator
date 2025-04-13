@@ -5,19 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchCount } from "./useSearchCount";
 import { ApiProvider } from "@/config/feature-flags";
 import type { FlightData } from "@/components/flight-results/types";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { useUser } from "@/contexts/user/UserContext";
 
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
-  const [webSearchResults, setWebSearchResults] = useState<{
-    summary: string;
-    citations: any[];
-    api_provider: string;
-  } | null>(null);
-  
-  const { user } = useUser();
+  const { user } = useAuth();
   const { profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
@@ -40,7 +35,6 @@ export const useFlightSearch = () => {
   ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
     setApiError(null);
-    setWebSearchResults(null);
     setSearchAttempts(prev => prev + 1);
     
     try {
@@ -52,21 +46,31 @@ export const useFlightSearch = () => {
       // Format date to YYYY-MM-DD for API
       const formattedDate = date.toISOString().split('T')[0];
       
-      // Use the main endpoint that handles provider selection
-      const searchPath = "search_flight_schedules_v2";
+      // Try primary API provider (or default if not specified)
+      const primaryProvider = apiProvider || "cirium";
+      
+      let searchPath: string;
+      if (primaryProvider === "cirium") {
+        // Use Cirium API endpoint (FIXED: removed /api prefix)
+        searchPath = "search_flight_schedules_v2/cirium";
+      } else if (primaryProvider === "amadeus") {
+        // Use Amadeus API endpoint (FIXED: removed /api prefix)
+        searchPath = "search_flight_schedules_v2/amadeus";
+      } else {
+        // Use unified API endpoint for other providers (FIXED: removed /api prefix)
+        searchPath = "search_flight_schedules_v2";
+      }
       
       console.log(`Using search path: ${searchPath}`);
       
-      // Make the API request with provider preference and web search in the payload
+      // Make the API request
       const { data: flightData, error } = await supabase.functions.invoke(searchPath, {
         body: {
           origin,
           destination,
           date: formattedDate,
-          api: apiProvider, // Pass the preferred provider to the main endpoint
-          enable_fallback: enableFallback,
-          passengers,
-          use_web_search: true, // Enable web search for this request
+          provider: primaryProvider,
+          passengers
         }
       });
       
@@ -78,45 +82,83 @@ export const useFlightSearch = () => {
         throw new Error(error.message);
       }
       
-      // Store web search results if available
-      if (flightData?.web_search) {
-        console.log("Web search results:", flightData.web_search);
-        setWebSearchResults(flightData.web_search);
-      }
-      
-      // Check for flights using the standard format
       if (flightData && flightData.flights && flightData.flights.length > 0) {
-        console.log(`Found ${flightData.flights.length} flights with provider: ${flightData.api_provider}`);
+        console.log(`Found ${flightData.flights.length} flights with ${primaryProvider}`);
         
         // If successful, increment search count
         await incrementSearchCount();
         
         // Return the flights
-        onResults(flightData.flights, flightData.policies, flightData.api_provider, null);
+        onResults(flightData.flights, flightData.policies, primaryProvider, null);
         if (onComplete) onComplete();
         setIsSearchLoading(false);
         return flightData.flights;
-      } 
-      // Check for flights using connections property (for backward compatibility)
-      else if (flightData && flightData.connections && flightData.connections.length > 0) {
-        console.log(`Found ${flightData.connections.length} connections with provider: ${flightData.api_provider}`);
+      } else if (flightData && flightData.connections && flightData.connections.length > 0) {
+        // Handle response format from the v2 endpoint which uses "connections" instead of "flights"
+        console.log(`Found ${flightData.connections.length} connections with ${primaryProvider}`);
         
         // If successful, increment search count
         await incrementSearchCount();
         
         // Return the connections as flights
-        onResults(flightData.connections, flightData.policies, flightData.api_provider, null);
+        onResults(flightData.connections, flightData.policies, primaryProvider, null);
         if (onComplete) onComplete();
         setIsSearchLoading(false);
         return flightData.connections;
       }
       
+      // If no flights found with primary provider and fallback is enabled, try secondary
+      if (enableFallback && primaryProvider !== "amadeus") {
+        console.log("No flights found with primary provider, trying Amadeus fallback");
+        
+        // FIXED: removed /api prefix
+        const fallbackPath = "search_flight_schedules_v2/amadeus";
+        console.log(`Using fallback path: ${fallbackPath}`);
+        
+        const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke(fallbackPath, {
+          body: {
+            origin,
+            destination,
+            date: formattedDate,
+            passengers
+          }
+        });
+        
+        console.log("Fallback API response:", { data: fallbackData, error: fallbackError });
+        
+        if (fallbackError) {
+          console.error("Fallback search error:", fallbackError);
+          throw new Error(fallbackError.message);
+        }
+        
+        if (fallbackData && fallbackData.flights && fallbackData.flights.length > 0) {
+          console.log(`Found ${fallbackData.flights.length} flights with Amadeus fallback`);
+          
+          // If successful, increment search count
+          await incrementSearchCount();
+          
+          // Return the flights
+          onResults(fallbackData.flights, fallbackData.policies, "amadeus", null);
+          if (onComplete) onComplete();
+          setIsSearchLoading(false);
+          return fallbackData.flights;
+        } else if (fallbackData && fallbackData.connections && fallbackData.connections.length > 0) {
+          console.log(`Found ${fallbackData.connections.length} connections with Amadeus fallback`);
+          
+          // If successful, increment search count
+          await incrementSearchCount();
+          
+          // Return the connections as flights
+          onResults(fallbackData.connections, fallbackData.policies, "amadeus", null);
+          if (onComplete) onComplete();
+          setIsSearchLoading(false);
+          return fallbackData.connections;
+        }
+      }
+      
       // If we get here, no flights were found with any provider
       console.log("No flights found with any provider");
-      const actualProvider = flightData?.api_provider || apiProvider || "unknown";
-      
-      // Even without flights, return web search results if available
-      onResults([], flightData?.policies || {}, actualProvider, "No flights found for this route and date");
+      onResults([], {}, primaryProvider, "No flights found for this route and date");
       if (onComplete) onComplete();
       setIsSearchLoading(false);
       return [];
@@ -153,7 +195,6 @@ export const useFlightSearch = () => {
     apiError,
     isPetCaddie,
     searchAttempts,
-    webSearchResults,
     handleFlightSearch,
   };
 };

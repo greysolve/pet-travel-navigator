@@ -15,6 +15,7 @@ import { ApiProviderSelector } from "@/components/search/ApiProviderSelector";
 import { ApiProvider } from "@/config/feature-flags";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("users");
@@ -93,9 +94,14 @@ const Admin = () => {
         <TabsContent value="api-settings" className="mt-6">
           <div className="p-4 bg-white rounded-lg shadow-sm border">
             <h2 className="text-xl font-semibold mb-4">API Provider Settings</h2>
-            <p className="text-gray-600 mb-4">
-              Configure which flight data API provider to use for search operations.
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-gray-600">
+                Configure which flight data API provider to use for search operations.
+              </p>
+              <Badge variant={isAppSettingsLoading ? "outline" : apiProvider === 'amadeus' ? "default" : "secondary"}>
+                {isAppSettingsLoading ? 'Loading...' : `Using ${apiProvider}`}
+              </Badge>
+            </div>
             
             <Card className="p-4 mb-6">
               <ApiProviderSelector 

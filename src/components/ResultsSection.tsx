@@ -12,7 +12,6 @@ import { SinglePolicyResult } from "./flight-results/SinglePolicyResult";
 import { CountryPoliciesSection } from "./flight-results/CountryPoliciesSection";
 import { ExportDialogWrapper } from "./flight-results/ExportDialogWrapper";
 import type { FlightData, PetPolicy } from "./flight-results/types";
-import { Card } from "./ui/card";
 
 export const ResultsSection = ({ 
   searchPerformed,
@@ -66,24 +65,21 @@ export const ResultsSection = ({
   }
 
   return (
-    <div id="search-results" className="container mx-auto px-4 py-6 animate-fade-in">
-      <div className="space-y-6 text-left">
+    <div id="search-results" className="container mx-auto px-4 py-12 animate-fade-in">
+      <div className="space-y-8 text-left">
         <ApiWarning message={apiError || ""} />
         
         {flights.length > 0 && (
-          <Card className="p-6 shadow-md border border-gray-200 overflow-hidden">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-              <h2 className="text-xl font-semibold text-[#1A1F2C]">Flight Results</h2>
-              {canExport && (
-                <ExportButton onClick={() => setShowExportDialog(true)} />
-              )}
-            </div>
+          <>
+            {canExport && (
+              <ExportButton onClick={() => setShowExportDialog(true)} />
+            )}
             <FlightResults 
               flights={flights} 
               petPolicies={isPoliciesLoading ? undefined : flightPetPolicies}
               apiProvider={apiProvider}
             />
-          </Card>
+          </>
         )}
         
         <CountryPoliciesSection 

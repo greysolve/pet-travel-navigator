@@ -1,72 +1,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
+import { processPolicyBatch } from '../analyze_batch_countries_policies/policyProcessor.ts';
 import { createResponse } from './requestHandler.ts';
-import { Country, CountryPolicyResult, ProcessingError } from './types.ts';
+import { Country } from './types.ts';
 import { SyncManager } from '../_shared/SyncManager.ts';
 
 const BATCH_SIZE = 5;
-
-// Process countries using the batch processor via HTTP
-async function processPolicyBatch(
-  countries: Country[],
-  openaiKey: string,
-  supabaseUrl: string,
-  supabaseKey: string
-): Promise<{
-  results: CountryPolicyResult[];
-  errors: ProcessingError[];
-}> {
-  const results: CountryPolicyResult[] = [];
-  const errors: ProcessingError[] = [];
-
-  console.log(`Processing ${countries.length} countries in batch via HTTP call`);
-
-  // Process each country by calling the analyze_batch_countries_policies function
-  for (const country of countries) {
-    try {
-      const startTime = Date.now();
-      
-      console.log(`Calling analyze_batch_countries_policies for country: ${country.name}`);
-      
-      // Call the analyze_batch_countries_policies function via HTTP
-      const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_countries_policies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({ countries: [country] }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to process country policy: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      // Add country results if successful
-      if (data.results && data.results.length > 0) {
-        results.push(...data.results);
-      }
-      
-      // Add any errors
-      if (data.errors && data.errors.length > 0) {
-        errors.push(...data.errors);
-      }
-      
-      console.log(`Successfully processed ${country.name}`);
-      
-    } catch (error) {
-      console.error(`Error processing ${country.name}:`, error);
-      errors.push({
-        country: country.name,
-        error: error.message
-      });
-    }
-  }
-
-  return { results, errors };
-}
 
 export async function processCountriesChunk(
   supabase: ReturnType<typeof createClient>,
@@ -83,6 +22,7 @@ export async function processCountriesChunk(
 
   console.log(`Current progress before processing: processed=${currentProgress.processed}/${currentProgress.total}, needs_continuation=${currentProgress.needs_continuation}`);
 
+  // Get the next batch of countries
   const { data: countries, error } = await supabase
     .from('countries')
     .select('*')
@@ -96,6 +36,7 @@ export async function processCountriesChunk(
 
   if (!countries || countries.length === 0) {
     console.log(`No more countries to process at offset ${offset}. Marking sync as complete.`);
+    // Mark the sync as complete
     await syncManager.updateProgress({
       is_complete: true,
       needs_continuation: false
@@ -121,6 +62,7 @@ export async function processCountriesChunk(
 
   const startTime = Date.now();
   
+  // Make sure we pass the full country object including name, id, and code
   const countriesWithCode = countries.map(country => ({
     id: country.id,
     name: country.name,
@@ -140,6 +82,7 @@ export async function processCountriesChunk(
   const errorCountries = errors.map(e => e.country);
   const successRate = (results.length / countries.length) * 100;
 
+  // Calculate next offset - always advance by the batch size we processed
   const nextOffset = offset + countries.length;
   const hasMore = nextOffset < currentProgress.total;
 
@@ -152,6 +95,7 @@ export async function processCountriesChunk(
     errors.forEach(e => console.error(`Error for ${e.country}:`, e.error));
   }
 
+  // Update sync progress
   const updatedProcessed = currentProgress.processed + countries.length;
   await syncManager.updateProgress({
     processed: updatedProcessed,
@@ -163,6 +107,8 @@ export async function processCountriesChunk(
 
   console.log(`Updated progress: processed=${updatedProcessed}/${currentProgress.total}, needs_continuation=${hasMore}`);
 
+  // Important: Make sure we're explicitly setting needs_continuation to the correct value
+  // and always returning next_offset when needs_continuation is true
   return createResponse({
     data: {
       progress: {
