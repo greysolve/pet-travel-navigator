@@ -6,7 +6,7 @@ import { SyncManager } from '../_shared/SyncManager.ts';
 
 const BATCH_SIZE = 5;
 
-// Process countries using the batch processor via HTTP
+// Process countries using the batch processor via Supabase function invocation
 async function processPolicyBatch(
   countries: Country[],
   openaiKey: string,
@@ -19,29 +19,27 @@ async function processPolicyBatch(
   const results: CountryPolicyResult[] = [];
   const errors: ProcessingError[] = [];
 
-  console.log(`Processing ${countries.length} countries in batch via HTTP call`);
+  console.log(`Processing ${countries.length} countries in batch via Supabase function invocation`);
 
-  // Process each country by calling the analyze_batch_countries_policies function
+  // Create a Supabase client for function invocation
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // Process each country by invoking the analyze_batch_countries_policies function
   for (const country of countries) {
     try {
       const startTime = Date.now();
       
-      // Call the analyze_batch_countries_policies function via HTTP
-      const response = await fetch(`${supabaseUrl}/functions/v1/analyze_batch_countries_policies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({ countries: [country] }),
+      console.log(`Invoking analyze_batch_countries_policies for country: ${country.name}`);
+      
+      // Invoke the analyze_batch_countries_policies function using Supabase client
+      const { data, error } = await supabase.functions.invoke('analyze_batch_countries_policies', {
+        body: { countries: [country] }
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to process country policy: ${response.statusText}`);
+      
+      if (error) {
+        throw new Error(`Failed to process country policy: ${error.message}`);
       }
 
-      const data = await response.json();
-      
       // Add country results if successful
       if (data.results && data.results.length > 0) {
         results.push(...data.results);
