@@ -27,13 +27,7 @@ export const FlightHeader = ({
 }: FlightHeaderProps) => {
   console.log("FlightHeader props:", { carrierFsCode, airlineName, flightNumber });
   
-  // Helper function to format terminal display
-  const formatTerminal = (terminal?: string) => {
-    if (!terminal || terminal === "NAN" || terminal === "undefined") {
-      return <span className="text-gray-500">Not Available</span>;
-    }
-    return <span className="text-green-500">Terminal {terminal}</span>;
-  };
+  // Removing the unused formatTerminal function
   
   return (
     <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6 space-y-4 lg:space-y-0">
@@ -63,12 +57,10 @@ export const FlightHeader = ({
           {departureAirport && (
             <p className="text-sm text-gray-500">
               {departureAirport}
-              {departureTerminal === "NAN" ? (
-                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
-              ) : departureTerminal ? (
+              {departureTerminal && departureTerminal !== "NAN" ? (
                 <span className="ml-1 text-green-500">· Terminal {departureTerminal}</span>
               ) : (
-                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
+                <span className="ml-1 text-gray-500">· Not Available</span>
               )}
             </p>
           )}
@@ -81,12 +73,10 @@ export const FlightHeader = ({
           {arrivalAirport && (
             <p className="text-sm text-gray-500">
               {arrivalAirport}
-              {arrivalTerminal === "NAN" ? (
-                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
-              ) : arrivalTerminal ? (
+              {arrivalTerminal && arrivalTerminal !== "NAN" ? (
                 <span className="ml-1 text-green-500">· Terminal {arrivalTerminal}</span>
               ) : (
-                <span className="ml-1 text-gray-500">· Terminal Not Available</span>
+                <span className="ml-1 text-gray-500">· Not Available</span>
               )}
             </p>
           )}
