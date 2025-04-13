@@ -39,9 +39,9 @@ export const FlightCard = ({
     <Collapsible 
       open={isOpen} 
       onOpenChange={setIsOpen}
-      className="rounded-md border border-neutral-100 hover:border-neutral-200 transition-colors"
+      className="flight-card"
     >
-      <div className="flex items-center justify-between">
+      <div className="flight-card-header">
         <FlightHeader
           carrierFsCode={carrierFsCode}
           airlineName={airlineName}
@@ -53,46 +53,48 @@ export const FlightCard = ({
           departureTerminal={departureTerminal}
           arrivalTerminal={arrivalTerminal}
         />
-        <CollapsibleTrigger asChild>
-          <button className="p-2 rounded-full hover:bg-neutral-100 transition-colors mr-2">
-            {isOpen ? <ChevronUp className="h-4 w-4 text-neutral-500" /> : <ChevronDown className="h-4 w-4 text-neutral-500" />}
-          </button>
+        <CollapsibleTrigger className="view-details-button">
+          {isOpen ? (
+            <>Hide Details</>
+          ) : (
+            <>View Details</>
+          )}
         </CollapsibleTrigger>
       </div>
       
-      <CollapsibleContent className="overflow-hidden transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-        <div className="px-4 py-3 border-t border-neutral-100">
+      <CollapsibleContent className="flight-card-content">
+        <div className="flight-details-content">
           {petPolicy && (
-            <div>
-              <h3 className="text-base font-medium mb-2 text-neutral-800">Pet Policy</h3>
+            <div className="policy-section">
+              <h3 className="section-title">Pet Policy</h3>
               <PolicyDetails policy={petPolicy} />
             </div>
           )}
           
-          <div className="mt-4">
-            <h3 className="text-base font-medium mb-2 text-neutral-800">Flight Details</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-neutral-500">Airline</p>
-                <p className="font-medium">{airlineName || carrierFsCode}</p>
+          <div className="details-section">
+            <h3 className="section-title">Flight Details</h3>
+            <div className="details-grid">
+              <div className="detail-item">
+                <p className="detail-label">Airline</p>
+                <p className="detail-value">{airlineName || carrierFsCode}</p>
               </div>
-              <div>
-                <p className="text-sm text-neutral-500">Flight Number</p>
-                <p className="font-medium">{flightNumber}</p>
+              <div className="detail-item">
+                <p className="detail-label">Flight Number</p>
+                <p className="detail-value">{flightNumber}</p>
               </div>
-              <div>
-                <p className="text-sm text-neutral-500">Departure</p>
-                <p className="font-medium">
+              <div className="detail-item">
+                <p className="detail-label">Departure</p>
+                <p className="detail-value">
                   {new Date(departureTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {departureAirport}
                 </p>
-                {departureTerminal && <p className="text-sm text-neutral-500">Terminal {departureTerminal}</p>}
+                {departureTerminal && <p className="detail-note">Terminal {departureTerminal}</p>}
               </div>
-              <div>
-                <p className="text-sm text-neutral-500">Arrival</p>
-                <p className="font-medium">
+              <div className="detail-item">
+                <p className="detail-label">Arrival</p>
+                <p className="detail-value">
                   {new Date(arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {arrivalAirport}
                 </p>
-                {arrivalTerminal && <p className="text-sm text-neutral-500">Terminal {arrivalTerminal}</p>}
+                {arrivalTerminal && <p className="detail-note">Terminal {arrivalTerminal}</p>}
               </div>
             </div>
           </div>

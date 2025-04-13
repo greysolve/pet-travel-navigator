@@ -43,10 +43,6 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
       fetchAirlineNames();
     }
   }, [flights]);
-
-  console.log("Rendering FlightResults with flights:", flights);
-  console.log("Airline names mapping:", airlineNames);
-  console.log("Pet policies:", petPolicies);
   
   if (flights.length === 0) {
     return (
@@ -70,26 +66,20 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
         const totalDuration = segments.reduce((total, segment) => total + (segment.elapsedTime || 0), 0);
         const stops = segments.length - 1;
         
-        console.log("Processing journey:", {
-          segments,
-          totalDuration,
-          stops
-        });
-        
         return (
           <div 
             key={`journey-${journeyIndex}`} 
-            className="bg-white rounded-lg shadow-md overflow-hidden border border-neutral-100"
+            className="bg-white rounded-lg shadow-md overflow-hidden border border-neutral-200"
           >
             {/* Journey Summary */}
             <div className="bg-primary-light p-3 flex justify-between items-center">
-              <p className="text-sm font-medium text-secondary">
+              <p className="text-sm font-medium text-primary-dark">
                 {stops === 0 ? 'Non-Stop Flight' : `${stops} Stop${stops > 1 ? 's' : ''} • ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`}
               </p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-primary hover:text-primary/80 p-0 h-auto"
+                className="text-primary-dark hover:text-primary p-0 h-auto"
                 onClick={scrollToCountryPolicies}
               >
                 View Country Policies <ArrowDown className="ml-1 h-4 w-4" />
@@ -102,14 +92,6 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
               const nextSegment = isNotLastSegment ? segments[segmentIndex + 1] : null;
               const airlineName = airlineNames[segment.carrierFsCode];
               const segmentPetPolicy = petPolicies && petPolicies[segment.carrierFsCode];
-              
-              console.log("Processing segment:", {
-                segment,
-                isNotLastSegment,
-                nextSegment,
-                airlineName,
-                segmentPetPolicy
-              });
 
               return (
                 <div key={`${segment.flightNumber}-${segmentIndex}`}>
