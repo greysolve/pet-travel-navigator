@@ -27,6 +27,14 @@ export const FlightHeader = ({
 }: FlightHeaderProps) => {
   console.log("FlightHeader props:", { carrierFsCode, airlineName, flightNumber });
   
+  // Helper function to format terminal display
+  const formatTerminal = (terminal?: string) => {
+    if (!terminal || terminal === "NAN" || terminal === "undefined") {
+      return <span className="text-gray-500">Terminal Not Available</span>;
+    }
+    return <span className="text-green-500">Terminal {terminal}</span>;
+  };
+  
   return (
     <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6 space-y-4 lg:space-y-0">
       <div className="flex items-center space-x-3">
@@ -54,7 +62,7 @@ export const FlightHeader = ({
           </p>
           {departureAirport && (
             <p className="text-sm text-gray-500">
-              {departureAirport} {departureTerminal && <span className="text-green-500">Terminal {departureTerminal}</span>}
+              {departureAirport} {departureTerminal && formatTerminal(departureTerminal)}
             </p>
           )}
         </div>
@@ -65,7 +73,7 @@ export const FlightHeader = ({
           </p>
           {arrivalAirport && (
             <p className="text-sm text-gray-500">
-              {arrivalAirport} {arrivalTerminal && <span className="text-green-500">Terminal {arrivalTerminal}</span>}
+              {arrivalAirport} {arrivalTerminal && formatTerminal(arrivalTerminal)}
             </p>
           )}
         </div>
