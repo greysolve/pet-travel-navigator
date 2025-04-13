@@ -1,8 +1,7 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { processPolicyBatch } from '../_shared/PolicyProcessor.ts';
 import { createResponse } from './requestHandler.ts';
-import { Country } from '../_shared/types.ts';
+import { Country } from './types.ts';
 import { SyncManager } from '../_shared/SyncManager.ts';
 
 const BATCH_SIZE = 5;

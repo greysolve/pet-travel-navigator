@@ -2,7 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { corsHeaders } from './cors.ts';
 import { processPolicyBatch } from './policyProcessor.ts';
-import { ProcessingResponse } from '../_shared/types.ts';
+import { ProcessingResponse } from './types.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
