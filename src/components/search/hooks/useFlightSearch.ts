@@ -11,6 +11,12 @@ export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
+  const [webSearchResults, setWebSearchResults] = useState<{
+    summary: string;
+    citations: any[];
+    api_provider: string;
+  } | null>(null);
+  
   const { user } = useUser();
   const { profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
@@ -34,6 +40,7 @@ export const useFlightSearch = () => {
   ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
     setApiError(null);
+    setWebSearchResults(null);
     setSearchAttempts(prev => prev + 1);
     
     try {
@@ -71,6 +78,12 @@ export const useFlightSearch = () => {
         throw new Error(error.message);
       }
       
+      // Store web search results if available
+      if (flightData?.web_search) {
+        console.log("Web search results:", flightData.web_search);
+        setWebSearchResults(flightData.web_search);
+      }
+      
       // Check for flights using the standard format
       if (flightData && flightData.flights && flightData.flights.length > 0) {
         console.log(`Found ${flightData.flights.length} flights with provider: ${flightData.api_provider}`);
@@ -101,7 +114,9 @@ export const useFlightSearch = () => {
       // If we get here, no flights were found with any provider
       console.log("No flights found with any provider");
       const actualProvider = flightData?.api_provider || apiProvider || "unknown";
-      onResults([], {}, actualProvider, "No flights found for this route and date");
+      
+      // Even without flights, return web search results if available
+      onResults([], flightData?.policies || {}, actualProvider, "No flights found for this route and date");
       if (onComplete) onComplete();
       setIsSearchLoading(false);
       return [];
@@ -138,6 +153,7 @@ export const useFlightSearch = () => {
     apiError,
     isPetCaddie,
     searchAttempts,
+    webSearchResults,
     handleFlightSearch,
   };
 };
