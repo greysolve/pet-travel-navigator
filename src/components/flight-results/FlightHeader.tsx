@@ -30,7 +30,7 @@ export const FlightHeader = ({
   // Helper function to format terminal display
   const formatTerminal = (terminal?: string) => {
     if (!terminal || terminal === "NAN" || terminal === "undefined") {
-      return <span className="text-gray-500">Terminal Not Available</span>;
+      return <span className="text-gray-500">Not Available</span>;
     }
     return <span className="text-green-500">Terminal {terminal}</span>;
   };
