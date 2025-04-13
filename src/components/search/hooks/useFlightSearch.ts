@@ -50,7 +50,7 @@ export const useFlightSearch = () => {
       
       console.log(`Using search path: ${searchPath}`);
       
-      // Make the API request with provider preference in the payload
+      // Make the API request with provider preference and web search in the payload
       const { data: flightData, error } = await supabase.functions.invoke(searchPath, {
         body: {
           origin,
@@ -58,7 +58,8 @@ export const useFlightSearch = () => {
           date: formattedDate,
           api: apiProvider, // Pass the preferred provider to the main endpoint
           enable_fallback: enableFallback,
-          passengers
+          passengers,
+          use_web_search: true, // Enable web search for this request
         }
       });
       
