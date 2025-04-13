@@ -2,7 +2,6 @@
 import { useEffect } from 'react';
 import { AuthAction } from './AuthState';
 import { supabase } from '@/integrations/supabase/client';
-import { validateSession } from './useSessionValidator';
 
 /**
  * Hook to listen for authentication state changes
@@ -28,15 +27,6 @@ export function useAuthStateListener(
       }
 
       if (currentSession) {
-        console.log('AuthStateListener: Session detected, validating...');
-        const isValid = await validateSession(currentSession);
-        if (!isValid) {
-          console.log('AuthStateListener: Invalid session in auth change, signing out');
-          await supabase.auth.signOut();
-          dispatch({ type: 'SIGN_OUT' });
-          return;
-        }
-
         console.log('AuthStateListener: Session valid, dispatching SET_AUTH_STATE action');
         dispatch({
           type: 'SET_AUTH_STATE',
