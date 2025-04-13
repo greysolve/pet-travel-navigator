@@ -4,7 +4,6 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { FlightHeader } from "./FlightHeader";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { PetPolicy } from "./types";
-import { PolicyDetails } from "./PolicyDetails";
 
 type FlightCardProps = {
   carrierFsCode: string;
@@ -65,7 +64,10 @@ export const FlightCard = ({
           {petPolicy && (
             <div>
               <h3 className="text-lg font-semibold mb-2">Pet Policy</h3>
-              <PolicyDetails policy={petPolicy} />
+              <p className="text-gray-600">
+                {petPolicy.description || "No detailed policy information available."}
+              </p>
+              {/* More pet policy details could be displayed here */}
             </div>
           )}
           
