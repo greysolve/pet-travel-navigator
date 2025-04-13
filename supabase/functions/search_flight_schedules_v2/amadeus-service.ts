@@ -121,6 +121,15 @@ export async function searchAmadeusFlights(origin: string, destination: string, 
   }
 }
 
+// Helper function to sanitize terminal values
+const sanitizeTerminal = (terminal?: string): string | undefined => {
+  // Handle "NAN" terminal values and other invalid cases
+  if (!terminal || terminal === "NAN" || terminal === "undefined" || terminal === "null") {
+    return undefined;
+  }
+  return terminal;
+};
+
 // Function to map Amadeus flight data to our FlightData structure
 export function mapAmadeusToFlightData(amadeusData: any) {
   console.log('Mapping Amadeus data to FlightData structure');
@@ -183,6 +192,10 @@ export function mapAmadeusToFlightData(amadeusData: any) {
         // Get airline name from dictionary
         const airlineName = airlinesDict[carrierCode] || undefined;
         
+        // Sanitize terminal values
+        const departureTerminal = sanitizeTerminal(segment.departure.terminal);
+        const arrivalTerminal = sanitizeTerminal(segment.arrival.terminal);
+        
         return {
           carrierFsCode: carrierCode,
           flightNumber: flightNumber,
@@ -190,8 +203,8 @@ export function mapAmadeusToFlightData(amadeusData: any) {
           arrivalTime: segment.arrival.at,
           departureAirportFsCode: segment.departure.iataCode,
           arrivalAirportFsCode: segment.arrival.iataCode,
-          departureTerminal: segment.departure.terminal,
-          arrivalTerminal: segment.arrival.terminal,
+          departureTerminal,
+          arrivalTerminal,
           stops: 0, // Direct segment has no stops
           elapsedTime: elapsedTimeMinutes,
           airlineName: airlineName,
