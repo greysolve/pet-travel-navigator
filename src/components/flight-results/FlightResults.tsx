@@ -1,8 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
-import { PolicyDetails } from "./PolicyDetails";
 import { FlightCard } from "./FlightCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -102,18 +100,20 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
               const isNotLastSegment = segmentIndex < segments.length - 1;
               const nextSegment = isNotLastSegment ? segments[segmentIndex + 1] : null;
               const airlineName = airlineNames[segment.carrierFsCode];
+              const segmentPetPolicy = petPolicies && petPolicies[segment.carrierFsCode];
               
               console.log("Processing segment:", {
                 segment,
                 isNotLastSegment,
                 nextSegment,
-                airlineName
+                airlineName,
+                segmentPetPolicy
               });
 
               return (
                 <div key={`${segment.flightNumber}-${segmentIndex}`}>
                   {/* Flight Segment */}
-                  <div className="p-6">
+                  <div className="p-4">
                     <FlightCard
                       carrierFsCode={segment.carrierFsCode}
                       airlineName={airlineName}
@@ -124,16 +124,8 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                       arrivalAirport={segment.arrivalAirportFsCode}
                       departureTerminal={segment.departureTerminal}
                       arrivalTerminal={segment.arrivalTerminal}
+                      petPolicy={segmentPetPolicy}
                     />
-                    
-                    {petPolicies && petPolicies[segment.carrierFsCode] && (
-                      <div className="mt-4">
-                        <h2 className="text-xl font-semibold mb-4">
-                          Pet Policy for {airlineName || segment.carrierFsCode}
-                        </h2>
-                        <PolicyDetails policy={petPolicies[segment.carrierFsCode]} />
-                      </div>
-                    )}
                   </div>
 
                   {/* Layover Information */}
