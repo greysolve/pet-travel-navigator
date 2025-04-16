@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import type { FlightData, PetPolicy } from "./types";
 import { FlightCard } from "./FlightCard";
+import { MobileFlightCard } from "./MobileFlightCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FlightResultsProps {
   flights: FlightData[];
@@ -14,6 +16,7 @@ interface FlightResultsProps {
 
 export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResultsProps) => {
   const [airlineNames, setAirlineNames] = useState<Record<string, string>>({});
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     const fetchAirlineNames = async () => {
@@ -97,24 +100,39 @@ export const FlightResults = ({ flights, petPolicies, apiProvider }: FlightResul
                 <div key={`${segment.flightNumber}-${segmentIndex}`}>
                   {/* Flight Segment */}
                   <div className="p-3">
-                    <FlightCard
-                      carrierFsCode={segment.carrierFsCode}
-                      airlineName={airlineName}
-                      flightNumber={segment.flightNumber}
-                      departureTime={segment.departureTime}
-                      arrivalTime={segment.arrivalTime}
-                      departureAirport={segment.departureAirportFsCode}
-                      arrivalAirport={segment.arrivalAirportFsCode}
-                      departureTerminal={segment.departureTerminal}
-                      arrivalTerminal={segment.arrivalTerminal}
-                      petPolicy={segmentPetPolicy}
-                    />
+                    {isMobile ? (
+                      <MobileFlightCard
+                        carrierFsCode={segment.carrierFsCode}
+                        airlineName={airlineName}
+                        flightNumber={segment.flightNumber}
+                        departureTime={segment.departureTime}
+                        arrivalTime={segment.arrivalTime}
+                        departureAirport={segment.departureAirportFsCode}
+                        arrivalAirport={segment.arrivalAirportFsCode}
+                        departureTerminal={segment.departureTerminal}
+                        arrivalTerminal={segment.arrivalTerminal}
+                        petPolicy={segmentPetPolicy}
+                      />
+                    ) : (
+                      <FlightCard
+                        carrierFsCode={segment.carrierFsCode}
+                        airlineName={airlineName}
+                        flightNumber={segment.flightNumber}
+                        departureTime={segment.departureTime}
+                        arrivalTime={segment.arrivalTime}
+                        departureAirport={segment.departureAirportFsCode}
+                        arrivalAirport={segment.arrivalAirportFsCode}
+                        departureTerminal={segment.departureTerminal}
+                        arrivalTerminal={segment.arrivalTerminal}
+                        petPolicy={segmentPetPolicy}
+                      />
+                    )}
                   </div>
 
                   {/* Layover Information */}
                   {isNotLastSegment && nextSegment && (
-                    <div className="border-t border-neutral-100 bg-neutral-50 px-4 py-2">
-                      <p className="text-sm text-neutral-600">
+                    <div className={`border-t border-neutral-100 bg-neutral-50 px-4 py-2 ${isMobile ? 'text-xs' : ''}`}>
+                      <p className="text-neutral-600">
                         {calculateLayoverDuration(segment.arrivalTime, nextSegment.departureTime)} layover in {segment.arrivalAirportFsCode}
                       </p>
                     </div>
