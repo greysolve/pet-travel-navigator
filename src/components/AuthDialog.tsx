@@ -1,17 +1,17 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/auth/AuthContext";
-import { useProfile } from "@/contexts/profile/ProfileContext";
+import { useUser } from "@/contexts/user/UserContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { AuthButtons } from "@/components/auth/AuthButtons";
 import { AuthDialogContent } from "@/components/auth/AuthDialogContent";
+import { useAuthOperations } from "@/hooks/useAuthOperations";
 
 const AuthDialog = () => {
-  const { user, signInWithEmail, signUp, signOut, resetPasswordForEmail } = useAuth();
-  const { profile } = useProfile();
+  const { user, profile } = useUser();
+  const { signInWithEmail, signUp, signOut, resetPasswordForEmail } = useAuthOperations();
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);

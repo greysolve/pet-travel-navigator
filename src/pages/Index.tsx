@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { SearchSection } from "@/components/SearchSection";
 import { ResultsSection } from "@/components/ResultsSection";
@@ -25,15 +25,23 @@ const Index = () => {
     setPetPolicies(policies);
     setApiProvider(provider);
     setApiError(error);
-    
-    // Scroll to results if we have any
-    if (flightResults.length > 0 || (policies && Object.keys(policies).length > 0)) {
-      const resultsElement = document.getElementById('search-results');
-      if (resultsElement) {
-        resultsElement.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
   };
+  
+  // Safe scrolling effect that runs after the state updates and component re-renders
+  useEffect(() => {
+    if (searchPerformed && (flights.length > 0 || (petPolicies && Object.keys(petPolicies).length > 0))) {
+      // Small timeout to ensure DOM is fully updated
+      setTimeout(() => {
+        const resultsElement = document.getElementById('search-results');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth' });
+          console.log('Scrolling to search results');
+        } else {
+          console.log('Search results element not found');
+        }
+      }, 100);
+    }
+  }, [searchPerformed, flights, petPolicies]);
 
   return (
     <div className="min-h-screen bg-gray-50">
