@@ -4,13 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PetTravelWallet } from "@/components/profile/PetTravelWallet";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/contexts/profile/ProfileContext";
-import { useAuth } from "@/contexts/auth/AuthContext";
+import { useUser } from "@/contexts/user/UserContext";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 
 const Profile = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
   const { profile, updateProfile: updateProfileContext } = useProfile();
   const [formData, setFormData] = useState({
     fullName: "",

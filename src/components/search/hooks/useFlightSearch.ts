@@ -1,19 +1,16 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchCount } from "./useSearchCount";
 import { ApiProvider } from "@/config/feature-flags";
 import type { FlightData } from "@/components/flight-results/types";
-import { useAuth } from "@/contexts/auth/AuthContext";
 import { useUser } from "@/contexts/user/UserContext";
 
 export const useFlightSearch = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchAttempts, setSearchAttempts] = useState(0);
-  const { user } = useAuth();
-  const { profile } = useUser();
+  const { user, profile } = useUser();
   const { data: searchCount, refetch: refetchSearchCount } = useSearchCount(user?.id);
 
   // Admin users are always treated as pet caddies

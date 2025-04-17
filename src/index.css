@@ -99,3 +99,222 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .flight-card {
+    @apply bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden hover:border-neutral-300 transition-colors;
+  }
+
+  .flight-card-header {
+    @apply flex items-center justify-between;
+  }
+
+  .flight-card-content {
+    @apply border-t border-neutral-200 transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down;
+  }
+
+  .flight-details-content {
+    @apply p-6 bg-white;
+  }
+
+  .flight-header {
+    @apply flex items-start p-4 flex-grow;
+  }
+
+  .airline-logo {
+    @apply w-12 h-12 bg-[#EBF8FF] rounded-full flex items-center justify-center text-base font-medium text-primary-dark mr-4 flex-shrink-0;
+  }
+
+  .airline-code {
+    @apply text-sm font-semibold;
+  }
+
+  .flight-info {
+    @apply flex-grow grid grid-cols-3 gap-2;
+  }
+
+  .airline-details {
+    @apply flex flex-col;
+  }
+
+  .airline-name {
+    @apply font-medium text-sm text-neutral-800;
+  }
+
+  .flight-number {
+    @apply font-normal text-xs mt-1 inline-block;
+  }
+
+  .flight-route {
+    @apply flex items-center justify-center;
+  }
+
+  .departure, .arrival {
+    @apply text-center;
+  }
+
+  .time {
+    @apply font-medium text-sm;
+  }
+
+  .airport {
+    @apply text-xs text-neutral-500;
+  }
+
+  .flight-duration {
+    @apply flex flex-col items-center px-2 flex-grow;
+  }
+
+  .duration-line {
+    @apply w-full h-[1px] bg-neutral-200 relative;
+  }
+
+  .duration-text {
+    @apply text-xs text-neutral-500 absolute -top-4 left-1/2 transform -translate-x-1/2 whitespace-nowrap;
+  }
+
+  .timeline {
+    @apply w-full relative flex items-center justify-between px-2;
+  }
+
+  .timeline-line {
+    @apply absolute h-[2px] bg-neutral-200 top-1/2 left-0 right-0 transform -translate-y-1/2;
+  }
+
+  .timeline-dot {
+    @apply w-2 h-2 bg-primary rounded-full relative z-10;
+  }
+
+  .terminal-info {
+    @apply text-right;
+  }
+
+  .terminal-text {
+    @apply text-xs text-neutral-500;
+  }
+
+  .view-details-button {
+    @apply text-[#8FD400] text-sm font-semibold hover:text-white transition-colors mr-4;
+  }
+
+  .policy-section, .details-section {
+    @apply mt-6 first:mt-0;
+  }
+
+  .section-title {
+    @apply text-lg font-medium mb-3 text-[#0EA5E9];
+  }
+
+  .details-grid {
+    @apply grid grid-cols-2 gap-6 p-5 bg-[#FAFAFA] rounded-lg shadow-sm border border-neutral-100 mt-3;
+  }
+
+  .detail-item {
+    @apply mb-3;
+  }
+
+  .detail-label {
+    @apply text-sm text-neutral-500 mb-1;
+  }
+
+  .detail-value {
+    @apply font-medium text-neutral-800;
+  }
+
+  .detail-note {
+    @apply text-sm text-[#8FD400] font-medium;
+  }
+  
+  .policy-content {
+    @apply mt-4 bg-[#FAFAFA] p-5 rounded-lg border border-neutral-100 shadow-sm;
+  }
+  
+  .policy-header {
+    @apply text-xl font-semibold text-[#0EA5E9] mb-4;
+  }
+
+  /* Mobile Flight Card Styles */
+  .mobile-flight-card {
+    @apply bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden hover:border-neutral-300 transition-colors;
+  }
+
+  .mobile-flight-header {
+    @apply p-3 flex flex-col gap-3;
+  }
+
+  .mobile-airline-info {
+    @apply flex items-center gap-2;
+  }
+
+  .mobile-airline-logo {
+    @apply w-8 h-8 bg-[#EBF8FF] rounded-full flex items-center justify-center text-xs font-medium text-primary-dark flex-shrink-0;
+  }
+
+  .mobile-airline-name {
+    @apply text-sm font-medium text-neutral-800;
+  }
+
+  .mobile-flight-number {
+    @apply text-xs mt-1;
+  }
+
+  .mobile-times {
+    @apply flex items-center justify-between px-2;
+  }
+
+  .mobile-departure, .mobile-arrival {
+    @apply flex flex-col items-center;
+  }
+
+  .mobile-time {
+    @apply text-sm font-medium;
+  }
+
+  .mobile-airport {
+    @apply text-xs text-neutral-500;
+  }
+
+  .mobile-duration {
+    @apply flex flex-col items-center flex-grow max-w-[60px] relative;
+  }
+
+  .mobile-duration-line {
+    @apply w-full h-[1px] bg-neutral-200;
+  }
+
+  .mobile-duration-text {
+    @apply text-[10px] text-neutral-500 absolute -top-3 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-center;
+  }
+
+  .mobile-trigger {
+    @apply flex items-center justify-center gap-1 text-xs text-[#8FD400] font-medium w-full mt-1 pt-1 border-t border-neutral-100;
+  }
+
+  .mobile-trigger-text {
+    @apply ml-1;
+  }
+
+  .mobile-flight-content {
+    @apply border-t border-neutral-200 p-3 bg-[#FAFAFA];
+  }
+
+  .mobile-details {
+    @apply space-y-3;
+  }
+
+  .mobile-terminal-info {
+    @apply text-xs;
+  }
+
+  .mobile-label {
+    @apply font-medium text-neutral-700;
+  }
+
+  .mobile-policy {
+    @apply mt-4 pt-4 border-t border-neutral-200;
+  }
+
+  .mobile-policy-header {
+    @apply text-sm font-semibold text-[#0EA5E9] mb-2;
+  }
+}

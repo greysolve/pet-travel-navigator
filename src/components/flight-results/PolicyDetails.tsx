@@ -26,7 +26,7 @@ export const PolicyDetails = ({ policy }: PolicyDetailsProps) => {
   }
 
   return (
-    <div className="text-sm space-y-4 border-t pt-4" {...dataAttributes}>
+    <div className="text-sm space-y-5" {...dataAttributes}>
       {/* Pet Types */}
       <PolicySection 
         title="Allowed pets" 

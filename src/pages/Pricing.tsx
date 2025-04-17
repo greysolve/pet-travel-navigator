@@ -1,4 +1,5 @@
-import { useAuth } from "@/contexts/auth/AuthContext";
+
+import { useUser } from "@/contexts/user/UserContext";
 import { useProfile } from "@/contexts/profile/ProfileContext";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
 import { CurrentPlanCard } from "@/components/pricing/CurrentPlanCard";
@@ -6,9 +7,9 @@ import { PricingTable } from "@/components/pricing/PricingTable";
 import { SiteManagerView } from "@/components/pricing/SiteManagerView";
 
 const Pricing = () => {
-  const { session } = useAuth();
+  const { user: session } = useUser();
   const { profile } = useProfile();
-  const { data: currentPlan } = useCurrentPlan(session?.user?.id);
+  const { data: currentPlan } = useCurrentPlan(session?.id);
 
   // Site Manager view
   if (profile?.userRole === 'site_manager') {
@@ -22,8 +23,8 @@ const Pricing = () => {
   return (
     <div className="container mx-auto py-16 px-4">
       {/* Current Plan Section */}
-      {currentPlan && session?.user?.id && (
-        <CurrentPlanCard plan={currentPlan} userId={session.user.id} />
+      {currentPlan && session?.id && (
+        <CurrentPlanCard plan={currentPlan} userId={session.id} />
       )}
 
       {/* Available Plans Section */}
@@ -35,7 +36,7 @@ const Pricing = () => {
       </div>
 
       {/* Stripe Pricing Table */}
-      <PricingTable userId={session?.user?.id} />
+      <PricingTable userId={session?.id} />
     </div>
   );
 };
