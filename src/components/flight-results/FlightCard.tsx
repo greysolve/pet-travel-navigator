@@ -55,11 +55,13 @@ export const FlightCard = ({
           arrivalTerminal={arrivalTerminal}
         />
         <CollapsibleTrigger className="view-details-button">
-          {isOpen ? (
-            <>Hide Details</>
-          ) : (
-            <>View Details</>
-          )}
+          <span className="flex items-center">
+            {isOpen ? (
+              <>Hide Details <ChevronUp className="ml-1 h-4 w-4" /></>
+            ) : (
+              <>View Details <ChevronDown className="ml-1 h-4 w-4" /></>
+            )}
+          </span>
         </CollapsibleTrigger>
       </div>
       
