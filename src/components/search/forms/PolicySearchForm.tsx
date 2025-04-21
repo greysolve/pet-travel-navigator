@@ -4,9 +4,10 @@ import { useSingleAirlinePolicy } from "../../flight-results/PolicyFetcher";
 import type { PetPolicy } from "../../flight-results/types";
 import { AirlinePolicySearch } from "../AirlinePolicySearch";
 import type { ToastFunction } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface PolicySearchFormProps {
-  policySearch: string;
+  policySearch: string; // this is now the IATA code selected (or blank)
   setPolicySearch: (value: string) => void;
   isLoading: boolean;
   hasRouteSearch: boolean;
@@ -28,17 +29,19 @@ export const PolicySearchForm = ({
   toast,
   onSearchResults,
   setFlights,
-  onPolicySearch
+  onPolicySearch,
 }: PolicySearchFormProps) => {
-  // Only fetch policy when needed, not during typing
-  const { data: policy, isLoading: isPolicyLoading } = useSingleAirlinePolicy(policySearch);
+  const [displayValue, setDisplayValue] = useState("");
+  // Only fetch if we have a valid IATA code (never for free text)
+  const validIATA = typeof policySearch === "string" && policySearch.length === 2 || policySearch.length === 3;
+  const { data: policy, isLoading: isPolicyLoading } = useSingleAirlinePolicy(validIATA ? policySearch : "");
 
   return (
     <div className="space-y-4">
-      <AirlinePolicySearch 
+      <AirlinePolicySearch
         policySearch={policySearch}
         setPolicySearch={setPolicySearch}
-        // Only pass input-specific loading state, not policy loading
+        setPolicySearchDisplay={setDisplayValue}
         isLoading={isLoading}
         disabled={hasRouteSearch}
         onFocus={clearRouteSearch}

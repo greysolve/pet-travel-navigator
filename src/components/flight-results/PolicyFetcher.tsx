@@ -11,22 +11,22 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
   'UK': 'United Kingdom'
 };
 
-export const useSingleAirlinePolicy = (airlineName: string) => {
+export const useSingleAirlinePolicy = (airlineIataCode: string) => {
   const { profile } = useProfile();
   const isPetCaddie = profile ? profile.userRole === 'pet_caddie' : false;
   const { data: premiumFields = [] } = usePremiumFields();
 
   return useQuery({
-    queryKey: ['singleAirlinePolicy', airlineName, premiumFields],
+    queryKey: ['singleAirlinePolicy', airlineIataCode, premiumFields],
     queryFn: async () => {
-      if (!airlineName) return null;
-      
-      console.log("Fetching pet policy for airline:", airlineName);
-      
+      if (!airlineIataCode) return null;
+
+      console.log("Fetching pet policy for airline IATA:", airlineIataCode);
+
       const { data: airline, error: airlineError } = await supabase
         .from('airlines')
-        .select('id')
-        .eq('name', airlineName)
+        .select('id, iata_code, name')
+        .eq('iata_code', airlineIataCode)
         .maybeSingle();
 
       if (airlineError || !airline?.id) {
@@ -34,7 +34,6 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         return null;
       }
 
-      console.log("Found airline:", airline);
       const { data: policy, error: policyError } = await supabase
         .from('pet_policies')
         .select('*')
@@ -46,7 +45,6 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         return null;
       }
 
-      console.log("Found pet policy:", policy);
       if (!policy) return null;
 
       const policyData: Partial<PetPolicy> = {
@@ -61,14 +59,14 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         size_restrictions: policy.size_restrictions as SizeRestrictionsField,
         fees: policy.fees as FeesField
       };
-      
-      return isPetCaddie 
+
+      return isPetCaddie
         ? decorateWithPremiumFields(policyData, premiumFields)
         : policyData as PetPolicy;
     },
-    enabled: !!airlineName,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in garbage collection for 10 minutes
+    enabled: !!airlineIataCode,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 2,
   });
 };
