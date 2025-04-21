@@ -46,8 +46,9 @@ export const CountryPoliciesSection = ({
             </div>
           )
         ) : (
+          // If search was performed but this is airline-only (no flights), show nothing or a gentle note
           <div className="bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6">
-            <p className="text-gray-500">No countries found in search results.</p>
+            <p className="text-gray-500">No country policies shown for airline-only policy search.</p>
           </div>
         )
       ) : (
@@ -58,3 +59,4 @@ export const CountryPoliciesSection = ({
     </div>
   );
 };
+

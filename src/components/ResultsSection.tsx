@@ -46,6 +46,9 @@ export const ResultsSection = ({
     const airlineName = Object.keys(petPolicies)[0];
     const rawPolicy = petPolicies[airlineName];
     
+    // DEBUG LOG for verifying policy fetch/passing
+    console.log("[ResultsSection] Airline-only policy result:", { airlineName, rawPolicy });
+
     if (!rawPolicy) {
       return <NoResults message="No policy information available." />;
     }
@@ -79,15 +82,15 @@ export const ResultsSection = ({
               petPolicies={isPoliciesLoading ? undefined : flightPetPolicies}
               apiProvider={apiProvider}
             />
+            {/* Only show CountryPoliciesSection if there are route flights */}
+            <CountryPoliciesSection 
+              searchPerformed={searchPerformed}
+              hasFlights={flights.length > 0}
+              countryPolicies={countryPolicies}
+              isLoading={isCountryPoliciesLoading}
+            />
           </>
         )}
-        
-        <CountryPoliciesSection 
-          searchPerformed={searchPerformed}
-          hasFlights={flights.length > 0}
-          countryPolicies={countryPolicies}
-          isLoading={isCountryPoliciesLoading}
-        />
       </div>
 
       <ExportDialogWrapper
