@@ -910,6 +910,78 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      get_system_plan_by_id: {
+        Args: { plan_id: string }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }[]
+      }
+      get_system_plan_by_name: {
+        Args: { plan_name: Database["public"]["Enums"]["subscription_plan"] }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }[]
+      }
+      get_system_plans: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }[]
+      }
+      get_system_role_by_id: {
+        Args: { role_id: string }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }[]
+      }
+      get_system_role_by_name: {
+        Args: { role_name: string }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }[]
+      }
+      get_system_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }[]
+      }
       has_role: {
         Args: { user_id: string; role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
