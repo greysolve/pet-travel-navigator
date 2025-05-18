@@ -86,6 +86,39 @@ export const SyncSection = () => {
     });
   };
 
+  // Function to handle Pet Policies sync with n8n webhook
+  const handlePetPoliciesWebhook = () => {
+    const webhookUrl = "https://petjumper.app.n8n.cloud/webhook-test/50b1e027-2372-4cf1-95f4-b99f3d700d1e";
+    
+    console.log('Triggering Pet Policies sync via n8n webhook');
+    
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'pet_policies_sync',
+        timestamp: new Date().toISOString()
+      }),
+    })
+    .then(response => {
+      toast({
+        title: "Pet Policies Sync Initiated",
+        description: "The sync process has been triggered via external service.",
+      });
+      console.log('Webhook response:', response);
+    })
+    .catch(error => {
+      toast({
+        variant: "destructive",
+        title: "Error Starting Sync",
+        description: "Failed to trigger the sync process. Please try again.",
+      });
+      console.error('Error calling webhook:', error);
+    });
+  };
+
   return (
     <div className="space-y-8">
       <ActiveSyncs syncProgress={syncProgress || {}} />
@@ -167,9 +200,12 @@ export const SyncSection = () => {
                   return;
                 }
                 handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
+              } else if (key === 'petPolicies' && !resume && mode !== 'clear') {
+                // Call webhook for pet policies sync instead of regular handleSync
+                handlePetPoliciesWebhook();
               } else if (key === 'petPolicies') {
                 // Pass the forceContentComparison flag for pet policies
-                handleSync(key as keyof typeof SyncType, resume, 'clear', { 
+                handleSync(key as keyof typeof SyncType, resume, mode, { 
                   forceContentComparison,
                   compareContent: true  // Always enable content comparison
                 });
