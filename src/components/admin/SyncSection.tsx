@@ -91,6 +91,9 @@ export const SyncSection = () => {
     
     console.log('Triggering Pet Policies sync via n8n webhook');
     
+    // Get the current clearData state for pet policies
+    const shouldClearData = clearData.petPolicies;
+    
     fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -98,6 +101,8 @@ export const SyncSection = () => {
       },
       body: JSON.stringify({
         type: 'pet_policies_sync',
+        clearData: shouldClearData, // Pass the clearData flag to the webhook
+        forceContentComparison: forceContentComparison, // Pass the content comparison flag
         timestamp: new Date().toISOString()
       }),
     })
@@ -199,15 +204,10 @@ export const SyncSection = () => {
                   return;
                 }
                 handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
-              } else if (key === 'petPolicies' && !resume && mode !== 'clear') {
-                // Call webhook for pet policies sync instead of regular handleSync
-                handlePetPoliciesWebhook();
               } else if (key === 'petPolicies') {
-                // Pass the forceContentComparison flag for pet policies
-                handleSync(key as keyof typeof SyncType, resume, mode, { 
-                  forceContentComparison,
-                  compareContent: true  // Always enable content comparison
-                });
+                // Remove the mode !== 'clear' check and the !resume check
+                // Always call webhook for pet policies, let the external process handle resuming
+                handlePetPoliciesWebhook();
               } else {
                 // For full sync or other types, no country validation needed
                 handleSync(key as keyof typeof SyncType, resume, mode);

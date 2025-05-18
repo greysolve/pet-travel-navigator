@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { SyncCardHeader } from "./SyncCardHeader";
 import { SyncCardOptions } from "./SyncCardOptions";
@@ -19,8 +19,14 @@ export const SyncCard = ({
   onForceContentComparisonChange,
   showForceContentComparison = false,
 }: SyncCardProps) => {
-  const [syncMode, setSyncMode] = useState('clear');
+  // Change default syncMode to 'update' instead of 'clear'
+  const [syncMode, setSyncMode] = useState('update');
   const formattedTitle = formatTitle(title);
+
+  // Update syncMode when clearData changes
+  useEffect(() => {
+    setSyncMode(clearData ? 'clear' : 'update');
+  }, [clearData]);
 
   const isSyncInProgress = () => 
     syncProgress && 
