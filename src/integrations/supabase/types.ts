@@ -320,6 +320,18 @@ export type Database = {
         Row: {
           airline_id: string | null
           breed_restrictions: string[] | null
+          cabin_combined_weight_kg: number | null
+          cabin_height_cm: number | null
+          cabin_length_cm: number | null
+          cabin_linear_dimensions_cm: number | null
+          cabin_max_weight_kg: number | null
+          cabin_width_cm: number | null
+          cargo_combined_weight_kg: number | null
+          cargo_height_cm: number | null
+          cargo_length_cm: number | null
+          cargo_linear_dimensions_cm: number | null
+          cargo_max_weight_kg: number | null
+          cargo_width_cm: number | null
           carrier_requirements: string | null
           carrier_requirements_cabin: string | null
           carrier_requirements_cargo: string | null
@@ -332,10 +344,23 @@ export type Database = {
           size_restrictions: Json | null
           temperature_restrictions: string | null
           updated_at: string | null
+          weight_includes_carrier: boolean | null
         }
         Insert: {
           airline_id?: string | null
           breed_restrictions?: string[] | null
+          cabin_combined_weight_kg?: number | null
+          cabin_height_cm?: number | null
+          cabin_length_cm?: number | null
+          cabin_linear_dimensions_cm?: number | null
+          cabin_max_weight_kg?: number | null
+          cabin_width_cm?: number | null
+          cargo_combined_weight_kg?: number | null
+          cargo_height_cm?: number | null
+          cargo_length_cm?: number | null
+          cargo_linear_dimensions_cm?: number | null
+          cargo_max_weight_kg?: number | null
+          cargo_width_cm?: number | null
           carrier_requirements?: string | null
           carrier_requirements_cabin?: string | null
           carrier_requirements_cargo?: string | null
@@ -348,10 +373,23 @@ export type Database = {
           size_restrictions?: Json | null
           temperature_restrictions?: string | null
           updated_at?: string | null
+          weight_includes_carrier?: boolean | null
         }
         Update: {
           airline_id?: string | null
           breed_restrictions?: string[] | null
+          cabin_combined_weight_kg?: number | null
+          cabin_height_cm?: number | null
+          cabin_length_cm?: number | null
+          cabin_linear_dimensions_cm?: number | null
+          cabin_max_weight_kg?: number | null
+          cabin_width_cm?: number | null
+          cargo_combined_weight_kg?: number | null
+          cargo_height_cm?: number | null
+          cargo_length_cm?: number | null
+          cargo_linear_dimensions_cm?: number | null
+          cargo_max_weight_kg?: number | null
+          cargo_width_cm?: number | null
           carrier_requirements?: string | null
           carrier_requirements_cabin?: string | null
           carrier_requirements_cargo?: string | null
@@ -364,6 +402,7 @@ export type Database = {
           size_restrictions?: Json | null
           temperature_restrictions?: string | null
           updated_at?: string | null
+          weight_includes_carrier?: boolean | null
         }
         Relationships: [
           {
