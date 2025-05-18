@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SyncCard } from "./SyncCard";
+import { SyncCard } from "./sync-card";
 import { SyncType } from "@/types/sync";
 import { ActiveSyncs } from "./sync/ActiveSyncs";
 import { useSyncOperations } from "./hooks/useSyncOperations";
