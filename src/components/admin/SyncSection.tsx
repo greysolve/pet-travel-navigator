@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +108,9 @@ export const SyncSection = () => {
       }),
     })
     .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
       toast({
         title: "Pet Policies Sync Initiated",
         description: "The sync process has been triggered via external service.",
@@ -114,12 +118,12 @@ export const SyncSection = () => {
       console.log('Webhook response:', response);
     })
     .catch(error => {
+      console.error('Error calling webhook:', error);
       toast({
         variant: "destructive",
         title: "Error Starting Sync",
-        description: "Failed to trigger the sync process. Please try again.",
+        description: "Failed to trigger the sync process. The webhook service may be unavailable or misconfigured.",
       });
-      console.error('Error calling webhook:', error);
     });
   };
 
@@ -205,7 +209,6 @@ export const SyncSection = () => {
                 }
                 handleSync(key as keyof typeof SyncType, resume, trimmedCountry);
               } else if (key === 'petPolicies') {
-                // Remove the mode !== 'clear' check and the !resume check
                 // Always call webhook for pet policies, let the external process handle resuming
                 handlePetPoliciesWebhook();
               } else {
