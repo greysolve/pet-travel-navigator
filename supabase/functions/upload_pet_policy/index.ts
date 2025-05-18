@@ -14,6 +14,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const startTime = Date.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!supabaseUrl || !supabaseKey) {
@@ -47,6 +48,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (airlineError || !airline) {
+      const errorMessage = `Airline not found: ${airlineError?.message || 'Unknown error'}`;
+      
+      // Log the failed attempt
+      await logAttempt(supabase, airline?.iata_code || 'unknown', 'failed', errorMessage, startTime);
+      
       return new Response(
         JSON.stringify({ error: 'Airline not found', details: airlineError }), 
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -91,6 +97,8 @@ Deno.serve(async (req) => {
         .eq('id', airlineId);
 
       if (updateError) {
+        const errorMessage = `Failed to update airline website: ${updateError.message}`;
+        await logAttempt(supabase, airline.iata_code, 'failed', errorMessage, startTime);
         throw updateError;
       }
     }
@@ -102,8 +110,13 @@ Deno.serve(async (req) => {
       .select();
 
     if (policyError) {
+      const errorMessage = `Failed to update pet policy: ${policyError.message}`;
+      await logAttempt(supabase, airline.iata_code, 'failed', errorMessage, startTime);
       throw policyError;
     }
+
+    // Log successful attempt
+    await logAttempt(supabase, airline.iata_code, 'success', null, startTime);
 
     return new Response(
       JSON.stringify({ 
@@ -119,6 +132,18 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error uploading pet policy:', error);
     
+    // Try to log the error, but don't throw if logging fails
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        await logAttempt(supabase, 'unknown', 'failed', error.message, Date.now());
+      }
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: 'Failed to upload pet policy', 
@@ -131,3 +156,28 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+/**
+ * Log an upload attempt to the sync_log table
+ */
+async function logAttempt(
+  supabase: any, 
+  airlineCode: string, 
+  status: 'success' | 'failed',
+  errorMessage: string | null,
+  startTime: number
+) {
+  const duration = Date.now() - startTime;
+  
+  try {
+    await supabase.from('sync_log').insert({
+      airline_code: airlineCode,
+      status,
+      error_message: errorMessage,
+      duration_ms: duration
+    });
+  } catch (error) {
+    // Log to console but don't throw - this is a non-critical operation
+    console.error('Failed to log sync attempt:', error);
+  }
+}

@@ -778,6 +778,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_log: {
+        Row: {
+          airline_code: string
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          execution_id: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          airline_code: string
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          execution_id?: string | null
+          id?: string
+          status: string
+        }
+        Update: {
+          airline_code?: string
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          execution_id?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       sync_progress: {
         Row: {
           batch_metrics: Json | null
