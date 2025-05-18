@@ -170,6 +170,7 @@ async function logAttempt(
   const duration = Date.now() - startTime;
   
   try {
+    // Remove the id field to let the database generate it
     await supabase.from('sync_log').insert({
       airline_code: airlineCode,
       status,
