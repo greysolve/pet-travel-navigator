@@ -1,12 +1,12 @@
 
 export type { CountryPolicy } from '../components/flight-results/types';
 
-// Add definition for Airline type
+// Update Airline type to match actual database schema
 export interface Airline {
   id: string;
   iata_code: string;
   name: string;
-  active_policy_id?: string;
   website?: string;
   active?: boolean;
 }
+

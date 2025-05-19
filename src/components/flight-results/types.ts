@@ -1,4 +1,3 @@
-
 import type { Json } from "@/integrations/supabase/types";
 
 export type FlightLocation = {
@@ -37,7 +36,22 @@ export type FlightJourney = {
   destination?: FlightLocation;
 };
 
-export type FlightData = FlightJourney;
+// Extend FlightJourney to include the fields used in the application
+export type FlightData = FlightJourney & {
+  id?: string;
+  origin?: string;
+  destination?: string;
+  departure_date?: string;
+  airline_id?: string;
+  airline_code?: string;
+  airline_name?: string;
+  flight_number?: string;
+  departure_time?: string;
+  arrival_time?: string;
+  duration?: string;
+  price?: number;
+  isPolicySearch?: boolean;
+};
 
 export type SizeRestrictions = {
   max_weight_cabin?: string;

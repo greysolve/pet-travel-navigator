@@ -158,9 +158,9 @@ export const useSearchHandler = ({
 
     try {
       // Search for airlines matching the query
-      const { data: airlines, error: airlinesError } = await supabase
+      const { data: airlinesData, error: airlinesError } = await supabase
         .from('airlines')
-        .select('id, iata_code, name, active_policy_id')
+        .select('id, iata_code, name')
         .textSearch('name', policySearch, {
           type: 'websearch',
           config: 'english'
@@ -175,10 +175,11 @@ export const useSearchHandler = ({
         });
         return;
       }
-
+      
+      const airlines = airlinesData || [];
       console.log("Airlines found:", airlines);
 
-      if (!airlines || airlines.length === 0) {
+      if (airlines.length === 0) {
         setFlights([]);
         toast({
           title: "No airlines found",
@@ -189,16 +190,14 @@ export const useSearchHandler = ({
         return;
       }
 
-      // Get policy IDs
-      const activePolicyIds = airlines
-        .filter((airline: Airline) => airline.active_policy_id)
-        .map((airline: Airline) => airline.active_policy_id);
+      // Get airline IDs for policy lookup
+      const airlineIds = airlines.map((airline: any) => airline.id);
 
       // Fetch pet policies for these airlines
       const { data: petPolicies, error: policiesError } = await supabase
         .from('pet_policies')
         .select('*')
-        .in('id', activePolicyIds);
+        .in('airline_id', airlineIds);
 
       if (policiesError) {
         console.error("Error fetching pet policies:", policiesError);
@@ -214,15 +213,17 @@ export const useSearchHandler = ({
 
       // Create a mapping of airline ID to pet policy
       const airlinePolicies = (petPolicies || []).reduce((acc: Record<string, any>, policy: any) => {
-        // Find the airline that references this policy
-        const airline = airlines.find((a: Airline) => a.active_policy_id === policy.id);
-        if (airline) {
-          acc[airline.id] = {
-            ...policy,
-            airline_id: airline.id,
-            airline_code: airline.iata_code,
-            airline_name: airline.name,
-          };
+        if (policy.airline_id) {
+          // Find the airline that owns this policy
+          const airline = airlines.find((a: any) => a.id === policy.airline_id);
+          if (airline) {
+            acc[airline.id] = {
+              ...policy,
+              airline_id: airline.id,
+              airline_code: airline.iata_code,
+              airline_name: airline.name,
+            };
+          }
         }
         return acc;
       }, {});
@@ -232,11 +233,11 @@ export const useSearchHandler = ({
 
       // Create dummy flight results with the airlines
       const dummyFlights: FlightData[] = airlines
-        .filter((airline: Airline) => {
+        .filter((airline: any) => {
           // Only include airlines with policies that pass the filters
-          return airline.active_policy_id && filteredPolicies[airline.id];
+          return filteredPolicies[airline.id];
         })
-        .map((airline: Airline) => ({
+        .map((airline: any) => ({
           id: `policy_${airline.id}`,
           origin: "POLICY",
           destination: "SEARCH",
@@ -251,6 +252,8 @@ export const useSearchHandler = ({
           stops: 0,
           price: 0,
           isPolicySearch: true,
+          segments: [], // Add required FlightJourney properties
+          totalDuration: 0
         }));
 
       console.log("Generated flights:", dummyFlights);
@@ -326,7 +329,7 @@ export const useSearchHandler = ({
 
     try {
       // Perform flight search - pass empty string as policySearch
-      const flights = await handleFlightSearch(origin, destination, date, "", apiProvider);
+      const flights = await handleFlightSearch(origin, destination, date, "");
       
       // Save the search if requested
       if (shouldSaveSearch && user) {
