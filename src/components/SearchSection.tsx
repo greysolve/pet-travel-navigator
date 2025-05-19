@@ -18,8 +18,8 @@ import type { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-f
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
   const { user, profile } = useUser();
   const { isSearchLoading, handleFlightSearch } = useFlightSearch();
-  const { searchCount, isPlanReady } = useUserSearchCount();
-  const { savedSearches, handleDeleteSearch } = useSavedSearches(user?.id);
+  const { searchCount, isUnlimited, isPlanReady } = useUserSearchCount();
+  const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
   const { validateSearch } = useSearchValidation();
   
   // Use app settings for API provider
@@ -74,7 +74,9 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     onSearchResults,
     apiProvider,
     enableFallback,
-    activeFilters // Pass the filters to the search handler
+    activeFilters,
+    searchCount,
+    isUnlimited
   });
 
   // Combine all loading states to determine overall loading status

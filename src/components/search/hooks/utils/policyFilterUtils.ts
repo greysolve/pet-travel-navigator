@@ -28,12 +28,15 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
   if (activeFilters.petTypes && activeFilters.petTypes.length > 0) {
     // Check if the policy allows any of the selected pet types
     const petMatch = activeFilters.petTypes.some(petType => {
-      if (petType === 'dog' && policy.allows_dogs) return true;
-      if (petType === 'cat' && policy.allows_cats) return true;
-      if (petType === 'bird' && policy.allows_birds) return true;
-      if (petType === 'rabbit' && policy.allows_rabbits) return true;
-      if (petType === 'rodent' && policy.allows_rodents) return true;
-      if (petType === 'other' && policy.allows_other_pets) return true;
+      // Check if pet type is in the allowed pet types array
+      if (!policy.pet_types_allowed) return false;
+      
+      if (petType === 'dog' && policy.pet_types_allowed.includes('dog')) return true;
+      if (petType === 'cat' && policy.pet_types_allowed.includes('cat')) return true;
+      if (petType === 'bird' && policy.pet_types_allowed.includes('bird')) return true;
+      if (petType === 'rabbit' && policy.pet_types_allowed.includes('rabbit')) return true;
+      if (petType === 'rodent' && policy.pet_types_allowed.includes('rodent')) return true;
+      if (petType === 'other' && policy.pet_types_allowed.includes('other')) return true;
       return false;
     });
     
@@ -47,45 +50,67 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
     // If neither cabin nor cargo is allowed, no policies match
     if (!cabin && !cargo) return false;
     
-    // If only cabin is allowed but policy doesn't allow cabin, exclude
-    if (cabin && !cargo && !policy.allows_in_cabin) return false;
+    // Check if cabin is required but not supported by policy
+    const supportsCabin = policy.cabin_max_weight_kg !== undefined || policy.cabin_linear_dimensions_cm !== undefined;
+    if (cabin && !cargo && !supportsCabin) return false;
     
-    // If only cargo is allowed but policy doesn't allow cargo, exclude
-    if (!cabin && cargo && !policy.allows_checked_cargo) return false;
+    // Check if cargo is required but not supported by policy
+    const supportsCargo = policy.cargo_max_weight_kg !== undefined || policy.cargo_linear_dimensions_cm !== undefined;
+    if (!cabin && cargo && !supportsCargo) return false;
     
-    // If both are required but policy doesn't allow both, exclude
-    if (cabin && cargo && !policy.allows_in_cabin && !policy.allows_checked_cargo) return false;
+    // If both are required but policy doesn't support both, exclude
+    if (cabin && cargo && !supportsCabin && !supportsCargo) return false;
   }
 
   // Apply weight filter
   if (activeFilters.minWeight !== undefined || activeFilters.maxWeight !== undefined) {
+    // For cabin
+    const cabinMinWeight = 0; // Default minimum if not specified
+    const cabinMaxWeight = policy.cabin_max_weight_kg;
+    
+    // For cargo
+    const cargoMinWeight = 0; // Default minimum if not specified
+    const cargoMaxWeight = policy.cargo_max_weight_kg;
+    
     // Handle min weight filter
     if (activeFilters.minWeight !== undefined) {
-      const policyMinWeight = policy.min_weight_kg;
-      
-      // If no policy minimum weight is specified, assume it's 0
-      const effectivePolicyMin = policyMinWeight !== undefined ? policyMinWeight : 0;
-      
-      // If the filter minimum exceeds the policy maximum, exclude
-      if (activeFilters.minWeight > policy.max_weight_kg) return false;
+      // Exclude if min weight exceeds both cabin and cargo max weights
+      if (cabinMaxWeight !== undefined && cargoMaxWeight !== undefined) {
+        // If policy has both cabin and cargo options
+        if (activeFilters.minWeight > cabinMaxWeight && activeFilters.minWeight > cargoMaxWeight) {
+          return false;
+        }
+      } else if (cabinMaxWeight !== undefined) {
+        // If policy only has cabin option
+        if (activeFilters.minWeight > cabinMaxWeight) {
+          return false;
+        }
+      } else if (cargoMaxWeight !== undefined) {
+        // If policy only has cargo option
+        if (activeFilters.minWeight > cargoMaxWeight) {
+          return false;
+        }
+      } else {
+        // If policy doesn't specify any weight limits
+        return false;
+      }
     }
     
     // Handle max weight filter
     if (activeFilters.maxWeight !== undefined) {
-      const policyMaxWeight = policy.max_weight_kg;
-      
-      // If no policy maximum weight is specified, we can't compare
-      if (policyMaxWeight === undefined) return false;
-      
-      // If the filter maximum is less than the policy minimum, exclude
-      if (activeFilters.maxWeight < (policy.min_weight_kg || 0)) return false;
+      // Exclude if max weight is less than minimum allowed weights for both cabin and cargo
+      if (activeFilters.maxWeight < cabinMinWeight && activeFilters.maxWeight < cargoMinWeight) {
+        return false;
+      }
     }
   }
 
   // Apply breed restrictions filter
   if (activeFilters.includeBreedRestrictions === false) {
     // Only include policies that don't have breed restrictions
-    if (policy.has_breed_restrictions) return false;
+    if (policy.breed_restrictions && policy.breed_restrictions.length > 0) {
+      return false;
+    }
   }
 
   // If passed all filters, include the policy
