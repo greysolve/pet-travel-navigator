@@ -21,7 +21,7 @@ export const useSearchHandler = ({
   onSearchResults,
   apiProvider,
   enableFallback,
-  activeFilters = {}
+  activeFilters = {} as PetPolicyFilterParams
 }) => {
   const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
   const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
@@ -54,7 +54,7 @@ export const useSearchHandler = ({
 
     // Apply travel method filter
     if (activeFilters.travelMethod) {
-      const { cabin, cargo } = activeFilters.travelMethod;
+      const { cabin, cargo } = activeFilters.travelMethod as TravelMethodFilter;
       
       // If neither cabin nor cargo is allowed, no policies match
       if (!cabin && !cargo) return false;
