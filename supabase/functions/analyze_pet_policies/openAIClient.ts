@@ -1,7 +1,7 @@
 
 // This is a local copy of the openAIClient.ts functionality needed by petPolicyProcessor.ts
 
-import { Airline } from './types';
+import { Airline } from './types.ts';
 
 const systemPrompt = `You are a helpful assistant specializing in finding official airline pet policies. Do not demonstrate your thought process into the chat. Return ONLY a raw JSON object, with no markdown formatting or explanations.`;
 
