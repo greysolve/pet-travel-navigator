@@ -16,7 +16,6 @@ import { WandSparkles } from "lucide-react";
 export const SyncSection = () => {
   const { toast } = useToast();
   const [countryInput, setCountryInput] = useState<string>("");
-  const [forceContentComparison, setForceContentComparison] = useState<boolean>(false);
   const [smartUpdateBatchSize, setSmartUpdateBatchSize] = useState<number>(25);
   const { isInitializing, clearData, setClearData, handleSync } = useSyncOperations();
   
@@ -81,7 +80,6 @@ export const SyncSection = () => {
     
     handleSync('petPolicies', false, 'update', { 
       smartUpdate: true,
-      compareContent: true, // Always enable content comparison for smart updates
       batchSize: smartUpdateBatchSize
     });
   };
@@ -102,8 +100,7 @@ export const SyncSection = () => {
       },
       body: JSON.stringify({
         type: 'pet_policies_sync',
-        clearData: shouldClearData, // Pass the clearData flag to the webhook
-        forceContentComparison: forceContentComparison, // Pass the content comparison flag
+        clearData: shouldClearData,
         timestamp: new Date().toISOString()
       }),
     })
@@ -188,13 +185,6 @@ export const SyncSection = () => {
               setClearData(prev => ({ ...prev, [key]: checked }));
             }}
             isLoading={isInitializing[value]}
-            showForceContentComparison={key === 'petPolicies'}
-            forceContentComparison={key === 'petPolicies' ? forceContentComparison : false}
-            onForceContentComparisonChange={
-              key === 'petPolicies' 
-                ? (checked) => setForceContentComparison(checked)
-                : undefined
-            }
             onSync={(resume, mode) => {
               if (key === 'countryPolicies' && mode !== 'clear') {
                 // Only validate country input for single country sync

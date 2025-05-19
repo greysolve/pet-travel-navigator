@@ -8,8 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 type StatusRecord = Record<keyof typeof SyncType, boolean>;
 
 interface SyncOptions {
-  forceContentComparison?: boolean;
-  compareContent?: boolean;
   offset?: number;
   smartUpdate?: boolean;
   batchSize?: number;
@@ -136,8 +134,6 @@ export const useSyncOperations = () => {
           data = { 
             resumeSync, 
             mode: clearData[syncType] ? 'clear' : 'update',
-            forceContentComparison: options.forceContentComparison || false,
-            compareContent: options.compareContent || false,
             offset: currentOffset,
             limit: options.batchSize || 10, // Use provided batchSize or default to 10
             airlines: specificAirlines // Pass specific airlines for smart update
