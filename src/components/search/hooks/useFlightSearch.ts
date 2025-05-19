@@ -50,7 +50,7 @@ export const useFlightSearch = () => {
         return [];
       }
       
-      // Transform the flight data if needed
+      // Transform the flight data while preserving the segments array
       return data.flights.map((flight: any) => ({
         id: flight.id,
         origin: flight.origin || origin,
@@ -65,6 +65,10 @@ export const useFlightSearch = () => {
         duration: flight.duration || "",
         stops: flight.stops || 0,
         price: flight.price || 0,
+        // Preserve the segments array which is needed by FlightResults component
+        segments: flight.segments || [],
+        // Preserve totalDuration which might be used for calculations
+        totalDuration: flight.totalDuration || 0,
       }));
     } catch (error: any) {
       console.error("Error in flight search:", error);
