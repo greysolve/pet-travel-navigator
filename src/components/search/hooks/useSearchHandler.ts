@@ -1,11 +1,29 @@
-
-import { useUser } from '@/contexts/user/UserContext';
-import { ApiProvider } from "@/config/feature-flags";
-import { useUserSearchCount } from "./useUserSearchCount";
+import { useCallback, useState } from "react";
+import { FlightData, PetPolicy } from "@/components/flight-results/types";
+import { Airline } from "@/types/policies";
 import { useSavedSearches } from "./useSavedSearches";
-import { useToast } from "@/hooks/use-toast";
+import { useUserSearchCount } from "./useUserSearchCount";
+import { ApiProvider } from "@/config/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
-import { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
+import { FilteredPolicyResult, PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
+
+// Define interface for useSearchHandler parameters
+interface UseSearchHandlerProps {
+  user: any;
+  toast: any;
+  policySearch: string;
+  origin: string;
+  destination: string;
+  date?: Date;
+  passengers: number;
+  shouldSaveSearch: boolean;
+  setFlights: (flights: FlightData[]) => void;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider) => Promise<FlightData[]>;
+  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
+  apiProvider?: ApiProvider;
+  enableFallback?: boolean;
+  activeFilters?: PetPolicyFilterParams;
+}
 
 export const useSearchHandler = ({
   user,
@@ -22,34 +40,43 @@ export const useSearchHandler = ({
   apiProvider,
   enableFallback,
   activeFilters = {} as PetPolicyFilterParams
-}) => {
+}: UseSearchHandlerProps) => {
   const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
   const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
-  const { profile, profileLoading } = useUser();
-  
-  // Determine if we are still loading profile data
-  const isLoading = profileLoading || isSearchCountLoading;
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Helper: Apply filters to policy
-  const applyFiltersToPolicy = (policy) => {
-    if (!activeFilters || Object.keys(activeFilters).length === 0) {
-      return true; // No filters, policy passes
-    }
+  // Function to filter pet policies based on active filters
+  const filterPoliciesByActiveFilters = (policies: any) => {
+    if (!activeFilters || Object.keys(activeFilters).length === 0) return policies;
 
-    // Apply pet type filter
-    if (activeFilters.petTypes && activeFilters.petTypes.length > 0) {
-      if (!policy.pet_types_allowed || !policy.pet_types_allowed.length) {
-        return false;
+    return Object.entries(policies).reduce((filteredPolicies: any, [airlineId, policy]: [string, any]) => {
+      if (!policy) return filteredPolicies;
+      
+      // Check if the policy matches all active filters
+      if (shouldIncludePolicy(policy)) {
+        filteredPolicies[airlineId] = policy;
       }
       
-      let petTypeMatch = false;
-      for (const petType of activeFilters.petTypes) {
-        if (policy.pet_types_allowed.includes(petType)) {
-          petTypeMatch = true;
-          break;
-        }
-      }
-      if (!petTypeMatch) return false;
+      return filteredPolicies;
+    }, {});
+  };
+
+  // Helper function to determine if a policy should be included based on filters
+  const shouldIncludePolicy = (policy: any) => {
+    // Apply pet type filter
+    if (activeFilters.petTypes && activeFilters.petTypes.length > 0) {
+      // Check if the policy allows any of the selected pet types
+      const petMatch = activeFilters.petTypes.some(petType => {
+        if (petType === 'dog' && policy.allows_dogs) return true;
+        if (petType === 'cat' && policy.allows_cats) return true;
+        if (petType === 'bird' && policy.allows_birds) return true;
+        if (petType === 'rabbit' && policy.allows_rabbits) return true;
+        if (petType === 'rodent' && policy.allows_rodents) return true;
+        if (petType === 'other' && policy.allows_other_pets) return true;
+        return false;
+      });
+      
+      if (!petMatch) return false;
     }
 
     // Apply travel method filter
@@ -59,267 +86,314 @@ export const useSearchHandler = ({
       // If neither cabin nor cargo is allowed, no policies match
       if (!cabin && !cargo) return false;
       
-      // If cabin only, check if policy allows cabin
-      if (cabin && !cargo) {
-        if (!policy.cabin_max_weight_kg && !policy.cabin_combined_weight_kg) {
-          return false;
-        }
-      }
+      // If only cabin is allowed but policy doesn't allow cabin, exclude
+      if (cabin && !cargo && !policy.allows_in_cabin) return false;
       
-      // If cargo only, check if policy allows cargo
-      if (!cabin && cargo) {
-        if (!policy.cargo_max_weight_kg && !policy.cargo_combined_weight_kg) {
-          return false;
-        }
-      }
+      // If only cargo is allowed but policy doesn't allow cargo, exclude
+      if (!cabin && cargo && !policy.allows_checked_cargo) return false;
       
-      // If both selected, at least one must be available
-      if (cabin && cargo) {
-        if (!policy.cabin_max_weight_kg && !policy.cabin_combined_weight_kg &&
-            !policy.cargo_max_weight_kg && !policy.cargo_combined_weight_kg) {
-          return false;
-        }
-      }
+      // If both are required but policy doesn't allow both, exclude
+      if (cabin && cargo && !policy.allows_in_cabin && !policy.allows_checked_cargo) return false;
     }
 
-    // Apply weight filters
+    // Apply weight filter
     if (activeFilters.minWeight !== undefined || activeFilters.maxWeight !== undefined) {
-      const travelMethod = activeFilters.travelMethod || { cabin: true, cargo: true };
-      let weightMatch = false;
+      // Check if the policy has weight restrictions that align with the filter
+      const includesCarrier = activeFilters.weightIncludesCarrier || false;
       
-      if (travelMethod.cabin) {
-        // Check cabin weight if relevant
-        if (policy.cabin_max_weight_kg) {
-          const maxWeight = parseFloat(policy.cabin_max_weight_kg);
-          if (!isNaN(maxWeight)) {
-            if ((activeFilters.minWeight === undefined || maxWeight >= activeFilters.minWeight) &&
-                (activeFilters.maxWeight === undefined || maxWeight <= activeFilters.maxWeight)) {
-              weightMatch = true;
-            }
-          }
-        }
-      }
-
-      if (travelMethod.cargo && !weightMatch) {
-        // Check cargo weight if relevant
-        if (policy.cargo_max_weight_kg) {
-          const maxWeight = parseFloat(policy.cargo_max_weight_kg);
-          if (!isNaN(maxWeight)) {
-            if ((activeFilters.minWeight === undefined || maxWeight >= activeFilters.minWeight) &&
-                (activeFilters.maxWeight === undefined || maxWeight <= activeFilters.maxWeight)) {
-              weightMatch = true;
-            }
-          }
-        }
+      // Handle min weight filter
+      if (activeFilters.minWeight !== undefined) {
+        const policyMinWeight = policy.min_weight_kg;
+        
+        // If no policy minimum weight is specified, assume it's 0
+        const effectivePolicyMin = policyMinWeight !== undefined ? policyMinWeight : 0;
+        
+        // If the filter minimum exceeds the policy maximum, exclude
+        if (activeFilters.minWeight > policy.max_weight_kg) return false;
       }
       
-      if (!weightMatch) return false;
+      // Handle max weight filter
+      if (activeFilters.maxWeight !== undefined) {
+        const policyMaxWeight = policy.max_weight_kg;
+        
+        // If no policy maximum weight is specified, we can't compare
+        if (policyMaxWeight === undefined) return false;
+        
+        // If the filter maximum is less than the policy minimum, exclude
+        if (activeFilters.maxWeight < (policy.min_weight_kg || 0)) return false;
+      }
     }
 
     // Apply breed restrictions filter
     if (activeFilters.includeBreedRestrictions === false) {
-      if (policy.breed_restrictions && policy.breed_restrictions.length > 0) {
-        return false;
-      }
+      // Only include policies that don't have breed restrictions
+      if (policy.has_breed_restrictions) return false;
     }
 
-    return true; // Policy passes all filters
+    // If passed all filters, include the policy
+    return true;
   };
 
-  // Helper: Fetch policy for a single airline
-  const fetchSingleAirlinePolicy = async (iata: string) => {
-    try {
-      if (!iata) return null;
-      console.log("[useSearchHandler] Fetching airline policy for:", iata);
-      // Query airline by IATA to get airline UUID (since policies table uses UUID)
-      let { data: airlines, error: airlineError } = await supabase
-        .from("airlines")
-        .select("id, name")
-        .eq("iata_code", iata)
-        .maybeSingle();
-
-      if (airlineError) {
-        console.error("[useSearchHandler] Airline fetch error", airlineError);
-        toast({
-          title: "Airline lookup failed",
-          description: "Could not find airline for the given IATA code.",
-          variant: "destructive",
-        });
-        return null;
-      }
-      if (!airlines) {
-        toast({
-          title: "No airline found",
-          description: `No airline found for code ${iata}`,
-          variant: "destructive",
-        });
-        return null;
-      }
-      const airlineId = airlines.id;
-      const airlineName = airlines.name;
-
-      // Query the pet policy for this airline
-      let { data: policy, error: policyError } = await supabase
-        .from("pet_policies")
-        .select("*")
-        .eq("airline_id", airlineId)
-        .maybeSingle();
-
-      if (policyError) {
-        console.error("[useSearchHandler] Pet policy fetch error", policyError);
-        toast({
-          title: "Policy lookup failed",
-          description: "Could not fetch pet policy for this airline.",
-          variant: "destructive",
-        });
-        return null;
-      }
-      if (!policy) {
-        toast({
-          title: "No policy found",
-          description: `This airline doesn't have a pet policy in our system.`,
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      // Apply filters if needed
-      const policyPassesFilters = applyFiltersToPolicy(policy);
-      if (!policyPassesFilters) {
-        toast({
-          title: "No matching policy",
-          description: `This airline's pet policy doesn't match your filter criteria.`,
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      // Shape for display in petPolicies object
-      return { [airlineName]: policy };
-    } catch (err: any) {
-      console.error("[useSearchHandler] Unexpected error fetching airline policy", err);
+  const handlePolicySearch = useCallback(async () => {
+    if (!user) {
       toast({
-        title: "Unexpected error",
-        description: err.message || "Error occurred searching for airline policy.",
+        title: "Authentication required",
+        description: "Please sign in to search for airlines",
         variant: "destructive",
       });
-      return null;
+      return;
     }
-  };
 
-  // Handle policy search
-  const handlePolicySearch = async () => {
-    if (!canSearch()) return;
+    if (searchCount === 0 && !isUnlimited) {
+      toast({
+        title: "Search limit reached",
+        description: "You have reached your monthly search limit. Please upgrade your plan for more searches.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      // Save search if needed
-      if (shouldSaveSearch && user) {
-        await saveFlight(origin, destination, date, passengers);
+      // Search for airlines matching the query
+      const { data: airlines, error: airlinesError } = await supabase
+        .from('airlines')
+        .select('id, iata_code, name, active_policy_id')
+        .textSearch('name', policySearch, {
+          type: 'websearch',
+          config: 'english'
+        });
+
+      if (airlinesError) {
+        console.error("Error searching for airlines:", airlinesError);
+        toast({
+          title: "Search Error",
+          description: "Error searching for airlines. Please try again.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      setFlights([]);
-      toast({
-        title: "Policy Search Started",
-        description: `Searching policies for airline: ${policySearch}`,
-      });
+      console.log("Airlines found:", airlines);
 
-      // Actually fetch policy from supabase & send to result handler:
-      if (policySearch) {
-        const policiesResult = await fetchSingleAirlinePolicy(policySearch);
-        if (policiesResult) {
-          onSearchResults([], policiesResult, apiProvider, "");
-        } else {
-          onSearchResults([], {}, apiProvider, "No policy found.");
+      if (airlines.length === 0) {
+        setFlights([]);
+        toast({
+          title: "No airlines found",
+          description: "No airlines match your search query.",
+          variant: "destructive",
+        });
+        onSearchResults([], {}, apiProvider);
+        return;
+      }
+
+      // Get policy IDs
+      const activePolicyIds = airlines
+        .filter((airline: Airline) => airline.active_policy_id)
+        .map((airline: Airline) => airline.active_policy_id);
+
+      // Fetch pet policies for these airlines
+      const { data: petPolicies, error: policiesError } = await supabase
+        .from('pet_policies')
+        .select('*')
+        .in('id', activePolicyIds);
+
+      if (policiesError) {
+        console.error("Error fetching pet policies:", policiesError);
+        toast({
+          title: "Search Error",
+          description: "Error fetching airline pet policies. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("Pet policies found:", petPolicies);
+
+      // Create a mapping of airline ID to pet policy
+      const airlinePolicies = (petPolicies || []).reduce((acc: Record<string, any>, policy: any) => {
+        // Find the airline that references this policy
+        const airline = airlines.find((a: Airline) => a.active_policy_id === policy.id);
+        if (airline) {
+          acc[airline.id] = {
+            ...policy,
+            airline_id: airline.id,
+            airline_code: airline.iata_code,
+            airline_name: airline.name,
+          };
         }
-      } else {
-        // fallback: should not occur, but handle gracefully
-        onSearchResults([], {}, apiProvider, "No airline selected.");
-      }
-    } catch (error) {
-      console.error("Policy search error:", error);
-      toast({
-        title: "Search error",
-        description: "Failed to search policies. Please try again.",
-        variant: "destructive",
-      });
-      onSearchResults([], {}, apiProvider, "Error performing airline policy search.");
-    }
-  };
+        return acc;
+      }, {});
 
-  // Handle route search
-  const handleRouteSearch = async () => {
-    if (!canSearch()) return;
+      // Apply filters to the policies
+      const filteredPolicies = filterPoliciesByActiveFilters(airlinePolicies);
 
-    try {
-      // Save search if needed
+      // Create dummy flight results with the airlines
+      const dummyFlights: FlightData[] = airlines
+        .filter((airline: Airline) => {
+          // Only include airlines with policies that pass the filters
+          return airline.active_policy_id && filteredPolicies[airline.id];
+        })
+        .map((airline: Airline) => ({
+          id: `policy_${airline.id}`,
+          origin: "POLICY",
+          destination: "SEARCH",
+          departure_date: new Date().toISOString(),
+          airline_id: airline.id,
+          airline_code: airline.iata_code,
+          airline_name: airline.name,
+          flight_number: "",
+          departure_time: "",
+          arrival_time: "",
+          duration: "",
+          stops: 0,
+          price: 0,
+          isPolicySearch: true,
+        }));
+
+      console.log("Generated flights:", dummyFlights);
+
+      // Save the search if requested
       if (shouldSaveSearch && user) {
-        await saveFlight(origin, destination, date, passengers);
+        await saveFlight({
+          policySearch,
+          origin: "",
+          destination: "",
+          date: undefined,
+          passengers,
+        });
       }
 
-      // Execute the flight search - pass filters to be used in the filter process
-      const flights = await handleFlightSearch(
-        origin,
-        destination,
-        date,
-        onSearchResults,
-        undefined,
-        apiProvider,
-        enableFallback,
-        passengers,
-        activeFilters
-      );
+      setFlights(dummyFlights);
+      onSearchResults(dummyFlights, filteredPolicies, apiProvider);
 
-      setFlights(flights);
     } catch (error) {
-      console.error("Route search error:", error);
+      console.error("Unexpected error in policy search:", error);
       toast({
-        title: "Search error",
-        description: "Failed to search flights. Please try again.",
+        title: "Search Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  // Check if the user can perform a search
-  const canSearch = () => {
-    if (isLoading) {
-      toast({
-        title: "Loading",
-        description: "Please wait while we load your profile data",
-      });
-      return false;
-    }
-    
+  }, [
+    user, 
+    policySearch, 
+    shouldSaveSearch, 
+    toast, 
+    setFlights, 
+    onSearchResults, 
+    searchCount, 
+    isUnlimited, 
+    passengers,
+    saveFlight,
+    activeFilters,
+    apiProvider
+  ]);
+  
+  const handleRouteSearch = useCallback(async () => {
     if (!user) {
       toast({
         title: "Authentication required",
         description: "Please sign in to search",
         variant: "destructive",
       });
-      return false;
+      return;
     }
 
-    // Admin users can always search
-    if (profile?.userRole === 'site_manager' || isUnlimited) {
-      return true;
-    }
-
-    // Check search count for other users
-    if (searchCount !== undefined && searchCount <= 0) {
+    if (!date) {
       toast({
-        title: "Search limit reached",
-        description: "You have used all your available searches. Please upgrade to continue searching.",
+        title: "Date required",
+        description: "Please select a travel date",
         variant: "destructive",
       });
-      return false;
+      return;
     }
 
-    return true;
-  };
+    if (searchCount === 0 && !isUnlimited) {
+      toast({
+        title: "Search limit reached",
+        description: "You have reached your monthly search limit. Please upgrade your plan for more searches.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  return {
-    handlePolicySearch,
+    setIsLoading(true);
+
+    try {
+      // Perform flight search
+      const flights = await handleFlightSearch(origin, destination, date, "", apiProvider);
+      
+      // Save the search if requested
+      if (shouldSaveSearch && user) {
+        await saveFlight({
+          policySearch: "",
+          origin,
+          destination,
+          date: date.toISOString(),
+          passengers,
+        });
+      }
+      
+      return flights;
+    } catch (error: any) {
+      console.error("Error in route search:", error);
+      
+      const errorMessage = error?.message || "An error occurred during search";
+      
+      toast({
+        title: "Search Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      // Try fallback provider if enabled
+      if (enableFallback && apiProvider === 'amadeus') {
+        toast({
+          title: "Trying alternate data source",
+          description: "Searching with backup provider...",
+        });
+        
+        try {
+          const fallbackFlights = await handleFlightSearch(origin, destination, date, "", 'cirium');
+          return fallbackFlights;
+        } catch (fallbackError: any) {
+          console.error("Fallback search also failed:", fallbackError);
+          
+          toast({
+            title: "Search Failed",
+            description: "Both search providers failed. Please try again later.",
+            variant: "destructive",
+          });
+        }
+      }
+      
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    user, 
+    origin, 
+    destination, 
+    date, 
+    shouldSaveSearch, 
+    handleFlightSearch, 
+    toast, 
+    searchCount, 
+    isUnlimited,
+    passengers,
+    saveFlight,
+    apiProvider,
+    enableFallback
+  ]);
+
+  return { 
+    handlePolicySearch, 
     handleRouteSearch,
-    isLoading,
+    isLoading 
   };
 };
