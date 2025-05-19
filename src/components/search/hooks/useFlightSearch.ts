@@ -85,9 +85,9 @@ export const useFlightSearch = () => {
       console.log("Filtering flights with active filters:", activeFilters);
       
       // First, get pet policies for each airline in the results
-      const airlineCodes = new Set(
+      const airlineCodes = new Set<string>(
         transformedFlights.flatMap(flight => 
-          flight.segments?.map(segment => segment.carrierFsCode) || []
+          flight.segments?.map(segment => segment.carrierFsCode as string) || []
         )
       );
       
@@ -96,7 +96,7 @@ export const useFlightSearch = () => {
         return transformedFlights; // Return all flights if no airline codes found
       }
       
-      // Fetch pet policies for the airlines
+      // Fetch pet policies for the airlines - fix the type casting
       const { data: policiesData, error: policiesError } = await supabase
         .from('pet_policies')
         .select(`
@@ -109,7 +109,7 @@ export const useFlightSearch = () => {
           cargo_linear_dimensions_cm,
           breed_restrictions
         `)
-        .in('airlines.iata_code', Array.from(airlineCodes));
+        .in('airlines.iata_code', Array.from(airlineCodes) as string[]);
       
       if (policiesError) {
         console.error("Error fetching pet policies:", policiesError);
