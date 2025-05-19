@@ -108,6 +108,24 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
       if (activeFilters.maxWeight < cabinMinWeight && activeFilters.maxWeight < cargoMinWeight) {
         return false;
       }
+      
+      // If cabin only is selected, check only cabin weight
+      if (activeFilters.travelMethod && activeFilters.travelMethod.cabin && !activeFilters.travelMethod.cargo) {
+        if (cabinMaxWeight === undefined || activeFilters.maxWeight < cabinMaxWeight) {
+          // This passes if the max weight is less than or equal to cabin max weight
+        } else {
+          return false;
+        }
+      }
+      
+      // If cargo only is selected, check only cargo weight
+      if (activeFilters.travelMethod && !activeFilters.travelMethod.cabin && activeFilters.travelMethod.cargo) {
+        if (cargoMaxWeight === undefined || activeFilters.maxWeight < cargoMaxWeight) {
+          // This passes if the max weight is less than or equal to cargo max weight
+        } else {
+          return false;
+        }
+      }
     }
   }
 

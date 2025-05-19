@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { usePolicySearch } from "./usePolicySearch";
 import { useRouteSearch } from "./useRouteSearch";
 import { FlightData, PetPolicy } from "@/components/flight-results/types";
@@ -17,7 +17,7 @@ interface UseSearchHandlerProps {
   passengers: number;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider) => Promise<FlightData[]>;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
@@ -86,6 +86,7 @@ export const useSearchHandler = ({
     onSearchResults,
     apiProvider,
     enableFallback,
+    activeFilters,
     saveFlight
   });
 

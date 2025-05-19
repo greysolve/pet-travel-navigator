@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { FlightData, PetPolicy } from "@/components/flight-results/types";
 import { ApiProvider } from "@/config/feature-flags";
+import { PetPolicyFilterParams } from "@/types/policy-filters";
 
 interface UseRouteSearchProps {
   user: any;
@@ -11,10 +12,11 @@ interface UseRouteSearchProps {
   date?: Date;
   passengers: number;
   shouldSaveSearch: boolean;
-  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider) => Promise<FlightData[]>;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
+  activeFilters?: PetPolicyFilterParams;
   saveFlight: (searchCriteria: any) => Promise<void>;
 }
 
@@ -30,6 +32,7 @@ export const useRouteSearch = ({
   onSearchResults,
   apiProvider,
   enableFallback,
+  activeFilters,
   saveFlight
 }: UseRouteSearchProps) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -56,8 +59,8 @@ export const useRouteSearch = ({
     setIsLoading(true);
 
     try {
-      // Perform flight search - pass empty string as policySearch
-      const flights = await handleFlightSearch(origin, destination, date, "");
+      // Perform flight search - pass empty string as policySearch and include activeFilters
+      const flights = await handleFlightSearch(origin, destination, date, "", apiProvider, activeFilters);
       
       // Save the search if requested
       if (shouldSaveSearch && user) {
@@ -67,6 +70,7 @@ export const useRouteSearch = ({
           destination,
           date: date.toISOString(),
           passengers,
+          filters: activeFilters // Save filters with the search
         });
       }
       
@@ -93,7 +97,7 @@ export const useRouteSearch = ({
         });
         
         try {
-          const fallbackFlights = await handleFlightSearch(origin, destination, date, "", 'cirium');
+          const fallbackFlights = await handleFlightSearch(origin, destination, date, "", 'cirium', activeFilters);
           onSearchResults(fallbackFlights, {}, 'cirium', undefined);
           return fallbackFlights;
         } catch (fallbackError: any) {
@@ -126,7 +130,8 @@ export const useRouteSearch = ({
     saveFlight,
     apiProvider,
     enableFallback,
-    onSearchResults
+    onSearchResults,
+    activeFilters
   ]);
 
   return {
