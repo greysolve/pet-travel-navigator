@@ -78,9 +78,9 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
     const cargoMinWeight = 0; // Default minimum if not specified
     const cargoMaxWeight = policy.cargo_max_weight_kg;
     
-    // Log weight values for debugging
+    // Log weight values for debugging - FIX: Use airline_code/airline_id instead of airline_name
     console.log("Checking weight filters for policy:", {
-      airline: policy.airline_name || "Unknown airline",
+      airline_id: policy.airline_id || "Unknown airline",
       cabinMaxWeight,
       cargoMaxWeight,
       filterMinWeight: activeFilters.minWeight,
