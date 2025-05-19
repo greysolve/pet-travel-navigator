@@ -68,7 +68,7 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
     if (cabin && cargo && !supportsCabin && !supportsCargo) return false;
   }
 
-  // Apply weight filter
+  // Apply weight filter - FIXED LOGIC
   if (activeFilters.minWeight !== undefined || activeFilters.maxWeight !== undefined) {
     // For cabin
     const cabinMinWeight = 0; // Default minimum if not specified
@@ -78,51 +78,71 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
     const cargoMinWeight = 0; // Default minimum if not specified
     const cargoMaxWeight = policy.cargo_max_weight_kg;
     
+    // Log weight values for debugging
+    console.log("Checking weight filters for policy:", {
+      airline: policy.airline_name || "Unknown airline",
+      cabinMaxWeight,
+      cargoMaxWeight,
+      filterMinWeight: activeFilters.minWeight,
+      filterMaxWeight: activeFilters.maxWeight
+    });
+    
     // Handle min weight filter
     if (activeFilters.minWeight !== undefined) {
-      // Exclude if min weight exceeds both cabin and cargo max weights
+      // FIXED: Exclude if min weight exceeds both cabin and cargo max weights
+      // This means pet is heavier than what airline allows
       if (cabinMaxWeight !== undefined && cargoMaxWeight !== undefined) {
         // If policy has both cabin and cargo options
         if (activeFilters.minWeight > cabinMaxWeight && activeFilters.minWeight > cargoMaxWeight) {
+          console.log("Excluding: Pet min weight exceeds both cabin and cargo limits");
           return false;
         }
       } else if (cabinMaxWeight !== undefined) {
         // If policy only has cabin option
         if (activeFilters.minWeight > cabinMaxWeight) {
+          console.log("Excluding: Pet min weight exceeds cabin limit");
           return false;
         }
       } else if (cargoMaxWeight !== undefined) {
         // If policy only has cargo option
         if (activeFilters.minWeight > cargoMaxWeight) {
+          console.log("Excluding: Pet min weight exceeds cargo limit");
           return false;
         }
       } else {
         // If policy doesn't specify any weight limits
+        console.log("Excluding: Policy has no weight limits defined");
         return false;
       }
     }
     
-    // Handle max weight filter
+    // Handle max weight filter - FIXED LOGIC
     if (activeFilters.maxWeight !== undefined) {
-      // Exclude if max weight is less than minimum allowed weights for both cabin and cargo
+      // FIXED: Check if the user's max weight is less than the minimum required
+      // This would mean the pet is too light for airline requirements
       if (activeFilters.maxWeight < cabinMinWeight && activeFilters.maxWeight < cargoMinWeight) {
+        console.log("Excluding: Pet max weight is below minimum requirements");
         return false;
       }
       
-      // If cabin only is selected, check only cabin weight
+      // FIXED: Fix the cabin-only weight check
       if (activeFilters.travelMethod && activeFilters.travelMethod.cabin && !activeFilters.travelMethod.cargo) {
-        if (cabinMaxWeight === undefined || activeFilters.maxWeight < cabinMaxWeight) {
-          // This passes if the max weight is less than or equal to cabin max weight
-        } else {
+        // For cabin-only: include if airline allows this pet weight in cabin
+        // FIXED: Policy should be included if the airline's max weight is 
+        // greater than or equal to the user's maximum weight
+        if (cabinMaxWeight === undefined || activeFilters.maxWeight > cabinMaxWeight) {
+          console.log("Excluding: Pet max weight exceeds cabin limit for cabin-only travel");
           return false;
         }
       }
       
-      // If cargo only is selected, check only cargo weight
+      // FIXED: Fix the cargo-only weight check  
       if (activeFilters.travelMethod && !activeFilters.travelMethod.cabin && activeFilters.travelMethod.cargo) {
-        if (cargoMaxWeight === undefined || activeFilters.maxWeight < cargoMaxWeight) {
-          // This passes if the max weight is less than or equal to cargo max weight
-        } else {
+        // For cargo-only: include if airline allows this pet weight in cargo
+        // FIXED: Policy should be included if the airline's max weight is 
+        // greater than or equal to the user's maximum weight
+        if (cargoMaxWeight === undefined || activeFilters.maxWeight > cargoMaxWeight) {
+          console.log("Excluding: Pet max weight exceeds cargo limit for cargo-only travel");
           return false;
         }
       }
