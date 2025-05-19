@@ -1,34 +1,31 @@
 
 import { useState, useCallback, useEffect } from 'react';
+import { 
+  PetTypeFilter, 
+  TravelMethodFilter, 
+  WeightFilterOptions, 
+  PetPolicyFilterParams 
+} from '@/types/policy-filters';
+import { supabase } from '@/integrations/supabase/client';
+import { FilteredPolicyResult } from '@/types/policy-filters';
 
-export type PetTypeFilter = 'dog' | 'cat' | 'bird' | 'rabbit' | 'rodent' | 'other';
-export type TravelMethodFilter = 'cabin' | 'cargo' | 'both';
-
-export interface WeightFilterOptions {
-  min?: number;
-  max?: number;
-  includeCarrier?: boolean;
-}
-
-export interface PetPolicyFilters {
-  petTypes: PetTypeFilter[];
-  travelMethod: TravelMethodFilter;
-  weight: WeightFilterOptions;
-  showBreedRestrictions: boolean;
-}
-
-const DEFAULT_FILTERS: PetPolicyFilters = {
-  petTypes: [],
+const DEFAULT_FILTERS: PetPolicyFilterParams = {
+  petTypes: undefined,
   travelMethod: 'both',
-  weight: {},
-  showBreedRestrictions: true
+  minWeight: undefined,
+  maxWeight: undefined,
+  weightIncludesCarrier: false,
+  includeBreedRestrictions: true
 };
 
 const STORAGE_KEY = 'pet_policy_filters';
 
 export function usePetPolicyFilters() {
-  const [filters, setFilters] = useState<PetPolicyFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<PetPolicyFilterParams>(DEFAULT_FILTERS);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [filteredPolicies, setFilteredPolicies] = useState<FilteredPolicyResult[]>([]);
+  const [filterError, setFilterError] = useState<string | null>(null);
 
   // Load saved filters from localStorage on component mount
   useEffect(() => {
@@ -55,38 +52,57 @@ export function usePetPolicyFilters() {
     }
   }, [filters, isLoaded]);
 
-  // Update pet type filters
-  const updatePetTypes = useCallback((types: PetTypeFilter[]) => {
-    setFilters(prev => ({ ...prev, petTypes: types }));
-  }, []);
-
-  // Update travel method filter
-  const updateTravelMethod = useCallback((method: TravelMethodFilter) => {
-    setFilters(prev => ({ ...prev, travelMethod: method }));
-  }, []);
-
-  // Update weight filter
-  const updateWeightFilter = useCallback((options: WeightFilterOptions) => {
-    setFilters(prev => ({ ...prev, weight: { ...prev.weight, ...options } }));
-  }, []);
-
-  // Toggle show breed restrictions
-  const toggleBreedRestrictions = useCallback((show: boolean) => {
-    setFilters(prev => ({ ...prev, showBreedRestrictions: show }));
+  // Apply filters and fetch filtered policies
+  const applyFilters = useCallback(async (filterParams: PetPolicyFilterParams) => {
+    setIsFiltering(true);
+    setFilterError(null);
+    
+    try {
+      // Update local filters state
+      setFilters(filterParams);
+      
+      // Make API call to edge function
+      const { data, error } = await supabase.functions.invoke('filter_pet_policies', {
+        body: { filters: filterParams }
+      });
+      
+      if (error) {
+        console.error('Error filtering pet policies:', error);
+        setFilterError(error.message || 'Error filtering policies');
+        setFilteredPolicies([]);
+        return [];
+      }
+      
+      if (data && data.results) {
+        setFilteredPolicies(data.results);
+        return data.results;
+      }
+      
+      setFilteredPolicies([]);
+      return [];
+    } catch (err) {
+      console.error('Unexpected error filtering policies:', err);
+      setFilterError('Unexpected error occurred while filtering');
+      setFilteredPolicies([]);
+      return [];
+    } finally {
+      setIsFiltering(false);
+    }
   }, []);
 
   // Reset all filters to default values
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
+    setFilteredPolicies([]);
   }, []);
 
   return {
     filters,
     isLoaded,
-    updatePetTypes,
-    updateTravelMethod,
-    updateWeightFilter,
-    toggleBreedRestrictions,
+    isFiltering,
+    filteredPolicies,
+    filterError,
+    applyFilters,
     resetFilters
   };
 }

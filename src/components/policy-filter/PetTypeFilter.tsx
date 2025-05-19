@@ -1,6 +1,4 @@
 
-import { useState } from "react";
-import { Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PetTypeFilter as PetTypeFilterValue } from "@/types/policy-filters";
 
