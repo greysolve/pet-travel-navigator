@@ -1,3 +1,4 @@
+
 import { useCallback, useState } from "react";
 import { FlightData, PetPolicy } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
@@ -177,7 +178,7 @@ export const useSearchHandler = ({
 
       console.log("Airlines found:", airlines);
 
-      if (airlines.length === 0) {
+      if (!airlines || airlines.length === 0) {
         setFlights([]);
         toast({
           title: "No airlines found",
@@ -324,7 +325,7 @@ export const useSearchHandler = ({
     setIsLoading(true);
 
     try {
-      // Perform flight search
+      // Perform flight search - pass empty string as policySearch
       const flights = await handleFlightSearch(origin, destination, date, "", apiProvider);
       
       // Save the search if requested
