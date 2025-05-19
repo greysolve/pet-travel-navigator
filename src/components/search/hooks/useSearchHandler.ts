@@ -1,4 +1,3 @@
-
 import { useCallback, useState } from "react";
 import { FlightData, PetPolicy, FlightLocation } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
@@ -232,33 +231,37 @@ export const useSearchHandler = ({
       const filteredPolicies = filterPoliciesByActiveFilters(airlinePolicies);
 
       // Create dummy flight results with the airlines - using FlightLocation objects for origin and destination
-      const dummyFlights: FlightData[] = airlines
+      const dummyFlights = airlines
         .filter((airline: any) => {
           // Only include airlines with policies that pass the filters
           return filteredPolicies[airline.id];
         })
-        .map((airline: any) => ({
-          id: `policy_${airline.id}`,
-          origin: {
-            code: "POLICY"
-          } as FlightLocation,
-          destination: {
-            code: "SEARCH"
-          } as FlightLocation,
-          departure_date: new Date().toISOString(),
-          airline_id: airline.id,
-          airline_code: airline.iata_code,
-          airline_name: airline.name,
-          flight_number: "",
-          departure_time: "",
-          arrival_time: "",
-          duration: "",
-          stops: 0,
-          price: 0,
-          isPolicySearch: true,
-          segments: [], 
-          totalDuration: 0
-        }));
+        .map((airline: any) => {
+          const flight: FlightData = {
+            id: `policy_${airline.id}`,
+            origin: {
+              code: "POLICY"
+            } as FlightLocation,
+            destination: {
+              code: "SEARCH"
+            } as FlightLocation,
+            departure_date: new Date().toISOString(),
+            airline_id: airline.id,
+            airline_code: airline.iata_code,
+            airline_name: airline.name,
+            flight_number: "",
+            departure_time: "",
+            arrival_time: "",
+            duration: "",
+            stops: 0,
+            price: 0,
+            isPolicySearch: true,
+            segments: [],
+            totalDuration: 0
+          };
+          
+          return flight;
+        });
 
       console.log("Generated flights:", dummyFlights);
 

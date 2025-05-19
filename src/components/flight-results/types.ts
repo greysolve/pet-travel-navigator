@@ -1,3 +1,4 @@
+
 import type { Json } from "@/integrations/supabase/types";
 
 export type FlightLocation = {
@@ -37,10 +38,9 @@ export type FlightJourney = {
 };
 
 // Extend FlightJourney to include the fields used in the application
+// Removing conflicting origin/destination string definitions
 export type FlightData = FlightJourney & {
   id?: string;
-  origin?: string;
-  destination?: string;
   departure_date?: string;
   airline_id?: string;
   airline_code?: string;
@@ -51,6 +51,9 @@ export type FlightData = FlightJourney & {
   duration?: string;
   price?: number;
   isPolicySearch?: boolean;
+  // Add originCode and destinationCode as string helpers, instead of redefining origin/destination
+  originCode?: string;
+  destinationCode?: string;
 };
 
 export type SizeRestrictions = {
