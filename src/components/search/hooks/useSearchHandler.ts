@@ -1,4 +1,3 @@
-
 import { useCallback, useState } from "react";
 import { FlightData, PetPolicy, FlightLocation } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
@@ -353,6 +352,9 @@ export const useSearchHandler = ({
         });
       }
       
+      // Add the missing onSearchResults call here
+      onSearchResults(flights, {}, apiProvider, undefined);
+      
       return flights;
     } catch (error: any) {
       console.error("Error in route search:", error);
@@ -374,6 +376,7 @@ export const useSearchHandler = ({
         
         try {
           const fallbackFlights = await handleFlightSearch(origin, destination, date, "", 'cirium');
+          onSearchResults(fallbackFlights, {}, 'cirium', undefined);
           return fallbackFlights;
         } catch (fallbackError: any) {
           console.error("Fallback search also failed:", fallbackError);
@@ -389,6 +392,8 @@ export const useSearchHandler = ({
         onSearchResults([], {}, apiProvider, errorMessage);
       }
       
+      // Add the missing onSearchResults call here to ensure there's always a call at the end of the error handling
+      onSearchResults([], {}, apiProvider, "Search failed");
       return [];
     } finally {
       setIsLoading(false);
