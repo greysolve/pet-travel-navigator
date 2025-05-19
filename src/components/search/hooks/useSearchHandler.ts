@@ -1,6 +1,6 @@
 
 import { useCallback, useState } from "react";
-import { FlightData, PetPolicy } from "@/components/flight-results/types";
+import { FlightData, PetPolicy, FlightLocation } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
 import { useSavedSearches } from "./useSavedSearches";
 import { useUserSearchCount } from "./useUserSearchCount";
@@ -231,7 +231,7 @@ export const useSearchHandler = ({
       // Apply filters to the policies
       const filteredPolicies = filterPoliciesByActiveFilters(airlinePolicies);
 
-      // Create dummy flight results with the airlines - using string values for origin and destination
+      // Create dummy flight results with the airlines - using FlightLocation objects for origin and destination
       const dummyFlights: FlightData[] = airlines
         .filter((airline: any) => {
           // Only include airlines with policies that pass the filters
@@ -239,8 +239,12 @@ export const useSearchHandler = ({
         })
         .map((airline: any) => ({
           id: `policy_${airline.id}`,
-          origin: "POLICY", // Changed to string to match FlightData type
-          destination: "SEARCH", // Changed to string to match FlightData type
+          origin: {
+            code: "POLICY"
+          } as FlightLocation,
+          destination: {
+            code: "SEARCH"
+          } as FlightLocation,
           departure_date: new Date().toISOString(),
           airline_id: airline.id,
           airline_code: airline.iata_code,
@@ -252,7 +256,7 @@ export const useSearchHandler = ({
           stops: 0,
           price: 0,
           isPolicySearch: true,
-          segments: [], // Add required FlightJourney properties
+          segments: [], 
           totalDuration: 0
         }));
 
