@@ -1,6 +1,6 @@
 
 import { useCallback, useState } from "react";
-import { FlightData, FlightLocation, PetPolicy } from "@/components/flight-results/types";
+import { FlightData, PetPolicy } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
 import { useSavedSearches } from "./useSavedSearches";
 import { useUserSearchCount } from "./useUserSearchCount";
@@ -186,7 +186,7 @@ export const useSearchHandler = ({
           description: "No airlines match your search query.",
           variant: "destructive",
         });
-        onSearchResults([], {}, apiProvider);
+        onSearchResults([], {}, apiProvider, undefined);
         return;
       }
 
@@ -231,7 +231,7 @@ export const useSearchHandler = ({
       // Apply filters to the policies
       const filteredPolicies = filterPoliciesByActiveFilters(airlinePolicies);
 
-      // Create dummy flight results with the airlines
+      // Create dummy flight results with the airlines - using string values for origin and destination
       const dummyFlights: FlightData[] = airlines
         .filter((airline: any) => {
           // Only include airlines with policies that pass the filters
@@ -239,12 +239,8 @@ export const useSearchHandler = ({
         })
         .map((airline: any) => ({
           id: `policy_${airline.id}`,
-          origin: {
-            code: "POLICY"
-          } as FlightLocation,
-          destination: {
-            code: "SEARCH"
-          } as FlightLocation,
+          origin: "POLICY", // Changed to string to match FlightData type
+          destination: "SEARCH", // Changed to string to match FlightData type
           departure_date: new Date().toISOString(),
           airline_id: airline.id,
           airline_code: airline.iata_code,
@@ -283,6 +279,7 @@ export const useSearchHandler = ({
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
+      onSearchResults([], {}, apiProvider, "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -376,7 +373,10 @@ export const useSearchHandler = ({
             description: "Both search providers failed. Please try again later.",
             variant: "destructive",
           });
+          onSearchResults([], {}, 'cirium', "Both search providers failed");
         }
+      } else {
+        onSearchResults([], {}, apiProvider, errorMessage);
       }
       
       return [];
@@ -396,7 +396,8 @@ export const useSearchHandler = ({
     passengers,
     saveFlight,
     apiProvider,
-    enableFallback
+    enableFallback,
+    onSearchResults
   ]);
 
   return { 
