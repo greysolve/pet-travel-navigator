@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SyncType } from '@/types/sync';
@@ -117,11 +118,6 @@ export const useSyncOperations = () => {
         
         case 'airports':
           endpoint = 'sync_airport_data';
-          data = { clear: clearData[syncType] };
-          break;
-          
-        case 'routes':
-          endpoint = 'sync_route_data';
           data = { clear: clearData[syncType] };
           break;
           
