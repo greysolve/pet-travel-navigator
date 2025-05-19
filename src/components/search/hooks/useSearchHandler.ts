@@ -232,7 +232,7 @@ export const useSearchHandler = ({
       // Apply filters to the policies
       const filteredPolicies = filterPoliciesByActiveFilters(airlinePolicies);
 
-      // Create dummy flight results with the airlines - using FlightLocation objects for origin and destination
+      // Generate dummy flight results with the airlines - using FlightLocation objects for origin and destination
       const dummyFlights = airlines
         .filter((airline: any) => {
           // Only include airlines with policies that pass the filters
@@ -352,7 +352,7 @@ export const useSearchHandler = ({
         });
       }
       
-      // Add the missing onSearchResults call here
+      // Call onSearchResults with proper arguments
       onSearchResults(flights, {}, apiProvider, undefined);
       
       return flights;
@@ -392,7 +392,7 @@ export const useSearchHandler = ({
         onSearchResults([], {}, apiProvider, errorMessage);
       }
       
-      // Add the missing onSearchResults call here to ensure there's always a call at the end of the error handling
+      // Ensure there's always a call to onSearchResults at the end of the error handling
       onSearchResults([], {}, apiProvider, "Search failed");
       return [];
     } finally {
