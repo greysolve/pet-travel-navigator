@@ -1,7 +1,10 @@
 
 export type PetTypeFilter = 'dog' | 'cat' | 'bird' | 'rabbit' | 'rodent' | 'other';
 
-export type TravelMethodFilter = 'cabin' | 'cargo' | 'both';
+export interface TravelMethodFilter {
+  cabin: boolean;
+  cargo: boolean;
+}
 
 export interface WeightFilterOptions {
   min?: number;

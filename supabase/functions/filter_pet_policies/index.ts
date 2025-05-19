@@ -8,9 +8,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface TravelMethodFilter {
+  cabin: boolean;
+  cargo: boolean;
+}
+
 interface PetPolicyFilterParams {
   petTypes?: string[];
-  travelMethod?: 'cabin' | 'cargo' | 'both';
+  travelMethod?: TravelMethodFilter;
   minWeight?: number;
   maxWeight?: number;
   weightIncludesCarrier?: boolean;
@@ -65,26 +70,67 @@ serve(async (req) => {
       query = query.filter('pet_types_allowed', 'cs', `{${filters.petTypes.join(',')}}`);
     }
 
+    // Apply travel method filter if provided
+    if (filters.travelMethod) {
+      const cabinConditions = [];
+      const cargoConditions = [];
+      
+      // Add cabin conditions if cabin is true
+      if (filters.travelMethod.cabin) {
+        cabinConditions.push('cabin_max_weight_kg.is.not.null');
+        cabinConditions.push('cabin_combined_weight_kg.is.not.null');
+      }
+      
+      // Add cargo conditions if cargo is true
+      if (filters.travelMethod.cargo) {
+        cargoConditions.push('cargo_max_weight_kg.is.not.null');
+        cargoConditions.push('cargo_combined_weight_kg.is.not.null');
+      }
+      
+      // Combine conditions based on which methods are selected
+      const conditions = [];
+      
+      if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
+        // No additional filtering needed when both methods are allowed
+      }
+      else if (filters.travelMethod.cabin) {
+        conditions.push('cabin_max_weight_kg.is.not.null');
+      }
+      else if (filters.travelMethod.cargo) {
+        conditions.push('cargo_max_weight_kg.is.not.null');
+      }
+      
+      if (conditions.length > 0) {
+        query = query.or(conditions.join(','));
+      }
+    }
+
     // Apply weight filter based on travel method
     if (filters.minWeight !== undefined || filters.maxWeight !== undefined) {
-      if (filters.travelMethod === 'cabin' || filters.travelMethod === 'both') {
-        // For cabin weight
+      const weightConditions = [];
+      
+      // For cabin weight
+      if (!filters.travelMethod || filters.travelMethod.cabin) {
         if (filters.minWeight !== undefined) {
-          query = query.or(`cabin_max_weight_kg.gte.${filters.minWeight},cabin_combined_weight_kg.gte.${filters.minWeight}`);
+          weightConditions.push(`cabin_max_weight_kg.gte.${filters.minWeight}`);
         }
         if (filters.maxWeight !== undefined) {
-          query = query.or(`cabin_max_weight_kg.lte.${filters.maxWeight},cabin_combined_weight_kg.lte.${filters.maxWeight}`);
+          weightConditions.push(`cabin_max_weight_kg.lte.${filters.maxWeight}`);
         }
       }
       
-      if (filters.travelMethod === 'cargo' || filters.travelMethod === 'both') {
-        // For cargo weight
+      // For cargo weight
+      if (!filters.travelMethod || filters.travelMethod.cargo) {
         if (filters.minWeight !== undefined) {
-          query = query.or(`cargo_max_weight_kg.gte.${filters.minWeight},cargo_combined_weight_kg.gte.${filters.minWeight}`);
+          weightConditions.push(`cargo_max_weight_kg.gte.${filters.minWeight}`);
         }
         if (filters.maxWeight !== undefined) {
-          query = query.or(`cargo_max_weight_kg.lte.${filters.maxWeight},cargo_combined_weight_kg.lte.${filters.maxWeight}`);
+          weightConditions.push(`cargo_max_weight_kg.lte.${filters.maxWeight}`);
         }
+      }
+      
+      if (weightConditions.length > 0) {
+        query = query.or(weightConditions.join(','));
       }
     }
 
@@ -111,6 +157,16 @@ serve(async (req) => {
         );
         if (matchedTypes.length > 0) {
           matchReasons.push(`Allows ${matchedTypes.join(', ')}`);
+        }
+      }
+      
+      // Check travel method matches
+      if (filters.travelMethod) {
+        if (filters.travelMethod.cabin && (policy.cabin_max_weight_kg || policy.cabin_combined_weight_kg)) {
+          matchReasons.push(`Allows cabin travel`);
+        }
+        if (filters.travelMethod.cargo && (policy.cargo_max_weight_kg || policy.cargo_combined_weight_kg)) {
+          matchReasons.push(`Allows cargo travel`);
         }
       }
       

@@ -19,7 +19,10 @@ interface PetPolicyFiltersProps {
 
 export const PetPolicyFilters = ({ onApplyFilters }: PetPolicyFiltersProps) => {
   const [petTypes, setPetTypes] = useState<PetTypeFilterValue[]>([]);
-  const [travelMethod, setTravelMethod] = useState<TravelMethodFilterValue>("both");
+  const [travelMethod, setTravelMethod] = useState<TravelMethodFilterValue>({
+    cabin: true,
+    cargo: true
+  });
   const [weightOptions, setWeightOptions] = useState<WeightFilterOptions>({});
   const [includeBreedRestrictions, setIncludeBreedRestrictions] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -37,7 +40,7 @@ export const PetPolicyFilters = ({ onApplyFilters }: PetPolicyFiltersProps) => {
 
   const handleResetFilters = () => {
     setPetTypes([]);
-    setTravelMethod("both");
+    setTravelMethod({ cabin: true, cargo: true });
     setWeightOptions({});
     setIncludeBreedRestrictions(true);
     onApplyFilters({});
@@ -49,7 +52,8 @@ export const PetPolicyFilters = ({ onApplyFilters }: PetPolicyFiltersProps) => {
 
   const hasActiveFilters = 
     petTypes.length > 0 || 
-    travelMethod !== "both" || 
+    !travelMethod.cabin || 
+    !travelMethod.cargo || 
     weightOptions.min !== undefined || 
     weightOptions.max !== undefined || 
     !includeBreedRestrictions;

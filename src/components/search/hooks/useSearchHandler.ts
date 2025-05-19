@@ -1,9 +1,11 @@
+
 import { useUser } from '@/contexts/user/UserContext';
 import { ApiProvider } from "@/config/feature-flags";
 import { useUserSearchCount } from "./useUserSearchCount";
 import { useSavedSearches } from "./useSavedSearches";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
 
 export const useSearchHandler = ({
   user,
@@ -19,6 +21,7 @@ export const useSearchHandler = ({
   onSearchResults,
   apiProvider,
   enableFallback,
+  activeFilters = {}
 }) => {
   const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
   const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
@@ -26,6 +29,102 @@ export const useSearchHandler = ({
   
   // Determine if we are still loading profile data
   const isLoading = profileLoading || isSearchCountLoading;
+
+  // Helper: Apply filters to policy
+  const applyFiltersToPolicy = (policy) => {
+    if (!activeFilters || Object.keys(activeFilters).length === 0) {
+      return true; // No filters, policy passes
+    }
+
+    // Apply pet type filter
+    if (activeFilters.petTypes && activeFilters.petTypes.length > 0) {
+      if (!policy.pet_types_allowed || !policy.pet_types_allowed.length) {
+        return false;
+      }
+      
+      let petTypeMatch = false;
+      for (const petType of activeFilters.petTypes) {
+        if (policy.pet_types_allowed.includes(petType)) {
+          petTypeMatch = true;
+          break;
+        }
+      }
+      if (!petTypeMatch) return false;
+    }
+
+    // Apply travel method filter
+    if (activeFilters.travelMethod) {
+      const { cabin, cargo } = activeFilters.travelMethod;
+      
+      // If neither cabin nor cargo is allowed, no policies match
+      if (!cabin && !cargo) return false;
+      
+      // If cabin only, check if policy allows cabin
+      if (cabin && !cargo) {
+        if (!policy.cabin_max_weight_kg && !policy.cabin_combined_weight_kg) {
+          return false;
+        }
+      }
+      
+      // If cargo only, check if policy allows cargo
+      if (!cabin && cargo) {
+        if (!policy.cargo_max_weight_kg && !policy.cargo_combined_weight_kg) {
+          return false;
+        }
+      }
+      
+      // If both selected, at least one must be available
+      if (cabin && cargo) {
+        if (!policy.cabin_max_weight_kg && !policy.cabin_combined_weight_kg &&
+            !policy.cargo_max_weight_kg && !policy.cargo_combined_weight_kg) {
+          return false;
+        }
+      }
+    }
+
+    // Apply weight filters
+    if (activeFilters.minWeight !== undefined || activeFilters.maxWeight !== undefined) {
+      const travelMethod = activeFilters.travelMethod || { cabin: true, cargo: true };
+      let weightMatch = false;
+      
+      if (travelMethod.cabin) {
+        // Check cabin weight if relevant
+        if (policy.cabin_max_weight_kg) {
+          const maxWeight = parseFloat(policy.cabin_max_weight_kg);
+          if (!isNaN(maxWeight)) {
+            if ((activeFilters.minWeight === undefined || maxWeight >= activeFilters.minWeight) &&
+                (activeFilters.maxWeight === undefined || maxWeight <= activeFilters.maxWeight)) {
+              weightMatch = true;
+            }
+          }
+        }
+      }
+
+      if (travelMethod.cargo && !weightMatch) {
+        // Check cargo weight if relevant
+        if (policy.cargo_max_weight_kg) {
+          const maxWeight = parseFloat(policy.cargo_max_weight_kg);
+          if (!isNaN(maxWeight)) {
+            if ((activeFilters.minWeight === undefined || maxWeight >= activeFilters.minWeight) &&
+                (activeFilters.maxWeight === undefined || maxWeight <= activeFilters.maxWeight)) {
+              weightMatch = true;
+            }
+          }
+        }
+      }
+      
+      if (!weightMatch) return false;
+    }
+
+    // Apply breed restrictions filter
+    if (activeFilters.includeBreedRestrictions === false) {
+      if (policy.breed_restrictions && policy.breed_restrictions.length > 0) {
+        return false;
+      }
+    }
+
+    return true; // Policy passes all filters
+  };
 
   // Helper: Fetch policy for a single airline
   const fetchSingleAirlinePolicy = async (iata: string) => {
@@ -83,6 +182,18 @@ export const useSearchHandler = ({
         });
         return null;
       }
+
+      // Apply filters if needed
+      const policyPassesFilters = applyFiltersToPolicy(policy);
+      if (!policyPassesFilters) {
+        toast({
+          title: "No matching policy",
+          description: `This airline's pet policy doesn't match your filter criteria.`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
       // Shape for display in petPolicies object
       return { [airlineName]: policy };
     } catch (err: any) {
@@ -145,7 +256,7 @@ export const useSearchHandler = ({
         await saveFlight(origin, destination, date, passengers);
       }
 
-      // Execute the flight search
+      // Execute the flight search - pass filters to be used in the filter process
       const flights = await handleFlightSearch(
         origin,
         destination,
@@ -154,7 +265,8 @@ export const useSearchHandler = ({
         undefined,
         apiProvider,
         enableFallback,
-        passengers
+        passengers,
+        activeFilters
       );
 
       setFlights(flights);

@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TravelMethodFilter as TravelMethodFilterValue } from "@/types/policy-filters";
 
 interface TravelMethodFilterProps {
@@ -10,27 +10,38 @@ interface TravelMethodFilterProps {
 }
 
 export const TravelMethodFilter = ({ selectedMethod, onChange }: TravelMethodFilterProps) => {
+  // Set default values if undefined
+  const { cabin = true, cargo = true } = selectedMethod || {};
+  
+  const handleCabinChange = (checked: boolean) => {
+    onChange({ ...selectedMethod, cabin: checked });
+  };
+  
+  const handleCargoChange = (checked: boolean) => {
+    onChange({ ...selectedMethod, cargo: checked });
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium mb-2">Travel Method</p>
-      <RadioGroup
-        value={selectedMethod}
-        onValueChange={(value) => onChange(value as TravelMethodFilterValue)}
-        className="flex flex-col space-y-1"
-      >
+      <div className="space-y-2">
         <div className="flex items-center space-x-2">
-          <RadioGroupItem value="cabin" id="travel-cabin" />
-          <Label htmlFor="travel-cabin">Cabin Only</Label>
+          <Checkbox
+            id="travel-cabin"
+            checked={cabin}
+            onCheckedChange={handleCabinChange}
+          />
+          <Label htmlFor="travel-cabin" className="text-sm cursor-pointer">In Cabin</Label>
         </div>
         <div className="flex items-center space-x-2">
-          <RadioGroupItem value="cargo" id="travel-cargo" />
-          <Label htmlFor="travel-cargo">Cargo Only</Label>
+          <Checkbox
+            id="travel-cargo"
+            checked={cargo}
+            onCheckedChange={handleCargoChange}
+          />
+          <Label htmlFor="travel-cargo" className="text-sm cursor-pointer">In Cargo</Label>
         </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="both" id="travel-both" />
-          <Label htmlFor="travel-both">Both Options</Label>
-        </div>
-      </RadioGroup>
+      </div>
     </div>
   );
 };

@@ -11,7 +11,7 @@ import { FilteredPolicyResult } from '@/types/policy-filters';
 
 const DEFAULT_FILTERS: PetPolicyFilterParams = {
   petTypes: undefined,
-  travelMethod: 'both',
+  travelMethod: { cabin: true, cargo: true },
   minWeight: undefined,
   maxWeight: undefined,
   weightIncludesCarrier: false,
@@ -20,8 +20,8 @@ const DEFAULT_FILTERS: PetPolicyFilterParams = {
 
 const STORAGE_KEY = 'pet_policy_filters';
 
-export function usePetPolicyFilters() {
-  const [filters, setFilters] = useState<PetPolicyFilterParams>(DEFAULT_FILTERS);
+export function usePetPolicyFilters(initialFilters: PetPolicyFilterParams = DEFAULT_FILTERS) {
+  const [filters, setFilters] = useState<PetPolicyFilterParams>(initialFilters);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [filteredPolicies, setFilteredPolicies] = useState<FilteredPolicyResult[]>([]);
@@ -32,11 +32,26 @@ export function usePetPolicyFilters() {
     try {
       const savedFilters = localStorage.getItem(STORAGE_KEY);
       if (savedFilters) {
-        setFilters(JSON.parse(savedFilters));
+        const parsedFilters = JSON.parse(savedFilters);
+        
+        // Handle backwards compatibility with old format
+        if (parsedFilters.travelMethod && typeof parsedFilters.travelMethod === 'string') {
+          // Convert old string format to new object format
+          const oldValue = parsedFilters.travelMethod;
+          parsedFilters.travelMethod = {
+            cabin: oldValue === 'cabin' || oldValue === 'both',
+            cargo: oldValue === 'cargo' || oldValue === 'both'
+          };
+        }
+        
+        setFilters(parsedFilters);
+      } else {
+        setFilters(initialFilters);
       }
       setIsLoaded(true);
     } catch (error) {
       console.error('Error loading saved filters:', error);
+      setFilters(initialFilters);
       setIsLoaded(true);
     }
   }, []);
@@ -80,7 +95,7 @@ export function usePetPolicyFilters() {
       
       setFilteredPolicies([]);
       return [];
-    } catch (err) {
+    } catch (err: any) {
       console.error('Unexpected error filtering policies:', err);
       setFilterError('Unexpected error occurred while filtering');
       setFilteredPolicies([]);
