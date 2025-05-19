@@ -1,6 +1,6 @@
 
 import { useCallback, useState } from "react";
-import { FlightData, PetPolicy } from "@/components/flight-results/types";
+import { FlightData, FlightLocation, PetPolicy } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
 import { useSavedSearches } from "./useSavedSearches";
 import { useUserSearchCount } from "./useUserSearchCount";
@@ -239,8 +239,12 @@ export const useSearchHandler = ({
         })
         .map((airline: any) => ({
           id: `policy_${airline.id}`,
-          origin: "POLICY",
-          destination: "SEARCH",
+          origin: {
+            code: "POLICY"
+          } as FlightLocation,
+          destination: {
+            code: "SEARCH"
+          } as FlightLocation,
           departure_date: new Date().toISOString(),
           airline_id: airline.id,
           airline_code: airline.iata_code,
@@ -270,7 +274,7 @@ export const useSearchHandler = ({
       }
 
       setFlights(dummyFlights);
-      onSearchResults(dummyFlights, filteredPolicies, apiProvider);
+      onSearchResults(dummyFlights, filteredPolicies, apiProvider, undefined);
 
     } catch (error) {
       console.error("Unexpected error in policy search:", error);
