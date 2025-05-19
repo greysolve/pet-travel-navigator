@@ -1,6 +1,7 @@
 
 import { PetPolicy } from "@/components/flight-results/types";
 import { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
+import { isPremiumContent } from "@/components/flight-results/types";
 
 /**
  * Filter pet policies based on active filters
@@ -26,10 +27,15 @@ export const filterPoliciesByActiveFilters = (policies: Record<string, PetPolicy
 export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyFilterParams): boolean => {
   // Apply pet type filter
   if (activeFilters.petTypes && activeFilters.petTypes.length > 0) {
+    // Skip premium content fields or empty arrays
+    if (!policy.pet_types_allowed || isPremiumContent(policy.pet_types_allowed)) {
+      return false;
+    }
+    
     // Check if the policy allows any of the selected pet types
     const petMatch = activeFilters.petTypes.some(petType => {
       // Check if pet type is in the allowed pet types array
-      if (!policy.pet_types_allowed) return false;
+      if (!Array.isArray(policy.pet_types_allowed)) return false;
       
       if (petType === 'dog' && policy.pet_types_allowed.includes('dog')) return true;
       if (petType === 'cat' && policy.pet_types_allowed.includes('cat')) return true;
@@ -108,8 +114,16 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
   // Apply breed restrictions filter
   if (activeFilters.includeBreedRestrictions === false) {
     // Only include policies that don't have breed restrictions
-    if (policy.breed_restrictions && policy.breed_restrictions.length > 0) {
-      return false;
+    if (policy.breed_restrictions) {
+      // Skip premium content fields
+      if (isPremiumContent(policy.breed_restrictions)) {
+        return false;
+      }
+      
+      // Check if the array has any breed restrictions
+      if (Array.isArray(policy.breed_restrictions) && policy.breed_restrictions.length > 0) {
+        return false;
+      }
     }
   }
 

@@ -1,17 +1,18 @@
+
 import { useState } from "react";
 import { useUser } from "@/contexts/user/UserContext";
-import { usePetPolicies } from "./flight-results/PolicyFetcher";
-import { useFlightSearch } from "./search/hooks/useFlightSearch";
-import { useSavedSearches } from "./search/hooks/useSavedSearches";
-import { useFlightSearchState } from "./search/hooks/useFlightSearchState";
-import { useSearchValidation } from "./search/hooks/useSearchValidation";
-import { useSearchHandler } from "./search/hooks/useSearchHandler";
-import { SearchFormContainer } from "./search/SearchFormContainer";
+import { usePetPolicies } from "../flight-results/PolicyFetcher";
+import { useFlightSearch } from "./hooks/useFlightSearch";
+import { useSavedSearches } from "./hooks/useSavedSearches";
+import { useFlightSearchState } from "./hooks/useFlightSearchState";
+import { useSearchValidation } from "./hooks/useSearchValidation";
+import { useSearchHandler } from "./hooks/useSearchHandler";
+import { SearchFormContainer } from "./SearchFormContainer";
 import { ApiProvider, DEFAULT_API_PROVIDER } from "@/config/feature-flags";
 import { useAppSettings } from "@/hooks/useAppSettings";
-import { useUserSearchCount } from "./search/hooks/useUserSearchCount";
+import { useUserSearchCount } from "./hooks/useUserSearchCount";
 import { usePetPolicyFilters } from "@/hooks/usePetPolicyFilters";
-import type { SearchSectionProps } from "./search/types";
+import type { SearchSectionProps } from "./types";
 import type { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
 
 export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
