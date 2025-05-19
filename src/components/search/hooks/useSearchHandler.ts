@@ -1,3 +1,4 @@
+
 import { useCallback, useState } from "react";
 import { FlightData, PetPolicy, FlightLocation } from "@/components/flight-results/types";
 import { Airline } from "@/types/policies";
@@ -172,6 +173,7 @@ export const useSearchHandler = ({
           description: "Error searching for airlines. Please try again.",
           variant: "destructive",
         });
+        onSearchResults([], {}, apiProvider, "Error searching for airlines");
         return;
       }
       
@@ -185,7 +187,7 @@ export const useSearchHandler = ({
           description: "No airlines match your search query.",
           variant: "destructive",
         });
-        onSearchResults([], {}, apiProvider, undefined);
+        onSearchResults([], {}, apiProvider, "No airlines found");
         return;
       }
 
@@ -205,6 +207,7 @@ export const useSearchHandler = ({
           description: "Error fetching airline pet policies. Please try again.",
           variant: "destructive",
         });
+        onSearchResults([], {}, apiProvider, "Error fetching pet policies");
         return;
       }
 
