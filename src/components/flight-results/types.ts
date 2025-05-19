@@ -1,3 +1,4 @@
+
 import type { Json } from "@/integrations/supabase/types";
 
 export type FlightLocation = {
@@ -73,8 +74,23 @@ export type PetPolicy = {
   temperature_restrictions?: string | PremiumContent;
   breed_restrictions: string[] | PremiumContent;
   policy_url?: string | PremiumContent;
-  size_restrictions?: SizeRestrictionsField;
+  size_restrictions?: SizeRestrictionsField; // Deprecated - kept for backward compatibility
   fees?: FeesField;
+  
+  // New specific size restriction fields
+  cabin_max_weight_kg?: number | null;
+  cabin_combined_weight_kg?: number | null;
+  cabin_length_cm?: number | null;
+  cabin_width_cm?: number | null;
+  cabin_height_cm?: number | null;
+  cabin_linear_dimensions_cm?: number | null;
+  cargo_max_weight_kg?: number | null;
+  cargo_combined_weight_kg?: number | null;
+  cargo_length_cm?: number | null;
+  cargo_width_cm?: number | null;
+  cargo_height_cm?: number | null;
+  cargo_linear_dimensions_cm?: number | null;
+  weight_includes_carrier?: boolean | null;
 };
 
 export type PolicyType = 'pet_arrival' | 'pet_transit';

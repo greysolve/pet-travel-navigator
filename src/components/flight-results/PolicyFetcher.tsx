@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy, SizeRestrictionsField, FeesField } from "./types";
@@ -36,7 +37,22 @@ export const useSingleAirlinePolicy = (airlineIataCode: string) => {
 
       const { data: policy, error: policyError } = await supabase
         .from('pet_policies')
-        .select('*')
+        .select(`
+          *,
+          cabin_max_weight_kg,
+          cabin_combined_weight_kg,
+          cabin_length_cm,
+          cabin_width_cm,
+          cabin_height_cm,
+          cabin_linear_dimensions_cm,
+          cargo_max_weight_kg,
+          cargo_combined_weight_kg,
+          cargo_length_cm,
+          cargo_width_cm,
+          cargo_height_cm,
+          cargo_linear_dimensions_cm,
+          weight_includes_carrier
+        `)
         .eq('airline_id', airline.id)
         .maybeSingle();
 
@@ -57,7 +73,22 @@ export const useSingleAirlinePolicy = (airlineIataCode: string) => {
         breed_restrictions: policy.breed_restrictions,
         policy_url: policy.policy_url,
         size_restrictions: policy.size_restrictions as SizeRestrictionsField,
-        fees: policy.fees as FeesField
+        fees: policy.fees as FeesField,
+        
+        // Include the specific size restriction fields
+        cabin_max_weight_kg: policy.cabin_max_weight_kg,
+        cabin_combined_weight_kg: policy.cabin_combined_weight_kg,
+        cabin_length_cm: policy.cabin_length_cm,
+        cabin_width_cm: policy.cabin_width_cm,
+        cabin_height_cm: policy.cabin_height_cm,
+        cabin_linear_dimensions_cm: policy.cabin_linear_dimensions_cm,
+        cargo_max_weight_kg: policy.cargo_max_weight_kg,
+        cargo_combined_weight_kg: policy.cargo_combined_weight_kg,
+        cargo_length_cm: policy.cargo_length_cm,
+        cargo_width_cm: policy.cargo_width_cm,
+        cargo_height_cm: policy.cargo_height_cm,
+        cargo_linear_dimensions_cm: policy.cargo_linear_dimensions_cm,
+        weight_includes_carrier: policy.weight_includes_carrier
       };
 
       return isPetCaddie
@@ -98,7 +129,23 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       const { data: policies } = await supabase
         .from('pet_policies')
-        .select('*, airlines!inner(iata_code)')
+        .select(`
+          *,
+          cabin_max_weight_kg,
+          cabin_combined_weight_kg,
+          cabin_length_cm,
+          cabin_width_cm,
+          cabin_height_cm,
+          cabin_linear_dimensions_cm,
+          cargo_max_weight_kg,
+          cargo_combined_weight_kg,
+          cargo_length_cm,
+          cargo_width_cm,
+          cargo_height_cm,
+          cargo_linear_dimensions_cm,
+          weight_includes_carrier,
+          airlines!inner(iata_code)
+        `)
         .in('airline_id', airlines.map(a => a.id));
 
       console.log("Found pet policies:", policies);
@@ -116,7 +163,22 @@ export const usePetPolicies = (flights: FlightData[]) => {
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
           size_restrictions: policy.size_restrictions as SizeRestrictionsField,
-          fees: policy.fees as FeesField
+          fees: policy.fees as FeesField,
+          
+          // Include the specific size restriction fields
+          cabin_max_weight_kg: policy.cabin_max_weight_kg,
+          cabin_combined_weight_kg: policy.cabin_combined_weight_kg,
+          cabin_length_cm: policy.cabin_length_cm,
+          cabin_width_cm: policy.cabin_width_cm,
+          cabin_height_cm: policy.cabin_height_cm,
+          cabin_linear_dimensions_cm: policy.cabin_linear_dimensions_cm,
+          cargo_max_weight_kg: policy.cargo_max_weight_kg,
+          cargo_combined_weight_kg: policy.cargo_combined_weight_kg,
+          cargo_length_cm: policy.cargo_length_cm,
+          cargo_width_cm: policy.cargo_width_cm,
+          cargo_height_cm: policy.cargo_height_cm,
+          cargo_linear_dimensions_cm: policy.cargo_linear_dimensions_cm,
+          weight_includes_carrier: policy.weight_includes_carrier
         };
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 
