@@ -393,8 +393,6 @@ export const useSearchHandler = ({
         onSearchResults([], {}, apiProvider, errorMessage);
       }
       
-      // Ensure there's always a call to onSearchResults at the end of the error handling
-      onSearchResults([], {}, apiProvider, "Search failed");
       return [];
     } finally {
       setIsLoading(false);
