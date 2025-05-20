@@ -159,6 +159,7 @@ Deno.serve(async (req) => {
 
 /**
  * Log an upload attempt to the sync_log table
+ * Uses service role token to ensure it works with the new RLS policies
  */
 async function logAttempt(
   supabase: any, 
@@ -170,7 +171,8 @@ async function logAttempt(
   const duration = Date.now() - startTime;
   
   try {
-    // Remove the id field to let the database generate it
+    // The supabase client is already using the service role key
+    // which allows inserting into the sync_log table with RLS enabled
     await supabase.from('sync_log').insert({
       airline_code: airlineCode,
       status,

@@ -782,6 +782,7 @@ export type Database = {
         Row: {
           airline_code: string
           created_at: string | null
+          current_row: number
           duration_ms: number | null
           error_message: string | null
           execution_id: string | null
@@ -791,6 +792,7 @@ export type Database = {
         Insert: {
           airline_code: string
           created_at?: string | null
+          current_row?: number
           duration_ms?: number | null
           error_message?: string | null
           execution_id?: string | null
@@ -800,6 +802,7 @@ export type Database = {
         Update: {
           airline_code?: string
           created_at?: string | null
+          current_row?: number
           duration_ms?: number | null
           error_message?: string | null
           execution_id?: string | null
