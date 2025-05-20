@@ -5,6 +5,7 @@ import { useRouteSearch } from "./useRouteSearch";
 import { FlightData, PetPolicy } from "@/components/flight-results/types";
 import { ApiProvider } from "@/config/feature-flags";
 import { PetPolicyFilterParams } from "@/types/policy-filters";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define interface for useSearchHandler parameters
 interface UseSearchHandlerProps {
@@ -17,7 +18,7 @@ interface UseSearchHandlerProps {
   passengers: number;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams) => Promise<FlightData[]>;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams, allowedAirlineCodes?: string[]) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
@@ -70,6 +71,38 @@ export const useSearchHandler = ({
     saveFlight
   });
 
+  // Function to get allowed airline codes based on filters
+  const getFilteredAirlineCodes = async (): Promise<string[]> => {
+    // If no filters are applied, return an empty array (which means no filtering)
+    if (!activeFilters || Object.keys(activeFilters).length === 0) {
+      return [];
+    }
+    
+    try {
+      console.log("Getting filtered airline codes based on filters:", activeFilters);
+      
+      // Call the filter_pet_policies edge function
+      const { data, error } = await supabase.functions.invoke('filter_pet_policies', {
+        body: { filters: activeFilters }
+      });
+      
+      if (error) {
+        console.error('Error getting filtered airline codes:', error);
+        return [];
+      }
+      
+      // Extract airline codes from the results
+      const airlineCodes = data?.results?.map(result => result.airlineCode) || [];
+      
+      console.log(`Found ${airlineCodes.length} airlines matching the filters:`, airlineCodes);
+      return airlineCodes;
+      
+    } catch (err) {
+      console.error('Unexpected error getting filtered airline codes:', err);
+      return [];
+    }
+  };
+
   // Use the route search hook
   const {
     handleRouteSearch: routeSearchHandler,
@@ -87,7 +120,8 @@ export const useSearchHandler = ({
     apiProvider,
     enableFallback,
     activeFilters,
-    saveFlight
+    saveFlight,
+    getFilteredAirlineCodes
   });
 
   // Wrapper for policy search to check search count

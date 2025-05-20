@@ -12,12 +12,13 @@ interface UseRouteSearchProps {
   date?: Date;
   passengers: number;
   shouldSaveSearch: boolean;
-  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams) => Promise<FlightData[]>;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams, allowedAirlineCodes?: string[]) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
   activeFilters?: PetPolicyFilterParams;
   saveFlight: (searchCriteria: any) => Promise<void>;
+  getFilteredAirlineCodes?: () => Promise<string[]>;
 }
 
 export const useRouteSearch = ({
@@ -33,7 +34,8 @@ export const useRouteSearch = ({
   apiProvider,
   enableFallback,
   activeFilters,
-  saveFlight
+  saveFlight,
+  getFilteredAirlineCodes
 }: UseRouteSearchProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -59,8 +61,24 @@ export const useRouteSearch = ({
     setIsLoading(true);
 
     try {
-      // Perform flight search - pass empty string as policySearch and include activeFilters
-      const flights = await handleFlightSearch(origin, destination, date, "", apiProvider, activeFilters);
+      // Get filtered airline codes if filters are applied
+      let allowedAirlineCodes: string[] = [];
+      if (getFilteredAirlineCodes && activeFilters && Object.keys(activeFilters).length > 0) {
+        console.log("Getting pre-filtered airline codes for route search");
+        allowedAirlineCodes = await getFilteredAirlineCodes();
+        console.log(`Pre-filtered airlines: ${allowedAirlineCodes.length} airlines match the criteria`);
+      }
+      
+      // Perform flight search with the filtered airline codes
+      const flights = await handleFlightSearch(
+        origin, 
+        destination, 
+        date, 
+        "", 
+        apiProvider, 
+        activeFilters, 
+        allowedAirlineCodes
+      );
       
       // Save the search if requested
       if (shouldSaveSearch && user) {
@@ -97,7 +115,22 @@ export const useRouteSearch = ({
         });
         
         try {
-          const fallbackFlights = await handleFlightSearch(origin, destination, date, "", 'cirium', activeFilters);
+          // Get filtered airline codes again for fallback provider
+          let allowedAirlineCodes: string[] = [];
+          if (getFilteredAirlineCodes && activeFilters && Object.keys(activeFilters).length > 0) {
+            allowedAirlineCodes = await getFilteredAirlineCodes();
+          }
+          
+          const fallbackFlights = await handleFlightSearch(
+            origin, 
+            destination, 
+            date, 
+            "", 
+            'cirium', 
+            activeFilters,
+            allowedAirlineCodes
+          );
+          
           onSearchResults(fallbackFlights, {}, 'cirium', undefined);
           return fallbackFlights;
         } catch (fallbackError: any) {
@@ -131,7 +164,8 @@ export const useRouteSearch = ({
     apiProvider,
     enableFallback,
     onSearchResults,
-    activeFilters
+    activeFilters,
+    getFilteredAirlineCodes
   ]);
 
   return {

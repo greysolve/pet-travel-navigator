@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useUser } from "@/contexts/user/UserContext";
 import { usePetPolicies } from "../flight-results/PolicyFetcher";
@@ -140,8 +141,10 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
       travelMethod: travelMethodFilter
     });
     
-    // Remove the automatic search trigger - users will click search button manually
-    // when they are ready to search with the new filters
+    // If a search is already active, automatically trigger a new search with filters
+    if (policySearch || (origin && destination && date)) {
+      handleSearch();
+    }
   };
 
   return (

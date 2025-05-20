@@ -17,6 +17,7 @@ export const useFlightSearch = () => {
    * @param policySearch Optional policy search parameter
    * @param apiProvider Optional API provider to use
    * @param activeFilters Optional policy filters to apply to results
+   * @param allowedAirlineCodes Optional list of airline codes to filter results by
    * @returns Promise containing flight data
    */
   const handleFlightSearch = async (
@@ -25,7 +26,8 @@ export const useFlightSearch = () => {
     date: Date,
     policySearch: string = "",
     apiProvider?: ApiProvider,
-    activeFilters?: PetPolicyFilterParams
+    activeFilters?: PetPolicyFilterParams,
+    allowedAirlineCodes?: string[]
   ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
 
@@ -74,14 +76,41 @@ export const useFlightSearch = () => {
         // Preserve totalDuration which might be used for calculations
         totalDuration: flight.totalDuration || 0,
       }));
-
-      // If no filters are applied, return all flights
-      if (!activeFilters || Object.keys(activeFilters).length === 0) {
-        return transformedFlights;
+      
+      // Apply airline code filtering if a list of allowed airline codes is provided
+      if (allowedAirlineCodes && allowedAirlineCodes.length > 0) {
+        console.log(`Filtering ${transformedFlights.length} flights to only include airlines: ${allowedAirlineCodes.join(', ')}`);
+        
+        const filteredFlights = transformedFlights.filter(flight => {
+          // First check the main flight's airline code
+          const mainAirlineMatch = allowedAirlineCodes.includes(flight.airline_code);
+          if (mainAirlineMatch) return true;
+          
+          // If no match on main airline, check all segments if they exist
+          if (flight.segments && flight.segments.length > 0) {
+            // For multi-segment flights, we need to check each segment's carrier
+            // The flight is included if ANY segment matches an allowed airline
+            return flight.segments.some((segment: any) => {
+              const segmentCarrier = segment.carrierFsCode || segment.carrierCode;
+              return allowedAirlineCodes.includes(segmentCarrier);
+            });
+          }
+          
+          // If we got here, no matches were found
+          return false;
+        });
+        
+        console.log(`After airline filtering: ${filteredFlights.length} flights match the criteria`);
+        return filteredFlights;
       }
 
-      // Filter flights based on pet policy filters
-      // This will only be executed if activeFilters is provided
+      // If no filters are applied or no airline filtering is requested, return all flights
+      if (!activeFilters || Object.keys(activeFilters).length === 0 || !allowedAirlineCodes) {
+        return transformedFlights;
+      }
+      
+      // If we get here, we have activeFilters but no allowedAirlineCodes
+      // This is the original filtering logic, kept for backward compatibility
       console.log("Filtering flights with active filters:", activeFilters);
       
       // First, get pet policies for each airline in the results
