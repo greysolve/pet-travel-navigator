@@ -48,6 +48,7 @@ export const WeightFilter = ({ options, onChange }: WeightFilterProps) => {
           className="text-sm leading-none cursor-pointer"
         >
           Weight includes carrier
+          <span className="text-xs text-muted-foreground ml-1">(informational only)</span>
         </Label>
       </div>
     </div>

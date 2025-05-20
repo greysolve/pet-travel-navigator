@@ -9,7 +9,7 @@ export interface PetPolicyFilterParams {
   travelMethod?: TravelMethodFilter;
   minWeight?: number;
   maxWeight?: number;
-  weightIncludesCarrier?: boolean;
+  weightIncludesCarrier?: boolean; // We keep this in the type but ignore it in the filter logic
   includeBreedRestrictions?: boolean;
 }
 

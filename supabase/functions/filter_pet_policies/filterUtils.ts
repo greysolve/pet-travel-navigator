@@ -1,3 +1,4 @@
+
 import { PetPolicyFilterParams } from "./types.ts";
 
 /**
@@ -73,11 +74,11 @@ export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): a
   
   console.log("Applying weight filter:", { max: filters.maxWeight });
   
-  let weightQuery = query;
-  
-  // Handle max weight filter (the pet's actual weight)
-  // "My pet weighs X kg - show me airlines that will allow this"
   const petWeight = filters.maxWeight;
+  
+  // Create a query that matches ANY weight field that accepts the pet's weight
+  // We completely ignore weightIncludesCarrier flag as requested
+  let weightQuery = query;
   
   if (filters.travelMethod) {
     // If specific travel method is selected, only check the relevant fields

@@ -66,13 +66,28 @@ export function mapResultsWithMatchReasons(data: any[] | null, filters: PetPolic
       }
     }
     
-    // Check weight matches
-    if (filters.minWeight !== undefined || filters.maxWeight !== undefined) {
-      if (policy.cabin_max_weight_kg !== null || policy.cabin_combined_weight_kg !== null) {
-        matchReasons.push(`Cabin weight requirements match`);
+    // Check weight matches - add information about weight limits and carrier inclusion
+    if (filters.maxWeight !== undefined) {
+      let weightMatchReason = "";
+      
+      if ((policy.cabin_max_weight_kg !== null && policy.cabin_max_weight_kg >= filters.maxWeight) || 
+          (policy.cabin_combined_weight_kg !== null && policy.cabin_combined_weight_kg >= filters.maxWeight)) {
+        weightMatchReason = `Cabin weight limit sufficient`;
+        // Add carrier inclusion information if available
+        if (policy.weight_includes_carrier !== null) {
+          weightMatchReason += policy.weight_includes_carrier ? " (includes carrier)" : " (excludes carrier)";
+        }
+        matchReasons.push(weightMatchReason);
       }
-      if (policy.cargo_max_weight_kg !== null || policy.cargo_combined_weight_kg !== null) {
-        matchReasons.push(`Cargo weight requirements match`);
+      
+      if ((policy.cargo_max_weight_kg !== null && policy.cargo_max_weight_kg >= filters.maxWeight) || 
+          (policy.cargo_combined_weight_kg !== null && policy.cargo_combined_weight_kg >= filters.maxWeight)) {
+        weightMatchReason = `Cargo weight limit sufficient`;
+        // Add carrier inclusion information if available
+        if (policy.weight_includes_carrier !== null) {
+          weightMatchReason += policy.weight_includes_carrier ? " (includes carrier)" : " (excludes carrier)";
+        }
+        matchReasons.push(weightMatchReason);
       }
     }
     
