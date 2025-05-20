@@ -29,6 +29,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Starting pet policy filter function");
+    
     // Get auth token from request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -48,6 +50,7 @@ serve(async (req) => {
 
     // Parse filter params from request
     const { filters } = await req.json() as { filters: PetPolicyFilterParams };
+    console.log("Received filters:", JSON.stringify(filters, null, 2));
 
     // Start building the query
     let query = supabase
@@ -67,87 +70,120 @@ serve(async (req) => {
     // Apply pet type filter if provided
     if (filters.petTypes && filters.petTypes.length > 0) {
       // For each pet type, check if it's in the pet_types_allowed array
+      console.log("Applying pet types filter:", filters.petTypes);
       query = query.filter('pet_types_allowed', 'cs', `{${filters.petTypes.join(',')}}`);
     }
 
     // Apply travel method filter if provided
     if (filters.travelMethod) {
-      const cabinConditions = [];
-      const cargoConditions = [];
+      console.log("Applying travel method filter:", filters.travelMethod);
       
-      // Add cabin conditions if cabin is true
-      if (filters.travelMethod.cabin) {
-        cabinConditions.push('cabin_max_weight_kg.is.not.null');
-        cabinConditions.push('cabin_combined_weight_kg.is.not.null');
+      // Define filter conditions based on travel method
+      if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
+        // Only cabin travel - must have cabin weight or dimensions
+        console.log("Filtering for cabin travel only");
+        query = query.or(
+          `cabin_max_weight_kg.is.not.null,cabin_combined_weight_kg.is.not.null`,
+          { foreignTable: null }
+        );
       }
-      
-      // Add cargo conditions if cargo is true
-      if (filters.travelMethod.cargo) {
-        cargoConditions.push('cargo_max_weight_kg.is.not.null');
-        cargoConditions.push('cargo_combined_weight_kg.is.not.null');
+      else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
+        // Only cargo travel - must have cargo weight or dimensions
+        console.log("Filtering for cargo travel only");
+        query = query.or(
+          `cargo_max_weight_kg.is.not.null,cargo_combined_weight_kg.is.not.null`,
+          { foreignTable: null }
+        );
       }
-      
-      // Combine conditions based on which methods are selected
-      const conditions = [];
-      
-      if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
-        // No additional filtering needed when both methods are allowed
-      }
-      else if (filters.travelMethod.cabin) {
-        conditions.push('cabin_max_weight_kg.is.not.null');
-      }
-      else if (filters.travelMethod.cargo) {
-        conditions.push('cargo_max_weight_kg.is.not.null');
-      }
-      
-      if (conditions.length > 0) {
-        query = query.or(conditions.join(','));
-      }
+      // If both methods are allowed or neither is allowed, no filtering needed
     }
 
     // Apply weight filter based on travel method
     if (filters.minWeight !== undefined || filters.maxWeight !== undefined) {
+      console.log("Applying weight filters:", { 
+        min: filters.minWeight, 
+        max: filters.maxWeight 
+      });
+      
       const weightConditions = [];
       
       // For cabin weight
       if (!filters.travelMethod || filters.travelMethod.cabin) {
         if (filters.minWeight !== undefined) {
-          weightConditions.push(`cabin_max_weight_kg.gte.${filters.minWeight}`);
+          query = query.or(
+            (queryBuilder) => {
+              queryBuilder
+                .gte('cabin_max_weight_kg', filters.minWeight!)
+                .not('cabin_max_weight_kg', 'is', null);
+              return queryBuilder;
+            }
+          );
         }
+        
         if (filters.maxWeight !== undefined) {
-          weightConditions.push(`cabin_max_weight_kg.lte.${filters.maxWeight}`);
+          query = query.or(
+            (queryBuilder) => {
+              queryBuilder
+                .lte('cabin_max_weight_kg', filters.maxWeight!)
+                .not('cabin_max_weight_kg', 'is', null);
+              return queryBuilder;
+            }
+          );
         }
       }
       
       // For cargo weight
       if (!filters.travelMethod || filters.travelMethod.cargo) {
         if (filters.minWeight !== undefined) {
-          weightConditions.push(`cargo_max_weight_kg.gte.${filters.minWeight}`);
+          query = query.or(
+            (queryBuilder) => {
+              queryBuilder
+                .gte('cargo_max_weight_kg', filters.minWeight!)
+                .not('cargo_max_weight_kg', 'is', null);
+              return queryBuilder;
+            }
+          );
         }
+        
         if (filters.maxWeight !== undefined) {
-          weightConditions.push(`cargo_max_weight_kg.lte.${filters.maxWeight}`);
+          query = query.or(
+            (queryBuilder) => {
+              queryBuilder
+                .lte('cargo_max_weight_kg', filters.maxWeight!)
+                .not('cargo_max_weight_kg', 'is', null);
+              return queryBuilder;
+            }
+          );
         }
-      }
-      
-      if (weightConditions.length > 0) {
-        query = query.or(weightConditions.join(','));
       }
     }
 
     // Only include policies with no breed restrictions if requested
     if (filters.includeBreedRestrictions === false) {
-      query = query.is('breed_restrictions', null).or('breed_restrictions.length.eq.0');
+      console.log("Filtering for no breed restrictions");
+      query = query.or(
+        (queryBuilder) => {
+          queryBuilder
+            .is('breed_restrictions', null)
+            .eq('breed_restrictions', []);
+          return queryBuilder;
+        }
+      );
     }
 
+    console.log("Executing query...");
     // Execute the query
     const { data, error } = await query;
 
     if (error) {
+      console.error("Database query failed:", error);
       throw new Error(`Database query failed: ${error.message}`);
     }
 
+    console.log(`Query returned ${data?.length || 0} results`);
+
     // Process results to create match reasons
-    const results = data.map(policy => {
+    const results = (data || []).map(policy => {
       const matchReasons: string[] = [];
       
       // Check pet type matches
