@@ -29,7 +29,6 @@ export function applyPetTypeFilter(query: any, filters: PetPolicyFilterParams): 
 
 /**
  * Apply travel method filtering to the query
- * Uses correct filter chaining instead of comma-separated filters
  */
 export function applyTravelMethodFilter(query: any, filters: PetPolicyFilterParams): any {
   if (!filters.travelMethod) {
@@ -44,30 +43,31 @@ export function applyTravelMethodFilter(query: any, filters: PetPolicyFilterPara
     return query;
   }
   
+  let travelMethodQuery = query;
+  
   // For cabin-only travel
   if (cabin && !cargo) {
     console.log("Filtering for cabin travel only");
-    // Check if either cabin_max_weight_kg OR cabin_combined_weight_kg is not null
-    // Fix: Use chained .or() calls instead of comma-separated strings
-    return query.or('cabin_max_weight_kg.is.not.null').or('cabin_combined_weight_kg.is.not.null');
+    // Check if cabin_max_weight_kg OR cabin_combined_weight_kg is not null
+    travelMethodQuery = query.or('cabin_max_weight_kg.not.is.null').or('cabin_combined_weight_kg.not.is.null');
   }
   
   // For cargo-only travel
   if (!cabin && cargo) {
     console.log("Filtering for cargo travel only");
-    // Check if either cargo_max_weight_kg OR cargo_combined_weight_kg is not null
-    // Fix: Use chained .or() calls instead of comma-separated strings
-    return query.or('cargo_max_weight_kg.is.not.null').or('cargo_combined_weight_kg.is.not.null');
+    // Check if cargo_max_weight_kg OR cargo_combined_weight_kg is not null
+    travelMethodQuery = query.or('cargo_max_weight_kg.not.is.null').or('cargo_combined_weight_kg.not.is.null');
   }
   
-  return query;
+  return travelMethodQuery;
 }
 
 /**
  * Apply weight filtering to the query
- * Completely rewritten to use proper filter syntax and chaining
+ * Simplified to match the user's mental model: "Show me airlines that accept my pet weighing X kg"
  */
 export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): any {
+  // Only proceed if we have weight filters
   if (filters.minWeight === undefined && filters.maxWeight === undefined) {
     return query;
   }
@@ -79,79 +79,57 @@ export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): a
   
   let weightQuery = query;
   
-  // Handle minimum weight filter
-  if (filters.minWeight !== undefined) {
-    const minWeight = filters.minWeight;
-    const minFilters = [];
+  // Handle max weight filter (the pet's actual weight) - this is the most common use case
+  // "My pet weighs X kg - show me airlines that will allow this"
+  if (filters.maxWeight !== undefined) {
+    const petWeight = filters.maxWeight;
     
-    // If travel method is specified, apply the right filters
     if (filters.travelMethod) {
-      if (filters.travelMethod.cabin) {
-        // If cabin is allowed, check cabin weights
-        minFilters.push('cabin_max_weight_kg.gte.' + minWeight);
-        minFilters.push('cabin_combined_weight_kg.gte.' + minWeight);
+      // If specific travel method is selected, only check the relevant fields
+      if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
+        // For cabin-only travel: Find policies where cabin max weight >= pet's weight
+        weightQuery = query
+          .or(`cabin_max_weight_kg.gte.${petWeight}`)
+          .or(`cabin_combined_weight_kg.gte.${petWeight}`);
+      } 
+      else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
+        // For cargo-only travel: Find policies where cargo max weight >= pet's weight
+        weightQuery = query
+          .or(`cargo_max_weight_kg.gte.${petWeight}`)
+          .or(`cargo_combined_weight_kg.gte.${petWeight}`);
       }
-      
-      if (filters.travelMethod.cargo) {
-        // If cargo is allowed, check cargo weights
-        minFilters.push('cargo_max_weight_kg.gte.' + minWeight);
-        minFilters.push('cargo_combined_weight_kg.gte.' + minWeight);
+      else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
+        // For both travel methods: Find policies where either cabin or cargo max weight >= pet's weight
+        weightQuery = query
+          .or(`cabin_max_weight_kg.gte.${petWeight}`)
+          .or(`cabin_combined_weight_kg.gte.${petWeight}`)
+          .or(`cargo_max_weight_kg.gte.${petWeight}`)
+          .or(`cargo_combined_weight_kg.gte.${petWeight}`);
       }
     } else {
-      // If travel method not specified, check all weights
-      minFilters.push('cabin_max_weight_kg.gte.' + minWeight);
-      minFilters.push('cabin_combined_weight_kg.gte.' + minWeight);
-      minFilters.push('cargo_max_weight_kg.gte.' + minWeight);
-      minFilters.push('cargo_combined_weight_kg.gte.' + minWeight);
-    }
-    
-    // Apply the filters with individual OR calls
-    // Fix: Apply each filter separately with .or() instead of joining with commas
-    for (const filter of minFilters) {
-      weightQuery = weightQuery.or(filter);
+      // If travel method not specified, check all weight fields
+      weightQuery = query
+        .or(`cabin_max_weight_kg.gte.${petWeight}`)
+        .or(`cabin_combined_weight_kg.gte.${petWeight}`)
+        .or(`cargo_max_weight_kg.gte.${petWeight}`)
+        .or(`cargo_combined_weight_kg.gte.${petWeight}`);
     }
   }
   
-  // Handle maximum weight filter
-  if (filters.maxWeight !== undefined) {
-    const maxWeight = filters.maxWeight;
+  // Handle min weight filter if provided (less common)
+  if (filters.minWeight !== undefined) {
+    // Implementation follows the same pattern as max weight
+    // but will rarely be used in practice
+    const minWeight = filters.minWeight;
     
-    // If travel method is specified, apply the right filters
-    if (filters.travelMethod) {
-      if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
-        // For cabin-only travel - fixed to use proper chaining
-        weightQuery = weightQuery
-          .or(
-            `cabin_max_weight_kg.lte.${maxWeight}`
-          )
-          .or(
-            `cabin_combined_weight_kg.lte.${maxWeight}`
-          );
-      } else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
-        // For cargo-only travel - fixed to use proper chaining
-        weightQuery = weightQuery
-          .or(
-            `cargo_max_weight_kg.lte.${maxWeight}`
-          )
-          .or(
-            `cargo_combined_weight_kg.lte.${maxWeight}`
-          );
-      } else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
-        // For both travel methods
-        weightQuery = weightQuery
-          .or(`cabin_max_weight_kg.lte.${maxWeight}`)
-          .or(`cabin_combined_weight_kg.lte.${maxWeight}`)
-          .or(`cargo_max_weight_kg.lte.${maxWeight}`)
-          .or(`cargo_combined_weight_kg.lte.${maxWeight}`);
-      }
-    } else {
-      // If travel method not specified, check all weights
-      weightQuery = weightQuery
-        .or(`cabin_max_weight_kg.lte.${maxWeight}`)
-        .or(`cabin_combined_weight_kg.lte.${maxWeight}`)
-        .or(`cargo_max_weight_kg.lte.${maxWeight}`)
-        .or(`cargo_combined_weight_kg.lte.${maxWeight}`);
-    }
+    // Since this is an edge case, we'll implement a simple version
+    // that just ensures the airline has some weight limit defined
+    // that is at least the minimum specified
+    weightQuery = weightQuery
+      .or(`cabin_max_weight_kg.gte.${minWeight}`)
+      .or(`cabin_combined_weight_kg.gte.${minWeight}`)
+      .or(`cargo_max_weight_kg.gte.${minWeight}`)
+      .or(`cargo_combined_weight_kg.gte.${minWeight}`);
   }
   
   return weightQuery;
@@ -159,13 +137,12 @@ export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): a
 
 /**
  * Apply breed restrictions filtering to the query
- * Uses proper IS NULL and array empty check syntax with chained .or()
  */
 export function applyBreedRestrictionsFilter(query: any, filters: PetPolicyFilterParams): any {
   if (filters.includeBreedRestrictions === false) {
     console.log("Filtering for no breed restrictions");
     
-    // Fix: Use chained .or() calls instead of comma-separated strings
+    // Only include policies with no breed restrictions (null or empty array)
     return query.or('breed_restrictions.is.null').or('breed_restrictions.eq.{}');
   }
   
