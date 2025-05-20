@@ -83,16 +83,36 @@ serve(async (req) => {
         // Only cabin travel - must have cabin weight or dimensions
         console.log("Filtering for cabin travel only");
         query = query.or(
-          `cabin_max_weight_kg.is.not.null,cabin_combined_weight_kg.is.not.null`,
-          { foreignTable: null }
+          (queryBuilder) => {
+            // Check for policies that have cabin_max_weight_kg not null
+            queryBuilder
+              .not('cabin_max_weight_kg', 'is', null);
+            return queryBuilder;
+          },
+          (queryBuilder) => {
+            // Or check for policies that have cabin_combined_weight_kg not null
+            queryBuilder
+              .not('cabin_combined_weight_kg', 'is', null);
+            return queryBuilder;
+          }
         );
       }
       else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
         // Only cargo travel - must have cargo weight or dimensions
         console.log("Filtering for cargo travel only");
         query = query.or(
-          `cargo_max_weight_kg.is.not.null,cargo_combined_weight_kg.is.not.null`,
-          { foreignTable: null }
+          (queryBuilder) => {
+            // Check for policies that have cargo_max_weight_kg not null
+            queryBuilder
+              .not('cargo_max_weight_kg', 'is', null);
+            return queryBuilder;
+          },
+          (queryBuilder) => {
+            // Or check for policies that have cargo_combined_weight_kg not null
+            queryBuilder
+              .not('cargo_combined_weight_kg', 'is', null);
+            return queryBuilder;
+          }
         );
       }
       // If both methods are allowed or neither is allowed, no filtering needed
@@ -164,7 +184,11 @@ serve(async (req) => {
       query = query.or(
         (queryBuilder) => {
           queryBuilder
-            .is('breed_restrictions', null)
+            .is('breed_restrictions', null);
+          return queryBuilder;
+        },
+        (queryBuilder) => {
+          queryBuilder
             .eq('breed_restrictions', []);
           return queryBuilder;
         }
