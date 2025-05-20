@@ -124,12 +124,13 @@ function applyPetTypeFilter(query: any, filters: PetPolicyFilterParams): any {
     return `pet_types_allowed.cs.{${petType}}`;
   });
   
-  // Join the individual type filters with OR logic
-  if (petTypeFilters.length > 0) {
-    return query.or(petTypeFilters.join(','));
+  // Apply each pet type filter with individual OR conditions
+  let petTypeQuery = query;
+  for (const filter of petTypeFilters) {
+    petTypeQuery = petTypeQuery.or(filter);
   }
   
-  return query;
+  return petTypeQuery;
 }
 
 /**
@@ -153,14 +154,16 @@ function applyTravelMethodFilter(query: any, filters: PetPolicyFilterParams): an
   if (cabin && !cargo) {
     console.log("Filtering for cabin travel only");
     // Check if either cabin_max_weight_kg OR cabin_combined_weight_kg is not null
-    return query.or('cabin_max_weight_kg.is.not.null,cabin_combined_weight_kg.is.not.null');
+    // Fix: Use chained .or() calls instead of comma-separated strings
+    return query.or('cabin_max_weight_kg.is.not.null').or('cabin_combined_weight_kg.is.not.null');
   }
   
   // For cargo-only travel
   if (!cabin && cargo) {
     console.log("Filtering for cargo travel only");
     // Check if either cargo_max_weight_kg OR cargo_combined_weight_kg is not null
-    return query.or('cargo_max_weight_kg.is.not.null,cargo_combined_weight_kg.is.not.null');
+    // Fix: Use chained .or() calls instead of comma-separated strings
+    return query.or('cargo_max_weight_kg.is.not.null').or('cargo_combined_weight_kg.is.not.null');
   }
   
   return query;
@@ -208,54 +211,64 @@ function applyWeightFilter(query: any, filters: PetPolicyFilterParams): any {
       minFilters.push('cargo_combined_weight_kg.gte.' + minWeight);
     }
     
-    // Apply the filters with OR between them (any weight field can match)
-    if (minFilters.length > 0) {
-      weightQuery = weightQuery.or(minFilters.join(','));
+    // Apply the filters with individual OR calls
+    // Fix: Apply each filter separately with .or() instead of joining with commas
+    for (const filter of minFilters) {
+      weightQuery = weightQuery.or(filter);
     }
   }
   
   // Handle maximum weight filter
   if (filters.maxWeight !== undefined) {
     const maxWeight = filters.maxWeight;
-    const maxFilters = [];
     
     // If travel method is specified, apply the right filters
     if (filters.travelMethod) {
       if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
-        // For cabin-only travel
-        maxFilters.push('cabin_max_weight_kg.is.not.null,cabin_max_weight_kg.lte.' + maxWeight);
-        maxFilters.push('cabin_combined_weight_kg.is.not.null,cabin_combined_weight_kg.lte.' + maxWeight);
+        // For cabin-only travel - fixed to use proper chaining
+        weightQuery = weightQuery
+          .or(
+            supabase.from('pet_policies')
+              .select('id')
+              .filter('cabin_max_weight_kg.is.not.null')
+              .filter('cabin_max_weight_kg.lte.' + maxWeight)
+          )
+          .or(
+            supabase.from('pet_policies')
+              .select('id')
+              .filter('cabin_combined_weight_kg.is.not.null')
+              .filter('cabin_combined_weight_kg.lte.' + maxWeight)
+          );
       } else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
-        // For cargo-only travel
-        maxFilters.push('cargo_max_weight_kg.is.not.null,cargo_max_weight_kg.lte.' + maxWeight);
-        maxFilters.push('cargo_combined_weight_kg.is.not.null,cargo_combined_weight_kg.lte.' + maxWeight);
+        // For cargo-only travel - fixed to use proper chaining
+        weightQuery = weightQuery
+          .or(
+            supabase.from('pet_policies')
+              .select('id')
+              .filter('cargo_max_weight_kg.is.not.null')
+              .filter('cargo_max_weight_kg.lte.' + maxWeight)
+          )
+          .or(
+            supabase.from('pet_policies')
+              .select('id')
+              .filter('cargo_combined_weight_kg.is.not.null')
+              .filter('cargo_combined_weight_kg.lte.' + maxWeight)
+          );
       } else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
         // For both travel methods
-        maxFilters.push('cabin_max_weight_kg.lte.' + maxWeight);
-        maxFilters.push('cabin_combined_weight_kg.lte.' + maxWeight);
-        maxFilters.push('cargo_max_weight_kg.lte.' + maxWeight);
-        maxFilters.push('cargo_combined_weight_kg.lte.' + maxWeight);
+        weightQuery = weightQuery
+          .or('cabin_max_weight_kg.lte.' + maxWeight)
+          .or('cabin_combined_weight_kg.lte.' + maxWeight)
+          .or('cargo_max_weight_kg.lte.' + maxWeight)
+          .or('cargo_combined_weight_kg.lte.' + maxWeight);
       }
     } else {
       // If travel method not specified, check all weights
-      maxFilters.push('cabin_max_weight_kg.lte.' + maxWeight);
-      maxFilters.push('cabin_combined_weight_kg.lte.' + maxWeight);
-      maxFilters.push('cargo_max_weight_kg.lte.' + maxWeight);
-      maxFilters.push('cargo_combined_weight_kg.lte.' + maxWeight);
-    }
-    
-    // Apply each filter separately with individual or statements
-    // This is necessary because we can't properly combine the is.not.null and lte constraints
-    // in a single OR expression
-    for (const filterExpr of maxFilters) {
-      if (filterExpr.includes(',')) {
-        // For expressions that need to be combined with AND
-        const [part1, part2] = filterExpr.split(',');
-        weightQuery = weightQuery.filter(part1).filter(part2);
-      } else {
-        // For simple expressions
-        weightQuery = weightQuery.or(filterExpr);
-      }
+      weightQuery = weightQuery
+        .or('cabin_max_weight_kg.lte.' + maxWeight)
+        .or('cabin_combined_weight_kg.lte.' + maxWeight)
+        .or('cargo_max_weight_kg.lte.' + maxWeight)
+        .or('cargo_combined_weight_kg.lte.' + maxWeight);
     }
   }
   
@@ -264,14 +277,14 @@ function applyWeightFilter(query: any, filters: PetPolicyFilterParams): any {
 
 /**
  * Apply breed restrictions filtering to the query
- * Fix: Use proper IS NULL and array empty check syntax
+ * Fix: Use proper IS NULL and array empty check syntax with chained .or()
  */
 function applyBreedRestrictionsFilter(query: any, filters: PetPolicyFilterParams): any {
   if (filters.includeBreedRestrictions === false) {
     console.log("Filtering for no breed restrictions");
     
-    // Use OR properly - either field is null OR field is an empty array
-    return query.or('breed_restrictions.is.null,breed_restrictions.eq.{}');
+    // Fix: Use chained .or() calls instead of comma-separated strings
+    return query.or('breed_restrictions.is.null').or('breed_restrictions.eq.{}');
   }
   
   return query;
