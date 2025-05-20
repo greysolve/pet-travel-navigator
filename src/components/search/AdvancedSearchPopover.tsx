@@ -31,7 +31,6 @@ export const AdvancedSearchPopover = ({
     activeFilters.travelMethod || { cabin: true, cargo: true }
   );
   const [weightOptions, setWeightOptions] = useState<WeightFilterOptions>({
-    min: activeFilters.minWeight,
     max: activeFilters.maxWeight,
     includeCarrier: activeFilters.weightIncludesCarrier
   });
@@ -44,7 +43,6 @@ export const AdvancedSearchPopover = ({
     const filters: PetPolicyFilterParams = {
       petTypes: petTypes.length > 0 ? petTypes : undefined,
       travelMethod,
-      minWeight: weightOptions.min,
       maxWeight: weightOptions.max,
       weightIncludesCarrier: weightOptions.includeCarrier,
       includeBreedRestrictions
@@ -66,7 +64,6 @@ export const AdvancedSearchPopover = ({
   const hasActiveFilters = 
     (activeFilters.petTypes && activeFilters.petTypes.length > 0) || 
     (activeFilters.travelMethod && (!activeFilters.travelMethod.cabin || !activeFilters.travelMethod.cargo)) || 
-    activeFilters.minWeight !== undefined || 
     activeFilters.maxWeight !== undefined || 
     activeFilters.includeBreedRestrictions === false;
 
@@ -100,14 +97,10 @@ export const AdvancedSearchPopover = ({
       }
     }
     
-    if (activeFilters.minWeight !== undefined || activeFilters.maxWeight !== undefined) {
-      const weightLabel = [];
-      if (activeFilters.minWeight !== undefined) weightLabel.push(`min ${activeFilters.minWeight}kg`);
-      if (activeFilters.maxWeight !== undefined) weightLabel.push(`max ${activeFilters.maxWeight}kg`);
-      
+    if (activeFilters.maxWeight !== undefined) {
       badges.push({
         key: 'weight',
-        label: `Weight: ${weightLabel.join(', ')}`
+        label: `Weight: ${activeFilters.maxWeight}kg`
       });
     }
     

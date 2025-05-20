@@ -1,4 +1,3 @@
-
 import { PetPolicyFilterParams } from "./types.ts";
 
 /**
@@ -67,69 +66,48 @@ export function applyTravelMethodFilter(query: any, filters: PetPolicyFilterPara
  * Simplified to match the user's mental model: "Show me airlines that accept my pet weighing X kg"
  */
 export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): any {
-  // Only proceed if we have weight filters
-  if (filters.minWeight === undefined && filters.maxWeight === undefined) {
+  // Only proceed if we have a max weight filter (min weight is no longer used)
+  if (filters.maxWeight === undefined) {
     return query;
   }
   
-  console.log("Applying weight filters:", { 
-    min: filters.minWeight, 
-    max: filters.maxWeight 
-  });
+  console.log("Applying weight filter:", { max: filters.maxWeight });
   
   let weightQuery = query;
   
-  // Handle max weight filter (the pet's actual weight) - this is the most common use case
+  // Handle max weight filter (the pet's actual weight)
   // "My pet weighs X kg - show me airlines that will allow this"
-  if (filters.maxWeight !== undefined) {
-    const petWeight = filters.maxWeight;
-    
-    if (filters.travelMethod) {
-      // If specific travel method is selected, only check the relevant fields
-      if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
-        // For cabin-only travel: Find policies where cabin max weight >= pet's weight
-        weightQuery = query
-          .or(`cabin_max_weight_kg.gte.${petWeight}`)
-          .or(`cabin_combined_weight_kg.gte.${petWeight}`);
-      } 
-      else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
-        // For cargo-only travel: Find policies where cargo max weight >= pet's weight
-        weightQuery = query
-          .or(`cargo_max_weight_kg.gte.${petWeight}`)
-          .or(`cargo_combined_weight_kg.gte.${petWeight}`);
-      }
-      else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
-        // For both travel methods: Find policies where either cabin or cargo max weight >= pet's weight
-        weightQuery = query
-          .or(`cabin_max_weight_kg.gte.${petWeight}`)
-          .or(`cabin_combined_weight_kg.gte.${petWeight}`)
-          .or(`cargo_max_weight_kg.gte.${petWeight}`)
-          .or(`cargo_combined_weight_kg.gte.${petWeight}`);
-      }
-    } else {
-      // If travel method not specified, check all weight fields
+  const petWeight = filters.maxWeight;
+  
+  if (filters.travelMethod) {
+    // If specific travel method is selected, only check the relevant fields
+    if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
+      // For cabin-only travel: Find policies where cabin max weight >= pet's weight
+      weightQuery = query
+        .or(`cabin_max_weight_kg.gte.${petWeight}`)
+        .or(`cabin_combined_weight_kg.gte.${petWeight}`);
+    } 
+    else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
+      // For cargo-only travel: Find policies where cargo max weight >= pet's weight
+      weightQuery = query
+        .or(`cargo_max_weight_kg.gte.${petWeight}`)
+        .or(`cargo_combined_weight_kg.gte.${petWeight}`);
+    }
+    else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
+      // For both travel methods: Find policies where either cabin or cargo max weight >= pet's weight
       weightQuery = query
         .or(`cabin_max_weight_kg.gte.${petWeight}`)
         .or(`cabin_combined_weight_kg.gte.${petWeight}`)
         .or(`cargo_max_weight_kg.gte.${petWeight}`)
         .or(`cargo_combined_weight_kg.gte.${petWeight}`);
     }
-  }
-  
-  // Handle min weight filter if provided (less common)
-  if (filters.minWeight !== undefined) {
-    // Implementation follows the same pattern as max weight
-    // but will rarely be used in practice
-    const minWeight = filters.minWeight;
-    
-    // Since this is an edge case, we'll implement a simple version
-    // that just ensures the airline has some weight limit defined
-    // that is at least the minimum specified
-    weightQuery = weightQuery
-      .or(`cabin_max_weight_kg.gte.${minWeight}`)
-      .or(`cabin_combined_weight_kg.gte.${minWeight}`)
-      .or(`cargo_max_weight_kg.gte.${minWeight}`)
-      .or(`cargo_combined_weight_kg.gte.${minWeight}`);
+  } else {
+    // If travel method not specified, check all weight fields
+    weightQuery = query
+      .or(`cabin_max_weight_kg.gte.${petWeight}`)
+      .or(`cabin_combined_weight_kg.gte.${petWeight}`)
+      .or(`cargo_max_weight_kg.gte.${petWeight}`)
+      .or(`cargo_combined_weight_kg.gte.${petWeight}`);
   }
   
   return weightQuery;

@@ -31,7 +31,7 @@ export const PetPolicyFilters = ({ onApplyFilters }: PetPolicyFiltersProps) => {
     onApplyFilters({
       petTypes: petTypes.length > 0 ? petTypes : undefined,
       travelMethod: travelMethod,
-      minWeight: weightOptions.min,
+      // No longer sending minWeight
       maxWeight: weightOptions.max,
       weightIncludesCarrier: weightOptions.includeCarrier,
       includeBreedRestrictions
