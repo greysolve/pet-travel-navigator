@@ -788,6 +788,7 @@ export type Database = {
           execution_id: string | null
           id: string
           status: string
+          sync_type: string | null
         }
         Insert: {
           airline_code: string
@@ -798,6 +799,7 @@ export type Database = {
           execution_id?: string | null
           id?: string
           status: string
+          sync_type?: string | null
         }
         Update: {
           airline_code?: string
@@ -808,6 +810,7 @@ export type Database = {
           execution_id?: string | null
           id?: string
           status?: string
+          sync_type?: string | null
         }
         Relationships: []
       }

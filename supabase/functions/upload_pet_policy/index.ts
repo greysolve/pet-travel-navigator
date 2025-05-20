@@ -177,7 +177,8 @@ async function logAttempt(
       airline_code: airlineCode,
       status,
       error_message: errorMessage,
-      duration_ms: duration
+      duration_ms: duration,
+      sync_type: 'petPolicies' // Add the sync_type for the trigger to work
     });
   } catch (error) {
     // Log to console but don't throw - this is a non-critical operation
