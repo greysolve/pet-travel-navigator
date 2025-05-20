@@ -1075,14 +1075,6 @@ export type Database = {
           search_score: number
         }[]
       }
-      unaccent: {
-        Args: { "": string }
-        Returns: string
-      }
-      unaccent_init: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
     }
     Enums: {
       app_role: "site_manager" | "pet_lover" | "pet_caddie"
