@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
@@ -7,41 +6,10 @@ import { SearchButton } from "./SearchButton";
 import { SearchDivider } from "./SearchDivider";
 import { ApiProvider } from "@/config/feature-flags";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SavedSearch } from "./types";
+import { PetPolicyFilterParams } from "@/types/policy-filters";
+import type { SavedSearch, FormContainerProps } from "./types";
 import type { FlightData, PetPolicy } from "../flight-results/types";
 import type { ToastFunction } from "@/hooks/use-toast";
-
-interface SearchFormContainerProps {
-  user: any;
-  isPetCaddie: boolean;
-  searchCount: number | undefined;
-  savedSearches: SavedSearch[];
-  isLoading: boolean;
-  policySearch: string;
-  setPolicySearch: (value: string) => void;
-  hasRouteSearch: boolean;
-  clearRouteSearch: () => void;
-  origin: string;
-  destination: string;
-  setOrigin: (value: string) => void;
-  setDestination: (value: string) => void;
-  date: Date | undefined;
-  setDate: (date: Date | undefined) => void;
-  clearPolicySearch: () => void;
-  shouldSaveSearch: boolean;
-  setShouldSaveSearch: (value: boolean) => void;
-  passengers: number;
-  setPassengers: (value: number) => void;
-  toast: ToastFunction;
-  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
-  setFlights: (flights: FlightData[]) => void;
-  onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
-  handleDeleteSearch: (id: string) => void;
-  handleSearch: () => void;
-  onPolicySearch: () => Promise<void>;
-  apiProvider?: ApiProvider;
-  enableFallback?: boolean;
-}
 
 export const SearchFormContainer = ({
   user,
@@ -72,8 +40,10 @@ export const SearchFormContainer = ({
   handleSearch,
   onPolicySearch,
   apiProvider,
-  enableFallback
-}: SearchFormContainerProps) => {
+  enableFallback,
+  activeFilters = {},
+  onApplyFilters
+}: FormContainerProps) => {
   
   // Simple loading condition
   const isFormLoading = isLoading;
@@ -111,6 +81,8 @@ export const SearchFormContainer = ({
                 handleDeleteSearch(id);
               }}
               isLoading={isFormLoading}
+              activeFilters={activeFilters}
+              onApplyFilters={onApplyFilters}
             />
 
             <PolicySearchForm 

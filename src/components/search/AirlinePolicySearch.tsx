@@ -1,16 +1,18 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plane } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+// Change: policySearch now is always the selected IATA code or blank
 export interface AirlinePolicySearchProps {
-  policySearch: string;
+  policySearch: string; // Actually the IATA code, or empty string
   setPolicySearch: (value: string) => void;
   isLoading?: boolean;
   disabled?: boolean;
   onFocus?: () => void;
+  setPolicySearchDisplay?: (value: string) => void; // optional
 }
 
 export const AirlinePolicySearch = ({
@@ -18,22 +20,25 @@ export const AirlinePolicySearch = ({
   setPolicySearch,
   isLoading,
   disabled,
-  onFocus
+  onFocus,
+  setPolicySearchDisplay,
 }: AirlinePolicySearchProps) => {
   const [airlines, setAirlines] = useState<Array<{iata: string, name: string}>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputValue, setInputValue] = useState(""); // For textbox display (Name (IATA))
+  const [dropdownSelected, setDropdownSelected] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchAirlines = useCallback(async (searchTerm: string) => {
+    // Only search if at least 2 chars
     if (!searchTerm || searchTerm.length < 2) {
       setAirlines([]);
       return;
     }
-    
     setIsSearching(true);
     try {
-      // Use a standard Supabase query instead of the RPC function
       const { data, error } = await supabase
         .from('airlines')
         .select('iata_code, name')
@@ -51,13 +56,11 @@ export const AirlinePolicySearch = ({
         return;
       }
 
-      // Transform data to match expected format
       const formattedData = data.map(airline => ({
         iata: airline.iata_code || '',
         name: airline.name
       }));
 
-      console.log('Airline search results:', formattedData);
       setAirlines(formattedData);
     } catch (error) {
       console.error('Error fetching airlines:', error);
@@ -71,37 +74,65 @@ export const AirlinePolicySearch = ({
     }
   }, [toast]);
 
-  const handleInputFocus = () => {
-    onFocus?.();
+  // Only allow a search if inputValue matches a real airline (dropdown selected)
+  const allowSearch = airlines.some(a => `${a.name} (${a.iata})`.toLowerCase() === inputValue.toLowerCase());
+
+  // When the user types
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDropdownSelected(false);
+    const value = e.target.value;
+    setInputValue(value);
+    setPolicySearch(""); // No IATA set until selected
+    fetchAirlines(value);
+    setShowSuggestions(true);
+    if (setPolicySearchDisplay) setPolicySearchDisplay(value);
+  };
+
+  // When the user selects a suggestion
+  const handleSelect = (airline: {iata: string; name: string}) => {
+    const display = `${airline.name} (${airline.iata})`;
+    setInputValue(display);
+    setPolicySearch(airline.iata); // Only IATA is passed upward
+    setDropdownSelected(true);
+    setShowSuggestions(false);
+    if (setPolicySearchDisplay) setPolicySearchDisplay(display);
+
+    // Move focus away to close suggestions nicely
+    setTimeout(() => {
+      inputRef.current?.blur();
+    }, 0);
+  };
+
+  // Handle losing focus (hide suggestions after small delay for click)
+  const handleBlur = () => {
+    setTimeout(() => setShowSuggestions(false), 150);
+  };
+
+  // When user focuses, clear and show dropdown
+  const handleFocus = () => {
+    setShowSuggestions(true);
+    if (onFocus) onFocus();
   };
 
   return (
     <div className="relative">
       <div className="relative">
         <Input
+          ref={inputRef}
           type="text"
           placeholder="Airline name or code (e.g., American, AA)"
           className="h-12 text-base bg-white shadow-sm pl-10"
-          value={policySearch}
-          onChange={(e) => {
-            const value = e.target.value;
-            setPolicySearch(value);
-            fetchAirlines(value);
-            setShowSuggestions(true);
-          }}
-          onFocus={() => {
-            setShowSuggestions(true);
-            handleInputFocus();
-          }}
-          onBlur={() => {
-            setTimeout(() => setShowSuggestions(false), 200);
-          }}
+          value={inputValue}
+          onChange={handleChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           disabled={isLoading || disabled}
+          autoComplete="off"
         />
         <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground" />
       </div>
       {showSuggestions && airlines.length > 0 && (
-        <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
+        <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg">
           {isSearching ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -113,10 +144,7 @@ export const AirlinePolicySearch = ({
                 <li
                   key={airline.iata}
                   className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
-                  onClick={() => {
-                    setPolicySearch(airline.iata);
-                    setShowSuggestions(false);
-                  }}
+                  onClick={() => handleSelect(airline)}
                 >
                   {airline.name} ({airline.iata})
                 </li>

@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightData, PetPolicy, SizeRestrictionsField, FeesField } from "./types";
@@ -11,22 +12,22 @@ const COUNTRY_MAPPINGS: Record<string, string> = {
   'UK': 'United Kingdom'
 };
 
-export const useSingleAirlinePolicy = (airlineName: string) => {
+export const useSingleAirlinePolicy = (airlineIataCode: string) => {
   const { profile } = useProfile();
   const isPetCaddie = profile ? profile.userRole === 'pet_caddie' : false;
   const { data: premiumFields = [] } = usePremiumFields();
 
   return useQuery({
-    queryKey: ['singleAirlinePolicy', airlineName, premiumFields],
+    queryKey: ['singleAirlinePolicy', airlineIataCode, premiumFields],
     queryFn: async () => {
-      if (!airlineName) return null;
-      
-      console.log("Fetching pet policy for airline:", airlineName);
-      
+      if (!airlineIataCode) return null;
+
+      console.log("Fetching pet policy for airline IATA:", airlineIataCode);
+
       const { data: airline, error: airlineError } = await supabase
         .from('airlines')
-        .select('id')
-        .eq('name', airlineName)
+        .select('id, iata_code, name')
+        .eq('iata_code', airlineIataCode)
         .maybeSingle();
 
       if (airlineError || !airline?.id) {
@@ -34,10 +35,24 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         return null;
       }
 
-      console.log("Found airline:", airline);
       const { data: policy, error: policyError } = await supabase
         .from('pet_policies')
-        .select('*')
+        .select(`
+          *,
+          cabin_max_weight_kg,
+          cabin_combined_weight_kg,
+          cabin_length_cm,
+          cabin_width_cm,
+          cabin_height_cm,
+          cabin_linear_dimensions_cm,
+          cargo_max_weight_kg,
+          cargo_combined_weight_kg,
+          cargo_length_cm,
+          cargo_width_cm,
+          cargo_height_cm,
+          cargo_linear_dimensions_cm,
+          weight_includes_carrier
+        `)
         .eq('airline_id', airline.id)
         .maybeSingle();
 
@@ -46,7 +61,6 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         return null;
       }
 
-      console.log("Found pet policy:", policy);
       if (!policy) return null;
 
       const policyData: Partial<PetPolicy> = {
@@ -59,16 +73,31 @@ export const useSingleAirlinePolicy = (airlineName: string) => {
         breed_restrictions: policy.breed_restrictions,
         policy_url: policy.policy_url,
         size_restrictions: policy.size_restrictions as SizeRestrictionsField,
-        fees: policy.fees as FeesField
+        fees: policy.fees as FeesField,
+        
+        // Include the specific size restriction fields
+        cabin_max_weight_kg: policy.cabin_max_weight_kg,
+        cabin_combined_weight_kg: policy.cabin_combined_weight_kg,
+        cabin_length_cm: policy.cabin_length_cm,
+        cabin_width_cm: policy.cabin_width_cm,
+        cabin_height_cm: policy.cabin_height_cm,
+        cabin_linear_dimensions_cm: policy.cabin_linear_dimensions_cm,
+        cargo_max_weight_kg: policy.cargo_max_weight_kg,
+        cargo_combined_weight_kg: policy.cargo_combined_weight_kg,
+        cargo_length_cm: policy.cargo_length_cm,
+        cargo_width_cm: policy.cargo_width_cm,
+        cargo_height_cm: policy.cargo_height_cm,
+        cargo_linear_dimensions_cm: policy.cargo_linear_dimensions_cm,
+        weight_includes_carrier: policy.weight_includes_carrier
       };
-      
-      return isPetCaddie 
+
+      return isPetCaddie
         ? decorateWithPremiumFields(policyData, premiumFields)
         : policyData as PetPolicy;
     },
-    enabled: !!airlineName,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in garbage collection for 10 minutes
+    enabled: !!airlineIataCode,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 2,
   });
 };
@@ -100,7 +129,23 @@ export const usePetPolicies = (flights: FlightData[]) => {
 
       const { data: policies } = await supabase
         .from('pet_policies')
-        .select('*, airlines!inner(iata_code)')
+        .select(`
+          *,
+          cabin_max_weight_kg,
+          cabin_combined_weight_kg,
+          cabin_length_cm,
+          cabin_width_cm,
+          cabin_height_cm,
+          cabin_linear_dimensions_cm,
+          cargo_max_weight_kg,
+          cargo_combined_weight_kg,
+          cargo_length_cm,
+          cargo_width_cm,
+          cargo_height_cm,
+          cargo_linear_dimensions_cm,
+          weight_includes_carrier,
+          airlines!inner(iata_code)
+        `)
         .in('airline_id', airlines.map(a => a.id));
 
       console.log("Found pet policies:", policies);
@@ -118,7 +163,22 @@ export const usePetPolicies = (flights: FlightData[]) => {
           breed_restrictions: policy.breed_restrictions,
           policy_url: policy.policy_url,
           size_restrictions: policy.size_restrictions as SizeRestrictionsField,
-          fees: policy.fees as FeesField
+          fees: policy.fees as FeesField,
+          
+          // Include the specific size restriction fields
+          cabin_max_weight_kg: policy.cabin_max_weight_kg,
+          cabin_combined_weight_kg: policy.cabin_combined_weight_kg,
+          cabin_length_cm: policy.cabin_length_cm,
+          cabin_width_cm: policy.cabin_width_cm,
+          cabin_height_cm: policy.cabin_height_cm,
+          cabin_linear_dimensions_cm: policy.cabin_linear_dimensions_cm,
+          cargo_max_weight_kg: policy.cargo_max_weight_kg,
+          cargo_combined_weight_kg: policy.cargo_combined_weight_kg,
+          cargo_length_cm: policy.cargo_length_cm,
+          cargo_width_cm: policy.cargo_width_cm,
+          cargo_height_cm: policy.cargo_height_cm,
+          cargo_linear_dimensions_cm: policy.cargo_linear_dimensions_cm,
+          weight_includes_carrier: policy.weight_includes_carrier
         };
         
         decoratedPolicies[policy.airlines.iata_code] = isPetCaddie 

@@ -3,7 +3,6 @@ export const SyncType = {
   airlines: 'airlines',
   airports: 'airports',
   petPolicies: 'petPolicies',
-  routes: 'routes',
   countryPolicies: 'countryPolicies'
 } as const;
 
