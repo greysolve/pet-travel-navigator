@@ -1,3 +1,13 @@
+
+// Types needed for the analyze_pet_policies function
+
+export interface Airline {
+  id: string;
+  name: string;
+  iata_code: string;
+  website?: string;
+}
+
 export interface Country {
   id: string;
   name: string;
@@ -40,11 +50,4 @@ export interface Policy {
   required_ports_of_entry?: string;
   policy_url?: string;
   last_updated: string;
-}
-
-// Make sure we have the Country type defined in this file too
-export interface Country {
-  id: string;
-  name: string;
-  code: string;
 }

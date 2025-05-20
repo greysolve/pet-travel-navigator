@@ -2,6 +2,7 @@
 import { User } from "@supabase/supabase-js";
 import { FlightData, PetPolicy } from "../flight-results/types";
 import { ApiProvider } from "@/config/feature-flags";
+import { PetPolicyFilterParams } from "@/types/policy-filters";
 
 export interface SearchSectionProps {
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
@@ -49,6 +50,8 @@ export interface FormContainerProps {
   onPolicySearch: () => Promise<void>;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
+  activeFilters?: PetPolicyFilterParams;
+  onApplyFilters: (filters: PetPolicyFilterParams) => void;
 }
 
 // Add missing type definitions for components
@@ -62,6 +65,8 @@ export interface SearchFormHeaderProps {
   onLoadSearch: (searchCriteria: any) => void;
   onDeleteSearch: (e: any, id: string) => void;
   isLoading: boolean;
+  activeFilters?: PetPolicyFilterParams;
+  onApplyFilters: (filters: PetPolicyFilterParams) => void;
 }
 
 export interface AirlinePolicySearchProps {

@@ -320,6 +320,18 @@ export type Database = {
         Row: {
           airline_id: string | null
           breed_restrictions: string[] | null
+          cabin_combined_weight_kg: number | null
+          cabin_height_cm: number | null
+          cabin_length_cm: number | null
+          cabin_linear_dimensions_cm: number | null
+          cabin_max_weight_kg: number | null
+          cabin_width_cm: number | null
+          cargo_combined_weight_kg: number | null
+          cargo_height_cm: number | null
+          cargo_length_cm: number | null
+          cargo_linear_dimensions_cm: number | null
+          cargo_max_weight_kg: number | null
+          cargo_width_cm: number | null
           carrier_requirements: string | null
           carrier_requirements_cabin: string | null
           carrier_requirements_cargo: string | null
@@ -332,10 +344,23 @@ export type Database = {
           size_restrictions: Json | null
           temperature_restrictions: string | null
           updated_at: string | null
+          weight_includes_carrier: boolean | null
         }
         Insert: {
           airline_id?: string | null
           breed_restrictions?: string[] | null
+          cabin_combined_weight_kg?: number | null
+          cabin_height_cm?: number | null
+          cabin_length_cm?: number | null
+          cabin_linear_dimensions_cm?: number | null
+          cabin_max_weight_kg?: number | null
+          cabin_width_cm?: number | null
+          cargo_combined_weight_kg?: number | null
+          cargo_height_cm?: number | null
+          cargo_length_cm?: number | null
+          cargo_linear_dimensions_cm?: number | null
+          cargo_max_weight_kg?: number | null
+          cargo_width_cm?: number | null
           carrier_requirements?: string | null
           carrier_requirements_cabin?: string | null
           carrier_requirements_cargo?: string | null
@@ -348,10 +373,23 @@ export type Database = {
           size_restrictions?: Json | null
           temperature_restrictions?: string | null
           updated_at?: string | null
+          weight_includes_carrier?: boolean | null
         }
         Update: {
           airline_id?: string | null
           breed_restrictions?: string[] | null
+          cabin_combined_weight_kg?: number | null
+          cabin_height_cm?: number | null
+          cabin_length_cm?: number | null
+          cabin_linear_dimensions_cm?: number | null
+          cabin_max_weight_kg?: number | null
+          cabin_width_cm?: number | null
+          cargo_combined_weight_kg?: number | null
+          cargo_height_cm?: number | null
+          cargo_length_cm?: number | null
+          cargo_linear_dimensions_cm?: number | null
+          cargo_max_weight_kg?: number | null
+          cargo_width_cm?: number | null
           carrier_requirements?: string | null
           carrier_requirements_cabin?: string | null
           carrier_requirements_cargo?: string | null
@@ -364,6 +402,7 @@ export type Database = {
           size_restrictions?: Json | null
           temperature_restrictions?: string | null
           updated_at?: string | null
+          weight_includes_carrier?: boolean | null
         }
         Relationships: [
           {
@@ -739,6 +778,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_log: {
+        Row: {
+          airline_code: string
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          execution_id: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          airline_code: string
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          execution_id?: string | null
+          id?: string
+          status: string
+        }
+        Update: {
+          airline_code?: string
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          execution_id?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       sync_progress: {
         Row: {
           batch_metrics: Json | null
@@ -909,6 +978,78 @@ export type Database = {
       get_profile_with_role: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      get_system_plan_by_id: {
+        Args: { plan_id: string }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }[]
+      }
+      get_system_plan_by_name: {
+        Args: { plan_name: Database["public"]["Enums"]["subscription_plan"] }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }[]
+      }
+      get_system_plans: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_search_unlimited: boolean
+          name: Database["public"]["Enums"]["subscription_plan"]
+          renews_monthly: boolean
+          search_limit: number
+          updated_at: string | null
+        }[]
+      }
+      get_system_role_by_id: {
+        Args: { role_id: string }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }[]
+      }
+      get_system_role_by_name: {
+        Args: { role_name: string }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }[]
+      }
+      get_system_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Database["public"]["Enums"]["user_permission"][] | null
+          updated_at: string | null
+        }[]
       }
       has_role: {
         Args: { user_id: string; role: Database["public"]["Enums"]["app_role"] }
