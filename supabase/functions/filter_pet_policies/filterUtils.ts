@@ -18,13 +18,12 @@ export function applyPetTypeFilter(query: any, filters: PetPolicyFilterParams): 
     return `pet_types_allowed.cs.{${petType}}`;
   });
   
-  // Apply each pet type filter with individual OR conditions
-  let petTypeQuery = query;
-  for (const filter of petTypeFilters) {
-    petTypeQuery = petTypeQuery.or(filter);
+  // Join all conditions with commas for a single OR statement
+  if (petTypeFilters.length > 0) {
+    query = query.or(petTypeFilters.join(','));
   }
   
-  return petTypeQuery;
+  return query;
 }
 
 /**
@@ -49,14 +48,14 @@ export function applyTravelMethodFilter(query: any, filters: PetPolicyFilterPara
   if (cabin && !cargo) {
     console.log("Filtering for cabin travel only");
     // Check if cabin_max_weight_kg OR cabin_combined_weight_kg is not null
-    travelMethodQuery = query.or('cabin_max_weight_kg.not.is.null').or('cabin_combined_weight_kg.not.is.null');
+    travelMethodQuery = query.or('cabin_max_weight_kg.not.is.null,cabin_combined_weight_kg.not.is.null');
   }
   
   // For cargo-only travel
   if (!cabin && cargo) {
     console.log("Filtering for cargo travel only");
     // Check if cargo_max_weight_kg OR cargo_combined_weight_kg is not null
-    travelMethodQuery = query.or('cargo_max_weight_kg.not.is.null').or('cargo_combined_weight_kg.not.is.null');
+    travelMethodQuery = query.or('cargo_max_weight_kg.not.is.null,cargo_combined_weight_kg.not.is.null');
   }
   
   return travelMethodQuery;
@@ -84,31 +83,29 @@ export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): a
     // If specific travel method is selected, only check the relevant fields
     if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
       // For cabin-only travel: Find policies where cabin max weight >= pet's weight
-      weightQuery = query
-        .or(`cabin_max_weight_kg.gte.${petWeight}`)
-        .or(`cabin_combined_weight_kg.gte.${petWeight}`);
+      weightQuery = query.or(`cabin_max_weight_kg.gte.${petWeight},cabin_combined_weight_kg.gte.${petWeight}`);
     } 
     else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
       // For cargo-only travel: Find policies where cargo max weight >= pet's weight
-      weightQuery = query
-        .or(`cargo_max_weight_kg.gte.${petWeight}`)
-        .or(`cargo_combined_weight_kg.gte.${petWeight}`);
+      weightQuery = query.or(`cargo_max_weight_kg.gte.${petWeight},cargo_combined_weight_kg.gte.${petWeight}`);
     }
     else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
       // For both travel methods: Find policies where either cabin or cargo max weight >= pet's weight
-      weightQuery = query
-        .or(`cabin_max_weight_kg.gte.${petWeight}`)
-        .or(`cabin_combined_weight_kg.gte.${petWeight}`)
-        .or(`cargo_max_weight_kg.gte.${petWeight}`)
-        .or(`cargo_combined_weight_kg.gte.${petWeight}`);
+      weightQuery = query.or(
+        `cabin_max_weight_kg.gte.${petWeight},` +
+        `cabin_combined_weight_kg.gte.${petWeight},` +
+        `cargo_max_weight_kg.gte.${petWeight},` +
+        `cargo_combined_weight_kg.gte.${petWeight}`
+      );
     }
   } else {
     // If travel method not specified, check all weight fields
-    weightQuery = query
-      .or(`cabin_max_weight_kg.gte.${petWeight}`)
-      .or(`cabin_combined_weight_kg.gte.${petWeight}`)
-      .or(`cargo_max_weight_kg.gte.${petWeight}`)
-      .or(`cargo_combined_weight_kg.gte.${petWeight}`);
+    weightQuery = query.or(
+      `cabin_max_weight_kg.gte.${petWeight},` +
+      `cabin_combined_weight_kg.gte.${petWeight},` +
+      `cargo_max_weight_kg.gte.${petWeight},` +
+      `cargo_combined_weight_kg.gte.${petWeight}`
+    );
   }
   
   return weightQuery;
@@ -122,7 +119,7 @@ export function applyBreedRestrictionsFilter(query: any, filters: PetPolicyFilte
     console.log("Filtering for no breed restrictions");
     
     // Only include policies with no breed restrictions (null or empty array)
-    return query.or('breed_restrictions.is.null').or('breed_restrictions.eq.{}');
+    return query.or('breed_restrictions.is.null,breed_restrictions.eq.{}');
   }
   
   return query;
