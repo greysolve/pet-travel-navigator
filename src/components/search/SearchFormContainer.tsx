@@ -123,7 +123,7 @@ export const SearchFormContainer = ({
 
         <SearchButton
           isLoading={isFormLoading}
-          onClick={handleSearch}
+          onClick={handleSearch as () => Promise<void>}
         />
       </div>
     </div>
