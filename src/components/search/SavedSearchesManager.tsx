@@ -63,7 +63,13 @@ export const SavedSearchesManager = ({
       }
 
       console.log("Fetched saved searches:", data);
-      setSavedSearches(data || []);
+      // Cast the Json type to our SavedSearchCriteria type
+      const typedSearches = data?.map(search => ({
+        ...search,
+        search_criteria: search.search_criteria as SavedSearchCriteria
+      })) || [];
+      
+      setSavedSearches(typedSearches);
     } catch (error) {
       console.error('Error in fetchSavedSearches:', error);
       toast({
@@ -87,7 +93,7 @@ export const SavedSearchesManager = ({
         .from('saved_searches')
         .insert({
           name,
-          search_criteria: searchToSave
+          search_criteria: searchToSave as any // Cast to any for Json compatibility
         });
 
       if (error) throw error;
@@ -166,7 +172,7 @@ export const SavedSearchesManager = ({
     }
   };
 
-  const getFilterSummary = (filters?: PetPolicyFilterParams) => {
+  const getFilterSummary = (filters?: any) => {
     if (!filters || Object.keys(filters).length === 0) return null;
     
     const parts = [];

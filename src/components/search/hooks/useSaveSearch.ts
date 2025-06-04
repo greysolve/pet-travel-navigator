@@ -80,7 +80,7 @@ export const useSaveSearch = ({ userId, onSaveComplete }: UseSaveSearchProps) =>
           .from('saved_searches')
           .update({
             name: searchName,
-            search_criteria: criteriaToSave,
+            search_criteria: criteriaToSave as any, // Cast to any for Json compatibility
             updated_at: new Date().toISOString()
           })
           .eq('id', existingSearch.id);
@@ -98,7 +98,7 @@ export const useSaveSearch = ({ userId, onSaveComplete }: UseSaveSearchProps) =>
           .insert({
             user_id: userId,
             name: searchName,
-            search_criteria: criteriaToSave
+            search_criteria: criteriaToSave as any // Cast to any for Json compatibility
           });
 
         if (error) throw error;

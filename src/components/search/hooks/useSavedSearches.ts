@@ -43,7 +43,13 @@ export const useSavedSearches = (userId: string | undefined) => {
     }
 
     console.log('Received saved searches data:', data);
-    setSavedSearches(data || []);
+    // Cast the Json type to our SavedSearchCriteria type
+    const typedSearches = data?.map(search => ({
+      ...search,
+      search_criteria: search.search_criteria as SavedSearchCriteria
+    })) || [];
+    
+    setSavedSearches(typedSearches);
   };
 
   const handleDeleteSearch = async (searchId: string) => {
