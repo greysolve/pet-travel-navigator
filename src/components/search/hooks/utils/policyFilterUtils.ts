@@ -88,12 +88,7 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
 
   // Apply weight filter - FIXED LOGIC
   if (activeFilters.minWeight !== undefined || activeFilters.maxWeight !== undefined) {
-    // For cabin
-    const cabinMinWeight = 0; // Default minimum if not specified
     const cabinMaxWeight = policy.cabin_max_weight_kg;
-    
-    // For cargo
-    const cargoMinWeight = 0; // Default minimum if not specified
     const cargoMaxWeight = policy.cargo_max_weight_kg;
     
     console.log("Checking weight filters for policy:", {
@@ -103,62 +98,80 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
       filterMaxWeight: activeFilters.maxWeight
     });
     
-    // Handle min weight filter
-    if (activeFilters.minWeight !== undefined) {
-      const minWeight = activeFilters.minWeight;
+    // Handle max weight filter (most common case - user specifies their pet's weight)
+    if (activeFilters.maxWeight !== undefined) {
+      const petWeight = activeFilters.maxWeight;
       
-      // If policy specifies cabin and cargo options
-      if (cabinMaxWeight !== undefined && cargoMaxWeight !== undefined) {
-        // Pet weight must be below at least one of the max weights
-        if (minWeight > cabinMaxWeight && minWeight > cargoMaxWeight) {
-          console.log("Excluding: Pet min weight exceeds both cabin and cargo limits");
-          return false;
+      // Determine which travel methods are allowed
+      const allowsCabin = !activeFilters.travelMethod || activeFilters.travelMethod.cabin;
+      const allowsCargo = !activeFilters.travelMethod || activeFilters.travelMethod.cargo;
+      
+      // Check if airline can accommodate this pet weight
+      let canAccommodate = false;
+      
+      // Check cabin option if allowed
+      if (allowsCabin && cabinMaxWeight !== undefined && cabinMaxWeight !== null) {
+        if (petWeight <= cabinMaxWeight) {
+          canAccommodate = true;
+          console.log(`✓ Cabin can accommodate ${petWeight}kg (limit: ${cabinMaxWeight}kg)`);
+        } else {
+          console.log(`✗ Cabin cannot accommodate ${petWeight}kg (limit: ${cabinMaxWeight}kg)`);
         }
-      } 
-      // If policy only has cabin option
-      else if (cabinMaxWeight !== undefined && cargoMaxWeight === undefined) {
-        if (minWeight > cabinMaxWeight) {
-          console.log("Excluding: Pet min weight exceeds cabin limit");
-          return false;
+      }
+      
+      // Check cargo option if allowed and cabin didn't work
+      if (!canAccommodate && allowsCargo && cargoMaxWeight !== undefined && cargoMaxWeight !== null) {
+        if (petWeight <= cargoMaxWeight) {
+          canAccommodate = true;
+          console.log(`✓ Cargo can accommodate ${petWeight}kg (limit: ${cargoMaxWeight}kg)`);
+        } else {
+          console.log(`✗ Cargo cannot accommodate ${petWeight}kg (limit: ${cargoMaxWeight}kg)`);
         }
-      } 
-      // If policy only has cargo option
-      else if (cabinMaxWeight === undefined && cargoMaxWeight !== undefined) {
-        if (minWeight > cargoMaxWeight) {
-          console.log("Excluding: Pet min weight exceeds cargo limit");
-          return false;
-        }
-      } 
-      // If policy doesn't specify any weight limits
-      else if (cabinMaxWeight === undefined && cargoMaxWeight === undefined) {
-        console.log("Excluding: Policy has no weight limits defined");
+      }
+      
+      // If airline has no weight limits defined for the allowed travel methods, exclude
+      if (!canAccommodate && 
+          ((allowsCabin && (cabinMaxWeight === undefined || cabinMaxWeight === null)) ||
+           (allowsCargo && (cargoMaxWeight === undefined || cargoMaxWeight === null)))) {
+        console.log("✗ Airline has no weight limits defined for allowed travel methods");
+        return false;
+      }
+      
+      // If airline cannot accommodate the pet weight, exclude this policy
+      if (!canAccommodate) {
+        console.log(`✗ Excluding airline: cannot accommodate ${petWeight}kg pet`);
         return false;
       }
     }
     
-    // Handle max weight filter
-    if (activeFilters.maxWeight !== undefined) {
-      const maxWeight = activeFilters.maxWeight;
+    // Handle min weight filter (less common - used for minimum weight requirements)
+    if (activeFilters.minWeight !== undefined) {
+      const minPetWeight = activeFilters.minWeight;
       
-      // If the user specified travel method
-      if (activeFilters.travelMethod) {
-        // For cabin-only travel
-        if (activeFilters.travelMethod.cabin && !activeFilters.travelMethod.cargo) {
-          // Cabin travel must be possible with this weight
-          if (cabinMaxWeight === undefined || maxWeight > cabinMaxWeight) {
-            console.log("Excluding: Pet max weight exceeds cabin limit for cabin-only travel");
-            return false;
-          }
+      // For min weight, we need to ensure the airline can handle at least this weight
+      // This is similar to max weight but checking the minimum threshold
+      const allowsCabin = !activeFilters.travelMethod || activeFilters.travelMethod.cabin;
+      const allowsCargo = !activeFilters.travelMethod || activeFilters.travelMethod.cargo;
+      
+      let canHandleMinWeight = false;
+      
+      // Check if cabin can handle the minimum weight
+      if (allowsCabin && cabinMaxWeight !== undefined && cabinMaxWeight !== null) {
+        if (minPetWeight <= cabinMaxWeight) {
+          canHandleMinWeight = true;
         }
-        
-        // For cargo-only travel
-        if (!activeFilters.travelMethod.cabin && activeFilters.travelMethod.cargo) {
-          // Cargo travel must be possible with this weight
-          if (cargoMaxWeight === undefined || maxWeight > cargoMaxWeight) {
-            console.log("Excluding: Pet max weight exceeds cargo limit for cargo-only travel");
-            return false;
-          }
+      }
+      
+      // Check if cargo can handle the minimum weight
+      if (!canHandleMinWeight && allowsCargo && cargoMaxWeight !== undefined && cargoMaxWeight !== null) {
+        if (minPetWeight <= cargoMaxWeight) {
+          canHandleMinWeight = true;
         }
+      }
+      
+      if (!canHandleMinWeight) {
+        console.log(`✗ Excluding airline: cannot handle minimum weight of ${minPetWeight}kg`);
+        return false;
       }
     }
   }
