@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
@@ -49,9 +48,9 @@ export const SearchFormContainer = ({
   // Simple loading condition
   const isFormLoading = isLoading;
 
-  // Make handleSearchClick async to match the expected Promise<void> type
+  // Make handleSearchClick properly async to match the expected Promise<void> type
   const handleSearchClick = async (): Promise<void> => {
-    await handleSearch();
+    return await handleSearch();
   };
 
   return (
