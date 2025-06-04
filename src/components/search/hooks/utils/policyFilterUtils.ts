@@ -1,3 +1,4 @@
+
 import { PetPolicy } from "@/components/flight-results/types";
 import { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
 import { isPremiumContent } from "@/components/flight-results/types";
@@ -33,17 +34,21 @@ export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyF
       // Skip premium content fields
       if (!isPremiumContent(policy.pet_types_allowed)) {
         petMatch = activeFilters.petTypes.some(petType => {
-          return policy.pet_types_allowed.some((allowedType: string) => {
-            const filterTypeLower = petType.toLowerCase();
-            const allowedTypeLower = allowedType.toLowerCase();
-            
-            // Support flexible matching (dog/dogs, cat/cats, etc.)
-            return allowedTypeLower === filterTypeLower ||
-                   allowedTypeLower === filterTypeLower + 's' ||
-                   allowedTypeLower + 's' === filterTypeLower ||
-                   allowedTypeLower.includes(filterTypeLower) ||
-                   filterTypeLower.includes(allowedTypeLower);
-          });
+          // Type guard to ensure we're working with an array
+          if (Array.isArray(policy.pet_types_allowed)) {
+            return policy.pet_types_allowed.some((allowedType: string) => {
+              const filterTypeLower = petType.toLowerCase();
+              const allowedTypeLower = allowedType.toLowerCase();
+              
+              // Support flexible matching (dog/dogs, cat/cats, etc.)
+              return allowedTypeLower === filterTypeLower ||
+                     allowedTypeLower === filterTypeLower + 's' ||
+                     allowedTypeLower + 's' === filterTypeLower ||
+                     allowedTypeLower.includes(filterTypeLower) ||
+                     filterTypeLower.includes(allowedTypeLower);
+            });
+          }
+          return false;
         });
       }
     }
