@@ -6,7 +6,7 @@ import { useAuthDialog } from "@/hooks/useAuthDialog";
 
 interface SearchButtonProps {
   isLoading: boolean;
-  onClick: () => void | Promise<void>;
+  onClick: () => Promise<void>;
 }
 
 export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
@@ -18,11 +18,7 @@ export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
 
   const handleButtonClick = async () => {
     if (user) {
-      // Handle both sync and async functions properly
-      const result = onClick();
-      if (result instanceof Promise) {
-        await result;
-      }
+      await onClick();
     } else {
       console.log("No user logged in, showing auth dialog");
       showAuthDialog();
