@@ -64,7 +64,7 @@ export interface FormContainerProps {
   setFlights: (flights: FlightData[]) => void;
   onLoadSearch: (searchCriteria: SavedSearchCriteria) => void;
   handleDeleteSearch: (searchId: string) => void;
-  handleSearch: () => void;
+  handleSearch: () => Promise<void>;
   onPolicySearch: () => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;

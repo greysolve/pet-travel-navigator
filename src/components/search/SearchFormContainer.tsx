@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
