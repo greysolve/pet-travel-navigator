@@ -65,7 +65,7 @@ export interface FormContainerProps {
   onLoadSearch: (searchCriteria: SavedSearchCriteria) => void;
   handleDeleteSearch: (searchId: string) => void;
   handleSearch: () => Promise<void>;
-  onPolicySearch: () => void;
+  onPolicySearch: () => Promise<void>;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
   activeFilters?: PetPolicyFilterParams;
