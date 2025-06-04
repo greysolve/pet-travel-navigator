@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
@@ -123,7 +122,7 @@ export const SearchFormContainer = ({
 
         <SearchButton
           isLoading={isFormLoading}
-          onClick={handleSearch as () => Promise<void>}
+          onClick={handleSearch}
         />
       </div>
     </div>
