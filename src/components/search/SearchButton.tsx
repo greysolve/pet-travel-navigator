@@ -16,9 +16,10 @@ export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
   // Combine all loading states
   const isButtonLoading = isLoading || (user && profileLoading);
 
-  const handleButtonClick = async () => {
+  const handleButtonClick = () => {
     if (user) {
-      await onClick();
+      // Call the async function without awaiting it
+      onClick().catch(console.error);
     } else {
       console.log("No user logged in, showing auth dialog");
       showAuthDialog();
