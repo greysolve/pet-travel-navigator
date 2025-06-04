@@ -105,7 +105,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setPolicySearch(""); // Clear any airline policy search when loading a route search
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (): Promise<void> => {
     if (!user) {
       toast({
         title: "Authentication required",
