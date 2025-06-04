@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -98,9 +99,18 @@ export const AdvancedSearchPopover = ({
     }
     
     if (activeFilters.maxWeight !== undefined) {
+      const methodContext = activeFilters.travelMethod;
+      let weightLabel = `Weight: ${activeFilters.maxWeight}kg`;
+      
+      if (methodContext?.cabin && !methodContext?.cargo) {
+        weightLabel = `Cabin weight: ${activeFilters.maxWeight}kg`;
+      } else if (!methodContext?.cabin && methodContext?.cargo) {
+        weightLabel = `Cargo weight: ${activeFilters.maxWeight}kg`;
+      }
+      
       badges.push({
         key: 'weight',
-        label: `Weight: ${activeFilters.maxWeight}kg`
+        label: weightLabel
       });
     }
     
@@ -153,7 +163,8 @@ export const AdvancedSearchPopover = ({
                   />
                   <WeightFilter 
                     options={weightOptions} 
-                    onChange={setWeightOptions} 
+                    onChange={setWeightOptions}
+                    travelMethod={travelMethod}
                   />
                   <BreedRestrictionsFilter 
                     includeBreedRestrictions={includeBreedRestrictions} 

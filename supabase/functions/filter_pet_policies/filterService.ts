@@ -66,28 +66,73 @@ export function mapResultsWithMatchReasons(data: any[] | null, filters: PetPolic
       }
     }
     
-    // Check weight matches - add information about weight limits and carrier inclusion
+    // Check weight matches with specific context and limits
     if (filters.maxWeight !== undefined) {
-      let weightMatchReason = "";
+      const petWeight = filters.maxWeight;
+      const travelMethod = filters.travelMethod;
       
-      if ((policy.cabin_max_weight_kg !== null && policy.cabin_max_weight_kg >= filters.maxWeight) || 
-          (policy.cabin_combined_weight_kg !== null && policy.cabin_combined_weight_kg >= filters.maxWeight)) {
-        weightMatchReason = `Cabin weight limit sufficient`;
-        // Add carrier inclusion information if available
-        if (policy.weight_includes_carrier !== null) {
-          weightMatchReason += policy.weight_includes_carrier ? " (includes carrier)" : " (excludes carrier)";
+      // For cabin-only travel
+      if (travelMethod?.cabin && !travelMethod?.cargo) {
+        if (policy.cabin_max_weight_kg !== null && policy.cabin_max_weight_kg >= petWeight) {
+          let reason = `Cabin limit: ${policy.cabin_max_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
+        } else if (policy.cabin_combined_weight_kg !== null && policy.cabin_combined_weight_kg >= petWeight) {
+          let reason = `Cabin combined limit: ${policy.cabin_combined_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
         }
-        matchReasons.push(weightMatchReason);
       }
-      
-      if ((policy.cargo_max_weight_kg !== null && policy.cargo_max_weight_kg >= filters.maxWeight) || 
-          (policy.cargo_combined_weight_kg !== null && policy.cargo_combined_weight_kg >= filters.maxWeight)) {
-        weightMatchReason = `Cargo weight limit sufficient`;
-        // Add carrier inclusion information if available
-        if (policy.weight_includes_carrier !== null) {
-          weightMatchReason += policy.weight_includes_carrier ? " (includes carrier)" : " (excludes carrier)";
+      // For cargo-only travel
+      else if (!travelMethod?.cabin && travelMethod?.cargo) {
+        if (policy.cargo_max_weight_kg !== null && policy.cargo_max_weight_kg >= petWeight) {
+          let reason = `Cargo limit: ${policy.cargo_max_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
+        } else if (policy.cargo_combined_weight_kg !== null && policy.cargo_combined_weight_kg >= petWeight) {
+          let reason = `Cargo combined limit: ${policy.cargo_combined_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
         }
-        matchReasons.push(weightMatchReason);
+      }
+      // For both or unspecified travel methods
+      else {
+        if (policy.cabin_max_weight_kg !== null && policy.cabin_max_weight_kg >= petWeight) {
+          let reason = `Cabin limit: ${policy.cabin_max_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
+        }
+        if (policy.cabin_combined_weight_kg !== null && policy.cabin_combined_weight_kg >= petWeight) {
+          let reason = `Cabin combined limit: ${policy.cabin_combined_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
+        }
+        if (policy.cargo_max_weight_kg !== null && policy.cargo_max_weight_kg >= petWeight) {
+          let reason = `Cargo limit: ${policy.cargo_max_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
+        }
+        if (policy.cargo_combined_weight_kg !== null && policy.cargo_combined_weight_kg >= petWeight) {
+          let reason = `Cargo combined limit: ${policy.cargo_combined_weight_kg}kg`;
+          if (policy.weight_includes_carrier !== null) {
+            reason += policy.weight_includes_carrier ? " (includes carrier)" : " (pet only)";
+          }
+          matchReasons.push(reason);
+        }
       }
     }
     

@@ -62,35 +62,36 @@ export function applyTravelMethodFilter(query: any, filters: PetPolicyFilterPara
 }
 
 /**
- * Apply weight filtering to the query
- * Simplified to match the user's mental model: "Show me airlines that accept my pet weighing X kg"
+ * Apply weight filtering to the query with strict travel method adherence
+ * Fixed to properly respect the selected travel method
  */
 export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): any {
-  // Only proceed if we have a max weight filter (min weight is no longer used)
+  // Only proceed if we have a max weight filter
   if (filters.maxWeight === undefined) {
     return query;
   }
   
-  console.log("Applying weight filter:", { max: filters.maxWeight });
+  console.log("Applying weight filter:", { max: filters.maxWeight, travelMethod: filters.travelMethod });
   
   const petWeight = filters.maxWeight;
-  
-  // Create a query that matches ANY weight field that accepts the pet's weight
-  // We completely ignore weightIncludesCarrier flag as requested
   let weightQuery = query;
   
   if (filters.travelMethod) {
-    // If specific travel method is selected, only check the relevant fields
-    if (filters.travelMethod.cabin && !filters.travelMethod.cargo) {
-      // For cabin-only travel: Find policies where cabin max weight >= pet's weight
+    const { cabin, cargo } = filters.travelMethod;
+    
+    // For cabin-only travel: ONLY check cabin weight fields
+    if (cabin && !cargo) {
+      console.log("Filtering weight for cabin-only travel");
       weightQuery = query.or(`cabin_max_weight_kg.gte.${petWeight},cabin_combined_weight_kg.gte.${petWeight}`);
     } 
-    else if (!filters.travelMethod.cabin && filters.travelMethod.cargo) {
-      // For cargo-only travel: Find policies where cargo max weight >= pet's weight
+    // For cargo-only travel: ONLY check cargo weight fields
+    else if (!cabin && cargo) {
+      console.log("Filtering weight for cargo-only travel");
       weightQuery = query.or(`cargo_max_weight_kg.gte.${petWeight},cargo_combined_weight_kg.gte.${petWeight}`);
     }
-    else if (filters.travelMethod.cabin && filters.travelMethod.cargo) {
-      // For both travel methods: Find policies where either cabin or cargo max weight >= pet's weight
+    // For both travel methods: Check either cabin OR cargo can accommodate the weight
+    else if (cabin && cargo) {
+      console.log("Filtering weight for both cabin and cargo travel");
       weightQuery = query.or(
         `cabin_max_weight_kg.gte.${petWeight},` +
         `cabin_combined_weight_kg.gte.${petWeight},` +
@@ -100,6 +101,7 @@ export function applyWeightFilter(query: any, filters: PetPolicyFilterParams): a
     }
   } else {
     // If travel method not specified, check all weight fields
+    console.log("Filtering weight for unspecified travel method");
     weightQuery = query.or(
       `cabin_max_weight_kg.gte.${petWeight},` +
       `cabin_combined_weight_kg.gte.${petWeight},` +
