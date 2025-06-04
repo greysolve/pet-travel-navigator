@@ -6,7 +6,7 @@ import { useAuthDialog } from "@/hooks/useAuthDialog";
 
 interface SearchButtonProps {
   isLoading: boolean;
-  onClick: (() => void) | (() => Promise<void>);
+  onClick: () => void | Promise<void>;
 }
 
 export const SearchButton = ({ isLoading, onClick }: SearchButtonProps) => {
