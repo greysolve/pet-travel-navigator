@@ -1,4 +1,3 @@
-
 import { PetPolicyFilterParams } from "./types.ts";
 import { 
   applyPetTypeFilter, 
@@ -23,7 +22,8 @@ export function applyFilters(supabase: any, filters: PetPolicyFilterParams): any
       cargo_max_weight_kg,
       cargo_combined_weight_kg,
       breed_restrictions,
-      weight_includes_carrier
+      weight_includes_carrier,
+      size_restrictions
     `);
 
   // Apply filters sequentially
@@ -46,13 +46,29 @@ export function mapResultsWithMatchReasons(data: any[] | null, filters: PetPolic
   return data.map(policy => {
     const matchReasons: string[] = [];
     
-    // Check pet type matches
-    if (filters.petTypes && filters.petTypes.length > 0 && policy.pet_types_allowed) {
-      const matchedTypes = filters.petTypes.filter(type => 
-        policy.pet_types_allowed.includes(type)
-      );
-      if (matchedTypes.length > 0) {
-        matchReasons.push(`Allows ${matchedTypes.join(', ')}`);
+    // Check pet type matches - enhanced logic for new structure
+    if (filters.petTypes && filters.petTypes.length > 0) {
+      // Check if pet_types_allowed has proper array data
+      if (policy.pet_types_allowed && Array.isArray(policy.pet_types_allowed) && policy.pet_types_allowed.length > 0) {
+        const matchedTypes = filters.petTypes.filter(filterType => 
+          policy.pet_types_allowed.some((allowedType: string) => 
+            allowedType.toLowerCase().includes(filterType.toLowerCase()) ||
+            filterType.toLowerCase().includes(allowedType.toLowerCase())
+          )
+        );
+        if (matchedTypes.length > 0) {
+          matchReasons.push(`Allows ${matchedTypes.join(', ')}`);
+        }
+      }
+      // Check if there's pet type information in size_restrictions
+      else if (policy.size_restrictions?.pet_type_notes) {
+        const notes = policy.size_restrictions.pet_type_notes.toLowerCase();
+        const matchedTypes = filters.petTypes.filter(filterType => 
+          notes.includes(filterType.toLowerCase())
+        );
+        if (matchedTypes.length > 0) {
+          matchReasons.push(`Pet policy available for ${matchedTypes.join(', ')}`);
+        }
       }
     }
     

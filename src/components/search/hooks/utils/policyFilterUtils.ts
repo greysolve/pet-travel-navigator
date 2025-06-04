@@ -1,4 +1,3 @@
-
 import { PetPolicy } from "@/components/flight-results/types";
 import { PetPolicyFilterParams, TravelMethodFilter } from "@/types/policy-filters";
 import { isPremiumContent } from "@/components/flight-results/types";
@@ -22,29 +21,43 @@ export const filterPoliciesByActiveFilters = (policies: Record<string, PetPolicy
 };
 
 /**
- * Determine if a policy should be included based on filters
+ * Determine if a policy should be included based on filters - Enhanced for new structure
  */
 export const shouldIncludePolicy = (policy: PetPolicy, activeFilters: PetPolicyFilterParams): boolean => {
-  // Apply pet type filter
+  // Apply pet type filter - Enhanced logic for new dual-field approach
   if (activeFilters.petTypes && activeFilters.petTypes.length > 0) {
-    // Skip premium content fields or empty arrays
-    if (!policy.pet_types_allowed || isPremiumContent(policy.pet_types_allowed)) {
-      return false;
+    let petMatch = false;
+    
+    // First, check if pet_types_allowed has proper array data
+    if (policy.pet_types_allowed && Array.isArray(policy.pet_types_allowed) && policy.pet_types_allowed.length > 0) {
+      // Skip premium content fields
+      if (!isPremiumContent(policy.pet_types_allowed)) {
+        petMatch = activeFilters.petTypes.some(petType => {
+          return policy.pet_types_allowed.some((allowedType: string) => {
+            const filterTypeLower = petType.toLowerCase();
+            const allowedTypeLower = allowedType.toLowerCase();
+            
+            // Support flexible matching (dog/dogs, cat/cats, etc.)
+            return allowedTypeLower === filterTypeLower ||
+                   allowedTypeLower === filterTypeLower + 's' ||
+                   allowedTypeLower + 's' === filterTypeLower ||
+                   allowedTypeLower.includes(filterTypeLower) ||
+                   filterTypeLower.includes(allowedTypeLower);
+          });
+        });
+      }
     }
     
-    // Check if the policy allows any of the selected pet types
-    const petMatch = activeFilters.petTypes.some(petType => {
-      // Check if pet type is in the allowed pet types array
-      if (!Array.isArray(policy.pet_types_allowed)) return false;
-      
-      if (petType === 'dog' && policy.pet_types_allowed.includes('dog')) return true;
-      if (petType === 'cat' && policy.pet_types_allowed.includes('cat')) return true;
-      if (petType === 'bird' && policy.pet_types_allowed.includes('bird')) return true;
-      if (petType === 'rabbit' && policy.pet_types_allowed.includes('rabbit')) return true;
-      if (petType === 'rodent' && policy.pet_types_allowed.includes('rodent')) return true;
-      if (petType === 'other' && policy.pet_types_allowed.includes('other')) return true;
-      return false;
-    });
+    // If no match in pet_types_allowed, check size_restrictions for pet_type_notes
+    if (!petMatch && policy.size_restrictions && typeof policy.size_restrictions === 'object') {
+      const sizeRestrictions = policy.size_restrictions as any;
+      if (sizeRestrictions.pet_type_notes && typeof sizeRestrictions.pet_type_notes === 'string') {
+        const notes = sizeRestrictions.pet_type_notes.toLowerCase();
+        petMatch = activeFilters.petTypes.some(petType => 
+          notes.includes(petType.toLowerCase())
+        );
+      }
+    }
     
     if (!petMatch) return false;
   }

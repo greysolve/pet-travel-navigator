@@ -1,9 +1,8 @@
-
 import { PetPolicyFilterParams } from "./types.ts";
 
 /**
- * Apply pet type filtering to the query
- * Uses proper array containment operators
+ * Apply pet type filtering to the query with enhanced flexible matching
+ * Now supports case-insensitive, flexible string matching for both singular/plural forms
  */
 export function applyPetTypeFilter(query: any, filters: PetPolicyFilterParams): any {
   if (!filters.petTypes || filters.petTypes.length === 0) {
@@ -12,15 +11,32 @@ export function applyPetTypeFilter(query: any, filters: PetPolicyFilterParams): 
   
   console.log("Applying pet types filter:", filters.petTypes);
   
-  // Create a combined filter for all pet types using proper OR syntax
+  // Create flexible filters for all pet types using enhanced OR syntax
   const petTypeFilters = filters.petTypes.map(petType => {
-    // The @> operator checks if array on left contains array on right
-    return `pet_types_allowed.cs.{${petType}}`;
-  });
+    const normalizedType = petType.toLowerCase();
+    
+    // Support both singular and plural forms, case-insensitive
+    switch (normalizedType) {
+      case 'dog':
+        return `pet_types_allowed.cs.{dog},pet_types_allowed.cs.{dogs},pet_types_allowed.ilike.%dog%,pet_types_allowed.ilike.%dogs%`;
+      case 'cat':
+        return `pet_types_allowed.cs.{cat},pet_types_allowed.cs.{cats},pet_types_allowed.ilike.%cat%,pet_types_allowed.ilike.%cats%`;
+      case 'bird':
+        return `pet_types_allowed.cs.{bird},pet_types_allowed.cs.{birds},pet_types_allowed.ilike.%bird%,pet_types_allowed.ilike.%birds%`;
+      case 'rabbit':
+        return `pet_types_allowed.cs.{rabbit},pet_types_allowed.cs.{rabbits},pet_types_allowed.ilike.%rabbit%,pet_types_allowed.ilike.%rabbits%`;
+      case 'rodent':
+        return `pet_types_allowed.cs.{rodent},pet_types_allowed.cs.{rodents},pet_types_allowed.ilike.%rodent%,pet_types_allowed.ilike.%rodents%`;
+      case 'other':
+        return `pet_types_allowed.cs.{other},pet_types_allowed.ilike.%other%`;
+      default:
+        return `pet_types_allowed.cs.{${normalizedType}},pet_types_allowed.ilike.%${normalizedType}%`;
+    }
+  }).join(',');
   
-  // Join all conditions with commas for a single OR statement
-  if (petTypeFilters.length > 0) {
-    query = query.or(petTypeFilters.join(','));
+  // Apply the filter - only match records with proper arrays (not empty)
+  if (petTypeFilters) {
+    query = query.or(petTypeFilters).not('pet_types_allowed', 'eq', '{}');
   }
   
   return query;
