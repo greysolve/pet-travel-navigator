@@ -43,10 +43,10 @@ export const useSavedSearches = (userId: string | undefined) => {
     }
 
     console.log('Received saved searches data:', data);
-    // Cast the Json type to our SavedSearchCriteria type
+    // Cast the Json type to our SavedSearchCriteria type with proper type safety
     const typedSearches = data?.map(search => ({
       ...search,
-      search_criteria: search.search_criteria as SavedSearchCriteria
+      search_criteria: search.search_criteria as unknown as SavedSearchCriteria
     })) || [];
     
     setSavedSearches(typedSearches);

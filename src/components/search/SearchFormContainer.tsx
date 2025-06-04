@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
@@ -47,6 +48,11 @@ export const SearchFormContainer = ({
   
   // Simple loading condition
   const isFormLoading = isLoading;
+
+  // Make handleSearchClick async to match the expected Promise<void> type
+  const handleSearchClick = async () => {
+    await handleSearch();
+  };
 
   return (
     <div className="relative max-w-3xl mx-auto px-4 -mt-28 z-10">
@@ -122,7 +128,7 @@ export const SearchFormContainer = ({
 
         <SearchButton
           isLoading={isFormLoading}
-          onClick={handleSearch}
+          onClick={handleSearchClick}
         />
       </div>
     </div>
