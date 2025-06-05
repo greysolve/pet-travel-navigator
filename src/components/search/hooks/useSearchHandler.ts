@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { usePolicySearch } from "./usePolicySearch";
 import { useRouteSearch } from "./useRouteSearch";
@@ -92,7 +93,7 @@ export const useSearchHandler = ({
     }
   };
 
-  // Use the policy search hook
+  // Use the policy search hook - now passes activeFilters for client-side filtering
   const { 
     handlePolicySearch: policySearchHandler,
     isLoading: isPolicySearchLoading 
@@ -105,11 +106,11 @@ export const useSearchHandler = ({
     setFlights,
     onSearchResults,
     apiProvider,
-    activeFilters,
+    activeFilters, // Pass filters for client-side filtering
     saveFlight
   });
 
-  // Use the route search hook
+  // Use the route search hook - now passes activeFilters for client-side filtering
   const {
     handleRouteSearch: routeSearchHandler,
     isLoading: isRouteSearchLoading
@@ -125,7 +126,7 @@ export const useSearchHandler = ({
     onSearchResults,
     apiProvider,
     enableFallback,
-    activeFilters,
+    activeFilters, // Pass filters for client-side filtering
     saveFlight
   });
 
