@@ -3,24 +3,13 @@ import { Loader2, ArrowUp, Infinity, Users, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SavedSearch } from "./types";
+import type { SavedSearch, SearchFormHeaderProps } from "./types";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SystemPlan } from "@/types/auth";
 import { useUser } from "@/contexts/user/UserContext";
-
-export interface SearchFormHeaderProps {
-  user: any;
-  isPetCaddie: boolean;
-  searchCount: number | undefined;
-  savedSearches: SavedSearch[];
-  passengers: number;
-  setPassengers: (value: number) => void;
-  onLoadSearch: (searchCriteria: SavedSearch['search_criteria']) => void;
-  onDeleteSearch: (e: React.MouseEvent, id: string) => void;
-  isLoading: boolean;
-}
+import { AdvancedSearchPopover } from "./AdvancedSearchPopover";
 
 export const SearchFormHeader = ({
   user,
@@ -31,7 +20,9 @@ export const SearchFormHeader = ({
   setPassengers,
   onLoadSearch,
   onDeleteSearch,
-  isLoading
+  isLoading,
+  activeFilters = {},
+  onApplyFilters
 }: SearchFormHeaderProps) => {
   const [planDetails, setPlanDetails] = useState<SystemPlan | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
@@ -87,8 +78,8 @@ export const SearchFormHeader = ({
   const isAdmin = profile?.userRole === 'site_manager';
 
   return (
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex flex-1 items-center gap-3 text-sm">
+    <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-col items-start gap-2">
         {/* Passenger Selection */}
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground flex items-center">
@@ -117,6 +108,13 @@ export const SearchFormHeader = ({
             </Button>
           </div>
         </div>
+        
+        {/* Advanced Filters */}
+        <AdvancedSearchPopover
+          onApplyFilters={onApplyFilters}
+          activeFilters={activeFilters}
+          isLoading={isLoading}
+        />
       </div>
       
       {/* Search Count / Plan Info - Only show for non-admin users */}

@@ -8,6 +8,7 @@ import { ProfileProvider } from "./contexts/profile/ProfileContext";
 import { SystemConfigProvider } from "./contexts/SystemConfigContext";
 import "./App.css";
 
+// Create a new QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -19,8 +20,8 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <React.StrictMode>
         <UserProvider>
           <ProfileProvider>
             <SystemConfigProvider>
@@ -29,8 +30,8 @@ function App() {
             </SystemConfigProvider>
           </ProfileProvider>
         </UserProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+      </React.StrictMode>
+    </QueryClientProvider>
   );
 }
 

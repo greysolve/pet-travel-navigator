@@ -41,22 +41,20 @@ export function SystemConfigProvider({ children }: { children: React.ReactNode }
   const fetchSystemConfig = async () => {
     setIsLoading(true);
     try {
-      // Fetch roles
+      // Fetch roles using the secure function
       const { data: rolesData, error: rolesError } = await supabase
-        .from('system_roles')
-        .select('*');
+        .rpc('get_system_roles');
 
       if (rolesError) throw rolesError;
 
-      // Fetch plans
+      // Fetch plans using the secure function
       const { data: plansData, error: plansError } = await supabase
-        .from('system_plans')
-        .select('*');
+        .rpc('get_system_plans');
 
       if (plansError) throw plansError;
 
-      setRoles(rolesData);
-      setPlans(plansData);
+      setRoles(rolesData || []);
+      setPlans(plansData || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching system configuration:', err);

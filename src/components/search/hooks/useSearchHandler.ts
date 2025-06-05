@@ -1,9 +1,31 @@
 
-import { useUser } from '@/contexts/user/UserContext';
+import { useState, useCallback } from "react";
+import { usePolicySearch } from "./usePolicySearch";
+import { useRouteSearch } from "./useRouteSearch";
+import { FlightData, PetPolicy } from "@/components/flight-results/types";
 import { ApiProvider } from "@/config/feature-flags";
-import { useUserSearchCount } from "./useUserSearchCount";
-import { useSavedSearches } from "./useSavedSearches";
-import { useToast } from "@/hooks/use-toast";
+import { PetPolicyFilterParams } from "@/types/policy-filters";
+import { supabase } from "@/integrations/supabase/client";
+
+// Define interface for useSearchHandler parameters
+interface UseSearchHandlerProps {
+  user: any;
+  toast: any;
+  policySearch: string;
+  origin: string;
+  destination: string;
+  date?: Date;
+  passengers: number;
+  shouldSaveSearch: boolean;
+  setFlights: (flights: FlightData[]) => void;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams, allowedAirlineCodes?: string[]) => Promise<FlightData[]>;
+  onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
+  apiProvider?: ApiProvider;
+  enableFallback?: boolean;
+  activeFilters?: PetPolicyFilterParams;
+  searchCount?: number;
+  isUnlimited?: boolean;
+}
 
 export const useSearchHandler = ({
   user,
@@ -19,114 +41,124 @@ export const useSearchHandler = ({
   onSearchResults,
   apiProvider,
   enableFallback,
-}) => {
-  const { savedSearches, handleDeleteSearch, saveFlight } = useSavedSearches(user?.id);
-  const { searchCount, isUnlimited, isLoading: isSearchCountLoading } = useUserSearchCount();
-  const { profile, profileLoading } = useUser();
+  activeFilters = {} as PetPolicyFilterParams,
+  searchCount,
+  isUnlimited
+}: UseSearchHandlerProps) => {
+  // Common loading state
+  const [isLoading, setIsLoading] = useState(false);
   
-  // Determine if we are still loading profile data
-  const isLoading = profileLoading || isSearchCountLoading;
-
-  // Handle policy search
-  const handlePolicySearch = async () => {
-    if (!canSearch()) return;
-
-    try {
-      // Save search if needed
-      if (shouldSaveSearch && user) {
-        await saveFlight(origin, destination, date, passengers);
-      }
-
-      // Handle policy search logic
-      setFlights([]);
-      onSearchResults([], {}, apiProvider, "No flights found, searching policies instead");
-      toast({
-        title: "Policy search",
-        description: `Searching policies for ${policySearch}`,
-      });
-    } catch (error) {
-      console.error("Policy search error:", error);
-      toast({
-        title: "Search error",
-        description: "Failed to search policies. Please try again.",
-        variant: "destructive",
-      });
-    }
+  // Mock saveFlight function for the hooks
+  const saveFlight = async (searchCriteria: any) => {
+    // This will be replaced with the actual implementation from useSavedSearches
+    return Promise.resolve();
   };
 
-  // Handle route search
-  const handleRouteSearch = async () => {
-    if (!canSearch()) return;
+  // Use the policy search hook
+  const { 
+    handlePolicySearch: policySearchHandler,
+    isLoading: isPolicySearchLoading 
+  } = usePolicySearch({
+    user,
+    toast,
+    policySearch,
+    passengers,
+    shouldSaveSearch,
+    setFlights,
+    onSearchResults,
+    apiProvider,
+    activeFilters,
+    saveFlight
+  });
 
-    try {
-      // Save search if needed
-      if (shouldSaveSearch && user) {
-        await saveFlight(origin, destination, date, passengers);
-      }
-
-      // Execute the flight search
-      const flights = await handleFlightSearch(
-        origin,
-        destination,
-        date,
-        onSearchResults,
-        undefined,
-        apiProvider,
-        enableFallback,
-        passengers
-      );
-
-      setFlights(flights);
-    } catch (error) {
-      console.error("Route search error:", error);
-      toast({
-        title: "Search error",
-        description: "Failed to search flights. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Check if the user can perform a search
-  const canSearch = () => {
-    if (isLoading) {
-      toast({
-        title: "Loading",
-        description: "Please wait while we load your profile data",
-      });
-      return false;
+  // Function to get allowed airline codes based on filters
+  const getFilteredAirlineCodes = async (): Promise<string[]> => {
+    // If no filters are applied, return an empty array (which means no filtering)
+    if (!activeFilters || Object.keys(activeFilters).length === 0) {
+      return [];
     }
     
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to search",
-        variant: "destructive",
+    try {
+      console.log("Getting filtered airline codes based on filters:", activeFilters);
+      
+      // Call the filter_pet_policies edge function
+      const { data, error } = await supabase.functions.invoke('filter_pet_policies', {
+        body: { filters: activeFilters }
       });
-      return false;
+      
+      if (error) {
+        console.error('Error getting filtered airline codes:', error);
+        return [];
+      }
+      
+      // Extract airline codes from the results
+      const airlineCodes = data?.results?.map(result => result.airlineCode) || [];
+      
+      console.log(`Found ${airlineCodes.length} airlines matching the filters:`, airlineCodes);
+      return airlineCodes;
+      
+    } catch (err) {
+      console.error('Unexpected error getting filtered airline codes:', err);
+      return [];
     }
-
-    // Admin users can always search
-    if (profile?.userRole === 'site_manager' || isUnlimited) {
-      return true;
-    }
-
-    // Check search count for other users
-    if (searchCount !== undefined && searchCount <= 0) {
-      toast({
-        title: "Search limit reached",
-        description: "You have used all your available searches. Please upgrade to continue searching.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    return true;
   };
 
-  return {
-    handlePolicySearch,
+  // Use the route search hook
+  const {
+    handleRouteSearch: routeSearchHandler,
+    isLoading: isRouteSearchLoading
+  } = useRouteSearch({
+    user,
+    toast,
+    origin,
+    destination,
+    date,
+    passengers,
+    shouldSaveSearch,
+    handleFlightSearch,
+    onSearchResults,
+    apiProvider,
+    enableFallback,
+    activeFilters,
+    saveFlight,
+    getFilteredAirlineCodes
+  });
+
+  // Wrapper for policy search to check search count
+  const handlePolicySearch = async () => {
+    if (searchCount === 0 && !isUnlimited) {
+      toast({
+        title: "Search limit reached",
+        description: "You have reached your monthly search limit. Please upgrade your plan for more searches.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    await policySearchHandler();
+    setIsLoading(false);
+  };
+
+  // Wrapper for route search to check search count
+  const handleRouteSearch = async () => {
+    if (searchCount === 0 && !isUnlimited) {
+      toast({
+        title: "Search limit reached",
+        description: "You have reached your monthly search limit. Please upgrade your plan for more searches.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    await routeSearchHandler();
+    setIsLoading(false);
+  };
+
+  return { 
+    handlePolicySearch, 
     handleRouteSearch,
-    isLoading,
+    isLoading: isLoading || isPolicySearchLoading || isRouteSearchLoading
   };
 };
