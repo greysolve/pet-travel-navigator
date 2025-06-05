@@ -30,11 +30,10 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     travelMethod: { cabin: true, cargo: true }
   };
   
-  // Use policy filters with default values
+  // Use policy filters - now purely client-side
   const { 
     filters: activeFilters, 
-    applyFilters, 
-    isFiltering 
+    applyFilters 
   } = usePetPolicyFilters(defaultFilters);
   
   // Determine if user is a pet caddie (has a plan) or an admin
@@ -79,8 +78,8 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     isUnlimited
   });
 
-  // Combine all loading states to determine overall loading status
-  const isLoading = isSearchLoading || isSearchHandlerLoading || isFiltering;
+  // Combine all loading states to determine overall loading status - remove isFiltering
+  const isLoading = isSearchLoading || isSearchHandlerLoading;
   
   console.log('SearchSection - Profile state:', { 
     isPetCaddie, 
@@ -105,7 +104,7 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
     setPolicySearch(""); // Clear any airline policy search when loading a route search
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (): Promise<void> => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -130,18 +129,19 @@ export const SearchSection = ({ onSearchResults }: SearchSectionProps) => {
 
   const { data: flightPetPolicies } = usePetPolicies(flights);
   
-  // Handle filter changes
+  // Handle filter changes - now purely client-side
   const handleApplyFilters = async (filters: PetPolicyFilterParams) => {
     // Ensure travelMethod has the correct structure
     const travelMethodFilter: TravelMethodFilter = filters.travelMethod || { cabin: true, cargo: true };
     
-    // Apply the filters with correct structure
+    // Apply the filters (now just state management)
     await applyFilters({
       ...filters,
       travelMethod: travelMethodFilter
     });
     
     // If a search is already active, automatically trigger a new search with filters
+    // The search handlers will now apply client-side filtering
     if (policySearch || (origin && destination && date)) {
       handleSearch();
     }

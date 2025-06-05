@@ -1,29 +1,47 @@
 
-import { User } from "@supabase/supabase-js";
-import { FlightData, PetPolicy } from "../flight-results/types";
-import { ApiProvider } from "@/config/feature-flags";
 import { PetPolicyFilterParams } from "@/types/policy-filters";
+import type { FlightData, PetPolicy } from "../flight-results/types";
+import type { ToastFunction } from "@/hooks/use-toast";
+import { ApiProvider } from "@/config/feature-flags";
+
+export interface SavedSearch {
+  id: string;
+  name: string | null;
+  search_criteria: SavedSearchCriteria;
+  created_at: string;
+  updated_at?: string;
+  user_id?: string;
+}
+
+export interface SavedSearchCriteria {
+  origin: string;
+  destination: string;
+  date?: string;
+  policySearch: string;
+  passengers?: number;
+  search_type?: 'route' | 'policy';
+  // Advanced filter parameters
+  activeFilters?: {
+    petTypes?: string[];
+    travelMethod?: {
+      cabin: boolean;
+      cargo: boolean;
+    };
+    minWeight?: number;
+    maxWeight?: number;
+    weightIncludesCarrier?: boolean;
+    includeBreedRestrictions?: boolean;
+  };
+}
 
 export interface SearchSectionProps {
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
 }
 
-export interface SavedSearch {
-  id: string;
-  search_criteria: {
-    origin?: string;
-    destination?: string;
-    date?: string;
-    policySearch?: string;
-    passengers?: number;
-  };
-  created_at: string;
-}
-
 export interface FormContainerProps {
-  user: User | null;
+  user: any;
   isPetCaddie: boolean;
-  searchCount: number | undefined;
+  searchCount: number;
   savedSearches: SavedSearch[];
   isLoading: boolean;
   policySearch: string;
@@ -34,18 +52,18 @@ export interface FormContainerProps {
   destination: string;
   setOrigin: (value: string) => void;
   setDestination: (value: string) => void;
-  date: Date | undefined;
-  setDate: (value: Date | undefined) => void;
+  date?: Date;
+  setDate: (value?: Date) => void;
   clearPolicySearch: () => void;
   shouldSaveSearch: boolean;
   setShouldSaveSearch: (value: boolean) => void;
   passengers: number;
   setPassengers: (value: number) => void;
-  toast: any;
+  toast: ToastFunction;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   setFlights: (flights: FlightData[]) => void;
-  onLoadSearch: (searchCriteria: any) => void;
-  handleDeleteSearch: (id: string) => Promise<void>;
+  onLoadSearch: (searchCriteria: SavedSearchCriteria) => void;
+  handleDeleteSearch: (searchId: string) => void;
   handleSearch: () => Promise<void>;
   onPolicySearch: () => Promise<void>;
   apiProvider?: ApiProvider;
@@ -54,46 +72,16 @@ export interface FormContainerProps {
   onApplyFilters: (filters: PetPolicyFilterParams) => void;
 }
 
-// Add missing type definitions for components
 export interface SearchFormHeaderProps {
-  user: User | null;
+  user: any;
   isPetCaddie: boolean;
-  searchCount: number | undefined;
+  searchCount: number;
   savedSearches: SavedSearch[];
   passengers: number;
   setPassengers: (value: number) => void;
-  onLoadSearch: (searchCriteria: any) => void;
-  onDeleteSearch: (e: any, id: string) => void;
+  onLoadSearch: (searchCriteria: SavedSearchCriteria) => void;
+  onDeleteSearch: (e: React.MouseEvent, searchId: string) => void;
   isLoading: boolean;
   activeFilters?: PetPolicyFilterParams;
   onApplyFilters: (filters: PetPolicyFilterParams) => void;
-}
-
-export interface AirlinePolicySearchProps {
-  policySearch: string;
-  setPolicySearch: (value: string) => void;
-  isLoading?: boolean;
-  disabled?: boolean;
-  onFocus?: () => void;
-}
-
-export interface Airport {
-  iata_code: string;
-  name: string;
-  city: string;
-  country: string;
-  search_score?: number;
-}
-
-export interface RouteSearchProps {
-  origin: string;
-  destination: string;
-  setOrigin: (value: string) => void;
-  setDestination: (value: string) => void;
-  date: Date | undefined;
-  setDate?: (value: Date | undefined) => void;
-  clearPolicySearch?: () => void;
-  isLoading?: boolean;
-  disabled?: boolean;
-  onFocus?: () => void;
 }

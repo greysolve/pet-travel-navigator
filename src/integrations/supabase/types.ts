@@ -782,29 +782,35 @@ export type Database = {
         Row: {
           airline_code: string
           created_at: string | null
+          current_row: number
           duration_ms: number | null
           error_message: string | null
           execution_id: string | null
           id: string
           status: string
+          sync_type: string | null
         }
         Insert: {
           airline_code: string
           created_at?: string | null
+          current_row?: number
           duration_ms?: number | null
           error_message?: string | null
           execution_id?: string | null
           id?: string
           status: string
+          sync_type?: string | null
         }
         Update: {
           airline_code?: string
           created_at?: string | null
+          current_row?: number
           duration_ms?: number | null
           error_message?: string | null
           execution_id?: string | null
           id?: string
           status?: string
+          sync_type?: string | null
         }
         Relationships: []
       }
@@ -1068,14 +1074,6 @@ export type Database = {
           country: string
           search_score: number
         }[]
-      }
-      unaccent: {
-        Args: { "": string }
-        Returns: string
-      }
-      unaccent_init: {
-        Args: { "": unknown }
-        Returns: unknown
       }
     }
     Enums: {

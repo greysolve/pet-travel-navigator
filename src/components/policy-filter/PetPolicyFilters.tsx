@@ -31,7 +31,6 @@ export const PetPolicyFilters = ({ onApplyFilters }: PetPolicyFiltersProps) => {
     onApplyFilters({
       petTypes: petTypes.length > 0 ? petTypes : undefined,
       travelMethod: travelMethod,
-      // No longer sending minWeight
       maxWeight: weightOptions.max,
       weightIncludesCarrier: weightOptions.includeCarrier,
       includeBreedRestrictions
@@ -91,7 +90,8 @@ export const PetPolicyFilters = ({ onApplyFilters }: PetPolicyFiltersProps) => {
             />
             <WeightFilter 
               options={weightOptions} 
-              onChange={setWeightOptions} 
+              onChange={setWeightOptions}
+              travelMethod={travelMethod}
             />
             <BreedRestrictionsFilter 
               includeBreedRestrictions={includeBreedRestrictions} 

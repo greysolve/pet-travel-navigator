@@ -4,10 +4,9 @@ import {
   PetTypeFilter, 
   TravelMethodFilter, 
   WeightFilterOptions, 
-  PetPolicyFilterParams 
+  PetPolicyFilterParams,
+  FilteredPolicyResult
 } from '@/types/policy-filters';
-import { supabase } from '@/integrations/supabase/client';
-import { FilteredPolicyResult } from '@/types/policy-filters';
 
 const DEFAULT_FILTERS: PetPolicyFilterParams = {
   petTypes: undefined,
@@ -23,9 +22,6 @@ const STORAGE_KEY = 'pet_policy_filters';
 export function usePetPolicyFilters(initialFilters: PetPolicyFilterParams = DEFAULT_FILTERS) {
   const [filters, setFilters] = useState<PetPolicyFilterParams>(initialFilters);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isFiltering, setIsFiltering] = useState(false);
-  const [filteredPolicies, setFilteredPolicies] = useState<FilteredPolicyResult[]>([]);
-  const [filterError, setFilterError] = useState<string | null>(null);
 
   // Load saved filters from localStorage on component mount
   useEffect(() => {
@@ -67,56 +63,24 @@ export function usePetPolicyFilters(initialFilters: PetPolicyFilterParams = DEFA
     }
   }, [filters, isLoaded]);
 
-  // Apply filters and fetch filtered policies
+  // Apply filters - now purely client-side state management
   const applyFilters = useCallback(async (filterParams: PetPolicyFilterParams) => {
-    setIsFiltering(true);
-    setFilterError(null);
-    
-    try {
-      // Update local filters state
-      setFilters(filterParams);
-      
-      // Make API call to edge function
-      const { data, error } = await supabase.functions.invoke('filter_pet_policies', {
-        body: { filters: filterParams }
-      });
-      
-      if (error) {
-        console.error('Error filtering pet policies:', error);
-        setFilterError(error.message || 'Error filtering policies');
-        setFilteredPolicies([]);
-        return [];
-      }
-      
-      if (data && data.results) {
-        setFilteredPolicies(data.results);
-        return data.results;
-      }
-      
-      setFilteredPolicies([]);
-      return [];
-    } catch (err: any) {
-      console.error('Unexpected error filtering policies:', err);
-      setFilterError('Unexpected error occurred while filtering');
-      setFilteredPolicies([]);
-      return [];
-    } finally {
-      setIsFiltering(false);
-    }
+    console.log('Applying filters (client-side only):', filterParams);
+    setFilters(filterParams);
+    return []; // Return empty array since this is now just state management
   }, []);
 
   // Reset all filters to default values
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
-    setFilteredPolicies([]);
   }, []);
 
   return {
     filters,
     isLoaded,
-    isFiltering,
-    filteredPolicies,
-    filterError,
+    isFiltering: false, // No longer doing server-side filtering
+    filteredPolicies: [], // No longer maintaining server-side filtered policies
+    filterError: null, // No server-side errors
     applyFilters,
     resetFilters
   };
