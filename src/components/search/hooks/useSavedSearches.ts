@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/user/UserContext";
-import type { SavedSearch } from "../types";
+import type { SavedSearch, SavedSearchCriteria } from "../types";
+import { PetPolicyFilterParams } from "@/types/policy-filters";
+import { useSaveSearch } from "./useSaveSearch";
 
 export const useSavedSearches = (userId: string | undefined) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
@@ -41,12 +43,13 @@ export const useSavedSearches = (userId: string | undefined) => {
     }
 
     console.log('Received saved searches data:', data);
-    setSavedSearches(data.map(item => ({
-      id: item.id,
-      name: item.name,
-      created_at: item.created_at,
-      search_criteria: item.search_criteria as SavedSearch['search_criteria']
-    })));
+    // Cast the Json type to our SavedSearchCriteria type with proper type safety
+    const typedSearches = data?.map(search => ({
+      ...search,
+      search_criteria: search.search_criteria as unknown as SavedSearchCriteria
+    })) || [];
+    
+    setSavedSearches(typedSearches);
   };
 
   const handleDeleteSearch = async (searchId: string) => {
@@ -77,16 +80,31 @@ export const useSavedSearches = (userId: string | undefined) => {
     }
   };
 
-  const saveFlight = async (origin: string, destination: string, date?: Date, passengers: number = 1) => {
-    if (!userId) return;
+  // Use the new save search hook
+  const { saveSearch, isSaving } = useSaveSearch({
+    userId,
+    onSaveComplete: loadSavedSearches
+  });
+
+  const saveFlight = async (
+    searchCriteria: {
+      origin: string;
+      destination: string;
+      date?: Date;
+      passengers: number;
+      search_type?: 'route' | 'policy';
+      policySearch?: string;
+    },
+    activeFilters?: PetPolicyFilterParams
+  ) => {
+    if (!userId) return false;
 
     try {
       const searchData = {
         user_id: userId,
-        origin,
-        destination,
-        search_date: date ? date.toISOString().split('T')[0] : null,
-        // Optional: Add an entry for passengers
+        origin: searchCriteria.origin,
+        destination: searchCriteria.destination,
+        search_date: searchCriteria.date ? searchCriteria.date.toISOString().split('T')[0] : null,
       };
 
       // Save to route_searches table for search count tracking
@@ -97,6 +115,21 @@ export const useSavedSearches = (userId: string | undefined) => {
       if (error) {
         console.error("Error saving search:", error);
         throw error;
+      }
+
+      // Also save as a named search if this is a full save operation
+      if (searchCriteria.search_type) {
+        await saveSearch(
+          {
+            origin: searchCriteria.origin,
+            destination: searchCriteria.destination,
+            date: searchCriteria.date,
+            policySearch: searchCriteria.policySearch || '',
+            passengers: searchCriteria.passengers,
+            search_type: searchCriteria.search_type
+          },
+          activeFilters
+        );
       }
 
       return true;
@@ -110,6 +143,8 @@ export const useSavedSearches = (userId: string | undefined) => {
     savedSearches,
     handleDeleteSearch,
     loadSavedSearches,
-    saveFlight
+    saveFlight,
+    saveSearch,
+    isSaving
   };
 };

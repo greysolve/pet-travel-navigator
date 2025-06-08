@@ -31,6 +31,7 @@ additional_redirect_urls = ["https://localhost:3000", "http://localhost:5173"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
+check_for_leaked_passwords = true
 
 [auth.email]
 enable_signup = true

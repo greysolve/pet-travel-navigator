@@ -60,6 +60,7 @@ export type SizeRestrictions = {
   max_weight_cabin?: string;
   max_weight_cargo?: string;
   carrier_dimensions_cabin?: string;
+  pet_type_notes?: string; // Added to support migrated pet type information
 };
 
 export type Fees = {
