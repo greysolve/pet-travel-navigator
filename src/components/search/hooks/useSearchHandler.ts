@@ -5,6 +5,7 @@ import { useRouteSearch } from "./useRouteSearch";
 import { FlightData, PetPolicy } from "@/components/flight-results/types";
 import { ApiProvider } from "@/config/feature-flags";
 import { PetPolicyFilterParams } from "@/types/policy-filters";
+import { useSaveSearch } from "./useSaveSearch";
 import { supabase } from "@/integrations/supabase/client";
 
 // Define interface for useSearchHandler parameters
@@ -18,7 +19,7 @@ interface UseSearchHandlerProps {
   passengers: number;
   shouldSaveSearch: boolean;
   setFlights: (flights: FlightData[]) => void;
-  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams, allowedAirlineCodes?: string[]) => Promise<FlightData[]>;
+  handleFlightSearch: (origin: string, destination: string, date: Date, policySearch: string, apiProvider?: ApiProvider, activeFilters?: PetPolicyFilterParams) => Promise<FlightData[]>;
   onSearchResults: (flights: FlightData[], policies?: Record<string, PetPolicy>, provider?: string, apiError?: string) => void;
   apiProvider?: ApiProvider;
   enableFallback?: boolean;
@@ -48,13 +49,51 @@ export const useSearchHandler = ({
   // Common loading state
   const [isLoading, setIsLoading] = useState(false);
   
-  // Mock saveFlight function for the hooks
+  // Use the save search hook
+  const { saveSearch } = useSaveSearch({
+    userId: user?.id,
+  });
+
+  // Enhanced saveFlight function that includes advanced filters
   const saveFlight = async (searchCriteria: any) => {
-    // This will be replaced with the actual implementation from useSavedSearches
-    return Promise.resolve();
+    if (!shouldSaveSearch || !user?.id) return Promise.resolve();
+
+    try {
+      // Save to route_searches for search count tracking
+      const { error: routeError } = await supabase
+        .from('route_searches')
+        .insert({
+          user_id: user.id,
+          origin: searchCriteria.origin,
+          destination: searchCriteria.destination,
+          search_date: searchCriteria.date,
+        });
+
+      if (routeError) {
+        console.error("Error saving route search:", routeError);
+      }
+
+      // Also save as a named search with filters
+      await saveSearch(
+        {
+          origin: searchCriteria.origin,
+          destination: searchCriteria.destination,
+          date: searchCriteria.date ? new Date(searchCriteria.date) : undefined,
+          policySearch: searchCriteria.search_type === 'policy' ? policySearch : '',
+          passengers: searchCriteria.passengers || passengers,
+          search_type: searchCriteria.search_type
+        },
+        activeFilters
+      );
+
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error in saveFlight:", error);
+      return Promise.resolve();
+    }
   };
 
-  // Use the policy search hook
+  // Use the policy search hook - now passes activeFilters for client-side filtering
   const { 
     handlePolicySearch: policySearchHandler,
     isLoading: isPolicySearchLoading 
@@ -67,43 +106,11 @@ export const useSearchHandler = ({
     setFlights,
     onSearchResults,
     apiProvider,
-    activeFilters,
+    activeFilters, // Pass filters for client-side filtering
     saveFlight
   });
 
-  // Function to get allowed airline codes based on filters
-  const getFilteredAirlineCodes = async (): Promise<string[]> => {
-    // If no filters are applied, return an empty array (which means no filtering)
-    if (!activeFilters || Object.keys(activeFilters).length === 0) {
-      return [];
-    }
-    
-    try {
-      console.log("Getting filtered airline codes based on filters:", activeFilters);
-      
-      // Call the filter_pet_policies edge function
-      const { data, error } = await supabase.functions.invoke('filter_pet_policies', {
-        body: { filters: activeFilters }
-      });
-      
-      if (error) {
-        console.error('Error getting filtered airline codes:', error);
-        return [];
-      }
-      
-      // Extract airline codes from the results
-      const airlineCodes = data?.results?.map(result => result.airlineCode) || [];
-      
-      console.log(`Found ${airlineCodes.length} airlines matching the filters:`, airlineCodes);
-      return airlineCodes;
-      
-    } catch (err) {
-      console.error('Unexpected error getting filtered airline codes:', err);
-      return [];
-    }
-  };
-
-  // Use the route search hook
+  // Use the route search hook - now passes activeFilters for client-side filtering
   const {
     handleRouteSearch: routeSearchHandler,
     isLoading: isRouteSearchLoading
@@ -119,12 +126,11 @@ export const useSearchHandler = ({
     onSearchResults,
     apiProvider,
     enableFallback,
-    activeFilters,
-    saveFlight,
-    getFilteredAirlineCodes
+    activeFilters, // Pass filters for client-side filtering
+    saveFlight
   });
 
-  // Wrapper for policy search to check search count
+  // Wrapper for policy search to check search count and save if needed
   const handlePolicySearch = async () => {
     if (searchCount === 0 && !isUnlimited) {
       toast({
@@ -140,7 +146,7 @@ export const useSearchHandler = ({
     setIsLoading(false);
   };
 
-  // Wrapper for route search to check search count
+  // Wrapper for route search to check search count and save if needed
   const handleRouteSearch = async () => {
     if (searchCount === 0 && !isUnlimited) {
       toast({

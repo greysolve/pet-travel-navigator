@@ -5,6 +5,9 @@ import { AuthError } from "@supabase/supabase-js";
 
 export function useAuthOperations() {
   const signIn = async () => {
+    // Clean up any existing auth data to prevent conflicts
+    clearAuthData();
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -26,6 +29,9 @@ export function useAuthOperations() {
   const signInWithEmail = async (email: string, password: string): Promise<{ error?: AuthError }> => {
     try {
       console.log('Starting email sign-in for:', email);
+      
+      // Clean up any existing auth data to prevent conflicts
+      clearAuthData();
       
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -126,6 +132,9 @@ export function useAuthOperations() {
     try {
       console.log('Starting sign-up for:', email);
       
+      // Clean up any existing auth data to prevent conflicts
+      clearAuthData();
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -160,6 +169,9 @@ export function useAuthOperations() {
       console.log('Starting sign-out process');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Clean up any remaining auth data
+      clearAuthData();
       
       console.log('Auth data cleared');
     } catch (error: any) {

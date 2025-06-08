@@ -90,11 +90,21 @@ const AuthDialog = () => {
       setShowAuthDialog(false);
     } catch (error: any) {
       console.error("Sign up error:", error);
-      toast({
-        title: "Error signing up",
-        description: error.message,
-        variant: "destructive",
-      });
+      
+      // Handle specific error for leaked passwords
+      if (error.message && error.message.includes("been leaked")) {
+        toast({
+          title: "Password Security Issue",
+          description: "This password has appeared in a data breach and cannot be used. Please choose a different, secure password.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error signing up",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

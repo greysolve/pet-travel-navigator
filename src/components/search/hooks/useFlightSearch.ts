@@ -17,7 +17,6 @@ export const useFlightSearch = () => {
    * @param policySearch Optional policy search parameter
    * @param apiProvider Optional API provider to use
    * @param activeFilters Optional policy filters to apply to results
-   * @param allowedAirlineCodes Optional list of airline codes to filter results by
    * @returns Promise containing flight data
    */
   const handleFlightSearch = async (
@@ -26,13 +25,13 @@ export const useFlightSearch = () => {
     date: Date,
     policySearch: string = "",
     apiProvider?: ApiProvider,
-    activeFilters?: PetPolicyFilterParams,
-    allowedAirlineCodes?: string[]
+    activeFilters?: PetPolicyFilterParams
   ): Promise<FlightData[]> => {
     setIsSearchLoading(true);
 
     try {
       console.log(`Searching for flights from ${origin} to ${destination} on ${date}`);
+      console.log("Active filters:", activeFilters);
       
       // Format search parameters
       const formattedDate = date.toISOString().split('T')[0];
@@ -53,8 +52,11 @@ export const useFlightSearch = () => {
       }
       
       if (!data || !data.flights || data.flights.length === 0) {
+        console.log("No flights found");
         return [];
       }
+      
+      console.log(`Found ${data.flights.length} flights before filtering`);
       
       // Transform the flight data while preserving the segments array
       const transformedFlights = data.flights.map((flight: any) => ({
@@ -76,56 +78,44 @@ export const useFlightSearch = () => {
         // Preserve totalDuration which might be used for calculations
         totalDuration: flight.totalDuration || 0,
       }));
-      
-      // Apply airline code filtering if a list of allowed airline codes is provided
-      if (allowedAirlineCodes && allowedAirlineCodes.length > 0) {
-        console.log(`Filtering ${transformedFlights.length} flights to only include airlines: ${allowedAirlineCodes.join(', ')}`);
-        
-        const filteredFlights = transformedFlights.filter(flight => {
-          // First check the main flight's airline code
-          const mainAirlineMatch = allowedAirlineCodes.includes(flight.airline_code);
-          if (mainAirlineMatch) return true;
-          
-          // If no match on main airline, check all segments if they exist
-          if (flight.segments && flight.segments.length > 0) {
-            // For multi-segment flights, we need to check each segment's carrier
-            // The flight is included if ANY segment matches an allowed airline
-            return flight.segments.some((segment: any) => {
-              const segmentCarrier = segment.carrierFsCode || segment.carrierCode;
-              return allowedAirlineCodes.includes(segmentCarrier);
-            });
-          }
-          
-          // If we got here, no matches were found
-          return false;
-        });
-        
-        console.log(`After airline filtering: ${filteredFlights.length} flights match the criteria`);
-        return filteredFlights;
-      }
 
-      // If no filters are applied or no airline filtering is requested, return all flights
-      if (!activeFilters || Object.keys(activeFilters).length === 0 || !allowedAirlineCodes) {
+      // Apply client-side filtering if activeFilters are provided
+      if (!activeFilters || Object.keys(activeFilters).length === 0) {
+        console.log("No active filters, returning all flights");
         return transformedFlights;
       }
       
-      // If we get here, we have activeFilters but no allowedAirlineCodes
-      // This is the original filtering logic, kept for backward compatibility
-      console.log("Filtering flights with active filters:", activeFilters);
+      console.log("Applying client-side filtering with active filters:", activeFilters);
       
-      // First, get pet policies for each airline in the results
-      const airlineCodes = new Set<string>(
-        transformedFlights.flatMap(flight => 
-          flight.segments?.map(segment => segment.carrierFsCode as string) || []
-        )
-      );
+      // Extract all unique airline codes from flight segments
+      const airlineCodes = new Set<string>();
+      
+      transformedFlights.forEach(flight => {
+        // Add the main airline code
+        if (flight.airline_code) {
+          airlineCodes.add(flight.airline_code);
+        }
+        
+        // Add codes from segments (for connections)
+        if (flight.segments && Array.isArray(flight.segments)) {
+          flight.segments.forEach(segment => {
+            if (segment.carrierFsCode) {
+              airlineCodes.add(segment.carrierFsCode);
+            }
+          });
+        }
+      });
+      
+      console.log("Airline codes found in flights:", Array.from(airlineCodes));
       
       if (airlineCodes.size === 0) {
-        console.log("No airline codes found in flight segments");
+        console.log("No airline codes found in flight data");
         return transformedFlights; // Return all flights if no airline codes found
       }
       
-      // Fetch pet policies for the airlines - fix the type casting
+      // Fetch pet policies for the airlines
+      console.log("Fetching pet policies for airlines:", Array.from(airlineCodes));
+      
       const { data: policiesData, error: policiesError } = await supabase
         .from('pet_policies')
         .select(`
@@ -133,20 +123,25 @@ export const useFlightSearch = () => {
           airlines!inner(id, iata_code),
           pet_types_allowed,
           cabin_max_weight_kg,
+          cabin_combined_weight_kg,
           cabin_linear_dimensions_cm,
           cargo_max_weight_kg,
+          cargo_combined_weight_kg,
           cargo_linear_dimensions_cm,
-          breed_restrictions
+          breed_restrictions,
+          weight_includes_carrier
         `)
-        .in('airlines.iata_code', Array.from(airlineCodes) as string[]);
+        .in('airlines.iata_code', Array.from(airlineCodes));
       
       if (policiesError) {
         console.error("Error fetching pet policies:", policiesError);
         return transformedFlights; // Return all flights if there's an error
       }
       
+      console.log(`Found ${policiesData?.length || 0} pet policies`);
+      
       if (!policiesData || policiesData.length === 0) {
-        console.log("No pet policies found");
+        console.log("No pet policies found for any airlines");
         return transformedFlights; // Return all flights if no policies found
       }
       
@@ -154,28 +149,75 @@ export const useFlightSearch = () => {
       const policyMap = policiesData.reduce((map: Record<string, any>, policy: any) => {
         if (policy.airlines && policy.airlines.iata_code) {
           map[policy.airlines.iata_code] = policy;
+          console.log(`Policy found for airline ${policy.airlines.iata_code}:`, {
+            cabin_max_weight: policy.cabin_max_weight_kg,
+            cargo_max_weight: policy.cargo_max_weight_kg,
+            pet_types: policy.pet_types_allowed
+          });
         }
         return map;
       }, {});
       
+      console.log("Policy map created with airlines:", Object.keys(policyMap));
+      
       // Filter flights based on whether their airlines match the filter criteria
-      return transformedFlights.filter(flight => {
-        // Check if all segments match the filter criteria
-        // For multiple segments, all must match (e.g., all connection flights)
-        const allSegmentsMatch = !flight.segments || flight.segments.length === 0 || 
-          flight.segments.every(segment => {
+      const filteredFlights = transformedFlights.filter(flight => {
+        // For flights with segments, ALL segments must match the criteria
+        if (flight.segments && Array.isArray(flight.segments) && flight.segments.length > 0) {
+          const allSegmentsMatch = flight.segments.every(segment => {
             const airlineCode = segment.carrierFsCode;
             const policy = policyMap[airlineCode];
             
-            // If there's no policy for this airline, we can't filter it
-            if (!policy) return true;
+            console.log(`Checking segment with airline ${airlineCode}:`, {
+              hasPolicy: !!policy,
+              policyDetails: policy ? {
+                cabin_max_weight: policy.cabin_max_weight_kg,
+                cargo_max_weight: policy.cargo_max_weight_kg
+              } : null
+            });
+            
+            // If there's no policy for this airline, exclude it when filters are active
+            if (!policy) {
+              console.log(`❌ No policy found for airline ${airlineCode}, excluding flight`);
+              return false;
+            }
             
             // Check if the policy matches the filter criteria
-            return shouldIncludePolicy(policy, activeFilters);
+            const matches = shouldIncludePolicy(policy, activeFilters);
+            console.log(`${matches ? '✅' : '❌'} Policy for ${airlineCode} ${matches ? 'matches' : 'does not match'} filters`);
+            return matches;
           });
-        
-        return allSegmentsMatch;
+          
+          return allSegmentsMatch;
+        } else {
+          // For flights without segments, check the main airline
+          const airlineCode = flight.airline_code;
+          const policy = policyMap[airlineCode];
+          
+          console.log(`Checking flight with main airline ${airlineCode}:`, {
+            hasPolicy: !!policy,
+            policyDetails: policy ? {
+              cabin_max_weight: policy.cabin_max_weight_kg,
+              cargo_max_weight: policy.cargo_max_weight_kg
+            } : null
+          });
+          
+          // If there's no policy for this airline, exclude it when filters are active
+          if (!policy) {
+            console.log(`❌ No policy found for main airline ${airlineCode}, excluding flight`);
+            return false;
+          }
+          
+          // Check if the policy matches the filter criteria
+          const matches = shouldIncludePolicy(policy, activeFilters);
+          console.log(`${matches ? '✅' : '❌'} Policy for ${airlineCode} ${matches ? 'matches' : 'does not match'} filters`);
+          return matches;
+        }
       });
+      
+      console.log(`Filtering complete: ${filteredFlights.length} flights remain out of ${transformedFlights.length} original flights`);
+      
+      return filteredFlights;
     } catch (error: any) {
       console.error("Error in flight search:", error);
       throw error;
