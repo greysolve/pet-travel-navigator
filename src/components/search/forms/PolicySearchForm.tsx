@@ -27,7 +27,7 @@ export const PolicySearchForm = ({
     <div className="space-y-4">
       <div className="flex flex-col">
         <label className="text-lg font-semibold text-[#1a365d] mb-2 font-serif flex items-center gap-2">
-          ✈️ Preferred Airlines (Optional)
+          ✈️ Search Airline Policies Only
         </label>
         <div className="relative">
           <Input
