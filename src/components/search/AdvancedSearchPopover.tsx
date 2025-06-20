@@ -141,18 +141,6 @@ export const AdvancedSearchPopover = ({
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="emotional-support"
-              checked={localFilters.includeBreedRestrictions === false}
-              onCheckedChange={(checked) => 
-                handleFilterChange("includeBreedRestrictions", checked ? false : undefined)
-              }
-            />
-            <Label htmlFor="emotional-support" className="text-[#8b0000]">
-              📋 ESA/Service Animal Documentation Required
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
               id="breed-restrictions"
               checked={localFilters.includeBreedRestrictions === true}
               onCheckedChange={(checked) => 
