@@ -74,6 +74,17 @@ export const SearchFormHeader = ({
   const hasUnlimitedSearches = searchCount === -1;
   const isAdmin = profile?.userRole === 'site_manager';
 
+  // Get the display name for the premium badge
+  const getDisplayName = () => {
+    if (profile?.full_name) {
+      return profile.full_name.split(' ')[0].toUpperCase();
+    }
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name.split(' ')[0].toUpperCase();
+    }
+    return user?.email?.split('@')[0]?.toUpperCase() || 'YOUR';
+  };
+
   return (
     <div className="space-y-5">
       {/* First Row: Passengers and Saved Searches */}
@@ -130,7 +141,7 @@ export const SearchFormHeader = ({
               👑 Premium Filters
             </h3>
             <span className="bg-[#8b0000] text-white px-3 py-1 rounded-full text-sm font-bold">
-              {user?.user_metadata?.full_name?.toUpperCase() || user?.email?.split('@')[0]?.toUpperCase() || 'YOUR'}'S APPROVED
+              {getDisplayName()}'S APPROVED
             </span>
           </div>
           

@@ -49,10 +49,13 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="small-dog"
-              checked={localFilters.petType === "small-dog"}
-              onCheckedChange={(checked) => 
-                handleFilterChange("petType", checked ? "small-dog" : undefined)
-              }
+              checked={localFilters.petTypes?.includes('dog')}
+              onCheckedChange={(checked) => {
+                const petTypes = checked 
+                  ? [...(localFilters.petTypes || []), 'dog']
+                  : (localFilters.petTypes || []).filter(type => type !== 'dog');
+                handleFilterChange("petTypes", petTypes.length > 0 ? petTypes : undefined);
+              }}
             />
             <Label htmlFor="small-dog" className="text-[#1a365d]">
               Small Dogs (Under 15lbs/7kg) - Cabin Only
@@ -61,10 +64,13 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="cat"
-              checked={localFilters.petType === "cat"}
-              onCheckedChange={(checked) => 
-                handleFilterChange("petType", checked ? "cat" : undefined)
-              }
+              checked={localFilters.petTypes?.includes('cat')}
+              onCheckedChange={(checked) => {
+                const petTypes = checked 
+                  ? [...(localFilters.petTypes || []), 'cat']
+                  : (localFilters.petTypes || []).filter(type => type !== 'cat');
+                handleFilterChange("petTypes", petTypes.length > 0 ? petTypes : undefined);
+              }}
             />
             <Label htmlFor="cat" className="text-[#1a365d]">
               Cats (Cabin-Friendly Sizes)
@@ -73,10 +79,13 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="other-pet"
-              checked={localFilters.petType === "other"}
-              onCheckedChange={(checked) => 
-                handleFilterChange("petType", checked ? "other" : undefined)
-              }
+              checked={localFilters.petTypes?.includes('other')}
+              onCheckedChange={(checked) => {
+                const petTypes = checked 
+                  ? [...(localFilters.petTypes || []), 'other']
+                  : (localFilters.petTypes || []).filter(type => type !== 'other');
+                handleFilterChange("petTypes", petTypes.length > 0 ? petTypes : undefined);
+              }}
             />
             <Label htmlFor="other-pet" className="text-[#8b0000]">
               ⚠️ Large Dogs (Cargo/Special Handling)
@@ -92,10 +101,15 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="cabin"
-              checked={localFilters.travelMethod === "cabin"}
-              onCheckedChange={(checked) => 
-                handleFilterChange("travelMethod", checked ? "cabin" : undefined)
-              }
+              checked={localFilters.travelMethod?.cabin || false}
+              onCheckedChange={(checked) => {
+                const travelMethod = {
+                  ...localFilters.travelMethod,
+                  cabin: checked || false,
+                  cargo: localFilters.travelMethod?.cargo || false
+                };
+                handleFilterChange("travelMethod", travelMethod);
+              }}
             />
             <Label htmlFor="cabin" className="text-[#1a365d]">
               Cabin Travel (Recommended)
@@ -104,10 +118,15 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="cargo"
-              checked={localFilters.travelMethod === "cargo"}
-              onCheckedChange={(checked) => 
-                handleFilterChange("travelMethod", checked ? "cargo" : undefined)
-              }
+              checked={localFilters.travelMethod?.cargo || false}
+              onCheckedChange={(checked) => {
+                const travelMethod = {
+                  ...localFilters.travelMethod,
+                  cabin: localFilters.travelMethod?.cabin || false,
+                  cargo: checked || false
+                };
+                handleFilterChange("travelMethod", travelMethod);
+              }}
             />
             <Label htmlFor="cargo" className="text-[#8b0000]">
               ⚠️ Cargo Travel (Not Recommended)
@@ -123,9 +142,9 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="emotional-support"
-              checked={localFilters.requiresDocumentation === true}
+              checked={localFilters.includeBreedRestrictions === false}
               onCheckedChange={(checked) => 
-                handleFilterChange("requiresDocumentation", checked || undefined)
+                handleFilterChange("includeBreedRestrictions", checked ? false : undefined)
               }
             />
             <Label htmlFor="emotional-support" className="text-[#8b0000]">
@@ -135,9 +154,9 @@ export const AdvancedSearchPopover = ({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="breed-restrictions"
-              checked={localFilters.hasBreedRestrictions === false}
+              checked={localFilters.includeBreedRestrictions === true}
               onCheckedChange={(checked) => 
-                handleFilterChange("hasBreedRestrictions", checked ? false : undefined)
+                handleFilterChange("includeBreedRestrictions", checked ? true : undefined)
               }
             />
             <Label htmlFor="breed-restrictions" className="text-[#1a365d]">
