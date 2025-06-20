@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Dialog, 
@@ -69,6 +70,73 @@ export const PetProfileForm = ({
     // Reset edit mode when form is opened/closed
     setIsEditMode(false);
   }, [initialData, isOpen]);
+
+  // Create current documents object from pet profile data
+  const getCurrentDocuments = () => {
+    if (!initialData) return {};
+    
+    const documents: Record<string, string> = {};
+    
+    // Map database fields to document types
+    if (initialData.health_certificate_url) {
+      documents.health_certificate = initialData.health_certificate_url;
+    }
+    if (initialData.international_health_certificate_url) {
+      documents.international_health_certificate = initialData.international_health_certificate_url;
+    }
+    if (initialData.microchip_documentation_url) {
+      documents.microchip_documentation = initialData.microchip_documentation_url;
+    }
+    if (initialData.pet_passport_url) {
+      documents.pet_passport = initialData.pet_passport_url;
+    }
+    if (initialData.rabies_vaccination_url) {
+      documents.rabies_vaccination = initialData.rabies_vaccination_url;
+    }
+    if (initialData.vaccinations_url) {
+      documents.vaccinations = initialData.vaccinations_url;
+    }
+    if (initialData.usda_endorsement_url) {
+      documents.usda_endorsement = initialData.usda_endorsement_url;
+    }
+    if (initialData.veterinary_certificate_url) {
+      documents.veterinary_certificate = initialData.veterinary_certificate_url;
+    }
+    
+    return documents;
+  };
+
+  const handleDocumentDelete = async (documentType: string) => {
+    if (!initialData?.id) return;
+
+    try {
+      const updateData = {
+        [`${documentType}_url`]: null
+      };
+
+      const { error } = await supabase
+        .from('pet_profiles')
+        .update(updateData)
+        .eq('id', initialData.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Document deleted successfully",
+      });
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ['pet-profiles'] });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete document. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,14 +265,15 @@ export const PetProfileForm = ({
               readOnly={!isEditMode && viewMode}
             />
 
-            {(!viewMode || isEditMode) && (
-              <PetDocumentUpload
-                documentTypes={documentTypes}
-                selectedDocumentType={selectedDocumentType}
-                onDocumentTypeChange={setSelectedDocumentType}
-                onFileChange={(e) => console.log('File selected:', e.target.files?.[0])}
-              />
-            )}
+            <PetDocumentUpload
+              documentTypes={documentTypes}
+              selectedDocumentType={selectedDocumentType}
+              onDocumentTypeChange={setSelectedDocumentType}
+              onFileChange={(e) => console.log('File selected:', e.target.files?.[0])}
+              currentDocuments={getCurrentDocuments()}
+              onDocumentDelete={handleDocumentDelete}
+              readOnly={!isEditMode && viewMode}
+            />
           </form>
         </div>
 

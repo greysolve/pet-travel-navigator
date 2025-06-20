@@ -1,3 +1,4 @@
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +19,7 @@ interface PetDocumentUploadProps {
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   currentDocuments?: Record<string, string>;
   onDocumentDelete?: (documentType: string) => void;
+  readOnly?: boolean;
 }
 
 export const PetDocumentUpload = ({
@@ -27,6 +29,7 @@ export const PetDocumentUpload = ({
   onFileChange,
   currentDocuments = {},
   onDocumentDelete,
+  readOnly = false,
 }: PetDocumentUploadProps) => {
   const { toast } = useToast();
 
@@ -72,53 +75,75 @@ export const PetDocumentUpload = ({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="documentType">Document Type</Label>
-        <Select value={selectedDocumentType} onValueChange={onDocumentTypeChange}>
-          <SelectTrigger className="border-gray-400">
-            <SelectValue placeholder="Select document type" />
-          </SelectTrigger>
-          <SelectContent>
-            {documentTypes.map((docType) => (
-              <SelectItem key={docType.value} value={docType.value}>
-                {docType.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {!readOnly && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="documentType">Document Type</Label>
+            <Select value={selectedDocumentType} onValueChange={onDocumentTypeChange}>
+              <SelectTrigger className="border-gray-400">
+                <SelectValue placeholder="Select document type" />
+              </SelectTrigger>
+              <SelectContent>
+                {documentTypes.map((docType) => (
+                  <SelectItem key={docType.value} value={docType.value}>
+                    {docType.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="file">Upload Document</Label>
-        <Input
-          id="file"
-          type="file"
-          onChange={onFileChange}
-          className="border-gray-400"
-          accept=".pdf,.jpg,.jpeg,.png"
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="file">Upload Document</Label>
+            <Input
+              id="file"
+              type="file"
+              onChange={onFileChange}
+              className="border-gray-400"
+              accept=".pdf,.jpg,.jpeg,.png"
+            />
+          </div>
+        </>
+      )}
 
       {Object.entries(currentDocuments).length > 0 && (
         <div className="space-y-2">
-          <Label>Current Documents</Label>
+          <Label>
+            {readOnly ? 'Documents' : 'Current Documents'}
+          </Label>
           <div className="space-y-2">
             {Object.entries(currentDocuments).map(([type, url]) => (
               <div key={type} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                 <span className="text-sm">
                   {documentTypes.find(dt => dt.value === type)?.label || type}
                 </span>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteDocument(type)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    View
+                  </a>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteDocument(type)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {Object.entries(currentDocuments).length === 0 && readOnly && (
+        <div className="text-sm text-gray-500 italic">
+          No documents uploaded yet.
         </div>
       )}
     </div>
