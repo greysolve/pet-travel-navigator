@@ -118,11 +118,6 @@ export const SearchFormHeader = ({
             savedSearches={savedSearches}
             onLoadSearch={onLoadSearch}
             onDeleteSearch={onDeleteSearch}
-            customTrigger={
-              <Button className="w-full bg-white border-2 border-[#d4af37] text-[#1a365d] font-bold py-4 rounded-lg hover:bg-[#f7f1e8] transition-all duration-300">
-                My Saved Searches
-              </Button>
-            }
           />
         </div>
       </div>

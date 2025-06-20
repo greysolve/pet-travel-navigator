@@ -1,160 +1,176 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Settings2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PetTypeFilter } from "../policy-filter/PetTypeFilter";
-import { TravelMethodFilter } from "../policy-filter/TravelMethodFilter";
-import { WeightFilter } from "../policy-filter/WeightFilter";
-import { BreedRestrictionsFilter } from "../policy-filter/BreedRestrictionsFilter";
-import { PetPolicyFilterParams, TravelMethodFilter as TravelMethodFilterType } from "@/types/policy-filters";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { PetPolicyFilterParams } from "@/types/policy-filters";
 
 interface AdvancedSearchPopoverProps {
   onApplyFilters: (filters: PetPolicyFilterParams) => void;
   activeFilters: PetPolicyFilterParams;
-  isLoading?: boolean;
+  isLoading: boolean;
   showAsExpanded?: boolean;
 }
 
-export const AdvancedSearchPopover = ({ 
-  onApplyFilters, 
-  activeFilters, 
-  isLoading = false,
+export const AdvancedSearchPopover = ({
+  onApplyFilters,
+  activeFilters = {},
+  isLoading,
   showAsExpanded = false
 }: AdvancedSearchPopoverProps) => {
   const [localFilters, setLocalFilters] = useState<PetPolicyFilterParams>(activeFilters);
 
-  useEffect(() => {
-    setLocalFilters(activeFilters);
-  }, [activeFilters]);
-
-  const handleFilterChange = (filterType: keyof PetPolicyFilterParams, value: any) => {
-    const newFilters = { ...localFilters, [filterType]: value };
+  const handleFilterChange = (key: keyof PetPolicyFilterParams, value: any) => {
+    const newFilters = { ...localFilters, [key]: value };
     setLocalFilters(newFilters);
-    onApplyFilters(newFilters);
+    if (showAsExpanded) {
+      onApplyFilters(newFilters);
+    }
   };
 
-  const FilterContent = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-      {/* Your Companion */}
-      <div className="bg-white p-5 rounded-lg border border-[#d4af37]">
-        <h4 className="text-lg font-semibold text-[#1a365d] mb-3 flex items-center gap-2">
-          🐕 Your Companion
-        </h4>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              checked={localFilters.petTypes?.includes('dog') || false}
-              onChange={(e) => {
-                const currentTypes = localFilters.petTypes || [];
-                const newTypes = e.target.checked 
-                  ? [...currentTypes.filter(t => t !== 'dog'), 'dog']
-                  : currentTypes.filter(t => t !== 'dog');
-                handleFilterChange('petTypes', newTypes.length > 0 ? newTypes : undefined);
-              }}
+  const applyFilters = () => {
+    onApplyFilters(localFilters);
+  };
+
+  const clearFilters = () => {
+    const clearedFilters = {};
+    setLocalFilters(clearedFilters);
+    onApplyFilters(clearedFilters);
+  };
+
+  const filterContent = (
+    <div className="space-y-6 p-4">
+      {/* Pet Size & Type */}
+      <div className="bg-white rounded-lg p-4 border-2 border-[#d4af37]">
+        <h4 className="font-semibold text-[#1a365d] mb-3 text-lg">🐕 Pet Size & Type</h4>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="small-dog"
+              checked={localFilters.petType === "small-dog"}
+              onCheckedChange={(checked) => 
+                handleFilterChange("petType", checked ? "small-dog" : undefined)
+              }
             />
-            <span className="font-medium text-[#8b0000]">Small Dog (Under 15lbs/7kg)</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              checked={localFilters.petTypes?.includes('large-dog') || false}
-              onChange={(e) => {
-                const currentTypes = localFilters.petTypes || [];
-                const newTypes = e.target.checked 
-                  ? [...currentTypes.filter(t => t !== 'large-dog'), 'large-dog']
-                  : currentTypes.filter(t => t !== 'large-dog');
-                handleFilterChange('petTypes', newTypes.length > 0 ? newTypes : undefined);
-              }}
+            <Label htmlFor="small-dog" className="text-[#1a365d]">
+              Small Dogs (Under 15lbs/7kg) - Cabin Only
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="cat"
+              checked={localFilters.petType === "cat"}
+              onCheckedChange={(checked) => 
+                handleFilterChange("petType", checked ? "cat" : undefined)
+              }
             />
-            <span className="font-medium text-[#2d5a87]">Large Dog (15lbs+/7kg+)</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              checked={localFilters.petTypes?.includes('cat') || false}
-              onChange={(e) => {
-                const currentTypes = localFilters.petTypes || [];
-                const newTypes = e.target.checked 
-                  ? [...currentTypes.filter(t => t !== 'cat'), 'cat']
-                  : currentTypes.filter(t => t !== 'cat');
-                handleFilterChange('petTypes', newTypes.length > 0 ? newTypes : undefined);
-              }}
+            <Label htmlFor="cat" className="text-[#1a365d]">
+              Cats (Cabin-Friendly Sizes)
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="other-pet"
+              checked={localFilters.petType === "other"}
+              onCheckedChange={(checked) => 
+                handleFilterChange("petType", checked ? "other" : undefined)
+              }
             />
-            <span className="font-medium text-[#2d5a87]">Cat</span>
-          </label>
+            <Label htmlFor="other-pet" className="text-[#8b0000]">
+              ⚠️ Large Dogs (Cargo/Special Handling)
+            </Label>
+          </div>
         </div>
       </div>
 
-      {/* Travel Style */}
-      <div className="bg-white p-5 rounded-lg border border-[#d4af37]">
-        <h4 className="text-lg font-semibold text-[#1a365d] mb-3 flex items-center gap-2">
-          ✈️ Travel Style
-        </h4>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              checked={localFilters.travelMethod?.cabin || false}
-              onChange={(e) => {
-                const currentMethod = localFilters.travelMethod as TravelMethodFilterType || { cabin: true, cargo: true };
-                handleFilterChange('travelMethod', { ...currentMethod, cabin: e.target.checked });
-              }}
+      {/* Travel Method */}
+      <div className="bg-white rounded-lg p-4 border-2 border-[#d4af37]">
+        <h4 className="font-semibold text-[#1a365d] mb-3 text-lg">✈️ Travel Method</h4>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="cabin"
+              checked={localFilters.travelMethod === "cabin"}
+              onCheckedChange={(checked) => 
+                handleFilterChange("travelMethod", checked ? "cabin" : undefined)
+              }
             />
-            <span className="font-medium text-[#8b0000]">Cabin Only (With You)</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              checked={localFilters.travelMethod?.cargo || false}
-              onChange={(e) => {
-                const currentMethod = localFilters.travelMethod as TravelMethodFilterType || { cabin: true, cargo: true };
-                handleFilterChange('travelMethod', { ...currentMethod, cargo: e.target.checked });
-              }}
+            <Label htmlFor="cabin" className="text-[#1a365d]">
+              Cabin Travel (Recommended)
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="cargo"
+              checked={localFilters.travelMethod === "cargo"}
+              onCheckedChange={(checked) => 
+                handleFilterChange("travelMethod", checked ? "cargo" : undefined)
+              }
             />
-            <span className="font-medium text-[#2d5a87]">Cargo (Not Recommended)</span>
-          </label>
+            <Label htmlFor="cargo" className="text-[#8b0000]">
+              ⚠️ Cargo Travel (Not Recommended)
+            </Label>
+          </div>
         </div>
       </div>
 
-      {/* Service Level */}
-      <div className="bg-white p-5 rounded-lg border border-[#d4af37]">
-        <h4 className="text-lg font-semibold text-[#1a365d] mb-3 flex items-center gap-2">
-          🏆 Service Level
-        </h4>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              checked={localFilters.includeBreedRestrictions !== false}
-              onChange={(e) => {
-                handleFilterChange('includeBreedRestrictions', e.target.checked);
-              }}
+      {/* Special Requirements */}
+      <div className="bg-white rounded-lg p-4 border-2 border-[#d4af37]">
+        <h4 className="font-semibold text-[#1a365d] mb-3 text-lg">⭐ Special Requirements</h4>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="emotional-support"
+              checked={localFilters.requiresDocumentation === true}
+              onCheckedChange={(checked) => 
+                handleFilterChange("requiresDocumentation", checked || undefined)
+              }
             />
-            <span className="font-medium text-[#8b0000]">Pet-Friendly Airlines Only</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              className="w-4 h-4 accent-[#d4af37]"
-              disabled
+            <Label htmlFor="emotional-support" className="text-[#8b0000]">
+              📋 ESA/Service Animal Documentation Required
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="breed-restrictions"
+              checked={localFilters.hasBreedRestrictions === false}
+              onCheckedChange={(checked) => 
+                handleFilterChange("hasBreedRestrictions", checked ? false : undefined)
+              }
             />
-            <span className="font-medium text-[#8b0000]">Include Luxury Hotel Options</span>
-          </label>
+            <Label htmlFor="breed-restrictions" className="text-[#1a365d]">
+              🚫 No Breed Restrictions
+            </Label>
+          </div>
         </div>
       </div>
+
+      {!showAsExpanded && (
+        <div className="flex gap-2 pt-4">
+          <Button 
+            onClick={applyFilters} 
+            className="flex-1 bg-[#d4af37] hover:bg-[#f4d03f] text-[#1a365d] font-bold"
+            disabled={isLoading}
+          >
+            Apply Filters
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={clearFilters}
+            className="border-[#d4af37] text-[#1a365d] hover:bg-[#f7f1e8]"
+            disabled={isLoading}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
     </div>
   );
 
   if (showAsExpanded) {
-    return <FilterContent />;
+    return filterContent;
   }
 
   return (
@@ -162,15 +178,14 @@ export const AdvancedSearchPopover = ({
       <PopoverTrigger asChild>
         <Button 
           variant="outline" 
-          className="border-[#d4af37] text-[#1a365d] hover:bg-[#f7f1e8]"
+          className="border-[#d4af37] text-[#1a365d] hover:bg-[#f7f1e8] font-bold"
           disabled={isLoading}
         >
-          <Settings2 className="mr-2 h-4 w-4" />
           Advanced Filters
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-6 bg-gradient-to-br from-[#f7f1e8] to-[#ede0d3] border-2 border-[#d4af37]">
-        <FilterContent />
+      <PopoverContent className="w-96 max-h-[80vh] overflow-y-auto">
+        {filterContent}
       </PopoverContent>
     </Popover>
   );
