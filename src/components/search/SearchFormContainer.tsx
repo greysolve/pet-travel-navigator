@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { SearchFormHeader } from "./SearchFormHeader";
 import { PolicySearchForm } from "./forms/PolicySearchForm";
@@ -45,13 +46,12 @@ export const SearchFormContainer = ({
   onApplyFilters
 }: FormContainerProps) => {
   
-  // Simple loading condition
   const isFormLoading = isLoading;
 
   return (
-    <div className="relative max-w-3xl mx-auto px-4 -mt-28 z-10">
+    <div className="relative max-w-4xl mx-auto px-4 -mt-10 z-10">
       <div className={cn(
-        "bg-white shadow-xl rounded-xl p-6 space-y-6",
+        "bg-gradient-to-br from-white to-[#f8f5f0] shadow-[0_20px_50px_rgba(26,54,93,0.2)] rounded-3xl p-10 border-4 border-[#d4af37]",
         isFormLoading && "opacity-75"
       )}>
         {isFormLoading && !user ? (
@@ -68,6 +68,16 @@ export const SearchFormContainer = ({
           </>
         ) : (
           <>
+            {/* Search Header */}
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-serif font-semibold text-[#1a365d] mb-3">
+                Find Your Perfect Flight Together
+              </h2>
+              <p className="text-xl text-[#8b0000] italic font-serif">
+                We only show airlines that welcome your baby in the cabin with you
+              </p>
+            </div>
+
             <SearchFormHeader
               user={user}
               isPetCaddie={isPetCaddie}
