@@ -96,107 +96,119 @@ export const RouteSearch = ({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="relative">
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Origin (city or airport code)"
-            className="h-12 text-base pl-10 border-gray-300"
-            value={origin}
-            onChange={(e) => {
-              const value = e.target.value;
-              setOrigin(value);
-              fetchAirports(value);
-              setShowOriginSuggestions(true);
-            }}
-            onFocus={() => {
-              setShowOriginSuggestions(true);
-              handleInputFocus();
-            }}
-            onBlur={() => {
-              setTimeout(() => setShowOriginSuggestions(false), 200);
-            }}
-            disabled={isLoading || disabled}
-          />
-          <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground" />
-        </div>
-        {showOriginSuggestions && airports.length > 0 && (
-          <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
-            {isSearching ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span>Searching airports...</span>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="flex flex-col">
+          <label className="text-lg font-semibold text-[#1a365d] mb-2 font-serif flex items-center gap-2">
+            🛫 From
+          </label>
+          <div className="relative">
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Origin city or airport code"
+                className="text-lg py-4 px-4 pl-12 border-2 border-[#e2e8f0] rounded-lg bg-white focus:border-[#d4af37] focus:ring-3 focus:ring-[rgba(212,175,55,0.2)] transition-all duration-300"
+                value={origin}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setOrigin(value);
+                  fetchAirports(value);
+                  setShowOriginSuggestions(true);
+                }}
+                onFocus={() => {
+                  setShowOriginSuggestions(true);
+                  handleInputFocus();
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowOriginSuggestions(false), 200);
+                }}
+                disabled={isLoading || disabled}
+              />
+              <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground" />
+            </div>
+            {showOriginSuggestions && airports.length > 0 && (
+              <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span>Searching airports...</span>
+                  </div>
+                ) : (
+                  <ul className="max-h-60 overflow-auto py-1">
+                    {airports.map((airport) => (
+                      <li
+                        key={airport.iata_code}
+                        className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
+                        onClick={() => {
+                          setOrigin(airport.iata_code);
+                          setShowOriginSuggestions(false);
+                        }}
+                      >
+                        {formatAirportDisplay(airport)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            ) : (
-              <ul className="max-h-60 overflow-auto py-1">
-                {airports.map((airport) => (
-                  <li
-                    key={airport.iata_code}
-                    className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
-                    onClick={() => {
-                      setOrigin(airport.iata_code);
-                      setShowOriginSuggestions(false);
-                    }}
-                  >
-                    {formatAirportDisplay(airport)}
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className="relative">
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Destination (city or airport code)"
-            className="h-12 text-base pl-10 border-gray-300"
-            value={destination}
-            onChange={(e) => {
-              const value = e.target.value;
-              setDestination(value);
-              fetchAirports(value);
-              setShowDestinationSuggestions(true);
-            }}
-            onFocus={() => {
-              setShowDestinationSuggestions(true);
-              handleInputFocus();
-            }}
-            onBlur={() => {
-              setTimeout(() => setShowDestinationSuggestions(false), 200);
-            }}
-            disabled={isLoading || disabled}
-          />
-          <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground rotate-90" />
-        </div>
-        {showDestinationSuggestions && airports.length > 0 && (
-          <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
-            {isSearching ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span>Searching airports...</span>
+        <div className="flex flex-col">
+          <label className="text-lg font-semibold text-[#1a365d] mb-2 font-serif flex items-center gap-2">
+            🛬 To
+          </label>
+          <div className="relative">
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Destination city or airport code"
+                className="text-lg py-4 px-4 pl-12 border-2 border-[#e2e8f0] rounded-lg bg-white focus:border-[#d4af37] focus:ring-3 focus:ring-[rgba(212,175,55,0.2)] transition-all duration-300"
+                value={destination}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDestination(value);
+                  fetchAirports(value);
+                  setShowDestinationSuggestions(true);
+                }}
+                onFocus={() => {
+                  setShowDestinationSuggestions(true);
+                  handleInputFocus();
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowDestinationSuggestions(false), 200);
+                }}
+                disabled={isLoading || disabled}
+              />
+              <Plane className="h-5 w-5 absolute left-3 top-3.5 text-muted-foreground rotate-90" />
+            </div>
+            {showDestinationSuggestions && airports.length > 0 && (
+              <div className="absolute z-20 w-full mt-1 bg-white rounded-md shadow-lg">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span>Searching airports...</span>
+                  </div>
+                ) : (
+                  <ul className="max-h-60 overflow-auto py-1">
+                    {airports.map((airport) => (
+                      <li
+                        key={airport.iata_code}
+                        className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
+                        onClick={() => {
+                          setDestination(airport.iata_code);
+                          setShowDestinationSuggestions(false);
+                        }}
+                      >
+                        {formatAirportDisplay(airport)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            ) : (
-              <ul className="max-h-60 overflow-auto py-1">
-                {airports.map((airport) => (
-                  <li
-                    key={airport.iata_code}
-                    className="px-4 py-2 hover:bg-accent cursor-pointer text-left"
-                    onClick={() => {
-                      setDestination(airport.iata_code);
-                      setShowDestinationSuggestions(false);
-                    }}
-                  >
-                    {formatAirportDisplay(airport)}
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

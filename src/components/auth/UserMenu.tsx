@@ -41,41 +41,43 @@ export const UserMenu = ({ profile, userRole, onSignOut }: UserMenuProps) => {
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="bg-sky-100 hover:bg-sky-200 flex items-center gap-2"
+          className="bg-[#1a365d] hover:bg-[#2d5a87] border-[#d4af37] text-[#f7f1e8] hover:text-[#f7f1e8] flex items-center gap-2"
         >
           <Avatar className="h-6 w-6">
             <AvatarImage src={profile?.avatar_url} />
-            <AvatarFallback>{getInitials()}</AvatarFallback>
+            <AvatarFallback className="bg-[#d4af37] text-[#1a365d] text-xs font-bold">
+              {getInitials()}
+            </AvatarFallback>
           </Avatar>
           {getFirstName()}
           <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => handleNavigation("home")}>
+      <DropdownMenuContent align="end" className="w-48 bg-white border-2 border-[#d4af37] shadow-lg">
+        <DropdownMenuItem onClick={() => handleNavigation("home")} className="hover:bg-[#f7f1e8] text-[#1a365d]">
           Pet Flight Search
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleNavigation("pricing")}>
+        <DropdownMenuItem onClick={() => handleNavigation("pricing")} className="hover:bg-[#f7f1e8] text-[#1a365d]">
           Manage Subscription
         </DropdownMenuItem>
         {userRole === "site_manager" && (
-          <DropdownMenuItem onClick={() => handleNavigation("admin")}>
+          <DropdownMenuItem onClick={() => handleNavigation("admin")} className="hover:bg-[#f7f1e8] text-[#1a365d]">
             Manage
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => handleNavigation("profile")}>
+        <DropdownMenuItem onClick={() => handleNavigation("profile")} className="hover:bg-[#f7f1e8] text-[#1a365d]">
           My Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleNavigation("pets")}>
+        <DropdownMenuItem onClick={() => handleNavigation("pets")} className="hover:bg-[#f7f1e8] text-[#1a365d]">
           My Pets
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleNavigation("contact")} className="flex items-center gap-2">
+        <DropdownMenuItem onClick={() => handleNavigation("contact")} className="flex items-center gap-2 hover:bg-[#f7f1e8] text-[#1a365d]">
           <Mail className="h-4 w-4" />
           Contact Us
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onSignOut}>
+        <DropdownMenuItem onClick={onSignOut} className="hover:bg-[#f7f1e8] text-[#1a365d]">
           Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -1,34 +1,73 @@
 
+import { useUser } from "@/contexts/user/UserContext";
+
 export const HeroSection = () => {
+  const { user } = useUser();
+
   return (
-    <div className="relative bg-gradient-to-r from-primary to-secondary py-24 pb-32">
-      <div className="container relative mx-auto px-4">
-        <div className="flex flex-col items-center text-center">
-          <div className="relative mb-3">
-            <div className="absolute -left-60 -top-10 hidden md:block">
-              <img 
-                src="/lovable-uploads/4fa0e6bf-3de6-410b-923b-207269a120a1.png" 
-                alt="Petjumper.com Logo" 
-                className="h-40 w-40 object-contain"
-              />
+    <>
+      {/* Header */}
+      <header className="bg-gradient-to-r from-[#1a365d] to-[#2d5a87] text-[#f7f1e8] py-4 shadow-[0_4px_15px_rgba(26,54,93,0.3)]">
+        <div className="max-w-6xl mx-auto px-5 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#d4af37] to-[#f4d03f] rounded-full flex items-center justify-center text-2xl text-[#1a365d] font-bold">
+              ✈️
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold text-primary-foreground">Petjumper.com</h1>
+            <div className="text-3xl font-bold text-[#d4af37] font-serif">
+              PetJumper Premium
+            </div>
           </div>
           
-          <p className="text-xl md:text-2xl text-primary-foreground/90 max-w-2xl mx-auto mb-8">
-            Find pet-friendly flights for your furry travel companion
-          </p>
-          
-          <div className="flex gap-8 mt-2 mb-8">
-            <a href="/us-pet-travel" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4 text-lg">
-              US Pet Travel
-            </a>
-            <a href="/eu-pet-passport" className="text-primary-foreground/90 hover:text-primary-foreground underline underline-offset-4 text-lg">
-              EU Pet Passport
-            </a>
+          {user && (
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-[#d4af37] rounded-full flex items-center justify-center text-[#1a365d] font-bold">
+                {user.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <span className="text-[#f7f1e8]">
+                {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+              </span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-br from-[#1a365d] via-[#2d5a87] to-[#8b0000] text-[#f7f1e8] py-16 text-center">
+        {/* Luxury Pattern Overlay */}
+        <div 
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400'><defs><pattern id='luxury' x='0' y='0' width='80' height='80' patternUnits='userSpaceOnUse'><circle cx='40' cy='40' r='1.5' fill='%23d4af37' opacity='0.3'/></pattern></defs><rect width='1200' height='400' fill='url(%23luxury)'/></svg>")`
+          }}
+        />
+        
+        <div className="container relative mx-auto px-4 z-10">
+          <div className="flex flex-col items-center text-center">
+            <h1 className="text-5xl md:text-6xl font-light text-[#f7f1e8] mb-4 font-serif leading-tight">
+              Cabin-Only Airlines for Dogs Under 15lbs (7kg)
+            </h1>
+            
+            <p className="text-2xl text-[#d4af37] mb-8 font-serif italic">
+              Premium Travel Search for Discerning Small Dog Parents
+            </p>
+            
+            <div className="flex flex-col md:flex-row gap-6 mt-8">
+              <a 
+                href="/us-pet-travel" 
+                className="px-6 py-3 border-2 border-[#d4af37] rounded-lg text-[#d4af37] hover:bg-[#d4af37] hover:text-[#1a365d] transition-all duration-300 font-bold bg-[rgba(212,175,55,0.1)]"
+              >
+                US Premium Travel
+              </a>
+              <a 
+                href="/eu-pet-passport" 
+                className="px-6 py-3 border-2 border-[#d4af37] rounded-lg text-[#d4af37] hover:bg-[#d4af37] hover:text-[#1a365d] transition-all duration-300 font-bold bg-[rgba(212,175,55,0.1)]"
+              >
+                EU Pet Passport
+              </a>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
