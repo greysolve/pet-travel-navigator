@@ -27,10 +27,8 @@ const Index = () => {
     setApiError(error);
   };
   
-  // Safe scrolling effect that runs after the state updates and component re-renders
   useEffect(() => {
     if (searchPerformed && (flights.length > 0 || (petPolicies && Object.keys(petPolicies).length > 0))) {
-      // Small timeout to ensure DOM is fully updated
       setTimeout(() => {
         const resultsElement = document.getElementById('search-results');
         if (resultsElement) {
@@ -44,7 +42,7 @@ const Index = () => {
   }, [searchPerformed, flights, petPolicies]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#f7f1e8_0%,#ede0d3_100%)] font-serif">
       <HeroSection />
       <SearchSection onSearchResults={handleSearchResults} />
       <ResultsSection 
